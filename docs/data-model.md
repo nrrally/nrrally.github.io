@@ -69,6 +69,7 @@ The public projection adds `finalityUnclear` for AI-imported rounds whose status
 | `contact` | `{email, note}` | Shown on the Info page. An empty email is hidden. |
 | `repo` | `{owner, name, branch}` | Not used any more (it was used when the data was kept on GitHub). It isn't published. |
 | `activeRally` | optional `{enabled, name, url, activationId}` | Manually controlled public active-event warning. Absent means disabled. Included in `public/site`. |
+| `analytics` | optional `{enabled, measurementId}` | Optional public GA4 background tracking. Absent means disabled. Included in `public/site`. |
 
 `activeRally.enabled` is a boolean, `name` is at most 120 characters (non-empty when enabled),
 and `url` must be HTTPS on exactly `nrcsa.co.za` or `www.nrcsa.co.za`, without credentials or
@@ -84,6 +85,21 @@ Unchanged active settings retain their ID on unrelated publications. Restoring a
 without this field disables the notice only when published; review that site diff deliberately.
 Concurrent site edits conflict rather than overwrite; unrelated-document rebase retains the
 latest site settings. No collection, Firestore rule, result or scoring change is involved.
+
+`analytics.enabled` must be a boolean. `measurementId` must be a string matching `G-` followed
+by exactly 10 uppercase ASCII letters or digits; an empty string is allowed only when disabled.
+Unknown fields, non-GA4 IDs, whitespace and malformed values block publication, including after
+revision rebase or backup restore. Validation messages do not echo supplied IDs. No real ID belongs
+in source, fixtures, documentation or development logs. The Measurement ID is public in the
+published settings and browsers; it does not grant account or database access.
+
+Analytics uses the same whole-site staged editing, atomic working/public/revision/History commit,
+backup and undo as other site settings. Database History intentionally retains the site's before/after
+settings, including the ID, and attributes publication to the signed-in admin. Same-site edits
+conflict; unrelated-document rebase retains and validates the latest configuration. Restoring a
+legacy backup removes analytics only when published; undo can restore its previous configuration.
+No migration, live initial write, new collection or Firestore rule is required. Old tabs read changes
+only on refresh. Visitors' `nr-analytics-choice` (`on`/`off`) is browser-local, never a database setting.
 
 ## people.json
 

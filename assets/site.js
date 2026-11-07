@@ -182,7 +182,7 @@
     var social = (ST.site.social || []).filter(function (s) { return safeUrl(s.url); });
     return '<footer class="footer"><div class="footer-inner"><span>' + esc(D.championship) + ' · Independently compiled, source-derived information.</span>' +
       '<span class="footer-links">' + social.map(function (s) { return ext(s.url, socialIcon(s.network) + '<span class="sr-only">' + esc(s.label) + '</span>', 'soc-mini'); }).join('') +
-      '<a href="#/info">Info &amp; regulations</a><a href="' + sh('/about') + '">Sources &amp; data notes</a><a href="disclaimer.html">Independence &amp; disclaimer</a></span></div></footer>';
+      '<a href="#/info">Info &amp; regulations</a><a href="' + sh('/about') + '">Sources &amp; data notes</a><a href="disclaimer.html">Independence &amp; disclaimer</a><a href="privacy.html">Privacy &amp; analytics</a></span></div></footer>';
   }
 
   /* ------------------------------------------------------------------ render */
@@ -232,6 +232,7 @@
     mounts.forEach(function (fn) { fn(); });
     window.scrollTo(0, keepScroll);
     lastPath = pathKey;
+    if (window.NRAnalytics) window.NRAnalytics.page(h.parts, YEAR);
   }
   function showLoadError(err) {
     var kind = err && err.kind, title = kind === 'empty' ? 'Results coming soon' : kind === 'setup' ? 'Site not connected yet' : 'Results are temporarily unavailable';
@@ -990,7 +991,7 @@
     }
     var ct = S.contact || {};
     html += '<div class="section"><div class="section-head"><h2>Contact</h2></div><div class="card"><p style="margin:0">' + esc(ct.note || '') + '</p>' + (ct.email ? '<p style="margin:10px 0 0"><a class="btn" href="mailto:' + esc(ct.email) + '">' + socialIcon('email') + esc(ct.email) + '</a></p>' : '') +
-      '<p class="small muted" style="margin:12px 0 0">How results are handled: <a href="' + sh('/about') + '">sources &amp; data notes</a> and <a href="disclaimer.html">independence &amp; disclaimer</a>.</p></div></div>';
+      '<p class="small muted" style="margin:12px 0 0">How results are handled: <a href="' + sh('/about') + '">sources &amp; data notes</a> and <a href="disclaimer.html">independence &amp; disclaimer</a>. <a href="privacy.html">Privacy &amp; analytics choices</a>.</p></div></div>';
     return { title: 'Info', html: html };
   }
 

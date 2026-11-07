@@ -10,6 +10,7 @@
 | Start a new season | Once a year | Admin → AI Import for reviewed bulk setup from official regulations; or Dashboard → Start the next season for manual setup. Follow the AI Import section in the data entry guide. |
 | Make the new season the default | When it starts | Admin → Season settings → Open the public site on <year> |
 | Direct visitors to an active rally | When entries open, by explicit admin decision | Admin → Site & info → Rally in progress: name, official HTTPS NRC address, enable, then Review & publish. Disable and publish when the active period ends. |
+| Configure optional Google Analytics | After compatible code deployment and GA stream setup | Site & info → Google Analytics 4: enter the Measurement ID, enable, Review & publish. Disable and publish to stop new visits tracking. Follow setup below. |
 | Back up | Monthly, and before big changes | Admin → Dashboard → Backups → Download a backup. Save it in the private project archive. |
 | Check the data | After a big change, or before a handover | `node tools/validate.js <backup.json>` and `node tools/report.js <year> <backup.json>` |
 | Add or remove an admin | As needed | Admin → Site & info → Admins (takes effect immediately) |
@@ -29,7 +30,7 @@ V4 is the maintained baseline. GitHub Pages serves code only; Firestore is the o
 
 Deleting files from the current tree does not remove earlier commits, tags, forks, cached pages or downloaded copies. Historical cleanup and live cutover need a separately coordinated plan; do not restore v1-v3 to roll back a code change.
 
-For the active-rally notice, deploy the coordinated `rally-1` HTML, scripts and styles before
+For the active-rally notice and analytics, deploy the coordinated `ga-1` HTML, scripts and styles before
 enabling it. Existing settings without `activeRally` remain disabled; no Firestore migration,
 entry backfill, auth/domain change or rules publication is needed. Never enable a rally as
 part of a code release without an explicit admin decision. After an intended enable/publish,
@@ -37,6 +38,79 @@ check a fresh session, **View past results**, another public route, the disclaim
 An already open tab needs a refresh to read changed settings. Restoring an older backup can
 remove active settings; review the Site & info diff before publishing. Do not roll back to an
 older editor while this feature is in use.
+
+## Google Analytics 4
+
+Keep this separate from Firebase project creation, authentication and database rules. No Google
+credentials, Measurement ID, stream ID or GA account data need to be committed. The stream ID is
+not the Measurement ID used by the website. The Measurement ID is publicly visible to visitors,
+not a secret or an authorization token.
+
+1. Sign in yourself at [Google Analytics](https://analytics.google.com/) with the intended Google
+   account. An old account can be reused, but create a **fresh GA4 property** rather than reusing
+   an old Universal Analytics tracker. In **Admin → Create → Property**, choose a name, South Africa
+   reporting time zone and ZAR currency as appropriate. Complete Google's property setup and terms.
+   A separate Analytics account is optional; use **Create → Account** if separation is wanted.
+2. Under **Admin → Data collection and modification → Data streams**, add a **Web** stream for
+   the canonical HTTPS site URL and choose a stream name. Do not add an app stream or link/change
+   the existing Firebase project. Copy the web stream's **Measurement ID**, beginning `G-`.
+3. **Before enabling the site, switch off Enhanced Measurement** for this stream. Ensure
+   **Page views → Show advanced settings → Page changes based on browser history events** is off.
+   Keep site search, scroll, outbound clicks, downloads, video and form interactions off as well.
+   `send_page_view:false` in code suppresses config's initial view, but does **not** suppress
+   Enhanced Measurement history events. Do not add another tag/snippet, Tag Manager container,
+   connected advertising destination or custom automatic event configuration. Leave Google
+   Signals, user-provided data collection and advertising personalization off in the property.
+   Review data sharing and retention for the intended purpose.
+4. Deploy the compatible code, including `privacy.html`, before entering the ID. Check results,
+   Info/footer privacy links, admin and active-rally notice. With no analytics settings, there
+   must be no requests to Google Analytics or Google Tag Manager.
+5. In the site's **Site & info → Google Analytics 4**, enter the Measurement ID, enable, then
+   **Review & publish**. Review the site diff; this atomically publishes settings and records
+   attributed History. Changing the ID or disabling later uses the same flow. No database
+   migration, auth/domain change or rules update is needed. Existing tabs need a refresh.
+   Background loading plus opt-out is the selected behavior, not a consent/compliance guarantee.
+   Review applicable requirements with suitable advice before enabling for the audience.
+
+### Safe live verification (after deployment and intended enable)
+
+Use only your own browser, ordinary public routes and synthetic navigation text; never enter
+names, email addresses, tokens or other private information into a verification URL. Confirm
+Enhanced Measurement is off first. Do not test with a real ID in local synthetic fixtures.
+
+- In a fresh browser session without an analytics-blocking extension, open the public site, then
+  **GA → Reports → Realtime** for the new property. Navigate Home → Standings → Info → Privacy.
+  Realtime should show the generic titles/categories after processing; standard reports can take
+  24-48 hours. Realtime alone is not proof that payloads are safe or views are not duplicated.
+- In browser DevTools Network, inspect the `gtag/js` load and GA `g/collect` requests. Check
+  `page_view` counts: one per initial rendered route and route change, none for filter/query-only
+  changes. `dl` should contain only a synthetic category URL such as `/#/standings/drivers`,
+  `dt` a generic title, and `dr` no referrer. No person/round identifier, query or search text
+  should be present. Automatic session/engagement events may still appear. Never export private
+  browsing URLs or the configured ID into source, public screenshots or development logs.
+- On **Privacy & analytics**, turn analytics off. It reloads, clears accessible `_ga` cookies
+  and saves the browser-local choice. Refresh and navigate again, including another tab: there
+  should be no further tag/collection requests. Allow it again to reverse the preference. A
+  request already sent cannot be recalled; GA's stored data is not deleted by this control.
+- Verify `/admin/` has no analytics requests. Disable analytics in Site & info and publish;
+  a fresh public load must make no GA requests even in a browser that previously allowed it.
+  Blocking Google hosts must not break results, the active-rally reminder or the privacy page.
+
+If there is no Realtime activity, check the selected property/stream, enabled published settings,
+browser opt-out, blockers and Network/CSP errors. Don't relax CSP broadly or enable advertising
+features to make a test pass. This integration permits `www.googletagmanager.com` scripts and
+`www.google-analytics.com`/`region1.google-analytics.com` connections only; provider endpoint changes
+need a reviewed code update. Local tests mock the tag and collector and cannot certify Google's
+actual runtime or property configuration.
+
+Restoring an older backup without `analytics` disables it only after publishing. Undo can restore
+previous settings, including a previous ID or enabled state; review that deliberately. Do not
+roll back to an older editor while analytics settings are in use. Emergency disable takes effect
+for newly loaded/refreshed pages, not already-open pages that have cached published settings.
+
+Sources: [Google setup](https://support.google.com/analytics/answer/9304153),
+[Enhanced Measurement](https://support.google.com/analytics/answer/9216061),
+[manual pageviews and history caveat](https://developers.google.com/analytics/devguides/collection/ga4/views).
 
 ## Access
 

@@ -298,6 +298,8 @@ td.fastest { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); 
 .site-disclosure { border-block-start: 1px solid var(--line); }
 .site-disclosure p { max-width: 1200px; margin: 0 auto; padding: 16px 20px 24px; color: var(--ink-2); font-size: 12px; line-height: 1.7; }
 .site-disclosure strong { color: var(--ink); }
+.analytics-toggle { border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 6px 10px; margin: 4px 6px; cursor: pointer; }
+.analytics-toggle:hover { border-color: var(--ink-2); }
 .disclaimer-main { max-width: 920px; }
 .disclaimer-main .prose { max-width: 78ch; }
 .disclaimer-main .page-head { padding-block: 20px; border-block-end: 1px solid var(--line); }

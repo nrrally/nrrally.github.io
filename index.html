@@ -4,22 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://firestore.googleapis.com; base-uri 'self'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://firestore.googleapis.com https://www.google-analytics.com https://region1.google-analytics.com; base-uri 'self'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <meta name="description" content="Independent Northern Regions rally results, source-derived standings, crew profiles and stage graphs. Consult NRC South Africa and Motorsport South Africa for official information.">
 <meta name="theme-color" content="#14161a">
 <title>Northern Regions Rally</title>
 <link rel="icon" type="image/svg+xml" href="assets/brand.svg">
-<link rel="stylesheet" href="assets/styles.css?v=rally-1">
-<link rel="stylesheet" href="assets/rally-notice.css?v=rally-1">
+<link rel="stylesheet" href="assets/styles.css?v=ga-1">
+<link rel="stylesheet" href="assets/rally-notice.css?v=ga-1">
 </head>
 <body>
 <div id="app"><noscript><p style="padding:24px;font-family:system-ui">This site needs JavaScript switched on to show the results and graphs.</p></noscript></div>
 <aside class="site-disclosure" aria-label="Independent site disclosure">
-  <p><strong>Independent rally archive.</strong> Results are transcribed from official classification documents, normally final; provisional or unclear sources are labelled. Standings and graphs are derived here. For official decisions or any discrepancy, consult <a href="https://nrcsa.co.za/">NRC South Africa</a> and <a href="https://motorsport.co.za/">Motorsport South Africa</a>, not this site. <a href="disclaimer.html">Full disclaimer</a>.</p>
+  <p><strong>Independent rally archive.</strong> Results are transcribed from official classification documents, normally final; provisional or unclear sources are labelled. Standings and graphs are derived here. For official decisions or any discrepancy, consult <a href="https://nrcsa.co.za/">NRC South Africa</a> and <a href="https://motorsport.co.za/">Motorsport South Africa</a>, not this site. <a href="disclaimer.html">Full disclaimer</a>. <a href="privacy.html">Privacy &amp; analytics</a>.</p>
 </aside>
 <script src="assets/firebase-config.js"></script>
-<script src="assets/engine.js?v=rally-1"></script>
-<script src="assets/rally-notice.js?v=rally-1"></script>
-<script src="assets/site.js?v=rally-1"></script>
+<script src="assets/engine.js?v=ga-1"></script>
+<script src="assets/rally-notice.js?v=ga-1"></script>
+<script src="assets/analytics.js?v=ga-1"></script>
+<script src="assets/site.js?v=ga-1"></script>
 </body>
 </html>

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en-ZA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.googletagmanager.com; style-src 'self'; img-src 'self'; connect-src https://firestore.googleapis.com https://www.google-analytics.com https://region1.google-analytics.com; base-uri 'self'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Privacy and optional Google Analytics on the independent Northern Regions rally archive, with a saved browser opt-out.">
+<title>Privacy &amp; analytics - Northern Regions Rally</title>
+<link rel="icon" type="image/svg+xml" href="assets/brand.svg">
+<link rel="stylesheet" href="assets/styles.css?v=ga-1">
+<link rel="stylesheet" href="assets/rally-notice.css?v=ga-1">
+</head>
+<body data-disclaimer data-privacy>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="checker" aria-hidden="true"></div>
+  <div class="header-inner">
+    <a class="brand" href="index.html#/">
+      <img class="brand-mark" src="assets/brand.svg" alt="" width="40" height="40">
+      <span class="brand-text"><strong>Northern Regions Rally</strong><span>Independent rally archive</span></span>
+    </a>
+    <nav class="nav" aria-label="Main"><a href="index.html#/info">Site info</a><a href="index.html#/">Results site</a></nav>
+  </div>
+</header>
+<main id="main" class="disclaimer-main">
+  <div class="page-head"><div><p class="eyebrow">Your browser, your choice</p><h1>Privacy &amp; analytics</h1><p>Optional background analytics. No privacy popup.</p></div></div>
+  <div class="prose">
+    <h2>Your analytics choice</h2>
+    <p>When enabled by the site administrator, Google Analytics 4 loads automatically in the background on public pages to help understand how the archive is used. Use this control to turn it off or allow it again. Your choice is saved in this browser's local storage until you change it or clear site storage. It does not carry across browsers or devices. If storage cannot be read, analytics stays off. If a choice cannot be saved, it stays off on the current page and the control warns you; check your choice again after reloading. With JavaScript disabled, analytics does not run.</p>
+    <p><button class="analytics-toggle" id="analyticsToggle" type="button" disabled>Turn off analytics</button> <span id="analyticsStatus" role="status">JavaScript is needed to change the saved browser preference.</span></p>
+    <h2>Cookies &amp; information sent to Google</h2>
+    <p>Analytics can set first-party <code>_ga</code> and <code>_ga_...</code> cookies to distinguish browsers and sessions, with a configured lifetime of up to one year, renewed on use. Google receives generic page categories, fixed page titles and technical information such as browser/device details and cookie identifiers; network requests necessarily expose your IP address to Google for processing. GA4 says it does not log or store individual IP addresses. This site does not deliberately send names, crew/profile identifiers, account information, search text, URL query strings or referrers, and does not load analytics in the admin. Advertising features are not enabled by this integration.</p>
+    <p>Turning analytics off stops new tracking in this browser, removes this site's accessible GA cookies and reloads the page to unload Google's script. It cannot retract requests already sent or delete information already held by Google. The site can still read its public results database, save your theme preference and remember an active-rally notice dismissal; these are separate from analytics. A failed analytics load never prevents browsing results.</p>
+    <h2>Google's data practices &amp; contact</h2>
+    <p>Google processes analytics data under its <a href="https://policies.google.com/privacy">Privacy Policy</a>; see <a href="https://support.google.com/analytics/answer/6004245">Google Analytics data practices</a> and <a href="https://support.google.com/analytics/answer/12017362">GA4 privacy information</a>. You can also use <a href="https://tools.google.com/dlpage/gaoptout">Google's browser opt-out add-on</a>. Contact the maintainer through <a href="index.html#/info">Site info</a> about this site's use of analytics. Automatic loading and a browser opt-out do not establish consent or guarantee legal compliance; requirements can differ by visitor location.</p>
+    <p>This is an independently maintained archive, not an official event portal. See the <a href="disclaimer.html">independence &amp; disclaimer</a> for source and sporting limitations.</p>
+  </div>
+</main>
+<footer class="site-disclosure">
+  <p><a href="index.html#/info">Site info</a> &middot; <a href="index.html#/">Back to results</a> &middot; <a href="disclaimer.html">Independence &amp; disclaimer</a> &middot; <a href="privacy.html">Privacy &amp; analytics</a></p>
+</footer>
+<script src="assets/firebase-config.js"></script>
+<script src="assets/engine.js?v=ga-1"></script>
+<script src="assets/rally-notice.js?v=ga-1"></script>
+<script src="assets/analytics.js?v=ga-1"></script>
+</body>
+</html>

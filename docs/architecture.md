@@ -18,10 +18,11 @@ Cloud Firestore (Firebase project, region africa-south1 Johannesburg)
 Admin page (https://nrrally.github.io/admin/)
 ```
 
-Two providers are involved, and there's no application server:
+Hosting and data use two providers, with optional public analytics and no application server:
 
 - **GitHub** (organisation `nrrally`) stores and serves the code. It holds no results or personal data.
 - **Firebase** (a Google Cloud project on the free Spark plan) provides Google sign-in (Firebase Authentication) and the database (Cloud Firestore).
+- **Google Analytics 4**, if explicitly enabled in published settings, measures generic public page categories. It is separate from Firebase Analytics.
 
 ## Parts
 
@@ -30,6 +31,7 @@ Two providers are involved, and there's no application server:
 | Engine | `assets/engine.js` | Pure functions shared by the site, admin and Node tools: time parsing, name matching and look-alike detection, the season model (points, classes, standings, stage progressions, crew histories), checks, and the importers for pasted PDF text (known layouts only) and spreadsheets. No browser or network code. See [data-entry-guide.md](data-entry-guide.md). |
 | Public site | `index.html`, `assets/site.js`, `assets/styles.css` | A single-page app. Reads `public/site`, `public/people` and `public/season_<year>` through the Firestore REST API, then calls `NREngine.buildSeason`. |
 | Active-rally notice | `assets/rally-notice.js`, `assets/rally-notice.css`, `disclaimer.html` | Reads only `public/site`; shares that initial promise with the results app. Native full-page yellow modal, followed by a sticky compact reminder after bypass. Not loaded by the admin. |
+| Optional analytics & privacy | `assets/analytics.js`, `privacy.html` | Shares the public site settings promise, validates GA4 settings and sends manual sanitized pageviews after rendering. Dedicated static privacy notice and persistent browser opt-out; never loaded by admin. |
 | Admin | `admin/index.html`, `assets/admin.js`, `assets/admin.css` | Google sign-in, an in-memory editable copy of the data, checks, points preview, publishing, history and undo, backups and the admin list. |
 | AI preparation | `assets/ai-import.js` | Pure versioned contract/prompt generation, strict parsing, capability/evidence checks, identity assessment and scoped change planning. Shared by admin and Node tests/tools; no network or provider SDK. |
 | Connection settings | `assets/firebase-config.js` | Says which Firebase project to use. Public by design: it identifies the project and grants no access. |
@@ -94,9 +96,45 @@ All dependent script/style references share a cache version across public, discl
 The admin refuses restoration/publication with a mixed or missing rally-notice engine contract.
 Deploy compatible code before enabling the feature, and do not use older editors for active settings.
 
+### Optional GA4 and privacy
+
+`analytics.js` shares `NRRallyNotice.sitePromise`, so it adds no Firestore reads and never delays
+results or the rally notice. Only valid published enabled settings and an allowed browser preference
+load the async tag from `www.googletagmanager.com`. Absent, disabled, malformed or unreadable settings,
+storage denial, explicit opt-out, unknown/auth/admin routes and no JavaScript produce no initial GA
+requests. The standalone privacy page uses the same non-blocking notice behavior as the disclaimer.
+
+`site.js` reports rendered routes, not history events. The module maps them to generic home,
+standings (driver/co-driver), rounds, round (graph/classification/stages), crews, profile, sources and
+info categories, plus standalone disclaimer/privacy categories. Full route identities are used
+only in memory to distinguish navigation from query/filter rerenders; they never enter the tag's
+data layer. Event URLs use only the origin and a synthetic category fragment; titles are fixed,
+referrers empty. Seasons, person/round IDs, query strings, search text, DOM titles and account
+information are not passed to GA. Config repeats `send_page_view:false` on every page.
+**The stream's Enhanced Measurement must also be off**, including history-based pageviews,
+search, forms, outbound clicks, downloads and other enhanced events; remote settings can otherwise
+override this manual-only design. Google automatic session/engagement events and browser metadata
+may still exist. Reporting categories are deliberately less detailed than actual rally URLs.
+
+The privacy page owns the `nr-analytics-choice` localStorage control. Opt-out immediately sets
+Google's disable flag, clears accessible first-party GA cookies and reloads to unload the runtime;
+opt-in reloads too. Storage events propagate choice changes to other open tabs. Failed reads fail
+closed; failed writes visibly keep analytics off on that page without reloading and losing the
+in-memory choice. No geolocation or consent inference is used. The tag denies advertising storage,
+advertising user data and ad personalization; it does not assert an analytics consent grant.
+The ordinary automatic-loading policy is not evidence of legal consent or a consent-management system.
+Google Signals and ad-personalization signals are disabled. The configured cookie lifetime is one year.
+The static notice explains cookies, Google processing, network IP exposure, local preference scope
+and the limits of opt-out, without claiming compliance.
+
+Public CSP permits only the Google tag script host and standard/region1 GA collection endpoints
+in addition to existing resources. No analytics hosts are added to the admin CSP. Public referrer
+policy is `no-referrer`. Tag-load failures warn without retry loops or blocking results. Mocked tests
+cannot establish real provider behavior, lawful consent or stream-side settings.
+
 ## Admin
 
-1. **Sign in.** The Firebase Authentication SDK opens Google's sign-in pop-up. It is the only third-party code, loaded from `www.gstatic.com` and pinned to the version in `FB_SDK` in `assets/admin.js`. The session lasts until the tab is closed.
+1. **Sign in.** The Firebase Authentication SDK opens Google's sign-in pop-up. It is the admin's only third-party code, loaded from `www.gstatic.com` and pinned to the version in `FB_SDK` in `assets/admin.js`. The session lasts until the tab is closed.
 2. **Load.** The admin lists `docs/`, then reads `config/admins` and `config/revision`. The database refuses all three unless the signed-in email is on the admin list.
 3. **Edit.** Changes are kept in the browser until you publish.
 4. **Publish.** One atomic commit (Firestore REST `documents:commit`) writes everything at once:

@@ -520,11 +520,25 @@
     return errors;
   }
 
+  function validateAnalytics(settings) {
+    if (settings === undefined) return [];
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return ['Analytics must be a settings object.'];
+    var errors = [];
+    if (Object.keys(settings).some(function (k) { return ['enabled', 'measurementId'].indexOf(k) < 0; })) errors.push('Analytics has an unknown field.');
+    if (typeof settings.enabled !== 'boolean') errors.push('Analytics enabled must be true or false.');
+    if (typeof settings.measurementId !== 'string' ||
+      !(settings.measurementId === '' && !settings.enabled || settings.measurementId.length === 12 && /^G-[A-Z0-9]{10}$/.test(settings.measurementId))) {
+      errors.push('Analytics needs a GA4 Measurement ID: G- followed by exactly 10 uppercase letters or digits (or empty when disabled).');
+    }
+    return errors;
+  }
+
   function validateDataset(docs) {
     var out = [], st = docs && docs['data/site.json'], ppl = docs && docs['data/people.json'];
     function add(path, msg) { out.push({ level: 'error', path: path, msg: msg }); }
     if (!st || !Array.isArray(st.seasons) || !st.seasons.length) { add('data/site.json', 'At least one season is required.'); return out; }
     validateActiveRally(st.activeRally).forEach(function (msg) { add('data/site.json', msg); });
+    validateAnalytics(st.analytics).forEach(function (msg) { add('data/site.json', msg); });
     if (!ppl || !Array.isArray(ppl.people)) { add('data/people.json', 'Competitor list is missing.'); return out; }
     var peopleIds = Object.create(null), keys = Object.create(null);
     ppl.people.forEach(function (p) {
@@ -756,7 +770,8 @@
     return { stages: stages, entries: entries, warnings: warnings, format: 'Spreadsheet' };
   }
 
-  var api = { rallyNoticeContractVersion: 1, validateActiveRally: validateActiveRally, nrcDestination: nrcDestination,
+  var api = { analyticsContractVersion: 1, validateAnalytics: validateAnalytics,
+    rallyNoticeContractVersion: 1, validateActiveRally: validateActiveRally, nrcDestination: nrcDestination,
     entryContractVersion: 2, parseTime: parseTime, fmtTime: fmtTime, slug: slug, normName: normName, normClass: normClass, ord: ord, r1: r1, prettyJson: prettyJson,
     peopleIndex: peopleIndex, buildSeason: buildSeason, validateRound: validateRound, parseClassificationText: parseClassificationText, parseSpreadsheet: parseSpreadsheet,
     similarNames: similarNames, sumReport: sumReport, spreadsheetTemplate: spreadsheetTemplate,

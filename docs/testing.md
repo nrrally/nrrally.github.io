@@ -20,6 +20,8 @@ node tools/tests/ai-import-e2e.js
 node tools/tests/site-theme-e2e.js
 node --test tools/tests/rally-notice.test.js
 node tools/tests/rally-notice-e2e.js
+node --test tools/tests/analytics.test.js
+node tools/tests/analytics-e2e.js
 ```
 
 The first command needs Node only. The browser test needs an existing Playwright installation (`PLAYWRIGHT_MODULE` may point to it). It serves the checkout locally, supplies fake authentication and intercepts Firestore requests with an in-process mock; other external requests are refused. Never run synthetic imports against live Firebase.
@@ -38,6 +40,21 @@ synthetic fixtures only. `PLAYWRIGHT_EXECUTABLE_PATH` can select an existing Chr
 for this test. `RALLY_SCREENSHOT_DIR` optionally saves synthetic desktop/mobile previews outside
 the repository. Database unavailability cannot reveal whether a rally is active; this is not an
 offline blocker or a substitute for an official event portal.
+
+The GA4 checks use generated synthetic Measurement IDs, a fake Google tag/collector, mocked
+Firestore and fake authentication. They cover absent/disabled/unconfigured/malformed settings,
+strict ID format and safe errors, staged enable/disable/ID updates, public projection, attributed
+History, backup/legacy restore/undo, same-site conflicts, unrelated-document rebase and invalid
+rebase rejection, plus cache contract/version checks. Browser tests cover exactly one initial
+pageview, hash navigation/back/forward, query/filter rerenders, generic profile/round categories,
+fixed titles and empty referrers, private/auth/admin exclusions, advertising flags, dedicated
+privacy links from Info/footer (no popup), 320-1440 px layouts in both color schemes, cookie cleanup,
+reversible persistent opt-out across loads/tabs, cross-tab storage changes, pending-load opt-out,
+tag failure with active-rally notice/results, storage denial, missing settings/results and no-JS
+privacy access. All external requests are intercepted; no GA/Firebase account or live database is
+used. The fake tag checks commands and mocked payloads, not Google's real SDK. Stream-side
+Enhanced Measurement, actual provider requests, Realtime and consent requirements require the
+separate post-deployment checks in [runbook.md](runbook.md#google-analytics-4).
 
 Coverage includes schema/version/unsafe-field rejection, evidence and unsupported rules, large entry batches, identity ambiguity and slug collisions, entry-only zero starts, cancelled stages and DNF/DNS, exact arithmetic, scoped/idempotent amendments, same-car/different-crew overrides, private metadata projection, stale review and resumable drafts, explicit publishing, public standings, undo, document limits and validation after rebase. The 1,500-exact-identity batch must complete within 10 seconds.
 

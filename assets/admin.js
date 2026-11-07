@@ -92,6 +92,9 @@
     return docs;
   }
   function entryContractError() {
+    if (!E || E.analyticsContractVersion !== 1 || typeof E.validateAnalytics !== 'function') {
+      return 'Analytics scripts are missing or out of date. Refresh this page with Ctrl+Shift+R before restoring or publishing; nothing has been published.';
+    }
     if (!E || E.rallyNoticeContractVersion !== 1 || typeof E.validateActiveRally !== 'function' || typeof E.nrcDestination !== 'function') {
       return 'Rally-notice scripts are missing or out of date. Refresh this page with Ctrl+Shift+R before restoring or publishing; nothing has been published.';
     }
@@ -1333,6 +1336,18 @@
     html += '<div class="card"><h3>Basics</h3><div class="form-grid">' + fld('Site name', input(function (v) { st.siteName = v; }, st.siteName)) +
       fld('Tagline', input(function (v) { st.tagline = v; }, st.tagline), '', 'span2') + fld('Intro on the Info page', area(function (v) { st.info.intro = v.trim(); }, st.info.intro, 'rows="4"'), '', 'span3') + '</div></div>';
     html += activeRallyCard(st);
+    var analytics = st.analytics || { enabled: false, measurementId: '' };
+    function editAnalytics() {
+      if (!st.analytics) st.analytics = { enabled: false, measurementId: '' };
+      return st.analytics;
+    }
+    html += '<div class="card" id="analyticsSettings"><h3>Google Analytics 4</h3>' +
+      '<p class="small muted">Optional background analytics on public pages only. Nothing changes live until Review &amp; publish. Visitors can turn it off on the dedicated Privacy &amp; analytics page, linked from Info and the footer. No privacy popup.</p>' +
+      check(function (on) { editAnalytics().enabled = on; }, analytics.enabled, 'Enable Google Analytics', 'id="analyticsEnabled"') +
+      '<div class="form-grid">' + fld('GA4 Measurement ID', input(function (v) { editAnalytics().measurementId = v.trim(); },
+        analytics.measurementId, 'id="analyticsMeasurementId" maxlength="12" autocomplete="off" spellcheck="false" placeholder="G-XXXXXXXXXX"'),
+        'G- followed by 10 uppercase letters or digits. Leave empty and disabled until your new web stream is ready.', 'span2') + '</div>' +
+      '<p class="small">This ID is stored in the database, not the code, but is public in visitors\' browsers; it is not a password. Turn off all Enhanced Measurement in the GA web stream before enabling here (including browser-history pageviews, search and form interactions). Only manual, generic page categories are sent. No advertising features or admin tracking are added. See <code>docs/runbook.md</code> for setup and verification. Background loading is not evidence of visitor consent or legal compliance.</p></div>';
     html += '<div class="card"><h3>Social media</h3>' + listEditor(st.social, [
       function (x) { return fld('Network', select(function (v) { x.network = v; }, x.network, NETWORKS)); },
       function (x) { return fld('Label', input(function (v) { x.label = v; }, x.label)); },
