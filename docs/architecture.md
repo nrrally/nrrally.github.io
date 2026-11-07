@@ -155,7 +155,7 @@ future SDK changes or subsequently changed stream settings.
    - **One `history/` entry per changed document,** with the text before and after.
 5. **Undo.** Stages the "before" versions from one publish so you can review and publish them.
 6. **Backups.** Downloads every document and photo as one JSON file (`format: nr-rally-backup`). Restoring stages a backup for publishing. An empty database can only be filled from a backup file; the code contains no data to fall back on.
-7. **Demo mode.** Loads the published copy (readable by anyone) into a practice session that can never save. It's used for training and for the pre-season import rehearsal.
+7. **Demo mode.** After authorized Google admin sign-in, loads the published copy into a practice simulation that can never save. Returning to live admin reloads working data and discards simulation changes; sign-out or account changes clear the simulation. Public results remain readable without sign-in. It's used for training and pre-season import rehearsal.
 8. **Admin list.** `config/admins` is edited under Site & info → Admins. Changes take effect immediately.
 
 9. **AI Import.** Admin-operated prompt/file upload in a separate free AI chat, followed by local JSON parsing, evidence/identity/rules review and scoped staging. A pack token correlates the response; a local canonical snapshot detects changed target data. Neither is authorization. Preparation may be downloaded/resumed privately; it is not stored remotely until reviewed data is staged and explicitly published.

@@ -30,7 +30,7 @@ V4 is the maintained baseline. GitHub Pages serves code only; Firestore is the o
 
 Deleting files from the current tree does not remove earlier commits, tags, forks, cached pages or downloaded copies. Historical cleanup and live cutover need a separately coordinated plan; do not restore v1-v3 to roll back a code change.
 
-For the active-rally notice and analytics, deploy the coordinated `ga-1` HTML, scripts and styles before
+For the active-rally notice and analytics, deploy the coordinated `ga-2` HTML, scripts and styles before
 enabling it. Existing settings without `activeRally` remain disabled; no Firestore migration,
 entry backfill, auth/domain change or rules publication is needed. Never enable a rally as
 part of a code release without an explicit admin decision. After an intended enable/publish,

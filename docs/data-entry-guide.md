@@ -150,7 +150,7 @@ When the sheet and the official standings disagree, follow the standings and rec
 
 ## Before each season: a 15-minute rehearsal
 
-1. Go to the admin's sign-in page → **Practise in demo mode**. Nothing is saved.
+1. Sign in with an authorized admin account, then choose **Practise in simulation**. The simulation uses published data and never saves to Firebase. Return to the live admin or sign out when finished.
 2. Import the first official PDF of the new season into any round.
 3. **If the importer refuses the text, the PDF layout has changed.** Use the spreadsheet template for now. A developer can add the new layout to `parseClassificationText`: add the copied text to the test kit's `fixtures/`, extend the importer, and run `node test-kit/run-all.js`.
 4. Check the class list and points scales under Season settings for the new SSRs.

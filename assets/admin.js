@@ -53,7 +53,13 @@
   }
 
   /* ------------------------------------------------------------------ state: the working copy of /data */
-  var A = { mode: null, user: null, docs: {}, bins: {}, meta: {}, rev: null, admins: null, empty: false, photoCache: {}, dropPublic: [], year: null, open: {}, imp: null, history: null, lastCommit: null };
+  function newState() { return { mode: null, user: null, docs: {}, bins: {}, meta: {}, rev: null, admins: null, empty: false, photoCache: {}, dropPublic: [], year: null, open: {}, imp: null, history: null, lastCommit: null }; }
+  var A = newState(), sessionVersion = 0;
+  function clearSession() { sessionVersion++; A = newState(); }
+  function checkSession(version, user) {
+    var current = AUTH && AUTH.user();
+    if (version !== sessionVersion || !current || !user || current.email !== user.email) throw new Error('The admin session changed. Sign in again.');
+  }
   function getDoc(p) { var d = A.docs[p]; return d && !d.deleted ? d.obj : null; }
   function putDoc(p, obj) { var d = A.docs[p]; if (d) { d.obj = obj; d.deleted = false; } else A.docs[p] = { orig: null, obj: obj, deleted: false }; }
   function dropDoc(p) { if (A.docs[p]) A.docs[p].deleted = true; }
@@ -180,10 +186,15 @@
   var CONFIGURED = !!(FB.projectId && FB.apiKey && FB.authDomain);
   var DB = 'https://firestore.googleapis.com/v1/projects/' + encodeURIComponent(FB.projectId || 'none') + '/databases/(default)/documents';
   var NAME = 'projects/' + (FB.projectId || 'none') + '/databases/(default)/documents/';
-  var AUTH = null;
+  var AUTH = null, AUTH_PENDING = null;
   async function auth() {
     if (AUTH) return AUTH;
     if (window.NR_TEST_AUTH) return (AUTH = window.NR_TEST_AUTH);
+    if (AUTH_PENDING) return AUTH_PENDING;
+    AUTH_PENDING = initAuth();
+    try { return await AUTH_PENDING; } finally { AUTH_PENDING = null; }
+  }
+  async function initAuth() {
     var app, au;
     try {
       app = await import('https://www.gstatic.com/firebasejs/' + FB_SDK + '/firebase-app.js');
@@ -197,7 +208,8 @@
       user: user,
       signIn: function () { var p = new au.GoogleAuthProvider(); p.setCustomParameters({ prompt: 'select_account' }); return au.signInWithPopup(a, p).then(user); },
       signOut: function () { return au.signOut(a); },
-      token: function () { return a.currentUser ? a.currentUser.getIdToken() : Promise.resolve(null); }
+      token: function () { return a.currentUser ? a.currentUser.getIdToken() : Promise.resolve(null); },
+      observe: function (fn) { return au.onAuthStateChanged(a, function () { fn(user()); }); }
     };
     return AUTH;
   }
@@ -243,7 +255,20 @@
   function docKey(d) { return String(d.name).split('/').pop(); }
   async function fs(method, path, body, opt) {
     opt = opt || {};
-    var headers = {}, tok = AUTH ? await AUTH.token() : null;
+    var version = sessionVersion, mode = A.mode;
+    if (method !== 'GET' && mode !== 'live') throw new Error('Database writes are only available in the live admin.');
+    var headers = {}, tok;
+    try {
+      tok = AUTH ? await AUTH.token() : null;
+      if (A.user && !tok) throw new Error('No sign-in token is available.');
+    } catch (e) {
+      if (version === sessionVersion && A.user) { clearSession(); signInState.err = 'Sign-in failed: ' + authError(e); render(); }
+      throw e;
+    }
+    if (method !== 'GET') {
+      checkSession(version, A.user);
+      if (A.mode !== 'live' || !tok) throw new Error('The admin session changed. Nothing was sent.');
+    }
     if (tok) headers.Authorization = 'Bearer ' + tok;
     if (body) headers['Content-Type'] = 'application/json';
     var r;
@@ -256,6 +281,7 @@
     err.status = r.status; err.code = code;
     if (r.status === 401 || r.status === 403 || code === 'PERMISSION_DENIED' || code === 'UNAUTHENTICATED') {
       err.denied = true; err.message = 'The database refused this. Your Google account may not be on the admin list, or the database rules haven\'t been set up yet.';
+      if (A.mode && version === sessionVersion) { clearSession(); signInState.err = err.message; render(); }
     } else if (opt.commit && (code === 'FAILED_PRECONDITION' || code === 'ALREADY_EXISTS' || code === 'ABORTED' || code === 'NOT_FOUND')) err.conflict = true;
     throw err;
   }
@@ -287,24 +313,36 @@
   function photoIdOf(path) { var m = String(path).match(/^data\/people\/(.+)\.jpg$/); return m ? m[1] : null; }
   function revOf(d) { return d ? { n: fsObj(d.fields).n || 0, updateTime: d.updateTime } : null; }
   function adminsOf(d) { return d ? { list: (fsObj(d.fields).emails || []).map(function (x) { return String(x).toLowerCase(); }), updateTime: d.updateTime } : null; }
+  function requireAdmin(admins, version, user) {
+    checkSession(version, user);
+    if (!admins || admins.list.indexOf(user.email.toLowerCase()) < 0) {
+      clearSession(); signInState.denied = user.email; render();
+      var denied = new Error('This account is not on the admin list.'); denied.denied = true; throw denied;
+    }
+  }
 
-  async function liveLoad() {
+  async function liveLoad(version, user) {
     var docs = await listAll('docs');
     var res = await Promise.all([fs('GET', '/config/admins', null, { allow404: true }), fs('GET', '/config/revision', null, { allow404: true })]);
+    var admins = adminsOf(res[0]);
+    requireAdmin(admins, version, user);
     A.docs = {}; A.meta = {}; A.bins = {}; A.photoCache = {}; A.history = null; A.dropPublic = [];
     docs.forEach(function (d) {
       var p = pathFor(docKey(d)); if (!p) return;
       var obj; try { obj = JSON.parse(fsObj(d.fields).json); } catch (e) { throw new Error(label(p) + ' in the database isn\'t valid data (' + e.message + ').'); }
       A.docs[p] = { orig: norm(obj), obj: obj, deleted: false }; A.meta[p] = d.updateTime;
     });
-    A.admins = adminsOf(res[0]); A.rev = revOf(res[1]);
+    A.admins = admins; A.rev = revOf(res[1]);
     A.empty = !A.docs[SITE];
     if (!A.empty) afterLoad();
   }
-  async function demoLoad() {   // explore with the published data; nothing is ever saved
+  async function demoLoad(version, user) {   // explore with the published data; nothing is ever saved
     if (!CONFIGURED) throw new Error('The demo needs the database connection (assets/firebase-config.js).');
+    var admins = adminsOf(await fs('GET', '/config/admins', null, { allow404: true }));
+    requireAdmin(admins, version, user);
     var staged = await readPublished();
-    A.mode = 'demo'; A.user = null; A.meta = {}; A.docs = {}; A.bins = {}; A.history = null; A.rev = null; A.admins = null; A.empty = false; A.photoCache = {}; A.dropPublic = [];
+    checkSession(version, user);
+    A = newState(); A.mode = 'demo'; A.user = user;
     Object.keys(staged.docs).forEach(function (p) { var obj = staged.docs[p]; A.docs[p] = { orig: norm(obj), obj: obj, deleted: false }; });
     afterLoad();
   }
@@ -439,7 +477,8 @@
       if (errors.length) throw new Error(errors.map(function (i) { return label(i.path) + ': ' + i.msg; }).join('\n'));
     }
     checkPublish();
-    if (A.mode !== 'live') { markSaved(); return { demo: true, files: list.length }; }
+    if (A.mode === 'demo') { markSaved(); return { demo: true, files: list.length }; }
+    if (A.mode !== 'live') throw new Error('The admin session changed. Nothing was published.');
     var res, b;
     for (var attempt = 0; ; attempt++) {
       checkPublish();
@@ -583,14 +622,15 @@
     var ys = years();
     var who = A.mode === 'live' ? '<span class="who">' + (A.user.photo ? '<img src="' + esc(A.user.photo) + '" alt="" referrerpolicy="no-referrer">' : '') + '<span><b>' + esc(A.user.name || A.user.email) + '</b><small>' + esc(A.user.email) + '</small></span></span>' :
       '<span class="who demo"><span><b>Demo mode</b><small>Nothing is saved</small></span></span>';
-    ROOT.innerHTML = (A.mode === 'demo' ? '<div class="demo-bar">Demo mode — practise freely with a copy of the published data; nothing is ever saved. ' + btn(function () { A.mode = null; render(); }, 'Leave the demo', 'tiny') + '</div>' : '') +
+    ROOT.innerHTML = (A.mode === 'demo' ? '<div class="demo-bar">Simulation — practise freely with a copy of the published data; nothing is ever saved. ' + btn(leaveDemo, 'Return to live admin', 'tiny', 'id="leaveDemoBtn"') + '</div>' : '') +
       '<header class="adm-top"><div class="checker" aria-hidden="true"></div><div class="adm-top-in">' +
       '<a class="brand" href="#/"><img class="brand-mark" src="../assets/brand.svg" alt="" width="40" height="40">' +
       '<span class="brand-text"><strong>' + esc((site() && site().siteName) || 'Rally results') + '</strong><span>Admin</span></span></a>' +
       (ys.length ? '<label class="season-sel"><span class="sr-only">Season</span>' + select(function (v) { A.year = +v; A.imp = null; A.open = {}; render(); }, A.year, ys.map(function (y) { return [y, y + ' season']; }), 'id="yearSel"') + '</label>' : '') +
       '<span id="chg" class="chg"></span>' +
       '<a class="btn" id="pubBtn" href="#/publish">Review &amp; publish</a>' + who +
-      '<button type="button" class="btn tiny ghost" id="signOutBtn" data-act="' + ACT(signOut) + '">' + (A.mode === 'live' ? 'Sign out' : 'Exit demo') + '</button>' +
+      (A.mode === 'live' ? btn(startDemo, 'Practise in simulation', 'tiny', 'id="demoBtn"') : '') +
+      '<button type="button" class="btn tiny ghost" id="signOutBtn" data-act="' + ACT(signOut) + '">Sign out</button>' +
       '</div></header><div class="adm-wrap"><nav class="adm-nav" aria-label="Admin sections">' +
       (site() ? NAV : [['import', 'Load the data'], ['publish', 'Review & publish']]).map(function (n) { return '<a href="#/' + n[0] + '"' + (n[0] === active ? ' class="on" aria-current="page"' : '') + '>' + n[1] + '</a>'; }).join('') +
       '<a class="ext" href="../#/' + A.year + '" target="_blank" rel="noopener">View public site ↗</a>' +
@@ -601,9 +641,22 @@
   }
   async function signOut() {
     if (A.mode && changes().length && !window.confirm('You have unpublished changes. Leave and lose them?')) return;
-    if (A.mode === 'live' || signInState.denied) { try { await (await auth()).signOut(); } catch (e) { /* already signed out */ } }
-    A.mode = null; A.user = null; A.docs = {}; A.bins = {}; A.meta = {}; A.rev = null; A.admins = null; A.history = null; A.lastCommit = null; A.conflict = null;
-    signInState.denied = ''; signInState.err = ''; location.hash = '#/'; render();
+    clearSession(); signInState.denied = ''; signInState.err = ''; location.hash = '#/'; render();
+    try { await (await auth()).signOut(); }
+    catch (e) { signInState.err = 'Sign-out failed: ' + authError(e); render(); }
+  }
+  async function startDemo() {
+    if (busyCount) throw new Error('Wait for the current operation to finish before starting the simulation.');
+    if (changes().length && !window.confirm('Discard unpublished live changes and start the simulation?')) return;
+    var user = A.user; clearSession(); A.user = user; var version = sessionVersion;
+    render();
+    try { await demoLoad(version, user); go('#/'); }
+    catch (e) { if (version === sessionVersion) { clearSession(); signInState.err = authError(e); render(); } throw e; }
+  }
+  async function leaveDemo() {
+    if (busyCount) throw new Error('Wait for the current operation to finish before leaving the simulation.');
+    if (changes().length && !window.confirm('Discard simulation changes and return to the live admin?')) return;
+    clearSession(); render(); await enter();
   }
   function pageHead(eyebrow, title, intro, side) {
     return '<div class="page-head"><div><p class="eyebrow">' + eyebrow + '</p><h1>' + title + '</h1>' + (intro ? '<p>' + intro + '</p>' : '') + '</div>' + (side || '') + '</div>';
@@ -611,6 +664,16 @@
 
   /* ------------------------------------------------------------------ sign in */
   var signInState = { err: '', denied: '' };
+  var observingAuth = false;
+  function observeAuth(au) {
+    if (observingAuth || !au.observe) return;
+    au.observe(function (u) {
+      if (A.user && (!u || u.email !== A.user.email)) {
+        clearSession(); signInState.err = 'Your sign-in changed. Sign in again.'; render();
+      }
+    });
+    observingAuth = true;
+  }
   function googleMark() { return '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.3-2.1 3.5-5.2 3.5-8.7Z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.9-3c-1.1.7-2.5 1.2-4.1 1.2-3.1 0-5.8-2.1-6.7-5H1.3v3.1A12 12 0 0 0 12 24Z"/><path fill="#FBBC05" d="M5.3 14.3a7.2 7.2 0 0 1 0-4.6V6.6h-4a12 12 0 0 0 0 10.8l4-3.1Z"/><path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.3 6.6l4 3.1c.9-2.9 3.6-4.9 6.7-4.9Z"/></svg>'; }
   function viewSignIn() {
     var s = signInState;
@@ -622,18 +685,19 @@
       (s.err ? '<div class="callout bad"><div><b>Couldn\'t sign in.</b> ' + esc(s.err) + '</div></div>' : '') +
       '<div class="actions">' + (CONFIGURED ? btn(async function () {
         s.err = ''; s.denied = '';
-        var au = await auth();
+        var au = await auth(); await au.ready(); observeAuth(au);
         try { await au.signIn(); } catch (e) { if (/popup-closed|cancelled-popup/.test((e && e.code) || '')) return; s.err = authError(e); render(); return; }
         await enter();
       }, googleMark() + ' Sign in with Google', 'primary google', 'id="signInBtn"') : '') +
-      (CONFIGURED ? btn(async function () { await demoLoad(); go('#/'); }, 'Practise in demo mode (nothing is saved)', '', 'id="demoBtn"') : '') + '</div>' +
+      '</div>' +
       '<p class="small muted">You stay signed in until you close this tab or choose Sign out. Changes are recorded with your name.</p></div></div>';
   }
   async function enter() {   // after Google sign-in: check access, then load the data
     var au = await auth(), u = au.user(); if (!u) return;
-    A.user = u;
-    try { await liveLoad(); }
-    catch (e) { if (e.denied) { A.mode = null; signInState.denied = u.email; render(); return; } throw e; }
+    clearSession(); A.user = u; var version = sessionVersion;
+    try { await liveLoad(version, u); }
+    catch (e) { if (version !== sessionVersion) return; clearSession(); if (e.denied) { signInState.denied = u.email; render(); return; } throw e; }
+    checkSession(version, u); A.user = u;
     A.mode = 'live'; signInState.err = ''; signInState.denied = '';
     toast('Signed in as ' + u.email, 'good');
     go(A.empty ? '#/import' : '#/');
@@ -1388,9 +1452,9 @@
     var html = pageHead('Every published change', 'History', 'Each publish is recorded with who made it and when. Undo puts the data back the way it was before that change; you review it before publishing.');
     if (A.mode !== 'live') return html + '<div class="card empty">The history is kept in the database. Sign in to see it.</div>';
     if (!A.history) {
-      A.history = { loading: true };
-      loadHistory().then(function (g) { A.history = { groups: g }; if (route().view === 'history') render(); },
-        function (e) { A.history = { error: e.message }; if (route().view === 'history') render(); });
+      A.history = { loading: true }; var version = sessionVersion;
+      loadHistory().then(function (g) { if (version !== sessionVersion || A.mode !== 'live') return; A.history = { groups: g }; if (route().view === 'history') render(); },
+        function (e) { if (version !== sessionVersion || A.mode !== 'live') return; A.history = { error: e.message }; if (route().view === 'history') render(); });
     }
     if (A.history.loading) return html + '<div class="card empty">Loading the history…</div>';
     if (A.history.error) return html + '<div class="callout bad"><div>' + esc(A.history.error) + '</div></div>';
@@ -1481,7 +1545,8 @@
   }
   async function reload() {
     A.imp = null; A.open = {}; A.pubMsg = null; A.undoMsg = null;
-    if (A.mode === 'live') await liveLoad(); else await demoLoad();
+    var version = sessionVersion, user = A.user;
+    if (A.mode === 'live') await liveLoad(version, user); else if (A.mode === 'demo') await demoLoad(version, user); else throw new Error('Sign in again to reload.');
     toast('Reloaded the latest data.', 'good'); if (A.empty) go('#/import'); else render();
   }
 
@@ -1491,6 +1556,7 @@
     if (!CONFIGURED) return;
     try {
       var au = await auth(); await au.ready();
+      observeAuth(au);
       if (au.user()) { ROOT.innerHTML = '<div class="signin"><div class="card signin-card"><p>Signing in…</p></div></div>'; await enter(); }
     } catch (e) { A.mode = null; signInState.err = authError(e); render(); }
   })();
