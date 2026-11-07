@@ -15,6 +15,7 @@ The admin runs the same per-round checks before it lets you publish.
 
 ```
 node --test tools/tests/ai-import.test.js
+node --test tools/tests/entry-participation.test.js
 node tools/tests/ai-import-e2e.js
 node tools/tests/site-theme-e2e.js
 ```
@@ -28,6 +29,15 @@ Coverage includes schema/version/unsafe-field rejection, evidence and unsupporte
 Continue running the private engine/importer and admin/site regressions below: the synthetic suite does not replace established 2026 coverage. No real competitor fixtures or documents belong in this repository.
 
 Focused review regressions also cover same-person crew roles, duplicate crew/credit assignments across cars, new/retained extra-start conflicts, valid credit swaps and suppressed co-driver credit, printed alias preservation, independent provisional-finality acknowledgment, and incomplete/duplicate page/batch rejection versus complete combined classification reimports.
+
+Entry participation checks cover entry-only stable profiles, explicit DNS evidence, classification/DNF
+deduplication, aliases and substituted partners, event-only versus explicit day coverage, unknown/partial
+sources, repeated entry/classification imports, unchanged scoring and MSA confirmations, rejection of
+private/scoring fields, backup compatibility and whole-document undo. Mocked browser tests also exercise
+entry-pack download/resume, manual editing, atomic public projection, History undo, older-backup loss
+confirmation and entry validation after concurrent rebase. Public tests cover stable entry-only profile
+links at 320 px, understated counts, unknown day wording, classification DNS excluded from Starts and
+the no-scored-starts home state. All external writes remain intercepted.
 
 ## Manual check after a publish
 

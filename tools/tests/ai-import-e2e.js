@@ -81,7 +81,8 @@ async function main() {
     });
     const page = await ctx.newPage();
     page.on('pageerror', e => pageErrors.push(e.message));
-    page.on('dialog', d => d.accept());
+    let refuseEntryLoss = false;
+    page.on('dialog', d => refuseEntryLoss && d.message().includes('removes saved entry-list evidence') ? d.dismiss() : d.accept());
     const go = async hash => { await page.evaluate(h => location.hash = h, hash); await page.waitForTimeout(80); };
     const checked = async () => { await page.check('#aiRulesApprove'); await page.check('#aiEvidenceApprove'); await page.click('#aiPreview'); };
     const token = async () => (await page.inputValue('#aiPrompt')).match(/"baseToken": "([^"]+)"/)[1];
@@ -138,14 +139,42 @@ async function main() {
     await go('#/ai-import'); await page.click('#aiStage'); assert.ok((await page.innerText('#toasts')).includes('draft changed'));
     await page.click('#aiRecheck'); await checked(); await page.click('#aiStage');
     await page.waitForSelector('.adm-main h1');
-    assert.ok((await page.innerText('main')).includes('Nothing to publish'));
+    await page.getByRole('heading', { name: 'Nothing to publish' }).waitFor();
     assert.equal(json('docs/season_2027').minStarts, 1);
     // Entry-only preparation adds names, never starts or results.
     await go('#/ai-import'); await page.selectOption('#aiTask', 'competitors'); await page.selectOption('#aiYear', '2027');
     await page.fill('#aiSources', 'entries.pdf - Official Entry List'); await page.click('#aiGenerate');
     const entries = F.payload('competitors', 2027); entries.baseToken = await token();
+    entries.entryLists = [{ eventId: 'test-event', roundIds: ['R1'], sourceId: 'entries', complete: true,
+      entries: [{ car: '1', driverRef: 'alex', codriverRef: 'new', class: 'OPEN', vehicle: 'Entry car',
+        roundIds: ['R1'], status: 'entered', statusEvidence: '', participationEvidence: 'Regional day 1 entry',
+        locator: 'Published regional row 1' }] }];
+    await read(entries);
+    const entryDownload = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download local import draft' }).click();
+    const entrySaved = await (await entryDownload).path();
+    await page.locator('label').filter({ hasText: 'Resume saved import draft' }).locator('input').setInputFiles(entrySaved);
     await read(entries); await page.check('#aiEvidenceApprove'); await page.click('#aiPreview'); await page.click('#aiStage'); await publish();
     assert.equal(json('docs/people').people.length, 2); assert.ok(!store.has('docs/round_2027_R1'));
+    assert.equal(json('public/season_2027').season.entryLists[0].entries.length, 1);
+    await go('#/events'); await page.locator('.entry-editor summary').click();
+    await page.getByText('Entry vehicle', { exact: true }).locator('..').locator('input').fill('Manually noted entry car');
+    await publish();
+    assert.equal(json('docs/season_2027').entryLists[0].entries[0].vehicle, 'Manually noted entry car');
+    await go('#/history'); await page.getByRole('button', { name: 'Undo', exact: true }).first().click(); await publish();
+    assert.equal(json('public/season_2027').season.entryLists[0].entries[0].vehicle, 'Entry car');
+    await go('#/');
+    const backupDownload = page.waitForEvent('download'); await page.click('#backupBtn');
+    const backup = JSON.parse(fs.readFileSync(await (await backupDownload).path(), 'utf8'));
+    assert.equal(backup.docs['data/seasons/2027/season.json'].entryLists[0].entries.length, 1);
+    delete backup.docs['data/seasons/2027/season.json'].entryLists;
+    refuseEntryLoss = true;
+    await page.locator('label').filter({ hasText: 'Restore from a backup' }).locator('input').setInputFiles({
+      name: 'synthetic-old-backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup))
+    });
+    await page.waitForTimeout(150);
+    assert.ok((await page.innerText('#toasts')).includes('entry evidence retained'));
+    refuseEntryLoss = false;
     // Results produce site-calculated points and private evidence.
     await go('#/ai-import'); await page.selectOption('#aiTask', 'results'); await page.selectOption('#aiYear', '2027');
     await page.selectOption('#aiRound', 'R1'); await page.fill('#aiSources', 'results.pdf - Final Classification'); await page.click('#aiGenerate');
@@ -165,6 +194,7 @@ async function main() {
     assert.equal(json('docs/round_2027_R1').entries[0].driver, 'A Test');
     assert.equal(json('public/season_2027').rounds.R1.status, 'Provisional classification');
     assert.ok(!('_aiImport' in json('public/season_2027').rounds.R1));
+    assert.equal(json('public/season_2027').season.entryLists[0].entries.length, 1);
     const publicPage = await ctx.newPage(); publicPage.on('pageerror', e => pageErrors.push(e.message));
     await publicPage.goto(base + '/index.html#/2027/standings'); await publicPage.waitForSelector('main table');
     assert.ok((await publicPage.innerText('main')).includes('Alex Test'));
@@ -172,10 +202,14 @@ async function main() {
     await publicPage.goto(base + '/index.html#/2027/round/R1/classification');
     await publicPage.waitForSelector('.round-meta');
     assert.ok((await publicPage.innerText('.round-meta')).includes('Provisional sheet'));
+    assert.ok((await publicPage.innerText('main')).includes('1 documented round entries'));
+    await publicPage.goto(base + '/index.html#/person/alex-test'); await publicPage.waitForSelector('.profile-head');
+    assert.ok((await publicPage.innerText('main')).includes('1 events entered'));
+    assert.equal(await publicPage.locator('.kpi').filter({ hasText: 'Starts' }).locator('b').innerText(), '1');
     const published = json('public/season_2027'), unclearBundle = F.copy(published);
     unclearBundle.rounds.R1.status = 'Classification'; unclearBundle.rounds.R1.finalityUnclear = true;
     set('public/season_2027', { json: { stringValue: JSON.stringify(unclearBundle) } });
-    await publicPage.reload(); await publicPage.waitForSelector('.round-meta');
+    await publicPage.goto(base + '/index.html#/2027/round/R1/classification'); await publicPage.reload(); await publicPage.waitForSelector('.round-meta');
     assert.ok((await publicPage.innerText('.round-meta')).includes('Classification finality unclear'));
     assert.ok(!(await publicPage.innerText('.round-meta')).includes('Final classification'));
     await publicPage.goto(base + '/index.html#/2027/rounds'); await publicPage.reload();
@@ -214,11 +248,13 @@ async function main() {
     await go('#/results/R1'); await page.locator('tr[data-row="0"] input.wv').fill('Our changed car');
     await go('#/publish');
     const remoteSeason = json('docs/season_2027'); remoteSeason.minStarts = 2;
+    remoteSeason.entryLists[0].entries[0].points = 50;
     set('docs/season_2027', { json: { stringValue: JSON.stringify(remoteSeason) } });
     set('config/revision', { n: { integerValue: '99' } });
     const beforeRebase = commits;
     await page.click('#pubGo'); await page.waitForTimeout(250);
     assert.ok((await page.innerText('#toasts')).includes('rules/settings changed'));
+    assert.ok((await page.innerText('#toasts')).includes('unknown field points'));
     assert.equal(commits, beforeRebase);
     assert.equal(json('public/season_2027').rounds.R1.entries[0].vehicle, 'Test car');
     assert.deepEqual(pageErrors, []); assert.deepEqual(unexpected, []);

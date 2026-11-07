@@ -113,6 +113,35 @@ async function main() {
     await page.emulateMedia({ media: 'print' });
     assert.ok(await page.locator('.site-disclosure').isVisible());
     await page.emulateMedia({ media: 'screen' });
+    // Modest entry-only display, unknown day coverage and explicit classification DNS.
+    const peopleBefore = F.copy(published.people), entriesBefore = F.copy(bundle.rounds.R1.entries);
+    published.people.people.push({ id: 'entry-person-stable', name: 'Casey Entry', aliases: [], bio: '', photo: '', links: {} });
+    const entered = { car: '2', driver: 'Casey Entry', codriver: '', class: 'OPEN', vehicle: 'Entry car', roundIds: [],
+      status: 'entered', statusEvidence: '', participationEvidence: 'Regional event entry; no day evidence', locator: 'Entry row 2' };
+    bundle.season.entryLists = [{ eventId: 'test-event', roundIds: [], complete: true,
+      source: { file: 'entries.json', url: 'https://example.com/entries', date: '2026-02-01', locator: 'Complete event list; days unknown' },
+      entries: [entered] }];
+    await page.setViewportSize({ width: 320, height: 1000 });
+    await visit('#/crews');
+    assert.ok((await page.innerText('main')).includes('Casey Entry'));
+    await page.getByRole('link', { name: 'Casey Entry', exact: true }).click();
+    await page.waitForSelector('.profile-head');
+    assert.ok(page.url().endsWith('/person/entry-person-stable'));
+    assert.equal(await page.locator('.kpi').filter({ hasText: 'Starts' }).locator('b').innerText(), '0');
+    await page.locator('main details summary').click();
+    assert.ok((await page.innerText('main')).includes('event only; day scope unknown'));
+    await noOverflow();
+    await visit('#/round/R1/classification');
+    assert.ok((await page.innerText('main')).includes('day scope unknown'));
+    assert.ok(!(await page.innerText('main')).includes('1 crews not recorded as started'));
+    const dns = { ...entriesBefore[0], status: 'DNS', pos: null, total: null, stages: 0,
+      times: [null, null], stagePos: [null, null] };
+    bundle.rounds.R1.entries = [dns];
+    await visit('#/person/alex-test');
+    assert.equal(await page.locator('.kpi').filter({ hasText: 'Starts' }).locator('b').innerText(), '0');
+    await visit('#/');
+    await page.getByRole('heading', { name: 'No scored starts yet' }).waitFor();
+    published.people = peopleBefore; bundle.rounds.R1.entries = entriesBefore; delete bundle.season.entryLists;
     seasonDelay = 500;
     await page.goto(base + '/index.html');
     await page.waitForSelector('.loading');

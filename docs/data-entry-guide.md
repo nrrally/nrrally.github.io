@@ -6,10 +6,10 @@ How to get a season or round's official data into the site correctly. Manual ent
 
 AI Import prepares data; it cannot publish. Free chat accounts do not provide supported free API access, so there are no provider keys, automatic uploads or paid backend. You choose your AI service and attach the documents there. No prompt guarantees correctness.
 
-1. Open **AI Import** and choose **New season**, **Update season / regulations**, **Entry-list competitors** or **Official round results**. Choose the year and, for results, the round.
+1. Open **AI Import** and choose **New season**, **Update season / regulations**, **Entry-list crews & participation** or **Official round results**. Choose the year and, for results, the round.
 2. List the official document filenames, kinds, dates/versions and URLs. Start with the SSRs, applicable SRs and amendments. For results use the actual official classification, not live timing or an entry list. Download Sportity documents if the AI cannot read a login-only link.
 3. Generate the prompt pack. Copy the prompt or download it and the exact JSON contract. Upload documents yourself in a free ChatGPT or Claude chat. Existing name/alias context is **off by default**; include it only if sharing those names with your chosen service is appropriate. Never attach a database backup, licence/contact details, biographies or photos.
-4. Use staged, complete setup/entry batches: regulations first, then an Update season pack for calendar/classes/entry additions. Results require **one whole classification** per pack, not a page at a time. Coverage must declare one combined batch, every source page exactly once, total document pages and whole-classification row/status totals. If the AI processes pages separately, combine all batches for the same source and target into one response before staging. **Per-page imports replace rather than append**, and partial/missing/duplicate batches or pages are blocked. Partial returned text remains local and can be downloaded for later repair; this release does not accumulate pages in the site. Free upload/context quotas vary. A missing or unreadable governing document is a blocker; request it instead of guessing.
+4. Use staged, complete setup/entry batches: regulations first, then an Update season pack for calendar/classes, then an Entry-list pack for crew participation. Results require **one whole classification** per pack, not a page at a time. Coverage must declare one combined batch, every source page exactly once, total document pages and whole-classification row/status totals. If the AI processes pages separately, combine all batches for the same source and target into one response before staging. **Per-page imports replace rather than append**, and partial/missing/duplicate batches or pages are blocked. Partial returned text remains local and can be downloaded for later repair; this release does not accumulate pages in the site. Free upload/context quotas vary. A missing or unreadable governing document is a blocker; request it instead of guessing.
 5. Paste the returned JSON or choose its file and select **Read returned JSON**. Markdown fences, incomplete JSON, unsupported rules, missing evidence, incomplete coverage and invalid rows are rejected before any working data changes. Use **Generate repair / developer handoff prompt** to request a corrected response or document unsupported rules.
 6. Review source pages/clauses, row/status counts, all unclear stage times and each proposed exception. Paged identity review matches unique exact names automatically; fuzzy matches and alias suggestions require your decision. Search for another existing profile instead of creating a duplicate. Printed names stay as supplied, while aliases resolve stable profiles. Duplicate resolved crew members or scored credits in the same round, including extra starts, block the AI import. Evidence-backed driver/co-driver swaps remain possible for distinct people.
 7. Approve the rules against the regulations and the source/exception review, then **Calculate change preview**. Inspect added/changed documents, removed result rows and before/after driver/co-driver starts, points and ranks. Stage the reviewed task only after it is correct.
@@ -17,7 +17,28 @@ AI Import prepares data; it cannot publish. Free chat accounts do not provide su
 
 AI classifications whose printed status is provisional or not clearly final show a warning and require a separate acknowledgment before staging. Acknowledgment does not make the data final: the printed status is preserved. Normal manual/provisional editing remains available.
 
-Entry lists may bulk-add name-only profiles but never starts, points, results or season-wide class overrides. AI cannot invent confirmations against MSA standings or bypass a total mismatch. Existing evidence-backed row overrides survive replacement only for the same car **and resolved crew**, not a reused car number.
+Entry lists bulk-add profiles **and scoped crew participation** through the same identity-review workflow.
+Include `entryLists` in the returned competitor pack, with the event ID from the prompt, supported NR
+crew rows, printed entry class, provenance, explicit day selections and complete reconciled coverage.
+A legacy pack without `entryLists` still adds profiles, but warns that it does **not** record participation.
+Entry lists never create starts, points, result rows or season-wide class overrides. AI cannot invent
+confirmations against MSA standings or bypass a total mismatch. Existing evidence-backed row overrides
+survive replacement only for the same car **and resolved crew**, not a reused car number.
+
+For a small manual entry note, use **Events & calendar → Note an official entry list** (or expand existing
+**Entry evidence**). Record source URL, file/title, date and coverage/exclusions; add only supported
+Northern Regions crews. Select source coverage and each crew's days independently. Leave crew days empty
+for event-only evidence. Explicit NRC "Both days"/"Day 1 only"/"Day 2 only" regional selections are day
+evidence when the dates/format agree; an undifferentiated weekend list is not. Missing sources mean
+unknown coverage. Do not mark absent classified crews DNS: keep **Entered (start unknown)** unless an
+official source explicitly says DNS or withdrawal, and cite that status separately.
+
+Preserve entry crew names even when classifications use a substitute or a changed car number. Resolve
+verified alternate spellings in **Competitors**, not by guessing identities from car number. Review both
+the stored event list before/after and classification starts/points before publishing. Reimport replaces
+only the selected complete event list, so inspect removed entries; unrelated lists and classification
+evidence remain intact. Entries appear unobtrusively below a round classification, on calendar event cards
+and in crew/profile documented-event counts, not in a new DNS section.
 
 Omitted fields and unrelated data are preserved. Calendar/class/event/document updates add or update records rather than deleting absent ones; remove obsolete items deliberately through the manual editors. Repeated identical imports make no changes. Changes to existing results or scoring clear affected MSA confirmations.
 

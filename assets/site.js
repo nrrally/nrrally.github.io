@@ -29,7 +29,7 @@
   }
   function safeUrl(u) { u = String(u || '').trim(); return /^(https?:|mailto:)/i.test(u) || /^[\w./-]+$/.test(u) ? u : ''; }
   function ext(u, text, cls) { u = safeUrl(u); return u ? '<a href="' + esc(u) + '" target="_blank" rel="noopener"' + (cls ? ' class="' + cls + '"' : '') + '>' + text + '</a>' : ''; }
-  function plink(name) { return name ? '<a href="#/person/' + slug(name) + '">' + esc(name) + '</a>' : '<span class="muted">—</span>'; }
+  function plink(name) { return name ? '<a href="#/person/' + (ST.peopleIndex ? ST.peopleIndex.resolve(name).id : slug(name)) + '">' + esc(name) + '</a>' : '<span class="muted">—</span>'; }
   function clsTag(c) { return c ? '<span class="cls ' + esc(c) + '">' + esc(c) + '</span>' : ''; }
   function classificationState(r) {
     if (r.provisional) return 'provisional';
@@ -256,11 +256,15 @@
       stat(d.length, 'Drivers scored') + stat(stages, 'Special stages') + '</div>' +
       '<div class="hero-actions">' + (lastRound ? '<a class="btn primary" href="' + sh('/round/' + lastRound.id) + '">Open the latest stage graph</a><a class="btn ghost-dark" href="' + sh('/standings') + '">Championship standings</a>' :
         '<a class="btn primary" href="' + sh('/rounds') + '">See the calendar</a><a class="btn ghost-dark" href="#/info">Regulations &amp; info</a>') + '</div></section>';
+    if (D.entryLists.length) html += '<p class="small muted">' + D.entryLists.reduce(function (n, l) { return n + l.eventEntries; }, 0) +
+      ' documented event crew entries across ' + D.entryLists.length + ' / ' + D.events.length +
+      ' events with entry evidence (event entries counted once, not once per day). Entry coverage may be partial; entry does not prove a start.</p>';
     if (!D.rounds.length) {
       html += '<div class="section"><div class="card empty"><h2>No results yet</h2><p>Standings and stage graphs appear here once the first ' + YEAR + ' round has an official classification.</p></div></div>';
       html += '<div class="section"><div class="section-head"><h2>The ' + YEAR + ' calendar</h2></div>' + eventCards() + '</div>';
       return { title: 'Home', html: html };
     }
+    if (!d.length) return { title: 'Home', html: html + '<div class="section"><div class="card empty"><h2>No scored starts yet</h2><p>Documented entries remain in crew profiles; entries and DNS do not create championship starts.</p></div>' + eventCards() + '</div>' };
     var prov = unconfirmed();
     if (prov.length) {
       html += '<div class="callout warn" style="margin-top:16px"><div><b>Points for ' + roundList(prov) + ' are calculated on this site.</b> They apply the NR points scale to the official classifications' +
@@ -314,7 +318,10 @@
         return '<a class="event-round" href="' + sh('/round/' + r.id) + '"><span class="rnd">R' + r.n + '</span><span class="w">' + (w ? '<b>' + esc(w.driver) + '</b> / ' + esc(w.codriver) : '—') +
           '<span>' + esc(r.day) + ' · ' + r.stages.length + ' stages · ' + classifiedSorted(r).length + ' classified' + (classificationState(r) === 'provisional' ? ' · provisional sheet' : classificationState(r) === 'unclear' ? ' · finality unclear' : '') + '</span></span><span class="go">Graph →</span></a>';
       }).join('');
-      return '<div class="card event-card"><div class="event-top"><h3>' + esc(ev.name) + '</h3><div class="meta">' + [ev.dates, ev.venue, ev.surface].filter(Boolean).map(esc).join(' · ') + '</div>' + eventLinks(ev) + '</div><div class="event-rounds">' + (rows || '<div class="event-round upcoming"><span class="w"><span>No rounds added yet</span></span></div>') + '</div></div>';
+      var list = D.entryLists.filter(function (l) { return l.eventId === ev.id; })[0];
+      var entryNote = list ? '<p class="small muted">' + list.eventEntries + ' documented event entries' +
+        (list.complete ? '' : ' (partial coverage)') + '; day scope only where evidenced. ' + ext(list.source.url, 'Entry source') + '</p>' : '';
+      return '<div class="card event-card"><div class="event-top"><h3>' + esc(ev.name) + '</h3><div class="meta">' + [ev.dates, ev.venue, ev.surface].filter(Boolean).map(esc).join(' · ') + '</div>' + eventLinks(ev) + entryNote + '</div><div class="event-rounds">' + (rows || '<div class="event-round upcoming"><span class="w"><span>No rounds added yet</span></span></div>') + '</div></div>';
     }).join('') + '</div>';
   }
 
@@ -720,9 +727,23 @@
         '<td class="num mono">' + d1 + '</td><td class="num mono">' + dp + '</td><td class="num">' + (e.classPos ? e.classPos : '') + '</td><td class="num">' + pts + '</td></tr>';
     }).join('');
     var extra = (r.extraStarts || []).map(function (x) { return '<li>' + esc(x.note) + '</li>'; }).join('');
+    var participation = r.entryParticipation, entryNote = '';
+    if (participation) {
+      var unstarted = participation.entries.filter(function (e) { return !e.recordedStart && !e.recordedDNS && e.status !== 'DNS'; });
+      var dnsCount = participation.entries.filter(function (e) { return e.recordedDNS || e.status === 'DNS'; }).length;
+      entryNote = '<details class="small muted"><summary>Entry list: ' + participation.entries.length + ' documented round entries' +
+        (participation.complete ? '' : ' (coverage incomplete or day scope unknown)') +
+        (unstarted.length ? ' · ' + unstarted.length + ' crews not recorded as started' : '') +
+        (dnsCount ? ' · ' + dnsCount + ' official DNS' : '') + '</summary><p>' +
+        ext(participation.source.url, 'Official entry source') + '. Entry is separate from starts and points. ' +
+        participation.entries.map(function (e) { return '#' + esc(e.car) + ' ' + plink(e.driver) + ' / ' + plink(e.codriver) +
+          ' (' + esc(e['class']) + ')' + (e.recordedDNS ? ' — official classification DNS' :
+            e.status !== 'entered' ? ' — ' + esc(e.status === 'DNS' ? 'official DNS' : 'withdrawn') :
+            e.recordedStart ? '' : ' — entry only; crew not recorded as started'); }).join('; ') + '</p></details>';
+    }
     return '<div class="table-wrap"><table class="data compact"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>' +
       '<p class="small muted">Times, penalties, positions and stages as printed on the official sheet. Class positions and points use the class each crew is scored in (see notes). Points: overall + class.</p>' +
-      (extra ? '<div class="notes"><b>Also recorded</b><ul>' + extra + '</ul></div>' : '');
+      (extra ? '<div class="notes"><b>Also recorded</b><ul>' + extra + '</ul></div>' : '') + entryNote;
   }
 
   function roundStageTimes(r) {
@@ -753,19 +774,21 @@
 
   /* ---------- crews */
   function viewCrews() {
-    var html = '<div class="page-head"><div><p class="eyebrow">' + D.people.length + ' competitors in ' + YEAR + '</p><h1>Crews</h1><p>Every driver and co-driver who appears on an official ' + YEAR + ' Northern Regions classification. Open a name for their profile across all seasons.</p></div></div>';
+    var html = '<div class="page-head"><div><p class="eyebrow">' + D.people.length + ' competitors in ' + YEAR + '</p><h1>Crews</h1><p>Drivers and co-drivers documented in official ' + YEAR + ' Northern Regions classifications or entry lists. Entry does not prove a start. Open a name for their profile across all seasons.</p></div></div>';
     if (!D.people.length) return { title: 'Crews', html: html + '<div class="card empty">No ' + YEAR + ' results yet.</div>' };
     html += '<div class="filters"><label class="sr-only" for="crewSearch">Search crews</label><input id="crewSearch" class="search" type="search" placeholder="Search by name or car number…" autocomplete="off"></div>';
     var rows = D.people.map(function (p) {
       var sd = standingIdx.driver[p.id], sc = standingIdx.codriver[p.id];
-      var cars = {}; p.apps.forEach(function (a) { cars[a.car] = 1; });
-      var cls = (sd || sc || {}).cls || (p.apps[0] && p.apps[0].cls);
+      var cars = {}; p.apps.concat(p.entries).forEach(function (a) { cars[a.car] = 1; });
+      var cls = (sd || sc || {}).cls || (p.apps[0] && p.apps[0].cls) || (p.entries[0] && p.entries[0].cls);
       var role = sd && sc ? 'Driver & co-driver' : sd ? 'Driver' : sc ? 'Co-driver' : 'Listed';
       var starts = (sd ? sd.starts : 0) + (sc ? sc.starts : 0);
       var search = (p.name + ' ' + Object.keys(cars).join(' ')).toLowerCase();
-      return '<tr data-s="' + esc(search) + '"><td>' + plink(p.name) + '</td><td>' + role + '</td><td>' + clsTag(cls) + '</td><td class="num">' + (sd ? 'P' + sd.rank + ' · ' + sd.total : '<span class="muted">—</span>') + '</td><td class="num">' + (sc ? 'P' + sc.rank + ' · ' + sc.total : '<span class="muted">—</span>') + '</td><td class="num">' + starts + '</td><td class="mono small">' + esc(Object.keys(cars).join(', ')) + '</td></tr>';
+      return '<tr data-s="' + esc(search) + '"><td>' + plink(p.name) + '</td><td>' + role + '</td><td>' + clsTag(cls) + '</td><td class="num">' + (sd ? 'P' + sd.rank + ' · ' + sd.total : '<span class="muted">—</span>') + '</td><td class="num">' + (sc ? 'P' + sc.rank + ' · ' + sc.total : '<span class="muted">—</span>') + '</td><td class="num">' + starts + '</td>' +
+        (D.entryLists.length ? '<td class="num">' + new Set(p.entries.map(function (e) { return e.eventId; })).size + '</td>' : '') + '<td class="mono small">' + esc(Object.keys(cars).join(', ')) + '</td></tr>';
     }).join('');
-    html += '<div class="table-wrap"><table class="data" id="crewTable"><thead><tr><th>Name</th><th>Role</th><th>Class</th><th class="num">Driver standings</th><th class="num">Co-driver standings</th><th class="num">Starts</th><th>Car(s)</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    html += '<div class="table-wrap"><table class="data" id="crewTable"><thead><tr><th>Name</th><th>Role</th><th>Class</th><th class="num">Driver standings</th><th class="num">Co-driver standings</th><th class="num">Starts</th>' +
+      (D.entryLists.length ? '<th class="num">Events entered (documented)</th>' : '') + '<th>Car(s)</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
     mounts.push(function () {
       var inp = document.getElementById('crewSearch');
       inp.addEventListener('input', function () {
@@ -791,7 +814,7 @@
       var rb = {}; s.model.rounds.forEach(function (r) { rb[r.id] = r; });
       s.person.apps.forEach(function (a) { all.push({ a: a, r: rb[a.r] }); });
     });
-    var credited = all.filter(function (x) { return x.a.credited; });
+    var credited = all.filter(function (x) { return x.a.credited && x.a.status !== 'DNS'; });
     var finishes = credited.filter(function (x) { return x.a.status === 'classified'; });
     var best = finishes.length ? Math.min.apply(null, finishes.map(function (x) { return x.a.pos; })) : null;
     var wins = finishes.filter(function (x) { return x.a.pos === 1; }).length;
@@ -820,6 +843,16 @@
       var cls = (sd || sc || {}).cls || (s.person.apps[0] && s.person.apps[0].cls);
       html += '<div class="section season-block"><div class="section-head"><h2>' + s.year + ' season</h2><a class="go" href="' + sh('/standings' + (sd ? '' : '/codrivers')) + '">' + s.year + ' standings →</a></div>' +
         '<div class="round-meta" style="margin-bottom:12px">' + clsTag(cls) + (sd ? '<span>Driver standings: <b>P' + sd.rank + '</b> · ' + sd.total + ' pts' + (sd.eligible ? '' : ' <span class="muted">(fewer than ' + D.minStarts + ' starts)</span>') + '</span>' : '') + (sc ? '<span>Co-driver standings: <b>P' + sc.rank + '</b> · ' + sc.total + ' pts' + (sc.eligible ? '' : ' <span class="muted">(fewer than ' + D.minStarts + ' starts)</span>') + '</span>' : '') + '</div>';
+      if (s.person.entries.length) html += '<details class="small muted"><summary>' +
+        new Set(s.person.entries.map(function (e) { return e.eventId; })).size +
+        ' events entered (documented; counted once per event)</summary><p>' + s.person.entries.map(function (e) {
+          var event = eventsById[e.eventId] || {};
+          return esc(event.short || e.eventId) + ' · ' + (e.roundIds.length ? esc(e.roundIds.join(', ')) : 'event only; day scope unknown') +
+            ' · #' + esc(e.car) + ' · ' + plink(e.partner) + ' · printed entry class ' + esc(e.cls) +
+            ' · ' + (e.status === 'DNS' ? 'official DNS' : e.status === 'withdrawn' ? 'withdrawn' :
+              e.recordedStart ? 'start recorded separately' : 'entry only; not recorded as started in this scope') +
+            ' · ' + ext(e.source.url, 'source');
+        }).join('<br>') + '</p></details>';
       var row = sd || sc;
       if (row) html += '<div class="card chart-card">' + pointsBars(row) + '</div>';
       var apps = s.person.apps.slice().sort(function (a, b) { return ROUND_IDS.indexOf(a.r) - ROUND_IDS.indexOf(b.r); });
@@ -952,6 +985,7 @@
   window.addEventListener('hashchange', render);
   loadSiteAndPeople().then(function (res) {
     ST.site = res[0]; ST.people = res[1];
+    ST.peopleIndex = E.peopleIndex(ST.people);
     ((ST.people && ST.people.people) || []).forEach(function (p) { ST.profiles[p.id] = p; });
     render();
   }).catch(showLoadError);

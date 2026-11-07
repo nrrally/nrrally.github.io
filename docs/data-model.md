@@ -93,6 +93,49 @@ The public projection adds `finalityUnclear` for AI-imported rounds whose status
 | `rounds` | `[{id, eventId, day, date, results}]` in calendar order. A round's number is its position in this list. `results: true` means a round file exists; the site only loads rounds with this flag. |
 | `notes` | Season-level data notes, shown on the site's "Sources & data notes" page |
 
+## Documented entry participation (stored on the season)
+
+Optional `season.entryLists` keeps official entry evidence independent of classifications. Each list is
+`{eventId, roundIds, complete, source:{file,url,date,locator}, entries:[...]}`. There is one reviewed list
+per event. `roundIds` describes known day coverage, not an instruction to assign every crew to every day.
+Missing lists mean unknown coverage, not zero entrants. `complete:false` supports explicitly partial
+manual evidence; AI replacements require complete, reconciled supported-field coverage.
+
+Each crew is `{car,driver,codriver,class,vehicle,roundIds,status,statusEvidence,participationEvidence,locator}`.
+Names and classes retain the source spelling; names resolve against stable profiles and verified aliases.
+`class` is the printed **entry** class, never a scoring override. `participationEvidence` documents
+supported Northern Regions membership and day scope. Exclude national/club-only rows without NR evidence.
+Only necessary public sports fields are accepted; licence/identity/contact details, points and stage
+times are rejected. Unknown fields also block normal publication and revision rebase.
+
+`status` is `entered`, `DNS` or `withdrawn`. DNS/withdrawal requires explicit official status evidence:
+absence from a classification is not DNS. A published start list alone does not prove an actual start.
+`roundIds:[]` records an event entry with unknown day membership. Explicit day selections, such as the
+official NRC `regional_days` values `both`, `day1` and `day2`, can establish round membership when the
+event dates/format match the calendar. A two-day entry counts as one **event** entry and two documented
+**round** entries, never as two event entries.
+
+The computed model exposes `entryLists`, `round.entryParticipation` and `person.entries` separately
+from result entries, scored standings and `person.apps`. Crew matching uses resolved identities, not
+car number alone; changed crews remain separate. A person can have an entered role/partner and a
+different classified role/partner without gaining a second start. Per-event profile counts deduplicate
+by event; scoring, finishes, minimum starts, countback, class/credit overrides and extra starts are unchanged.
+Profiles do not count classification DNS as starts.
+
+The version-1 AI envelope accepts optional top-level `entryLists` for the `competitors` task. Its crew
+rows use `driverRef`/`codriverRef` instead of names and its lists use `sourceId` instead of `source`.
+Normal identity review resolves these to the stored shape. Old profile-only packs remain readable,
+with an explicit warning that no participation is saved. A complete reviewed entry import replaces
+only that event's entry list; omitted event lists are retained. Classification/regulations imports
+cannot replace entry lists and do not erase them. Entry-only imports do not invalidate MSA confirmations.
+
+This additive season field uses the existing atomic publication, public season bundle, History/undo
+and version-1 backup layout; no Firestore collection or rule change is needed. Public entry provenance
+is intentionally limited to sports evidence; private AI review metadata remains excluded. Restoring an
+older backup that removes entry evidence requires an extra warning/confirmation. Deploy compatible
+readers/editors **before** publishing entry evidence. Older deployed code can display classifications
+but does not validate or display this field; reverting code after backfill is not a safe editing workflow.
+
 ## seasons/<year>/rounds/<id>.json
 
 One official classification for one Northern Regions round. Most fields are copied as printed.

@@ -218,7 +218,7 @@
     }
 
     var people = {};
-    function person(id, name) { return people[id] || (people[id] = { id: id, name: name, apps: [] }); }
+    function person(id, name) { return people[id] || (people[id] = { id: id, name: name, apps: [], entries: [] }); }
     rounds.forEach(function (rd) {
       rd.entries.forEach(function (e) {
         var seen = {};
@@ -246,12 +246,47 @@
       });
     });
 
+    var entryLists = (season.entryLists || []).map(function (list) {
+      return Object.assign({}, list, { entries: list.entries.map(function (e) {
+        var d = pidx.resolve(e.driver), c = pidx.resolve(e.codriver);
+        var candidates = rounds.filter(function (r) { return r.eventId === list.eventId && (!e.roundIds.length || e.roundIds.indexOf(r.id) >= 0); });
+        function started(id) {
+          return !!id && candidates.some(function (r) {
+            return r.entries.some(function (x) { return x.status !== 'DNS' && (x.driverId === id || x.codriverId === id ||
+              x.champDriverId === id || !x.noCreditCodriver && x.champCodriverId === id); }) ||
+              r.extraStarts.some(function (x) { return x.driverId === id || x.codriverId === id; });
+          });
+        }
+        var row = Object.assign({}, e, { driver: d.name, codriver: c.name, driverId: d.id, codriverId: c.id });
+        row.recordedStart = candidates.some(function (r) { return entryCrewRecorded(row, r); });
+        [[d, 'driver', c.name], [c, 'co-driver', d.name]].forEach(function (x) {
+          if (!x[0].id) return;
+          person(x[0].id, x[0].name).entries.push({ eventId: list.eventId, roundIds: e.roundIds, car: e.car, role: x[1],
+            partner: x[2], cls: e['class'], vehicle: e.vehicle, status: e.status, recordedStart: started(x[0].id),
+            source: list.source, locator: e.locator });
+        });
+        return row;
+      }) });
+    });
+    entryLists.forEach(function (l) {
+      l.eventEntries = new Set(l.entries.map(function (e) { return [e.driverId, e.codriverId].filter(Boolean).sort().join('/'); })).size;
+    });
+    rounds.forEach(function (r) {
+      var list = entryLists.filter(function (l) { return l.eventId === r.eventId; })[0];
+      r.entryParticipation = list ? { complete: list.complete && list.roundIds.indexOf(r.id) >= 0 &&
+        list.entries.every(function (e) { return e.roundIds.length; }), source: list.source,
+        entries: list.entries.filter(function (e) { return e.roundIds.indexOf(r.id) >= 0; }).map(function (e) {
+          return Object.assign({}, e, { recordedStart: entryCrewRecorded(e, r), recordedDNS: entryCrewRecorded(e, r, 'DNS') });
+        }) } : null;
+    });
+
     return {
       year: season.year, championship: season.championship, status: season.status || '', minStarts: season.minStarts,
       pointsScale: scale, classes: season.classes || [], events: season.events || [], rounds: rounds,
       standings: { drivers: standings('driver'), codrivers: standings('codriver') },
       people: Object.keys(people).map(function (k) { return people[k]; }).sort(function (a, b) { return a.name < b.name ? -1 : 1; }),
       msa: season.msa || null, documents: season.documents || [], notes: season.notes || [],
+      entryLists: entryLists,
       calendar: (season.rounds || []).map(function (m, i) {
         return { id: m.id, n: i + 1, eventId: m.eventId, day: m.day || '', date: m.date || '', hasResults: !!roundsById[m.id] };
       })
@@ -259,6 +294,79 @@
   }
 
   /* ---------------------------------------------------------------- validation */
+  function entryCrewRecorded(e, r, status) {
+    var crew = [e.driverId, e.codriverId].filter(Boolean).sort().join('/');
+    function same(d, c) { return [d, c].filter(Boolean).sort().join('/') === crew; }
+    return r.entries.some(function (x) { return (status ? x.status === status : x.status !== 'DNS') &&
+      (same(x.driverId, x.codriverId) || same(x.champDriverId, x.noCreditCodriver ? '' : x.champCodriverId)); }) ||
+      !status && r.extraStarts.some(function (x) { return same(x.driverId, x.codriverId); });
+  }
+  function validateEntryLists(season, peopleDoc) {
+    var errors = [], lists = season.entryLists, idx = peopleIndex(peopleDoc),
+      events = Object.create(null), rounds = Object.create(null), seen = Object.create(null);
+    if (lists === undefined) return errors;
+    function error(msg) { errors.push({ level: 'error', msg: 'Entry evidence: ' + msg }); }
+    function fields(value, allowed, label) {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) { error(label + ': expected object.'); return false; }
+      Object.keys(value).forEach(function (k) { if (allowed.indexOf(k) < 0) error(label + ': unknown field ' + k); });
+      return true;
+    }
+    function text(value, label, required) {
+      if (typeof value !== 'string' || value.length > 16000 || required && !value.trim()) error(label + ': invalid text.');
+    }
+    function scope(ids, eventId, label) {
+      if (!Array.isArray(ids) || ids.length > 10000) { error(label + ': expected round IDs.'); return; }
+      if (new Set(ids).size !== ids.length) error(label + ': duplicate round scope.');
+      ids.forEach(function (id) { if (!rounds[id] || rounds[id] !== eventId) error(label + ': round outside event: ' + id); });
+    }
+    (season.events || []).forEach(function (e) { events[e.id] = true; });
+    (season.rounds || []).forEach(function (r) { rounds[r.id] = r.eventId; });
+    if (!Array.isArray(lists) || lists.length > 10000) { error('expected an array of lists.'); return errors; }
+    lists.forEach(function (l) {
+      if (!fields(l, ['eventId', 'roundIds', 'complete', 'source', 'entries'], 'list')) return;
+      if (!events[l.eventId] || seen[l.eventId]) error('unknown/duplicate event ' + l.eventId);
+      seen[l.eventId] = true;
+      if (typeof l.complete !== 'boolean') error('complete must be explicit.');
+      scope(l.roundIds, l.eventId, 'coverage');
+      if (fields(l.source, ['file', 'url', 'date', 'locator'], 'source')) {
+        ['file', 'url', 'date', 'locator'].forEach(function (k) { text(l.source[k], 'source.' + k, true); });
+        try {
+          var u = new URL(l.source.url);
+          if (!/^https?:$/.test(u.protocol) || u.username || u.password) error('source requires a public http(s) URL.');
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(l.source.date) || new Date(l.source.date + 'T12:00:00Z').toISOString().slice(0, 10) !== l.source.date) error('invalid source date.');
+        } catch (e) { error('invalid source URL/date.'); }
+      }
+      if (!Array.isArray(l.entries) || l.entries.length > 10000) { error('expected crew rows.'); return; }
+      var keys = Object.create(null), members = Object.create(null);
+      l.entries.forEach(function (e) {
+        if (!fields(e, ['car', 'driver', 'codriver', 'class', 'vehicle', 'roundIds', 'status', 'statusEvidence', 'participationEvidence', 'locator'], 'crew')) return;
+        ['car', 'driver', 'codriver', 'class', 'vehicle', 'statusEvidence', 'participationEvidence', 'locator'].forEach(function (k) {
+          text(e[k], 'crew.' + k, ['driver', 'class', 'participationEvidence', 'locator'].indexOf(k) >= 0);
+        });
+        if (!/^\d{1,8}$/.test(e.car)) error('numeric car required.');
+        if (!/^(entered|DNS|withdrawn)$/.test(e.status)) error('status must be entered, DNS or withdrawn.');
+        if (e.status !== 'entered' && !e.statusEvidence) error('DNS/withdrawal requires explicit official status evidence.');
+        scope(e.roundIds, l.eventId, 'crew scope');
+        if (!Array.isArray(e.roundIds)) return;
+        if (e.roundIds.some(function (id) { return !Array.isArray(l.roundIds) || l.roundIds.indexOf(id) < 0; })) error('crew scope is outside source coverage.');
+        var d = idx.resolve(e.driver), c = idx.resolve(e.codriver), key = d.id + '/' + c.id;
+        if (!d.known || c.id && !c.known) error('crew names must resolve to stable profiles before publication.');
+        if (d.id === c.id) error('same person occupies both crew seats.');
+        var scopes = e.roundIds.length ? e.roundIds : ['event-only'];
+        scopes.forEach(function (id) {
+          var k = id + '/' + key;
+          if (keys[k]) error('duplicate resolved crew in ' + id);
+          keys[k] = true;
+          [d.id, c.id].filter(Boolean).forEach(function (person) {
+            var m = id + '/' + person;
+            if (members[m]) error('duplicate resolved person in ' + id);
+            members[m] = true;
+          });
+        });
+      });
+    });
+    return errors;
+  }
   function validateRound(raw, opts) {
     opts = opts || {};
     var issues = [], S = raw.stages || [];
@@ -364,7 +472,7 @@
         if (!classes[map[id]]) error(role + ' class map refers to unknown class ' + map[id]);
       });
     });
-    return issues;
+    return issues.concat(validateEntryLists(season, people));
   }
   function validateDataset(docs) {
     var out = [], st = docs && docs['data/site.json'], ppl = docs && docs['data/people.json'];
@@ -604,6 +712,6 @@
   var api = { parseTime: parseTime, fmtTime: fmtTime, slug: slug, normName: normName, normClass: normClass, ord: ord, r1: r1, prettyJson: prettyJson,
     peopleIndex: peopleIndex, buildSeason: buildSeason, validateRound: validateRound, parseClassificationText: parseClassificationText, parseSpreadsheet: parseSpreadsheet,
     similarNames: similarNames, sumReport: sumReport, spreadsheetTemplate: spreadsheetTemplate,
-    validateSeason: validateSeason, validateDataset: validateDataset };
+    validateSeason: validateSeason, validateDataset: validateDataset, validateEntryLists: validateEntryLists };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.NREngine = api;
 })(typeof window !== 'undefined' ? window : this);

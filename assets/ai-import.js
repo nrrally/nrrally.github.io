@@ -65,13 +65,16 @@
   var roundShape = obj({ id: ID, title: str(), status: str(), stages: arr(str()), notes: arr(str()),
     source: obj({ sourceId: str(), file: str(), url: str() }), entries: arr(entry),
     extraStarts: arr(obj({ car: str(), driverRef: str(), codriverRef: str(true), 'class': str(), note: str(), sourceId: str(), locator: str() })) });
+  var entryListShape = obj({ eventId: ID, roundIds: arr(ID), complete: bool(), sourceId: ID,
+    entries: arr(obj({ car: str(), driverRef: ID, codriverRef: str(true), 'class': str(), vehicle: str(), roundIds: arr(ID),
+      status: enumeration(['entered', 'DNS', 'withdrawn']), statusEvidence: str(), participationEvidence: str(), locator: str() })) });
   var SCHEMA = obj({
     format: enumeration(['nr-rally-ai-import']), version: enumeration([1]),
     task: enumeration(['season', 'amendment', 'competitors', 'results']),
     target: obj({ year: num(false, true), roundId: str(true) }), baseToken: str(),
     sources: arr(source), rules: nullable(obj(ruleProps)), season: nullable(seasonShape),
     competitors: arr(obj({ ref: ID, name: str(), existingId: str(true), aliases: arr(str()) })),
-    rounds: arr(roundShape),
+    rounds: arr(roundShape), entryLists: arr(entryListShape),
     issues: arr(obj({ code: str(), ref: str(), severity: enumeration(['error', 'warn']), message: str() })),
     coverage: arr(obj({ sourceId: str(), kind: enumeration(['regulations', 'calendar', 'entries', 'results']),
       locator: str(), complete: bool(), rows: num(false, true), classified: num(false, true), DNF: num(false, true), DNS: num(false, true), omissions: arr(str()),
@@ -79,6 +82,7 @@
     }, ['sourceId', 'kind', 'locator', 'complete', 'rows', 'classified', 'DNF', 'DNS', 'omissions'])),
     evidence: arr(obj({ ref: str(), sourceId: str(), locator: str() }))
   });
+  SCHEMA.required = SCHEMA.required.filter(function (k) { return k !== 'entryLists'; });
   var CONTRACT = { format: 'nr-rally-ai-import', version: 1, limits: LIMITS, policy: POLICY, schema: SCHEMA,
     evidenceRefs: { rules: 'rules.<policy key> (declaration sourceId/locator)', season: 'season.<supplied field>',
       competitor: 'competitors.<ref>', result: 'rounds.<roundId>.entries.<car>',
@@ -218,6 +222,21 @@
     if ((payload.task === 'season' || payload.task === 'amendment') && (!payload.season || !payload.rules)) error('Season/regulations imports require season fields and every rule declaration.');
     if ((payload.task === 'competitors' || payload.task === 'results') && (payload.season || payload.rules)) error('Competitor/result tasks cannot change season settings.');
     if (payload.task === 'competitors' && (payload.rounds.length || !payload.competitors.length)) error('Entry-list task requires competitors and no result rounds.');
+    if ((payload.entryLists || []).length && payload.task !== 'competitors') error('Entry participation belongs to the entry-list task, not a classification or regulations replacement.');
+    unique(payload.entryLists || [], 'eventId', 'entry-list event');
+    (payload.entryLists || []).forEach(function (l) {
+      var s = sources[l.sourceId];
+      if (!s || s.kind !== 'EntryList') error(l.eventId + ': official entry-list source required.');
+      if (!l.complete) error(l.eventId + ': incomplete source cannot replace saved entry evidence.');
+      var coverage = payload.coverage.filter(function (c) { return c.kind === 'entries' && c.sourceId === l.sourceId; });
+      if (coverage.length !== 1 || coverage[0].rows !== l.entries.length) error(l.eventId + ': entry coverage must reconcile the supported regional crew count exactly.');
+      l.entries.forEach(function (e) {
+        if (!refs[e.driverRef] || e.codriverRef && !refs[e.codriverRef]) error(l.eventId + ': unresolved entry crew reference.');
+        if (!e.locator.trim() || !e.participationEvidence.trim()) error(l.eventId + ': row locator and supported Northern Regions participation evidence required.');
+        if (e.status !== 'entered' && !e.statusEvidence.trim()) error(l.eventId + ': never infer DNS or withdrawal from absence.');
+      });
+    });
+    if (payload.task === 'competitors' && !(payload.entryLists || []).length) warns.push('Legacy profile-only pack: no entry participation will be saved. Regenerate the pack with entryLists to record scoped crews.');
     if (payload.task === 'results' && (payload.rounds.length !== 1 || payload.rounds[0].id !== payload.target.roundId)) error('Import one classification for the selected round.');
     if (payload.task !== 'results' && payload.target.roundId !== null) error('Only results tasks may target a round.');
     if (!payload.sources.length) error('Official sources are required.');
@@ -392,6 +411,20 @@
         evidence: clone(payload.evidence.filter(function (e) { return e.ref.indexOf('season.') === 0; })), signature: signature(s) };
       if (old && priorSignature !== signature(s) && s.msa) s.msa.confirmedRounds = [];
     }
+    (payload.entryLists || []).forEach(function (l) {
+      var source = payload.sources.filter(function (x) { return x.id === l.sourceId; })[0];
+      var coverage = payload.coverage.filter(function (x) { return x.sourceId === l.sourceId && x.kind === 'entries'; })[0];
+      var list = { eventId: l.eventId, roundIds: clone(l.roundIds), complete: l.complete,
+        source: { file: source.file, url: source.url, date: source.date, locator: coverage.locator },
+        entries: l.entries.map(function (e) {
+          return { car: e.car, driver: printedNames[e.driverRef], codriver: e.codriverRef ? printedNames[e.codriverRef] : '',
+            'class': E.normClass(e['class']), vehicle: e.vehicle, roundIds: clone(e.roundIds), status: e.status,
+            statusEvidence: e.statusEvidence, participationEvidence: e.participationEvidence, locator: e.locator };
+        }) };
+      s.entryLists = s.entryLists || [];
+      var i = s.entryLists.findIndex(function (x) { return x.eventId === l.eventId; });
+      if (i < 0) s.entryLists.push(list); else s.entryLists[i] = list;
+    });
     payload.rounds.forEach(function (r) {
       var meta = (s.rounds || []).filter(function (x) { return x.id === r.id; })[0];
       if (!meta) { errors.push(r.id + ': not on target calendar.'); return; }
@@ -459,6 +492,7 @@
       'Exclude licence numbers, identity/contact details, photos and biographies. Name/alias context is optional and supplied only with admin consent. Any existingId or alias is a suggestion for human review.',
       'Unsupported examples: best-N/dropped or weighted rounds, bonus/stage points, per-class scales, different co-driver scoring, membership scoring, changed tie-breaks, DSQ/NC or restart/super-rally semantics. Report them explicitly. No prompt or arithmetic check guarantees factual correctness.',
       'For tasks season/amendment: rules and season required, all policy keys required; every supplied season field needs evidence ref season.<field>. For a new season supply every season property; for an amendment omit unchanged properties. Competitor task: season/rules null, rounds empty. Results task: season/rules null and exactly the selected round.',
+      'Entry-list task: include entryLists with eventId from context.events, sourceId, complete, roundIds (days whose entry coverage the source establishes), and every supported Northern Regions crew row. Each row needs driverRef/codriverRef, printed class, vehicle, car, locator, participationEvidence explaining NR membership and day scope, roundIds, status entered and empty statusEvidence unless an official row explicitly says DNS/withdrawn. A whole-event list with no day evidence uses roundIds:[]; never assign every day by default. A documented regional_days=both/day1/day2 may establish scope when the event format/calendar agrees. Count event entries once even if they cover two rounds. Exclude national/club-only entries unless Northern Regions membership is explicitly evidenced. coverage.entries.rows counts only these supported crews; explain exclusions in the locator. Import one complete list per event; reimport explicitly replaces that event list, with before/after review. Omit entryLists in all other tasks. Never create result rows, times, starts, scoring class maps or points from entries.',
       'Each result driverRef/codriverRef and credit reference must identify a competitors[].ref in this response. Include competitors evidence. Evidence result refs are rounds.<id>.entries.<car>; override refs append .override. Results coverage must contain exact row/status counts for each classification. Coverage entries.rows is number of entry-list crews, not unique people.',
       'Results coverage requires classification:{batchIndex:1,totalBatches:1,pages:[every source page number exactly once],totalPages:<whole document page count>,totalRows:<whole classification crew count>}. Per-page/batch imports REPLACE, never append, and cannot stage. If you processed pages separately, combine ALL batches from the same source/target into one complete JSON response with reconciled references, evidence, unique cars and whole-classification totals. Never mark a single page complete as if it were the entire classification.',
       'Rule declaration values must reflect the document; use null/unknown and a blocking issue if uncertain. Do not merely copy the supported policy. Rules missing explicit text require explanation and human review of governing regulations. Sources require filename/title/date/version and supersedes when relevant.',

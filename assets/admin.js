@@ -105,6 +105,11 @@
     var idx = E.peopleIndex(peopleDoc()), unknown = {};
     years().forEach(function (y) {
       var s = season(y); if (!s) return;
+      (s.entryLists || []).forEach(function (l) { l.entries.forEach(function (e) {
+        [e.driver, e.codriver].forEach(function (n) {
+          if (!E.normName(n)) return; var x = idx.resolve(n); if (!x.known) unknown[x.name] = 1;
+        });
+      }); });
       (s.rounds || []).forEach(function (r) {
         var raw = rawRound(r.id, y); if (!raw) return;
         (raw.entries || []).concat(raw.extraStarts || []).forEach(function (e) {
@@ -281,6 +286,14 @@
   /* Replace the whole working copy with a set of documents (import or restore). Documents not in the set are
      removed; nothing is saved until you publish. Photos from a backup are staged too. */
   async function stageAll(set) {
+    var entryLoss = Object.keys(A.docs).some(function (p) {
+      var before = A.docs[p].obj, after = set.docs[p];
+      return before && (before.entryLists || []).some(function (l) {
+        var next = after && (after.entryLists || []).filter(function (x) { return x.eventId === l.eventId; })[0];
+        return !next || next.entries.length < l.entries.length;
+      });
+    });
+    if (entryLoss && !window.confirm('This backup removes saved entry-list evidence. Older backups do not contain it. Restore anyway? History records the replacement only when you publish.')) throw new Error('Backup restore cancelled; entry evidence retained.');
     Object.keys(A.docs).forEach(function (p) { if (!set.docs[p]) A.docs[p].deleted = true; });
     Object.keys(set.docs).forEach(function (p) {
       var obj = clone(set.docs[p]);
@@ -661,6 +674,7 @@
   function aiContext(st) {
     var se = season(st.year), context = { task: st.task, target: { year: st.year, roundId: st.task === 'results' ? st.roundId : null },
       baseToken: st.token, sourceChecklist: st.sources, calendar: se ? se.rounds.map(function (r) { return { id: r.id, eventId: r.eventId, day: r.day, date: r.date }; }) : [],
+      events: se ? se.events.map(function (e) { return { id: e.id, name: e.name, dates: e.dates }; }) : [],
       classes: se ? se.classes : [], existingNames: [] };
     if (st.includeNames) context.existingNames = peopleDoc().people.map(function (p) { return { id: p.id, name: p.name, aliases: p.aliases || [] }; });
     return context;
@@ -704,7 +718,7 @@
     var rounds = (season(st.year) && season(st.year).rounds) || [];
     html += '<div class="card"><h3>1. Choose the task and documents</h3><div class="form-grid">' +
       fld('Task', select(changeTarget(function (v) { st.task = v; st.year = v === 'season' ? Math.max.apply(null, years()) + 1 : A.year; st.roundId = ''; }),
-        st.task, [['season', 'New season'], ['amendment', 'Update season / regulations'], ['competitors', 'Entry-list competitors'], ['results', 'Official round results']], 'id="aiTask"')) +
+        st.task, [['season', 'New season'], ['amendment', 'Update season / regulations'], ['competitors', 'Entry-list crews & participation'], ['results', 'Official round results']], 'id="aiTask"')) +
       fld('Target year', st.task === 'season' ? input(changeTarget(function (v) { st.year = +v; }), st.year, 'type="number" min="1990" max="2100" id="aiYear"') :
         select(changeTarget(function (v) { st.year = +v; st.roundId = ''; }), st.year, years().map(function (y) { return [y, y]; }), 'id="aiYear"')) +
       fld('Prompt phase', select(function (v) { st.phase = v; st.prompt = ''; render(); }, st.phase, [['regulations', 'Regulations / capability check'], ['setup', 'Calendar, classes and entries'], ['results', 'One official classification']], 'id="aiPhase"')) +
@@ -768,7 +782,7 @@
     if (st.preview && !st.preview.errors.length) {
       var preview = st.preview, changes = preview.changes;
       html += '<div class="card" id="aiConsequences"><h3>5. Proposed changes (' + changes.length + ' documents)</h3>' + aiIssues([], preview.warns) +
-        '<p class="small">Omitted fields and unrelated seasons remain unchanged. Entry-list profiles have no starts/points. Rules/results changes clear affected MSA confirmations. Nothing switches the public default season automatically.</p>' +
+        '<p class="small">Omitted fields and unrelated seasons remain unchanged. Scoped entry lists replace only the reviewed event list and never create starts/points or clear MSA confirmations. Legacy profile-only packs do not log participation. Rules/results changes clear affected MSA confirmations. Nothing switches the public default season automatically.</p>' +
         changes.map(function (c) { return '<details><summary>' + esc(label(c.path)) + '</summary><pre class="ai-json">' +
           esc(JSON.stringify({ before: c.before, after: c.after }, null, 2)) + '</pre></details>'; }).join('') +
         aiStandingsPreview(preview) + aiResultPreview(st, p) + '<div class="actions">' +
@@ -1044,7 +1058,7 @@
         fld('Dates', input(function (v) { ev.dates = v; }, ev.dates, 'placeholder="21–22 August ' + A.year + '"')) + fld('Venue', input(function (v) { ev.venue = v; }, ev.venue)) +
         fld('Surface', select(function (v) { ev.surface = v; }, ev.surface || '', [['', '—'], ['Gravel', 'Gravel'], ['Tarmac', 'Tarmac'], ['Mixed', 'Mixed']])) +
         LINKS.map(function (l) { return fld(l[1], input(function (v) { if (v.trim()) ev.links[l[0]] = v.trim(); else delete ev.links[l[0]]; }, ev.links[l[0]], 'type="url" placeholder="https://"')); }).join('') +
-        '</div><div class="actions">' + (used ? '<span class="small muted">Remove its rounds first to delete this event.</span>' : btn(function () { if (window.confirm('Delete ' + (ev.name || 'this event') + '?')) { s.events.splice(i, 1); render(); } }, 'Delete event', 'tiny ghost')) + '</div></div>';
+        '</div>' + entryListEditor(s, ev) + '<div class="actions">' + (used ? '<span class="small muted">Remove its rounds first to delete this event.</span>' : btn(function () { if (window.confirm('Delete ' + (ev.name || 'this event') + '?')) { s.events.splice(i, 1); render(); } }, 'Delete event', 'tiny ghost')) + '</div></div>';
     }).join('');
     var ne = A.newEvent || (A.newEvent = { name: '' });
     html += '<div class="card add-card"><div class="form-grid">' + fld('New event name', input(function (v) { ne.name = v; }, ne.name, 'placeholder="e.g. TRAC N4 Rally" id="neName"'), '', 'span2') + '<div class="fld">' +
@@ -1077,12 +1091,52 @@
   }
 
   /* ------------------------------------------------------------------ competitors */
+  function entryListEditor(s, ev) {
+    var list = (s.entryLists || []).filter(function (l) { return l.eventId === ev.id; })[0];
+    if (!list) return '<div class="actions">' + btn(function () {
+      s.entryLists = s.entryLists || [];
+      s.entryLists.push({ eventId: ev.id, roundIds: [], complete: false,
+        source: { file: '', url: ev.links.entryList || '', date: new Date().toISOString().slice(0, 10), locator: '' }, entries: [] });
+      render();
+    }, 'Note an official entry list', 'tiny') + '</div>';
+    var rounds = s.rounds.filter(function (r) { return r.eventId === ev.id; });
+    function scope(value) {
+      return rounds.map(function (r) { return check(function (v) {
+        var i = value.indexOf(r.id); if (v && i < 0) value.push(r.id); else if (!v && i >= 0) value.splice(i, 1);
+      }, value.indexOf(r.id) >= 0, r.id + ' · ' + r.day); }).join('');
+    }
+    return '<details class="entry-editor"><summary>Entry evidence · ' + list.entries.length + ' crews</summary><p class="small muted">Entry only, never a start or points. Leave round selections empty for event-only evidence. Only select days the source explicitly covers; absence from results does not prove DNS. Resolve alternate spellings in Competitors before publishing.</p><div class="form-grid">' +
+      fld('Entry-list file / title', input(function (v) { list.source.file = v; }, list.source.file)) +
+      fld('Entry-list URL', input(function (v) { list.source.url = v; }, list.source.url, 'type="url"')) +
+      fld('Source date / retrieved', input(function (v) { list.source.date = v; }, list.source.date, 'type="date"')) +
+      fld('Coverage / exclusions / locator', input(function (v) { list.source.locator = v; }, list.source.locator), 'Record supported NR field and any national/club exclusions.', 'span3') +
+      '<div class="fld span3">' + check(function (v) { list.complete = v; }, list.complete, 'Complete supported NR entry-list coverage') + scope(list.roundIds) + '</div></div>' +
+      list.entries.map(function (e, i) {
+        return '<div class="card"><div class="form-grid">' +
+          fld('Entry car', input(function (v) { e.car = v; }, e.car)) +
+          fld('Entry driver', input(function (v) { e.driver = v; }, e.driver)) +
+          fld('Entry co-driver', input(function (v) { e.codriver = v; }, e.codriver)) +
+          fld('Printed entry class', input(function (v) { e['class'] = E.normClass(v); }, e['class'])) +
+          fld('Entry vehicle', input(function (v) { e.vehicle = v; }, e.vehicle)) +
+          fld('Entry status', select(function (v) { e.status = v; }, e.status, [['entered', 'Entered (start unknown)'], ['DNS', 'Official DNS'], ['withdrawn', 'Official withdrawal']])) +
+          fld('Official status evidence', input(function (v) { e.statusEvidence = v; }, e.statusEvidence), 'Required for DNS or withdrawal.') +
+          fld('NR membership and day evidence', input(function (v) { e.participationEvidence = v; }, e.participationEvidence)) +
+          fld('Entry row locator', input(function (v) { e.locator = v; }, e.locator)) +
+          '<div class="fld span3">' + scope(e.roundIds) + '</div></div>' +
+          btn(function () { if (window.confirm('Remove this saved entry evidence from the draft?')) { list.entries.splice(i, 1); render(); } }, 'Remove entry', 'tiny ghost') + '</div>';
+      }).join('') + '<div class="actions">' +
+      btn(function () { list.entries.push({ car: '', driver: '', codriver: '', 'class': '', vehicle: '', roundIds: [],
+        status: 'entered', statusEvidence: '', participationEvidence: '', locator: '' }); render(); }, '+ Add entered crew', 'tiny') +
+      btn(function () { if (window.confirm('Remove this event entry list? Its evidence will be removed only after publishing.')) {
+        s.entryLists = s.entryLists.filter(function (l) { return l !== list; }); render();
+      } }, 'Remove entry list', 'tiny ghost') + '</div></details>';
+  }
   function appearances() {
     var out = {};
     years().forEach(function (y) {
       var m; try { m = model(y); } catch (e) { return; }
       if (!m) return;
-      m.people.forEach(function (p) { (out[p.id] = out[p.id] || []).push({ year: y, apps: p.apps }); });
+      m.people.forEach(function (p) { (out[p.id] = out[p.id] || []).push({ year: y, apps: p.apps, entries: p.entries }); });
     });
     return out;
   }
@@ -1101,7 +1155,7 @@
     }) + '"></div>';
     html += '<div class="table-wrap"><table class="data" id="pTable"><thead><tr><th>Name</th><th>Also printed as</th><th class="num">Starts listed</th><th>Seasons</th><th>Profile</th></tr></thead><tbody>' +
       doc.people.map(function (p) {
-        var a = apps[p.id] || [], n = 0; a.forEach(function (s) { n += s.apps.length; });
+        var a = apps[p.id] || [], n = 0; a.forEach(function (s) { n += s.apps.filter(function (app) { return app.credited && app.status !== 'DNS'; }).length; });
         var prof = [p.photo ? 'photo' : '', p.bio ? 'bio' : '', p.links && Object.keys(p.links).length ? 'links' : ''].filter(Boolean).join(', ');
         return '<tr data-s="' + esc((p.name + ' ' + (p.aliases || []).join(' ')).toLowerCase()) + '"><td><a href="#/competitor/' + encodeURIComponent(p.id) + '"><b>' + esc(p.name) + '</b></a></td><td class="small">' + esc((p.aliases || []).join(', ')) + '</td><td class="num">' + n + '</td><td>' + a.map(function (s) { return s.year; }).join(', ') + '</td><td class="small muted">' + (prof || '—') + '</td></tr>';
       }).join('') + '</tbody></table></div>';
