@@ -657,7 +657,7 @@
     Object.keys(docs).forEach(function (p) { if (p.indexOf('data/seasons/' + year + '/') === 0) selected[p] = docs[p]; });
     return AI.canonical(selected);
   }
-  function aiResetReview(st) { st.payload = null; st.preview = null; st.errors = []; st.choices = {}; st.rules = false; st.evidence = false; st.page = 0; st.identityPage = 0; st.identities = null; }
+  function aiResetReview(st) { st.payload = null; st.preview = null; st.errors = []; st.choices = {}; st.rules = false; st.evidence = false; st.finality = false; st.page = 0; st.identityPage = 0; st.identities = null; }
   function aiContext(st) {
     var se = season(st.year), context = { task: st.task, target: { year: st.year, roundId: st.task === 'results' ? st.roundId : null },
       baseToken: st.token, sourceChecklist: st.sources, calendar: se ? se.rounds.map(function (r) { return { id: r.id, eventId: r.eventId, day: r.day, date: r.date }; }) : [],
@@ -677,7 +677,7 @@
   function aiPreview(st) {
     if (!st.payload) throw new Error('Read the returned JSON first.');
     if (st.base !== aiSnapshot(st.year)) throw new Error('The target season or identity list changed. Choose Recheck against current draft, then review again.');
-    st.preview = AI.plan(st.payload, workingDocs(), st.choices, { rules: st.rules, evidence: st.evidence });
+    st.preview = AI.plan(st.payload, workingDocs(), st.choices, { rules: st.rules, evidence: st.evidence, finality: st.finality });
     st.errors = st.preview.errors; render();
   }
   function aiIssues(errors, warns) {
@@ -734,7 +734,7 @@
         if (v.text) aiRead(A.ai); else render();
       }, 'application/json,.json', 'Resume saved import draft') + '</div></div>';
     if (st.token) {
-      if (st.prompt) html += '<div class="card"><h3>2. Copy the prompt and attach your files in the AI chat</h3><p class="small">For large seasons use complete smaller batches. Start with regulations, then use Update season for calendar/entry additions. Import one round classification at a time. Free account limits vary.</p>' +
+      if (st.prompt) html += '<div class="card"><h3>2. Copy the prompt and attach your files in the AI chat</h3><p class="small">For large seasons use complete smaller setup/entry batches. Results require one WHOLE round classification with every page and reconciled total rows. Per-page imports replace, never append: combine all pages/batches in your AI chat before returning JSON. Partial responses can be downloaded locally but cannot stage. Free account limits vary.</p>' +
         '<textarea class="mono" rows="8" readonly id="aiPrompt">' + esc(st.prompt) + '</textarea><div class="actions">' +
         btn(async function () { if (!navigator.clipboard) throw new Error('Clipboard unavailable. Select and copy the prompt text above.'); await navigator.clipboard.writeText(st.prompt); toast('Prompt copied.', 'good'); }, 'Copy prompt', '', 'id="aiCopy"') +
         btn(function () { download('ai-import-instructions-' + st.year + '.txt', st.prompt); download('ai-import-contract-v1.json', JSON.stringify(AI.contract, null, 2)); }, 'Download prompt & contract') + '</div></div>';
@@ -752,16 +752,19 @@
     }
     if (st.errors.length) html += '<div class="card" id="aiErrors"><h3>Import blockers</h3>' + aiIssues(st.errors) + '</div>';
     if (!st.payload || AI.assess(st.payload).errors.length) return html;
-    var p = st.payload, ids = st.identities || (st.identities = AI.identities(p, peopleDoc())), stale = st.base !== aiSnapshot(st.year);
+    var p = st.payload, assessment = AI.assess(p), ids = st.identities || (st.identities = AI.identities(p, peopleDoc())), stale = st.base !== aiSnapshot(st.year);
     html += '<div class="card"><h3>4. Review identities, evidence and rules</h3>' +
+      aiIssues([], assessment.warns) +
       (stale ? '<p class="bad-line">The draft changed since this pack was generated. Recheck below; nothing can stage from a stale preview.</p>' : '') +
       '<details><summary>Sources, coverage and field evidence</summary><pre class="ai-json">' + esc(JSON.stringify({ sources: p.sources, coverage: p.coverage, evidence: p.evidence, rules: p.rules, issues: p.issues }, null, 2)) + '</pre></details>' +
       '<p class="small">' + ids.length + ' competitor references. Exact unique names resolve automatically; look-alikes, alias proposals and AI identity suggestions require your decision. No fuzzy merge is automatic.</p>' +
       aiIdentityTable(st, ids) + '<div class="chk-row">' +
       (p.rules ? check(function (v) { st.rules = v; st.preview = null; render(); }, st.rules, 'I verified every supported rule and changed setting against the official regulations', 'id="aiRulesApprove"') : '') +
       check(function (v) { st.evidence = v; st.preview = null; render(); }, st.evidence, 'I checked source coverage, all unclear/missing times and every proposed identity/credit/class/extra-start exception', 'id="aiEvidenceApprove"') +
+      (p.rounds.some(function (r) { return AI.needsFinalityReview(r.status); }) ? check(function (v) { st.finality = v; st.preview = null; render(); }, st.finality,
+        'I acknowledge this classification is provisional or its finality is unclear; staging does not make it final', 'id="aiFinalityApprove"') : '') +
       '</div><div class="actions">' + btn(function () { aiPreview(st); }, 'Calculate change preview', 'primary', (stale ? 'disabled ' : '') + 'id="aiPreview"') +
-      btn(function () { st.base = aiSnapshot(st.year); st.rules = false; st.evidence = false; st.preview = null; st.identities = null; st.errors = AI.assess(st.payload).errors; render(); }, 'Recheck against current draft', '', 'id="aiRecheck"') + '</div></div>';
+      btn(function () { st.base = aiSnapshot(st.year); st.rules = false; st.evidence = false; st.finality = false; st.preview = null; st.identities = null; st.errors = AI.assess(st.payload).errors; render(); }, 'Recheck against current draft', '', 'id="aiRecheck"') + '</div></div>';
     if (st.preview && !st.preview.errors.length) {
       var preview = st.preview, changes = preview.changes;
       html += '<div class="card" id="aiConsequences"><h3>5. Proposed changes (' + changes.length + ' documents)</h3>' + aiIssues([], preview.warns) +
@@ -771,7 +774,7 @@
         aiStandingsPreview(preview) + aiResultPreview(st, p) + '<div class="actions">' +
         btn(function () {
           if (st.base !== aiSnapshot(st.year)) throw new Error('The draft changed. Recheck and review again.');
-          var checked = AI.plan(st.payload, workingDocs(), st.choices, { rules: st.rules, evidence: st.evidence });
+          var checked = AI.plan(st.payload, workingDocs(), st.choices, { rules: st.rules, evidence: st.evidence, finality: st.finality });
           if (checked.errors.length) throw new Error(checked.errors.join('\n'));
           checked.changes.forEach(function (c) { putDoc(c.path, clone(c.after)); });
           st.base = aiSnapshot(st.year); st.preview = null; st.errors = []; st.text = ''; A.year = st.year;

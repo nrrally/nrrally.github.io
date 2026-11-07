@@ -51,7 +51,8 @@ function payload(task = 'season', year = 2027) {
       entries: [{ status: 'classified', pos: 1, car: '1', driverRef: 'alex', codriverRef: 'new', class: 'OPEN', vehicle: 'Test car', stages: 2,
         times: ['1:00.0', '2:00.0'], stagePos: [1, 1], pen: null, total: '3:00.0', credit: null, scoredClass: null, notes: [] }], extraStarts: [] }];
     p.evidence.push({ ref: 'rounds.R1.entries.1', sourceId: 'results', locator: 'Car 1, page 1' });
-    p.coverage = [{ sourceId: 'results', kind: 'results', locator: 'Page 1', complete: true, rows: 1, classified: 1, DNF: 0, DNS: 0, omissions: [] }];
+    p.coverage = [{ sourceId: 'results', kind: 'results', locator: 'Page 1', complete: true, rows: 1, classified: 1, DNF: 0, DNS: 0, omissions: [],
+      classification: { batchIndex: 1, totalBatches: 1, pages: [1], totalPages: 1, totalRows: 1 } }];
   }
   return p;
 }

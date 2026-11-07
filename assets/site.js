@@ -364,7 +364,7 @@
           var w = winnerOf(r);
           var cw = CLASSES.map(function (c) { var e = classifiedSorted(r).filter(function (x) { return x.cls === c; })[0]; return '<td class="nowrap">' + (e ? esc(surname(e.champDriver)) : '<span class="muted">—</span>') + '</td>'; }).join('');
           return '<tr><td><a href="' + sh('/round/' + r.id) + '"><b>R' + r.n + '</b></a></td><td class="nowrap">' + esc(eventOf(r).short) + ' · ' + esc(r.day.split(' (')[0]) + '</td><td class="nowrap">' + fmtDate(r.date) + '</td><td class="num">' + r.stages.length + '</td><td class="nowrap">' + (w ? '<b>' + esc(w.driver) + '</b>' : '—') + '</td>' + cw +
-            '<td>' + (r.provisional ? '<span class="badge prov">Provisional</span>' : '<span class="badge final">Final</span>') + '</td></tr>';
+            '<td>' + (r.provisional ? '<span class="badge prov">Provisional</span>' : r.finalityUnclear ? '<span class="badge prov">Finality unclear</span>' : '<span class="badge final">Final</span>') + '</td></tr>';
         }).join('') + '</tbody></table></div></div>';
     }
     return { title: 'Rounds', html: html };
@@ -410,7 +410,7 @@
     }).join('') + '</div>';
     html += '<div class="page-head"><div><p class="eyebrow">Round ' + r.n + ' of ' + D.calendar.length + ' · ' + esc(r.day) + '</p><h1>' + esc(ev.name) + '</h1>' +
       '<div class="round-meta">' + [fmtDate(r.date), esc(ev.venue), esc(ev.surface)].filter(Boolean).map(function (x) { return '<span>' + x + '</span>'; }).join('<span class="sep">/</span>') + '<span class="sep">/</span><span>' + r.stages.length + ' stages (' + esc(r.stages[0]) + '–' + esc(r.stages[r.stages.length - 1]) + ')</span>' +
-      (r.provisional ? '<span class="badge prov" title="The sheet is headed Provisional">Provisional sheet</span>' : '<span class="badge final">Final classification</span>') +
+      (r.provisional ? '<span class="badge prov" title="The sheet is headed Provisional">Provisional sheet</span>' : r.finalityUnclear ? '<span class="badge prov">Classification finality unclear</span>' : '<span class="badge final">Final classification</span>') +
       (r.confirmed ? '<span class="badge final" title="Points match the MSA standings">Points match MSA</span>' : '<span class="badge calc" title="Points calculated on this site">Points calculated</span>') + '</div></div>' +
       '<div style="display:flex;gap:8px">' + (idx > 0 ? '<a class="btn" href="' + sh('/round/' + ROUND_IDS[idx - 1] + '/' + tab) + '">← R' + roundsById[ROUND_IDS[idx - 1]].n + '</a>' : '') + (idx < ROUND_IDS.length - 1 ? '<a class="btn" href="' + sh('/round/' + ROUND_IDS[idx + 1] + '/' + tab) + '">R' + roundsById[ROUND_IDS[idx + 1]].n + ' →</a>' : '') + '</div></div>';
     var tabs = [['graph', 'Stage graph'], ['classification', 'Classification'], ['stages', 'Stage times']];

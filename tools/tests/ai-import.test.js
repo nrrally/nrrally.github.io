@@ -152,3 +152,156 @@ test('large complete entry batch stages without per-person forms and prompt excl
   const prompt = AI.prompt({ target: p.target, baseToken: p.baseToken, existingNames: [] }, 'setup');
   assert.ok(!prompt.includes('PRIVATE')); assert.ok(prompt.includes('No prompt')); assert.ok(prompt.includes('additionalProperties'));
 });
+
+function secondCrew(p) {
+  const r = p.rounds[0], e = F.copy(r.entries[0]);
+  e.car = '2'; e.pos = 2; e.driverRef = 'other-driver'; e.codriverRef = 'other-co';
+  e.credit = null;
+  e.times = ['2:00.0', '2:00.0']; e.total = '4:00.0'; e.stagePos = [2, 2];
+  p.competitors.push({ ref: 'other-driver', name: 'Charlie Synthetic', existingId: null, aliases: [] },
+    { ref: 'other-co', name: 'Delta Fixture', existingId: null, aliases: [] });
+  ['other-driver', 'other-co'].forEach(ref => p.evidence.push({ ref: 'competitors.' + ref, sourceId: 'results', locator: 'Car 2' }));
+  p.evidence.push({ ref: 'rounds.R1.entries.2', sourceId: 'results', locator: 'Car 2' });
+  r.entries.push(e); p.coverage[0].rows++; p.coverage[0].classified++; p.coverage[0].classification.totalRows++;
+  return e;
+}
+function override(p, car, credit) {
+  if (!p.sources.some(s => s.id === 'standings')) p.sources.push(F.source('standings', 'Standings'));
+  p.evidence.push({ ref: 'rounds.R1.entries.' + car + '.override', sourceId: 'standings', locator: 'Official credit exception for car ' + car });
+  p.rounds[0].entries.find(e => e.car === car).credit = credit;
+}
+function extra(p, car, driverRef, codriverRef) {
+  if (!p.sources.some(s => s.id === 'standings')) p.sources.push(F.source('standings', 'Standings'));
+  p.rounds[0].extraStarts.push({ car, driverRef, codriverRef, class: 'OPEN', note: 'Official zero-point start',
+    sourceId: 'standings', locator: 'Official starts table' });
+}
+test('resolved identities cannot occupy both printed crew roles, including two references selected as one person', () => {
+  const p = F.payload('results', 2026), docs = F.docs(), snapshot = F.copy(docs);
+  p.rounds[0].entries[0].codriverRef = 'alex';
+  let r = plan(p, docs); assert.ok(r.errors.some(e => /duplicate resolved printed crew/.test(e))); assert.deepEqual(r.changes, []);
+  p.rounds[0].entries[0].codriverRef = 'new';
+  r = plan(p, docs, { new: 'alex-test' }); assert.ok(r.errors.some(e => /duplicate resolved printed crew/.test(e)));
+  assert.deepEqual(docs, snapshot);
+});
+test('duplicate resolved crews or members in separate cars block before standings can overwrite', () => {
+  const p = F.payload('results', 2026), e = secondCrew(p);
+  assert.deepEqual(plan(p).errors, []);
+  e.driverRef = 'alex'; e.codriverRef = 'new';
+  const r = plan(p);
+  assert.ok(r.errors.some(e => /duplicate resolved scored credit/.test(e))); assert.deepEqual(r.changes, []);
+  e.driverRef = 'other-driver'; // Even one duplicated co-driver would overwrite a standings record.
+  assert.ok(plan(p).errors.some(e => /duplicate resolved scored credit/.test(e)));
+});
+test('evidence-backed credit collisions block, while swaps and distinct credited crews remain valid', () => {
+  const p = F.payload('results', 2026);
+  override(p, '1', { driverRef: 'new', codriverRef: null, noCodriver: false, why: 'Official driver correction' });
+  assert.ok(plan(p).errors.some(e => /duplicate resolved scored credit/.test(e)));
+  p.rounds[0].entries[0].credit.codriverRef = 'alex';
+  assert.deepEqual(plan(p).errors, []); // A documented driver/co-driver swap is valid.
+  const other = secondCrew(p);
+  assert.deepEqual(plan(p).errors, []);
+  override(p, '2', { driverRef: 'alex', codriverRef: null, noCodriver: false, why: 'Conflicting official correction' });
+  assert.ok(plan(p).errors.some(e => /duplicate resolved scored credit/.test(e)));
+  other.credit.driverRef = 'other-driver'; other.credit.noCodriver = true;
+  const valid = plan(p); assert.deepEqual(valid.errors, []); assert.equal(valid.afterModel.standings.codrivers.length, 1);
+  p.rounds[0].entries[0].credit = { driverRef: 'new', codriverRef: null, noCodriver: true, why: 'Only driver credited' };
+  assert.deepEqual(plan(p).errors, []); // Suppressed co-driver credit must not create a false collision.
+});
+test('new and retained extra starts cannot conflict with printed identities or credited results', () => {
+  const p = F.payload('results', 2026); secondCrew(p);
+  const existing = plan(p); assert.deepEqual(existing.errors, []);
+  p.rounds[0].entries.pop(); p.coverage[0].rows--; p.coverage[0].classified--; p.coverage[0].classification.totalRows--;
+  extra(p, '3', 'other-driver', 'other-co');
+  assert.deepEqual(plan(p).errors, []); // Independent crew with an evidenced extra start.
+  p.rounds[0].extraStarts[0].driverRef = 'alex';
+  assert.ok(plan(p).errors.some(e => /duplicate resolved/.test(e)));
+  p.rounds[0].extraStarts[0].driverRef = 'other-driver';
+  p.rounds[0].extraStarts[0].codriverRef = 'other-driver';
+  assert.ok(plan(p).errors.some(e => /duplicate resolved/.test(e)));
+  p.rounds[0].extraStarts = [];
+  existing.docs['data/seasons/2026/rounds/R1.json'].extraStarts = [
+    { car: '3', driver: 'Alex Test', codriver: '', class: 'OPEN', note: 'Retained start' }
+  ];
+  assert.ok(plan(p, existing.docs).errors.some(e => /duplicate resolved/.test(e)));
+  // Extra-start identity appears only through a credit override, not a printed crew.
+  const credited = F.payload('results', 2026); secondCrew(credited);
+  credited.rounds[0].entries.pop(); credited.coverage[0].rows--; credited.coverage[0].classified--; credited.coverage[0].classification.totalRows--;
+  override(credited, '1', { driverRef: 'other-driver', codriverRef: null, noCodriver: false, why: 'Official credited driver' });
+  extra(credited, '3', 'other-driver', 'other-co');
+  assert.ok(plan(credited).errors.some(e => /duplicate resolved scored credit/.test(e)));
+});
+test('preserved legacy overrides and post-staging edits cannot introduce duplicate AI round credits', () => {
+  const p = F.payload('results', 2026); secondCrew(p);
+  const r = plan(p); assert.deepEqual(r.errors, []);
+  r.docs['data/seasons/2026/rounds/R1.json'].entries[1].credit = { driver: 'Alex Test', why: 'Old conflicting credit' };
+  assert.ok(plan(p, r.docs).errors.some(e => /duplicate resolved scored credit/.test(e)));
+  assert.ok(AI.validateDocuments(r.docs).some(i => /duplicate resolved scored credit/.test(i.msg)));
+  const legacy = F.copy(r.docs); delete legacy['data/seasons/2026/rounds/R1.json']._aiImport;
+  assert.ok(!AI.validateDocuments(legacy).some(i => /duplicate resolved/.test(i.msg)), 'Do not change legacy manual workflow validation');
+});
+test('alias-based results preserve supplied printed spellings and resolve one stable profile', () => {
+  const p = F.payload('results', 2026);
+  p.competitors[0].name = 'A Test';
+  const r = plan(p); assert.deepEqual(r.errors, []);
+  assert.equal(r.docs['data/seasons/2026/rounds/R1.json'].entries[0].driver, 'A Test');
+  assert.equal(r.afterModel.standings.drivers[0].id, 'alex-test');
+  assert.equal(r.afterModel.standings.drivers[0].name, 'Alex Test');
+  assert.equal(r.docs['data/people.json'].people.find(p => p.id === 'alex-test').name, 'Alex Test');
+  assert.equal(plan(p, r.docs).changes.length, 0);
+  // A verified non-canonical spelling becomes an alias, but is not rewritten on the raw row.
+  p.competitors[0].name = 'Alex Tst';
+  const matched = plan(p, F.docs(), { alex: 'alex-test' }); assert.deepEqual(matched.errors, []);
+  assert.equal(matched.docs['data/seasons/2026/rounds/R1.json'].entries[0].driver, 'Alex Tst');
+  assert.ok(matched.docs['data/people.json'].people[0].aliases.includes('Alex Tst'));
+  assert.equal(matched.afterModel.standings.drivers[0].id, 'alex-test');
+});
+test('provisional and unclear finality warn and require independent acknowledgment without changing printed status', () => {
+  for (const status of ['Provisional classification', 'Classification', 'Not final classification', 'Preliminary Final Classification']) {
+    const p = F.payload('results', 2026); p.rounds[0].status = status;
+    const a = AI.assess(p); assert.deepEqual(a.errors, []); assert.ok(a.warns.some(w => /finality/.test(w)));
+    const blocked = plan(p); assert.ok(blocked.errors.some(e => /Acknowledge/.test(e))); assert.deepEqual(blocked.changes, []);
+    const accepted = AI.plan(p, F.docs(), {}, { evidence: true, finality: true });
+    assert.deepEqual(accepted.errors, []);
+    const raw = accepted.docs['data/seasons/2026/rounds/R1.json'];
+    assert.equal(raw.status, status); assert.equal(raw._aiImport.finalityAcknowledged, true);
+    assert.equal(accepted.afterModel.rounds[0].provisional, /provisional/i.test(status));
+    const publicRound = AI.projectPublic(raw);
+    assert.equal(publicRound.finalityUnclear, !/provisional/i.test(status));
+    const publicModel = E.buildSeason({ season: accepted.docs['data/seasons/2026/season.json'],
+      rounds: { R1: publicRound }, people: accepted.docs['data/people.json'] });
+    assert.equal(publicModel.rounds[0].finalityUnclear, !/provisional/i.test(status));
+  }
+  assert.ok(!AI.needsFinalityReview('Final Official Classification'));
+  assert.ok(!AI.needsFinalityReview('Final classification'));
+});
+test('partial or duplicate classification batches/pages never replace an existing round', () => {
+  const complete = F.payload('results', 2026); secondCrew(complete);
+  const existing = plan(complete); assert.deepEqual(existing.errors, []);
+  const snapshot = F.copy(existing.docs), partial = F.payload('results', 2026);
+  partial.coverage[0].locator = 'Page 2 of 2';
+  // Reproduced old contract: matching page-local counts and "complete" are insufficient.
+  delete partial.coverage[0].classification;
+  assert.ok(plan(partial, existing.docs).errors.some(e => /whole-classification/.test(e)));
+  partial.coverage[0].classification = { batchIndex: 2, totalBatches: 2, pages: [2], totalPages: 2, totalRows: 2 };
+  let blocked = plan(partial, existing.docs);
+  assert.ok(blocked.errors.some(e => /Combine all batches/.test(e))); assert.deepEqual(blocked.changes, []);
+  partial.coverage[0].classification.batchIndex = 1; partial.coverage[0].classification.totalBatches = 1;
+  assert.ok(plan(partial, existing.docs).errors.some(e => /missing or duplicate/i.test(e)));
+  partial.coverage[0].classification.pages = [2, 2];
+  assert.ok(plan(partial, existing.docs).errors.some(e => /missing or duplicate/i.test(e)));
+  partial.coverage.push(F.copy(partial.coverage[0])); // Duplicate batch reports must not count as assembly.
+  assert.ok(plan(partial, existing.docs).errors.some(e => /counts must match/.test(e)));
+  assert.deepEqual(existing.docs, snapshot);
+});
+test('combined whole-classification coverage reconciles rows and pages and reimports without data loss', () => {
+  const p = F.payload('results', 2026); secondCrew(p);
+  p.coverage[0].locator = 'All pages 1-2, entire classification';
+  p.coverage[0].classification.pages = [1, 2]; p.coverage[0].classification.totalPages = 2;
+  const assembled = plan(p); assert.deepEqual(assembled.errors, []);
+  assert.equal(assembled.docs['data/seasons/2026/rounds/R1.json'].entries.length, 2);
+  const repeated = plan(p, assembled.docs); assert.deepEqual(repeated.errors, []); assert.equal(repeated.changes.length, 0);
+  p.coverage[0].classification.totalRows = 3;
+  assert.ok(plan(p, assembled.docs).errors.some(e => /totalRows/.test(e)));
+  p.coverage[0].classification.totalRows = 2; p.coverage[0].sourceId = 'different-source';
+  assert.ok(plan(p, assembled.docs).errors.length);
+});

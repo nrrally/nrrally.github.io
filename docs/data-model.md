@@ -28,6 +28,10 @@ Other database documents:
 
 A saved local preparation file has `format: "nr-rally-ai-draft"`, version 1 and `state` containing task/target, source checklist, returned text, pack token and a local base snapshot. It is not a database backup, contains private context and cannot be restored through the backup workflow.
 
+Result coverage requires `classification: {batchIndex:1, totalBatches:1, pages:[...], totalPages, totalRows}`. Pages must list the whole source document exactly once, and totals must reconcile with all result rows. Multiple or incomplete page/batch responses must be combined outside the site before import; they cannot replace or append to a round individually. Other coverage kinds omit this field. Round review metadata records `finalityAcknowledged` when the admin explicitly acknowledges a provisional or unclear classification; it is not an official-final confirmation.
+
+The public projection adds `finalityUnclear` for AI-imported rounds whose status is neither explicitly final nor provisional. Public classification badges then say finality is unclear, rather than assuming final; private review metadata still remains excluded.
+
 **Backups.** A backup downloaded from the admin is one JSON file:
 ```
 { "format": "nr-rally-backup", "version": 1, "exportedAt": "…", "exportedBy": "…",

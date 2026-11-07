@@ -24,6 +24,8 @@ Coverage includes schema/version/unsafe-field rejection, evidence and unsupporte
 
 Continue running the private engine/importer and admin/site regressions below: the synthetic suite does not replace established 2026 coverage. No real competitor fixtures or documents belong in this repository.
 
+Focused review regressions also cover same-person crew roles, duplicate crew/credit assignments across cars, new/retained extra-start conflicts, valid credit swaps and suppressed co-driver credit, printed alias preservation, independent provisional-finality acknowledgment, and incomplete/duplicate page/batch rejection versus complete combined classification reimports.
+
 ## Manual check after a publish
 
 1. Open the changed round on the site and compare the Classification tab with the official PDF.

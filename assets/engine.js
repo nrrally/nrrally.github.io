@@ -164,7 +164,7 @@
       });
       return {
         id: meta.id, n: n, eventId: meta.eventId, day: meta.day || '', date: meta.date || '',
-        title: raw.title || '', status: raw.status || '', provisional: /provisional/i.test(raw.status || ''),
+        title: raw.title || '', status: raw.status || '', provisional: /provisional/i.test(raw.status || ''), finalityUnclear: !!raw.finalityUnclear,
         notes: raw.notes || [], source: raw.source || {}, stages: S, labels: labels, entries: ents, progression: prog,
         extraStarts: extra, confirmed: !!confirmed[meta.id]
       };
