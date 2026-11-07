@@ -81,8 +81,11 @@ async function main() {
     });
     const page = await ctx.newPage();
     page.on('pageerror', e => pageErrors.push(e.message));
-    let refuseEntryLoss = false;
-    page.on('dialog', d => refuseEntryLoss && d.message().includes('removes saved entry-list evidence') ? d.dismiss() : d.accept());
+    let refuseEntryLoss = false, entryLossPrompts = 0;
+    page.on('dialog', d => {
+      if (d.message().includes('removes saved entry-list evidence')) { entryLossPrompts++; return refuseEntryLoss ? d.dismiss() : d.accept(); }
+      return d.accept();
+    });
     const go = async hash => { await page.evaluate(h => location.hash = h, hash); await page.waitForTimeout(80); };
     const checked = async () => { await page.check('#aiRulesApprove'); await page.check('#aiEvidenceApprove'); await page.click('#aiPreview'); };
     const token = async () => (await page.inputValue('#aiPrompt')).match(/"baseToken": "([^"]+)"/)[1];
@@ -163,17 +166,53 @@ async function main() {
     assert.equal(json('docs/season_2027').entryLists[0].entries[0].vehicle, 'Manually noted entry car');
     await go('#/history'); await page.getByRole('button', { name: 'Undo', exact: true }).first().click(); await publish();
     assert.equal(json('public/season_2027').season.entryLists[0].entries[0].vehicle, 'Entry car');
+    // Manual entries require an explicit alias/new-person decision before any auto-add.
+    const beforeIdentity = commits;
+    await go('#/events'); await page.locator('.entry-editor summary').click();
+    await page.getByText('Entry driver', { exact: true }).locator('..').locator('input').fill('Alexx Test');
+    await go('#/publish');
+    assert.equal(await page.isDisabled('#pubGo'), true);
+    assert.ok((await page.innerText('.entry-identities')).includes('Looks like: Alex Test'));
+    assert.ok((await page.innerText('.entry-identities')).includes('never auto-added'));
+    assert.equal(json('docs/people').people.length, 2); assert.equal(commits, beforeIdentity);
+    await go('#/competitors');
+    await page.locator('.entry-identities select').selectOption('alex-test');
+    await publish();
+    assert.equal(json('docs/people').people.length, 2);
+    assert.ok(json('docs/people').people.find(p => p.id === 'alex-test').aliases.includes('Alexx Test'));
+    await go('#/events'); await page.locator('.entry-editor summary').click();
+    await page.getByText('Entry co-driver', { exact: true }).locator('..').locator('input').fill('Casey New Entry');
+    await go('#/publish'); assert.equal(await page.isDisabled('#pubGo'), true);
+    await page.getByRole('button', { name: 'Add as new competitor: Casey New Entry', exact: true }).click();
+    await publish();
+    assert.equal(json('docs/people').people.length, 3);
+    await go('#/history'); await page.getByRole('button', { name: 'Undo', exact: true }).first().click(); await publish();
+    assert.equal(json('docs/people').people.length, 2);
     await go('#/');
     const backupDownload = page.waitForEvent('download'); await page.click('#backupBtn');
     const backup = JSON.parse(fs.readFileSync(await (await backupDownload).path(), 'utf8'));
     assert.equal(backup.docs['data/seasons/2027/season.json'].entryLists[0].entries.length, 1);
-    delete backup.docs['data/seasons/2027/season.json'].entryLists;
     refuseEntryLoss = true;
+    for (const change of [
+      b => delete b.docs['data/seasons/2027/season.json'].entryLists,
+      b => b.docs['data/seasons/2027/season.json'].entryLists[0].entries[0].driver = 'Different Crew',
+      b => b.docs['data/seasons/2027/season.json'].entryLists[0].entries[0].roundIds = []
+    ]) {
+      const lossy = F.copy(backup); change(lossy);
+      const prompts = entryLossPrompts;
+      await page.locator('label').filter({ hasText: 'Restore from a backup' }).locator('input').setInputFiles({
+        name: 'synthetic-lossy-backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(lossy))
+      });
+      await page.waitForTimeout(150);
+      assert.equal(entryLossPrompts, prompts + 1);
+      assert.ok((await page.innerText('#toasts')).includes('entry evidence retained'));
+    }
+    const noLossPrompts = entryLossPrompts;
     await page.locator('label').filter({ hasText: 'Restore from a backup' }).locator('input').setInputFiles({
-      name: 'synthetic-old-backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup))
+      name: 'synthetic-no-loss-backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup))
     });
-    await page.waitForTimeout(150);
-    assert.ok((await page.innerText('#toasts')).includes('entry evidence retained'));
+    await page.getByRole('heading', { name: 'Nothing to publish' }).waitFor();
+    assert.equal(entryLossPrompts, noLossPrompts);
     refuseEntryLoss = false;
     // Results produce site-calculated points and private evidence.
     await go('#/ai-import'); await page.selectOption('#aiTask', 'results'); await page.selectOption('#aiYear', '2027');
@@ -257,6 +296,52 @@ async function main() {
     assert.ok((await page.innerText('#toasts')).includes('unknown field points'));
     assert.equal(commits, beforeRebase);
     assert.equal(json('public/season_2027').rounds.R1.entries[0].vehicle, 'Test car');
+    // A concurrent entry identity must block rebase auto-add even when also in results.
+    delete remoteSeason.entryLists[0].entries[0].points; remoteSeason.minStarts = 1;
+    set('docs/season_2027', { json: { stringValue: JSON.stringify(remoteSeason) } });
+    await page.click('#discardBtn'); await page.waitForTimeout(150);
+    await go('#/site');
+    await page.getByText('Tagline', { exact: true }).locator('..').locator('input').fill('Identity rebase draft');
+    await go('#/publish'); assert.equal(await page.isDisabled('#pubGo'), false);
+    const remoteEntry = json('docs/season_2027'); remoteEntry.entryLists[0].entries[0].driver = 'Aleks Test';
+    const remoteResult = json('docs/round_2027_R1'); remoteResult.entries[0].driver = 'Aleks Test';
+    set('docs/season_2027', { json: { stringValue: JSON.stringify(remoteEntry) } });
+    set('docs/round_2027_R1', { json: { stringValue: JSON.stringify(remoteResult) } });
+    set('config/revision', { n: { integerValue: '100' } });
+    const identityRebaseCommits = commits;
+    await page.click('#pubGo'); await page.waitForTimeout(250);
+    assert.ok((await page.innerText('#toasts')).includes('Resolve entry-list identities'));
+    assert.equal(commits, identityRebaseCommits); assert.equal(json('docs/people').people.length, 2);
+    await go('#/competitors'); await page.locator('.entry-identities select').selectOption('alex-test');
+    await publish();
+    assert.equal(json('docs/people').people.length, 2);
+    assert.ok(json('docs/people').people.find(p => p.id === 'alex-test').aliases.includes('Aleks Test'));
+    const beforeLegacy = commits;
+    await go('#/results/R1'); await page.locator('tr[data-row="0"] input.wn').nth(1).fill('Drew Legacy Result');
+    await go('#/publish'); assert.equal(await page.isDisabled('#pubGo'), false);
+    assert.ok((await page.innerText('main')).includes('Also adding 1 new competitor'));
+    await page.click('#pubGo'); await page.waitForSelector('.callout.good');
+    assert.equal(commits, beforeLegacy + 1);
+    assert.ok(json('docs/people').people.some(p => p.name === 'Drew Legacy Result'));
+    await go('#/history'); await page.getByRole('button', { name: 'Undo', exact: true }).first().click(); await publish();
+    assert.equal(json('docs/people').people.length, 2);
+    const mixedCommits = commits;
+    // Mixed cached contracts refuse publish instead of skipping entry validation.
+    for (const component of ['engine', 'import']) {
+      await page.reload(); await page.waitForSelector('.adm-main h1');
+      await page.evaluate(which => {
+        const api = which === 'engine' ? window.NREngine : window.NRAIImport;
+        delete api.entryContractVersion;
+        if (which === 'engine') { delete api.validateEntryLists; delete api.entryEvidenceLoss; }
+        else api.validateDocuments = () => [];
+      }, component);
+      await go('#/site');
+      await page.getByText('Tagline', { exact: true }).locator('..').locator('input').fill('Mixed ' + component);
+      await go('#/publish');
+      assert.equal(await page.isDisabled('#pubGo'), true);
+      assert.ok((await page.innerText('main')).includes('Ctrl+Shift+R'));
+      assert.equal(commits, mixedCommits);
+    }
     assert.deepEqual(pageErrors, []); assert.deepEqual(unexpected, []);
     console.log('PASS synthetic AI Import E2E: identity collisions, printed aliases, finality acknowledgment/public badges, partial-response retention/rejection, prompts, scoped drafts, resume, repeat imports, entries/results, privacy, undo, size limits and rebase validation.');
   } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }

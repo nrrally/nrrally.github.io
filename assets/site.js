@@ -29,7 +29,7 @@
   }
   function safeUrl(u) { u = String(u || '').trim(); return /^(https?:|mailto:)/i.test(u) || /^[\w./-]+$/.test(u) ? u : ''; }
   function ext(u, text, cls) { u = safeUrl(u); return u ? '<a href="' + esc(u) + '" target="_blank" rel="noopener"' + (cls ? ' class="' + cls + '"' : '') + '>' + text + '</a>' : ''; }
-  function plink(name) { return name ? '<a href="#/person/' + (ST.peopleIndex ? ST.peopleIndex.resolve(name).id : slug(name)) + '">' + esc(name) + '</a>' : '<span class="muted">—</span>'; }
+  function plink(name) { return name ? '<a href="#/person/' + esc(encodeURIComponent(ST.peopleIndex ? ST.peopleIndex.resolve(name).id : slug(name))) + '">' + esc(name) + '</a>' : '<span class="muted">—</span>'; }
   function clsTag(c) { return c ? '<span class="cls ' + esc(c) + '">' + esc(c) + '</span>' : ''; }
   function classificationState(r) {
     if (r.provisional) return 'provisional';
@@ -84,6 +84,8 @@
     ST.pending[year] = getPublic('season_' + year).then(function (b) {
       if (!b) throw loadError('empty', 'The ' + year + ' season hasn\'t been published yet.');
       var model = E.buildSeason({ season: b.season, rounds: b.rounds || {}, people: ST.people });
+      model.entryLists = model.entryLists || [];
+      model.people.forEach(function (p) { p.entries = p.entries || []; });
       model.year = +year; model.raw = b.season;
       ST.models[year] = model;
       return model;
@@ -207,7 +209,7 @@
         case 'rounds': view = viewRounds(); break;
         case 'round': view = viewRound(parts[1], parts[2] || 'graph', h.q); break;
         case 'crews': view = viewCrews(); break;
-        case 'person': view = viewPerson(parts[1]); break;
+        case 'person': view = viewPerson(parts[1] ? decodeURIComponent(parts[1]) : ''); break;
         case 'about': view = viewAbout(); break;
         case 'info': view = viewInfo(); break;
         default: view = notFound();
@@ -311,14 +313,24 @@
   function eventCards() {
     if (!D.events.length) return '<div class="card empty">No events have been added to the ' + YEAR + ' calendar yet.</div>';
     return '<div class="grid events-grid">' + D.events.map(function (ev) {
+      var list = D.entryLists.filter(function (l) { return l.eventId === ev.id; })[0];
+      function upcomingEntries(id) {
+        if (!list) return '';
+        var count = list.entries.filter(function (e) { return e.roundIds.indexOf(id) >= 0; }).length;
+        var unknown = list.entries.some(function (e) { return !e.roundIds.length; });
+        var complete = list.complete && list.roundIds.indexOf(id) >= 0 && !unknown;
+        var note = count || complete ? count + ' documented round ' + (count === 1 ? 'entry' : 'entries') +
+          (complete ? '' : ' (partial day coverage)') : 'round entry coverage ' + (unknown ? 'unknown' : 'incomplete');
+        if (unknown && count) note += '; other entries have unknown day scope';
+        return '<span class="small muted">' + note + '</span>';
+      }
       var rows = D.calendar.filter(function (c) { return c.eventId === ev.id; }).map(function (c) {
         var r = roundsById[c.id];
-        if (!r) return '<div class="event-round upcoming"><span class="rnd">R' + c.n + '</span><span class="w"><b>' + (c.date ? fmtDate(c.date) : 'Date to be confirmed') + '</b><span>' + esc(c.day) + ' · results not published yet</span></span><span class="go muted">Upcoming</span></div>';
+        if (!r) return '<div class="event-round upcoming"><span class="rnd">R' + c.n + '</span><span class="w"><b>' + (c.date ? fmtDate(c.date) : 'Date to be confirmed') + '</b><span>' + esc(c.day) + ' · results not published yet</span>' + upcomingEntries(c.id) + '</span><span class="go muted">Upcoming</span></div>';
         var w = winnerOf(r);
         return '<a class="event-round" href="' + sh('/round/' + r.id) + '"><span class="rnd">R' + r.n + '</span><span class="w">' + (w ? '<b>' + esc(w.driver) + '</b> / ' + esc(w.codriver) : '—') +
           '<span>' + esc(r.day) + ' · ' + r.stages.length + ' stages · ' + classifiedSorted(r).length + ' classified' + (classificationState(r) === 'provisional' ? ' · provisional sheet' : classificationState(r) === 'unclear' ? ' · finality unclear' : '') + '</span></span><span class="go">Graph →</span></a>';
       }).join('');
-      var list = D.entryLists.filter(function (l) { return l.eventId === ev.id; })[0];
       var entryNote = list ? '<p class="small muted">' + list.eventEntries + ' documented event entries' +
         (list.complete ? '' : ' (partial coverage)') + '; day scope only where evidenced. ' + ext(list.source.url, 'Entry source') + '</p>' : '';
       return '<div class="card event-card"><div class="event-top"><h3>' + esc(ev.name) + '</h3><div class="meta">' + [ev.dates, ev.venue, ev.surface].filter(Boolean).map(esc).join(' · ') + '</div>' + eventLinks(ev) + entryNote + '</div><div class="event-rounds">' + (rows || '<div class="event-round upcoming"><span class="w"><span>No rounds added yet</span></span></div>') + '</div></div>';

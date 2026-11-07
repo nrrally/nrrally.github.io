@@ -34,11 +34,24 @@ unknown coverage. Do not mark absent classified crews DNS: keep **Entered (start
 official source explicitly says DNS or withdrawal, and cite that status separately.
 
 Preserve entry crew names even when classifications use a substitute or a changed car number. Resolve
-verified alternate spellings in **Competitors**, not by guessing identities from car number. Review both
-the stored event list before/after and classification starts/points before publishing. Reimport replaces
+verified alternate spellings in **Competitors**, not by guessing identities from car number. Unresolved entry names are never auto-added on publish,
+even if also printed in results. The **Competitors** and **Review & publish** panels let you explicitly
+match a verified alias to an existing profile or **Add as new competitor** after checking for duplicates.
+Classification-only names retain the legacy auto-add behavior. Concurrent changes recheck entry identities.
+Review the identity evidence, stored event list before/after and classification starts/points before publishing. Reimport replaces
 only the selected complete event list, so inspect removed entries; unrelated lists and classification
 evidence remain intact. Entries appear unobtrusively below a round classification, on calendar event cards
 and in crew/profile documented-event counts, not in a new DNS section.
+Upcoming calendar rounds also show a quiet documented entry count when day scope is established,
+with partial/unknown coverage wording; missing coverage is never shown as zero or inferred DNS.
+
+Coordinated public/admin scripts carry the same `?v=entries-2` asset version. The new public UI tolerates
+an old engine by omitting unsupported entry displays. The new admin refuses restore/publish if the
+entry-aware engine/import contract is missing and asks for **Ctrl+Shift+R**. Deploy HTML and scripts
+together and retire old open admin tabs before backfill; an already-loaded old admin cannot be made safe
+by new JavaScript it has not loaded. Bump coordinated asset versions together when that contract changes.
+Backup restore compares saved crew/source evidence and round scopes, not only list sizes; review its
+additional confirmation when a replacement removes evidence.
 
 Omitted fields and unrelated data are preserved. Calendar/class/event/document updates add or update records rather than deleting absent ones; remove obsolete items deliberately through the manual editors. Repeated identical imports make no changes. Changes to existing results or scoring clear affected MSA confirmations.
 

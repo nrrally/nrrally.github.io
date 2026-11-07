@@ -501,7 +501,7 @@
       'Versioned contract and exact nested schema:\n' + JSON.stringify(CONTRACT, null, 2)
     ].filter(Boolean).join('\n\n');
   }
-  var api = { contract: CONTRACT, policy: POLICY, parse: parse, assess: assess, identities: identities, plan: plan,
+  var api = { entryContractVersion: 2, contract: CONTRACT, policy: POLICY, parse: parse, assess: assess, identities: identities, plan: plan,
     prompt: prompt, canonical: canonical, signature: signature, validateDocuments: validateDocuments,
     projectPublic: projectPublic, bytes: bytes, schemaErrors: schemaErrors, needsFinalityReview: needsFinalityReview };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.NRAIImport = api;

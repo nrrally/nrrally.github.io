@@ -294,6 +294,29 @@
   }
 
   /* ---------------------------------------------------------------- validation */
+  function entryEvidenceLoss(before, after, beforePeople, afterPeople) {
+    var oldIndex = peopleIndex(beforePeople), newIndex = peopleIndex(afterPeople);
+    function identity(idx, name) {
+      var p = idx.resolve(name);
+      return p.known ? ['profile', p.id] : ['unresolved', keyName(name)];
+    }
+    function rowKey(e, idx) {
+      return JSON.stringify([identity(idx, e.driver), identity(idx, e.codriver), e.car, e['class'],
+        e.vehicle, e.status, e.statusEvidence, e.participationEvidence, e.locator]);
+    }
+    function retains(ids, nextIds) {
+      return (ids || []).every(function (id) { return (nextIds || []).indexOf(id) >= 0; });
+    }
+    return ((before && before.entryLists) || []).some(function (l) {
+      var next = ((after && after.entryLists) || []).filter(function (x) { return x.eventId === l.eventId; })[0];
+      if (!next || l.complete && !next.complete || !retains(l.roundIds, next.roundIds)) return true;
+      if (['file', 'url', 'date', 'locator'].some(function (k) { return (l.source || {})[k] !== (next.source || {})[k]; })) return true;
+      return (l.entries || []).some(function (e) {
+        var key = rowKey(e, oldIndex), matches = (next.entries || []).filter(function (x) { return rowKey(x, newIndex) === key; });
+        return !matches.length || !retains(e.roundIds, matches.reduce(function (ids, x) { return ids.concat(x.roundIds || []); }, []));
+      });
+    });
+  }
   function entryCrewRecorded(e, r, status) {
     var crew = [e.driverId, e.codriverId].filter(Boolean).sort().join('/');
     function same(d, c) { return [d, c].filter(Boolean).sort().join('/') === crew; }
@@ -709,9 +732,9 @@
     return { stages: stages, entries: entries, warnings: warnings, format: 'Spreadsheet' };
   }
 
-  var api = { parseTime: parseTime, fmtTime: fmtTime, slug: slug, normName: normName, normClass: normClass, ord: ord, r1: r1, prettyJson: prettyJson,
+  var api = { entryContractVersion: 2, parseTime: parseTime, fmtTime: fmtTime, slug: slug, normName: normName, normClass: normClass, ord: ord, r1: r1, prettyJson: prettyJson,
     peopleIndex: peopleIndex, buildSeason: buildSeason, validateRound: validateRound, parseClassificationText: parseClassificationText, parseSpreadsheet: parseSpreadsheet,
     similarNames: similarNames, sumReport: sumReport, spreadsheetTemplate: spreadsheetTemplate,
-    validateSeason: validateSeason, validateDataset: validateDataset, validateEntryLists: validateEntryLists };
+    validateSeason: validateSeason, validateDataset: validateDataset, validateEntryLists: validateEntryLists, entryEvidenceLoss: entryEvidenceLoss };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.NREngine = api;
 })(typeof window !== 'undefined' ? window : this);

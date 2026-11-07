@@ -38,6 +38,11 @@ entry-pack download/resume, manual editing, atomic public projection, History un
 confirmation and entry validation after concurrent rebase. Public tests cover stable entry-only profile
 links at 320 px, understated counts, unknown day wording, classification DNS excluded from Starts and
 the no-scored-starts home state. All external writes remain intercepted.
+Review regressions additionally cover URL-significant and attribute-breaking stable profile IDs;
+explicit manual alias/new-person decisions, classification-only legacy auto-add and concurrent entry
+identity rebase; same-count/different-crew and reduced-scope backup loss versus no-loss restore;
+mixed cached engine/import contracts; and upcoming two-day calendar counts with one-day-only,
+unknown-scope, partial and missing entry evidence.
 
 ## Manual check after a publish
 

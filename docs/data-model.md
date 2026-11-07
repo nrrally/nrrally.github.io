@@ -49,8 +49,12 @@ The public projection adds `finalityUnclear` for AI-imported rounds whose status
 - **People** are matched by name, ignoring case, accents and repeated spaces.
   - `"Jan van der Merwe"` and `"Jan Van Der Merwe"` match the same profile.
   - Other spellings go in that profile's `aliases`.
-  - A name that matches no profile gets an id made from the name (`slug`), and the admin adds a profile for it when you publish.
-- **Ids** are lower-case slugs (e.g. `jan-van-der-merwe`). A person's id never changes when they're renamed, so profile links stay valid.
+  - Classification-only names that match no profile retain the legacy automatic profile creation on publish.
+    Unresolved entry-list names require an explicit existing-profile/verified-alias or new-person decision first,
+    even when also printed in a classification. This is checked again after revision rebase.
+- **Ids** are normally lower-case slugs (e.g. `jan-van-der-merwe`), but existing non-slug profile IDs remain supported.
+  Public profile links URL-encode the ID and HTML-escape the attribute, then decode the route segment once.
+  A person's id never changes when they're renamed.
 
 ## site.json
 
@@ -131,9 +135,11 @@ cannot replace entry lists and do not erase them. Entry-only imports do not inva
 
 This additive season field uses the existing atomic publication, public season bundle, History/undo
 and version-1 backup layout; no Firestore collection or rule change is needed. Public entry provenance
-is intentionally limited to sports evidence; private AI review metadata remains excluded. Restoring an
-older backup that removes entry evidence requires an extra warning/confirmation. Deploy compatible
-readers/editors **before** publishing entry evidence. Older deployed code can display classifications
+is intentionally limited to sports evidence; private AI review metadata remains excluded. Restoring a
+backup that removes or replaces saved crew/source evidence, reduces documented day scope or loses
+complete coverage requires an extra warning/confirmation, even when row counts are unchanged or larger.
+Crew comparison resolves stable profiles/aliases; row order and additional evidenced days are not losses.
+Deploy compatible readers/editors **before** publishing entry evidence. Older deployed code can display classifications
 but does not validate or display this field; reverting code after backfill is not a safe editing workflow.
 
 ## seasons/<year>/rounds/<id>.json

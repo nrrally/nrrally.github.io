@@ -1,6 +1,9 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const AI = require('../../assets/ai-import.js');
+const E = require('../../assets/engine.js');
+const fs = require('node:fs');
+const path = require('node:path');
 const F = require('./ai-fixtures.js');
 const approvals = { evidence: true };
 function payload() {
@@ -131,4 +134,44 @@ test('backup/history undo are whole-document compatible; old classification reim
   const undo = F.copy(r.docs);
   r.changes.forEach(c => { if (c.before) undo[c.path] = c.before; else delete undo[c.path]; });
   assert.deepEqual(undo, F.docs());
+});
+test('backup loss compares crew identity, evidence and scopes, not row counts', () => {
+  const r = plan(), before = r.docs['data/seasons/2026/season.json'], people = r.docs['data/people.json'];
+  before.entryLists[0].roundIds.push('R2'); before.entryLists[0].entries[0].roundIds.push('R2');
+  const loss = after => E.entryEvidenceLoss(before, after, people, people);
+  assert.equal(loss(F.copy(before)), false);
+  assert.equal(loss({}), true);
+  const replacement = F.copy(before); replacement.entryLists[0].entries[0].driver = 'Someone Else';
+  assert.equal(loss(replacement), true);
+  const extra = F.copy(replacement); extra.entryLists[0].entries.push({ ...extra.entryLists[0].entries[0], car: '99' });
+  assert.equal(loss(extra), true);
+  for (const shrink of [
+    s => s.entryLists[0].roundIds.pop(),
+    s => s.entryLists[0].entries[0].roundIds.pop(),
+    s => s.entryLists[0].complete = false,
+    s => s.entryLists[0].source.url = 'https://example.com/different-source',
+    s => s.entryLists[0].entries[0].statusEvidence = 'Changed evidence'
+  ]) {
+    const after = F.copy(before); shrink(after); assert.equal(loss(after), true);
+  }
+  const extended = F.copy(before);
+  extended.entryLists[0].roundIds.unshift('R3');
+  extended.entryLists[0].entries[0].roundIds.reverse().push('R3');
+  extended.entryLists[0].entries.push({ ...extended.entryLists[0].entries[0], driver: 'Additional Person', car: '99' });
+  assert.equal(loss(extended), false);
+  const alias = F.copy(before); alias.entryLists[0].entries[0].driver = 'A Test';
+  assert.equal(loss(alias), false);
+  const split = F.copy(before), row = split.entryLists[0].entries[0];
+  row.roundIds = ['R1']; split.entryLists[0].entries.push({ ...row, roundIds: ['R2'] });
+  assert.equal(loss(split), false);
+  const removedProfile = F.copy(people); removedProfile.people = [];
+  assert.equal(E.entryEvidenceLoss(before, before, people, removedProfile), true);
+});
+test('coordinated entry-aware scripts have a shared cache-busting version', () => {
+  assert.equal(E.entryContractVersion, 2); assert.equal(AI.entryContractVersion, E.entryContractVersion);
+  const repo = path.resolve(__dirname, '..', '..');
+  for (const [file, assets] of [['index.html', ['engine', 'site']], [path.join('admin', 'index.html'), ['engine', 'ai-import', 'admin']]]) {
+    const html = fs.readFileSync(path.join(repo, file), 'utf8');
+    for (const asset of assets) assert.ok(html.includes('/' + asset + '.js?v=entries-2"'));
+  }
 });

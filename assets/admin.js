@@ -91,7 +91,16 @@
     Object.keys(A.docs).forEach(function (p) { if (!A.docs[p].deleted) docs[p] = A.docs[p].obj; });
     return docs;
   }
-  function publishIssues() { return AI.validateDocuments(workingDocs()); }
+  function entryContractError() {
+    return !E || E.entryContractVersion !== 2 || typeof E.validateEntryLists !== 'function' || typeof E.entryEvidenceLoss !== 'function' ||
+      !AI || AI.entryContractVersion !== 2 || typeof AI.validateDocuments !== 'function' ?
+      'Entry-aware scripts are missing or out of date. Refresh this page with Ctrl+Shift+R before restoring or publishing; nothing has been published.' : '';
+  }
+  function requireEntryContract() { var err = entryContractError(); if (err) throw new Error(err); }
+  function publishIssues() {
+    var err = entryContractError();
+    return err ? [{ level: 'error', path: SITE, msg: err }] : AI.validateDocuments(workingDocs());
+  }
   function label(p) {
     var m;
     if (p === SITE) return 'Site & info';
@@ -101,16 +110,16 @@
     if ((m = p.match(/^data\/people\/(.+)\.\w+$/))) return 'Photo: ' + m[1];
     return p;
   }
-  function knownNames() {
+  function knownNames(kind) {
     var idx = E.peopleIndex(peopleDoc()), unknown = {};
     years().forEach(function (y) {
       var s = season(y); if (!s) return;
-      (s.entryLists || []).forEach(function (l) { l.entries.forEach(function (e) {
+      if (kind !== 'results') (s.entryLists || []).forEach(function (l) { l.entries.forEach(function (e) {
         [e.driver, e.codriver].forEach(function (n) {
           if (!E.normName(n)) return; var x = idx.resolve(n); if (!x.known) unknown[x.name] = 1;
         });
       }); });
-      (s.rounds || []).forEach(function (r) {
+      if (kind !== 'entries') (s.rounds || []).forEach(function (r) {
         var raw = rawRound(r.id, y); if (!raw) return;
         (raw.entries || []).concat(raw.extraStarts || []).forEach(function (e) {
           [e.driver, e.codriver, e.credit && e.credit.driver, e.credit && e.credit.codriver].forEach(function (n) {
@@ -120,6 +129,34 @@
       });
     });
     return Object.keys(unknown).sort();
+  }
+  function legacyUnknownNames() {
+    var entries = knownNames('entries').map(E.slug);
+    return knownNames('results').filter(function (n) { return entries.indexOf(E.slug(n)) < 0; });
+  }
+  function preparePublishPeople() {
+    var entries = knownNames('entries');
+    if (entries.length) throw new Error('Resolve entry-list identities in Competitors before publishing: ' + entries.join(', ') + '. Choose an existing profile / verified alias or explicitly add a new competitor; entry names are never auto-added.');
+    var unknown = legacyUnknownNames(); if (unknown.length) addPeople(unknown);
+  }
+  function entryIdentityNotice() {
+    var unknown = knownNames('entries'), doc = peopleDoc();
+    if (!unknown.length) return '';
+    return '<div class="callout warn entry-identities"><div><b>Resolve entry-list identities before publishing.</b> Entry names are never auto-added, even if also printed in results. Match a verified spelling to an existing profile, or explicitly decide that this is a new person. Do not infer identity from a car number.' +
+      unknown.map(function (n) {
+        var like = E.similarNames(n, doc);
+        return '<div class="actions"><b>' + esc(n) + '</b>' + (like.length ? '<span class="small">Looks like: ' + esc(like.join(', ')) + '. Similarity is not identity evidence.</span>' : '') +
+          select(function (id) {
+            if (!id) return;
+            var p = doc.people.filter(function (x) { return x.id === id; })[0];
+            if (p && window.confirm('Official evidence confirms "' + n + '" is an alternate spelling of ' + p.name + '? Add it as a verified alias?')) {
+              p.aliases = p.aliases || []; p.aliases.push(n); render();
+            }
+          }, '', [['', 'Match to an existing profile (verified alias)']].concat(doc.people.map(function (p) { return [p.id, p.name]; }))) +
+          btn(function () {
+            if (window.confirm('Add "' + n + '" as a distinct new competitor? Check existing profiles and official evidence first; this must not be an alternate spelling of an existing person.')) { addPeople([n]); render(); }
+          }, 'Add as new competitor: ' + n, 'tiny') + '</div>';
+      }).join('') + '</div></div>';
   }
   function addPeople(names) {
     var doc = peopleDoc(), taken = {}; doc.people.forEach(function (p) { taken[p.id] = 1; });
@@ -286,14 +323,12 @@
   /* Replace the whole working copy with a set of documents (import or restore). Documents not in the set are
      removed; nothing is saved until you publish. Photos from a backup are staged too. */
   async function stageAll(set) {
+    requireEntryContract();
     var entryLoss = Object.keys(A.docs).some(function (p) {
       var before = A.docs[p].obj, after = set.docs[p];
-      return before && (before.entryLists || []).some(function (l) {
-        var next = after && (after.entryLists || []).filter(function (x) { return x.eventId === l.eventId; })[0];
-        return !next || next.entries.length < l.entries.length;
-      });
+      return !A.docs[p].deleted && before && E.entryEvidenceLoss(before, after, peopleDoc(), set.docs[PEOPLE]);
     });
-    if (entryLoss && !window.confirm('This backup removes saved entry-list evidence. Older backups do not contain it. Restore anyway? History records the replacement only when you publish.')) throw new Error('Backup restore cancelled; entry evidence retained.');
+    if (entryLoss && !window.confirm('This backup removes saved entry-list evidence or replaces crew/source details or day scope. Review the differences. Restore anyway? History records the replacement only when you publish.')) throw new Error('Backup restore cancelled; entry evidence retained.');
     Object.keys(A.docs).forEach(function (p) { if (!set.docs[p]) A.docs[p].deleted = true; });
     Object.keys(set.docs).forEach(function (p) {
       var obj = clone(set.docs[p]);
@@ -389,7 +424,8 @@
     A.rev = revOf(rev);
   }
   async function publish(message) {
-    var unknown = knownNames(); if (unknown.length) addPeople(unknown);
+    requireEntryContract();
+    preparePublishPeople();
     var list = changes(); if (!list.length) throw new Error('There are no changes to publish.');
     function checkPublish() {
       var errors = publishIssues().filter(function (i) { return i.level === 'error'; });
@@ -405,7 +441,7 @@
       catch (e) {
         if (!e.conflict || e.clash || attempt > 0) throw e;
         await rebase(list);
-        if (knownNames().length) addPeople(knownNames());
+        preparePublishPeople();
         list = changes();
       }
     }
@@ -1141,7 +1177,7 @@
     return out;
   }
   function viewCompetitors() {
-    var doc = peopleDoc(), apps = appearances(), unknown = knownNames();
+    var doc = peopleDoc(), apps = appearances(), unknown = legacyUnknownNames();
     var html = pageHead('All seasons', 'Competitors', 'One profile per person, shared by every season. Names on the official sheets are matched to a profile by its name or any of its “also printed as” spellings.',
       '<div class="actions">' + btn(function () {
         var n = window.prompt('Full name of the new competitor'); if (!n || !n.trim()) return;
@@ -1149,7 +1185,8 @@
         var id = uniqueId(E.slug(n), taken); doc.people.push({ id: id, name: n.trim(), aliases: [], bio: '', photo: '', links: {} });
         doc.people.sort(function (a, b) { return a.name.localeCompare(b.name); }); go('#/competitor/' + id);
       }, '+ Add competitor', 'primary') + '</div>');
-    if (unknown.length) html += '<div class="callout"><div><b>' + unknown.length + ' name' + (unknown.length === 1 ? '' : 's') + ' from the results ' + (unknown.length === 1 ? 'isn\'t' : 'aren\'t') + ' in the list yet:</b> ' + esc(unknown.join(', ')) + '. They\'re added automatically when you publish. If one is another spelling of an existing competitor, open that competitor and add it under “also printed as”. ' + btn(function () { addPeople(unknown); render(); }, 'Add them now', 'tiny') + '</div></div>';
+    html += entryIdentityNotice();
+    if (unknown.length) html += '<div class="callout"><div><b>' + unknown.length + ' classification-only name' + (unknown.length === 1 ? '' : 's') + ' not in the list yet:</b> ' + esc(unknown.join(', ')) + '. These legacy result names are added automatically when you publish. If one is another spelling of an existing competitor, open that competitor and add it under “also printed as”. ' + btn(function () { addPeople(unknown); render(); }, 'Add them now', 'tiny') + '</div></div>';
     html += '<div class="filters"><label class="sr-only" for="pSearch">Search competitors</label><input id="pSearch" class="search" type="search" placeholder="Search names…" autocomplete="off" data-k="' + K(function (v) {
       v = v.trim().toLowerCase(); Array.prototype.forEach.call(document.querySelectorAll('#pTable tbody tr'), function (tr) { tr.hidden = !!v && tr.getAttribute('data-s').indexOf(v) < 0; });
     }) + '"></div>';
@@ -1357,14 +1394,15 @@
     var msg = parts.join('; '); return msg.length > 72 ? parts[0] + ' and ' + (parts.length - 1) + ' more change' + (parts.length > 2 ? 's' : '') : (msg || 'Update results data');
   }
   function viewPublish() {
-    var list = changes(), unknown = knownNames();
+    var list = changes(), unknown = legacyUnknownNames(), entryUnknown = knownNames('entries');
     var html = pageHead(A.mode === 'live' ? esc(A.user.email) : 'Demo mode', 'Review &amp; publish', A.mode === 'live' ? 'Publishing saves everything below in one step, refreshes the public copy the website reads and records it in the History.' : 'In demo mode publishing only shows what would be saved.');
     if (A.lastCommit) {
       html += '<div class="callout good"><div><b>' + (A.lastCommit.demo ? 'Demo: ' + A.lastCommit.files + ' change' + (A.lastCommit.files === 1 ? '' : 's') + ' would have been saved.' : 'Published ' + A.lastCommit.files + ' change' + (A.lastCommit.files === 1 ? '' : 's') + '.') + '</b> ' +
         (A.lastCommit.demo ? '' : 'The public site shows it now; refresh the page if it\'s already open. <a href="../#/' + A.year + '" target="_blank" rel="noopener">Open the site ↗</a>') + '</div></div>';
     }
-    if (!list.length && !unknown.length) return html + '<div class="card empty"><h2>Nothing to publish</h2><p>Changes you make in the other sections collect here until you publish them.</p></div>';
+    if (!list.length && !unknown.length && !entryUnknown.length) return html + '<div class="card empty"><h2>Nothing to publish</h2><p>Changes you make in the other sections collect here until you publish them.</p></div>';
     var errors = [], warns = 0;
+    html += entryIdentityNotice();
     publishIssues().forEach(function (i) { if (i.level === 'error') errors.push(label(i.path) + ': ' + i.msg); if (i.level === 'warn') warns++; });
     years().forEach(function (y) { try { model(y); } catch (e) { errors.push(y + ' season can\'t be calculated: ' + e.message); } });
     html += '<div class="card"><h3>' + list.length + ' change' + (list.length === 1 ? '' : 's') + '</h3><div class="changes">' + list.map(function (c) {

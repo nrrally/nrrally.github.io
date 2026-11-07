@@ -17,6 +17,7 @@ const published = {
 const errors = [], unexpected = [];
 let databaseDown = false;
 let configured = true, seasonDelay = 0;
+let legacyEngine = false;
 async function main() {
   const server = http.createServer((req, res) => {
     const file = path.resolve(repo, '.' + new URL(req.url, 'http://localhost').pathname);
@@ -34,6 +35,13 @@ async function main() {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, colorScheme: 'light' });
     await ctx.route('**/*', async route => {
       const req = route.request(), url = req.url();
+      if (url.startsWith(base + '/assets/engine.js') && legacyEngine) return route.fulfill({
+        contentType: 'text/javascript', body: fs.readFileSync(path.join(repo, 'assets', 'engine.js'), 'utf8') +
+          `\nconst build = window.NREngine.buildSeason; window.NREngine.buildSeason = opts => {
+            const m = build(opts); delete m.entryLists;
+            m.people.forEach(p => delete p.entries); m.rounds.forEach(r => delete r.entryParticipation); return m;
+          }; delete window.NREngine.entryContractVersion;`
+      });
       if (url === base + '/assets/firebase-config.js') return route.fulfill({
         contentType: 'text/javascript', body: configured ? 'window.NR_FIREBASE={projectId:"nr-synthetic"};' : 'window.NR_FIREBASE={};'
       });
@@ -131,6 +139,19 @@ async function main() {
     await page.locator('main details summary').click();
     assert.ok((await page.innerText('main')).includes('event only; day scope unknown'));
     await noOverflow();
+    for (const id of ['entry /?&#% +person', 'entry" onmouseover="window.attributeBroken=true']) {
+      published.people.people.find(p => p.name === 'Casey Entry').id = id;
+      await visit('#/crews');
+      const link = page.getByRole('link', { name: 'Casey Entry', exact: true });
+      assert.equal(await link.getAttribute('href'), '#/person/' + encodeURIComponent(id));
+      assert.equal(await link.getAttribute('onmouseover'), null);
+      await link.hover();
+      assert.equal(await page.evaluate(() => window.attributeBroken), undefined);
+      await link.click();
+      await page.waitForSelector('.profile-head');
+      assert.ok((await page.locator('.profile-head').innerText()).includes('Casey Entry'));
+      assert.equal(await page.locator('.kpi').filter({ hasText: 'Starts' }).locator('b').innerText(), '0');
+    }
     await visit('#/round/R1/classification');
     assert.ok((await page.innerText('main')).includes('day scope unknown'));
     assert.ok(!(await page.innerText('main')).includes('1 crews not recorded as started'));
@@ -141,6 +162,51 @@ async function main() {
     assert.equal(await page.locator('.kpi').filter({ hasText: 'Starts' }).locator('b').innerText(), '0');
     await visit('#/');
     await page.getByRole('heading', { name: 'No scored starts yet' }).waitFor();
+    bundle.rounds.R1.entries = entriesBefore;
+    legacyEngine = true;
+    for (const hash of ['#/', '#/rounds', '#/round/R1/classification', '#/crews', '#/person/alex-test']) {
+      await visit(hash);
+      assert.ok(!(await page.innerText('main')).includes('Something went wrong'));
+      assert.equal(await page.getByText('Events entered (documented)', { exact: true }).count(), 0);
+    }
+    legacyEngine = false;
+    const calendarBefore = F.copy(bundle.season.rounds), roundsBefore = bundle.rounds;
+    bundle.rounds = {};
+    bundle.season.rounds.push({ id: 'R2', eventId: 'test-event', day: 'Day 2', date: '2026-02-02', results: false });
+    bundle.season.entryLists[0].roundIds = ['R1', 'R2'];
+    bundle.season.entryLists[0].entries = [
+      { ...entered, driver: 'Alex Test', car: '1', roundIds: ['R1'] },
+      { ...entered, driver: 'Blake Example', car: '2', roundIds: ['R2'] },
+      { ...entered, car: '3', roundIds: [] }
+    ];
+    await visit('#/rounds');
+    const upcoming = page.locator('.event-round.upcoming');
+    assert.equal(await upcoming.count(), 2);
+    for (let i = 0; i < 2; i++) {
+      assert.ok((await upcoming.nth(i).innerText()).includes('1 documented round entry (partial day coverage)'));
+      assert.ok((await upcoming.nth(i).innerText()).includes('other entries have unknown day scope'));
+      assert.ok(!(await upcoming.nth(i).innerText()).includes('DNS'));
+    }
+    await noOverflow();
+    bundle.season.entryLists[0].entries = [{ ...entered, driver: 'Alex Test', roundIds: ['R1'] }];
+    await visit('#/rounds');
+    assert.ok((await upcoming.nth(0).innerText()).includes('1 documented round entry'));
+    assert.ok((await upcoming.nth(1).innerText()).includes('0 documented round entries'));
+    bundle.season.entryLists[0].complete = false;
+    await visit('#/rounds');
+    assert.ok((await upcoming.nth(0).innerText()).includes('partial day coverage'));
+    assert.ok((await upcoming.nth(1).innerText()).includes('round entry coverage incomplete'));
+    bundle.season.entryLists[0].entries = [entered]; bundle.season.entryLists[0].roundIds = [];
+    await visit('#/rounds');
+    for (let i = 0; i < 2; i++) {
+      const text = await upcoming.nth(i).innerText();
+      assert.ok(text.includes('round entry coverage unknown'));
+      assert.ok(!text.includes('0 documented'));
+    }
+    delete bundle.season.entryLists;
+    await visit('#/rounds');
+    assert.ok(!(await upcoming.first().innerText()).includes('round entry coverage'));
+    bundle.season.rounds = calendarBefore; bundle.rounds = roundsBefore;
     published.people = peopleBefore; bundle.rounds.R1.entries = entriesBefore; delete bundle.season.entryLists;
     seasonDelay = 500;
     await page.goto(base + '/index.html');
