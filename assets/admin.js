@@ -1,0 +1,1163 @@
+/* Northern Regions Rally — admin.
+   Admins sign in with Google. The results data lives in a private Cloud Firestore database; edits are kept in
+   the browser until you publish, then saved in one step together with a refreshed public copy that the
+   website reads, and a history entry that can be undone. Demo mode edits a copy and never saves.
+   See docs/architecture.md. */
+(function () {
+  'use strict';
+  var E = window.NREngine;
+  var ROOT = document.getElementById('admin');
+  var SITE = 'data/site.json', PEOPLE = 'data/people.json';
+  function seasonPath(y) { return 'data/seasons/' + y + '/season.json'; }
+  function roundPath(y, id) { return 'data/seasons/' + y + '/rounds/' + id + '.json'; }
+  function photoPath(id) { return 'data/people/' + id + '.jpg'; }
+
+  /* ------------------------------------------------------------------ utils */
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function norm(obj) { return E.prettyJson(obj) + '\n'; }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function debounce(fn, ms) { var t; return function () { clearTimeout(t); t = setTimeout(fn, ms); }; }
+  function lines(t) { return String(t || '').split('\n').map(function (s) { return s.trim(); }).filter(Boolean); }
+  function words(t) { return String(t || '').split(/[,;\s]+/).map(function (s) { return s.trim(); }).filter(Boolean); }
+  function nums(t) { return words(t).map(Number).filter(function (n) { return !isNaN(n); }); }
+  function uniqueId(base, taken) { base = base || 'item'; var id = base, n = 2; while (taken[id]) id = base + '-' + (n++); return id; }
+  function numOrNull(v) { v = String(v == null ? '' : v).trim(); return v === '' || isNaN(+v) ? null : +v; }
+  function strOrNull(v) { v = String(v == null ? '' : v).trim(); return v === '' ? null : v; }
+  function safeUrl(u) { u = String(u || '').trim(); return /^(https?:|mailto:)/i.test(u) || /^[\w./-]+$/.test(u) ? u : ''; }
+  function when(iso) {
+    var d = new Date(iso); if (isNaN(d)) return '';
+    var s = (Date.now() - d) / 1000;
+    if (s < 90) return 'just now'; if (s < 3600) return Math.round(s / 60) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' h ago';
+    return d.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + d.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+  }
+  function fileToB64(file) {
+    return new Promise(function (res, rej) { var r = new FileReader(); r.onload = function () { res(String(r.result).replace(/^data:[^,]*,/, '')); }; r.onerror = function () { rej(new Error('Could not read ' + file.name)); }; r.readAsDataURL(file); });
+  }
+  function imageToJpegB64(file, max) {
+    return new Promise(function (res, rej) {
+      var url = URL.createObjectURL(file), img = new Image();
+      img.onload = function () {
+        var s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight)), w = Math.round(img.naturalWidth * s), h = Math.round(img.naturalHeight * s);
+        var c = document.createElement('canvas'); c.width = w; c.height = h;
+        var ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', 0.86).replace(/^data:[^,]*,/, ''));
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); rej(new Error('That file is not an image the browser can read.')); };
+      img.src = url;
+    });
+  }
+  function download(name, text) {
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name;
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+
+  /* ------------------------------------------------------------------ state: the working copy of /data */
+  var A = { mode: null, user: null, docs: {}, bins: {}, meta: {}, rev: null, admins: null, empty: false, photoCache: {}, dropPublic: [], year: null, open: {}, imp: null, history: null, lastCommit: null };
+  function getDoc(p) { var d = A.docs[p]; return d && !d.deleted ? d.obj : null; }
+  function putDoc(p, obj) { var d = A.docs[p]; if (d) { d.obj = obj; d.deleted = false; } else A.docs[p] = { orig: null, obj: obj, deleted: false }; }
+  function dropDoc(p) { if (A.docs[p]) A.docs[p].deleted = true; }
+  function site() { return getDoc(SITE); }
+  function peopleDoc() { var p = getDoc(PEOPLE); if (!p) { p = { people: [] }; putDoc(PEOPLE, p); } if (!p.people) p.people = []; return p; }
+  function season(y) { return getDoc(seasonPath(y == null ? A.year : y)); }
+  function rawRound(id, y) { return getDoc(roundPath(y == null ? A.year : y, id)); }
+  function years() { return ((site() && site().seasons) || []).map(function (s) { return +s.year; }).sort(function (a, b) { return b - a; }); }
+  function calRound(id, y) { var s = season(y); return s ? (s.rounds || []).filter(function (r) { return r.id === id; })[0] : null; }
+  function roundNo(id, y) { var s = season(y); var i = s ? (s.rounds || []).map(function (r) { return r.id; }).indexOf(id) : -1; return i + 1; }
+  function eventById(id, y) { var s = season(y); return s ? (s.events || []).filter(function (e) { return e.id === id; })[0] : null; }
+  function model(y) {
+    y = y == null ? A.year : y;
+    var s = season(y); if (!s) return null;
+    var rounds = {}; (s.rounds || []).forEach(function (r) { var raw = rawRound(r.id, y); if (raw && r.results) rounds[r.id] = raw; });
+    return E.buildSeason({ season: s, rounds: rounds, people: peopleDoc() });
+  }
+  function changes() {
+    var out = [];
+    Object.keys(A.docs).sort().forEach(function (p) {
+      var d = A.docs[p];
+      if (d.deleted) { if (d.orig != null) out.push({ path: p, kind: 'delete', before: d.orig }); return; }
+      var t = norm(d.obj);
+      if (d.orig == null) out.push({ path: p, kind: 'add', text: t, before: '' });
+      else if (t !== d.orig) out.push({ path: p, kind: 'update', text: t, before: d.orig });
+    });
+    Object.keys(A.bins).sort().forEach(function (p) {
+      var b = A.bins[p];
+      out.push(b.deleted ? { path: p, kind: 'delete', binary: true } : { path: p, kind: 'update', b64: b.b64, binary: true });
+    });
+    return out;
+  }
+  function label(p) {
+    var m;
+    if (p === SITE) return 'Site & info';
+    if (p === PEOPLE) return 'Competitors';
+    if ((m = p.match(/^data\/seasons\/(\d+)\/season\.json$/))) return m[1] + ' season settings & calendar';
+    if ((m = p.match(/^data\/seasons\/(\d+)\/rounds\/(.+)\.json$/))) return m[1] + ' ' + m[2] + ' results';
+    if ((m = p.match(/^data\/people\/(.+)\.\w+$/))) return 'Photo: ' + m[1];
+    return p;
+  }
+  function knownNames() {
+    var idx = E.peopleIndex(peopleDoc()), unknown = {};
+    years().forEach(function (y) {
+      var s = season(y); if (!s) return;
+      (s.rounds || []).forEach(function (r) {
+        var raw = rawRound(r.id, y); if (!raw) return;
+        (raw.entries || []).concat(raw.extraStarts || []).forEach(function (e) {
+          [e.driver, e.codriver, e.credit && e.credit.driver, e.credit && e.credit.codriver].forEach(function (n) {
+            if (!E.normName(n)) return; var x = idx.resolve(n); if (!x.known) unknown[x.name] = 1;
+          });
+        });
+      });
+    });
+    return Object.keys(unknown).sort();
+  }
+  function addPeople(names) {
+    var doc = peopleDoc(), taken = {}; doc.people.forEach(function (p) { taken[p.id] = 1; });
+    names.forEach(function (n) { var id = uniqueId(E.slug(n), taken); taken[id] = 1; doc.people.push({ id: id, name: n, aliases: [], bio: '', photo: '', links: {} }); });
+    doc.people.sort(function (a, b) { return a.name.localeCompare(b.name); });
+  }
+
+  /* ------------------------------------------------------------------ sign-in (Google, via Firebase Authentication)
+     The Firebase JavaScript SDK is used only for the Google sign-in pop-up. Data is read and written with
+     plain HTTPS calls to the Cloud Firestore REST API, carrying the signed-in user's ID token; the database's
+     security rules (docs/firestore.rules) decide what each user may do. Automated tests supply a fake
+     sign-in object as window.NR_TEST_AUTH. */
+  var FB = window.NR_FIREBASE || {};
+  var FB_SDK = '13.2.0';
+  var CONFIGURED = !!(FB.projectId && FB.apiKey && FB.authDomain);
+  var DB = 'https://firestore.googleapis.com/v1/projects/' + encodeURIComponent(FB.projectId || 'none') + '/databases/(default)/documents';
+  var NAME = 'projects/' + (FB.projectId || 'none') + '/databases/(default)/documents/';
+  var AUTH = null;
+  async function auth() {
+    if (AUTH) return AUTH;
+    if (window.NR_TEST_AUTH) return (AUTH = window.NR_TEST_AUTH);
+    var app, au;
+    try {
+      app = await import('https://www.gstatic.com/firebasejs/' + FB_SDK + '/firebase-app.js');
+      au = await import('https://www.gstatic.com/firebasejs/' + FB_SDK + '/firebase-auth.js');
+    } catch (e) { throw new Error('Couldn\'t load Google sign-in (' + (e && e.message || e) + '). Check your internet connection, or whether a browser extension is blocking www.gstatic.com.'); }
+    var a = au.getAuth(app.initializeApp(FB));
+    try { await au.setPersistence(a, au.browserSessionPersistence); } catch (e) { /* falls back to the default */ }
+    function user() { var u = a.currentUser; return u ? { email: String(u.email || '').toLowerCase(), name: u.displayName || u.email, photo: u.photoURL || '' } : null; }
+    AUTH = {
+      ready: function () { return a.authStateReady ? a.authStateReady() : Promise.resolve(); },
+      user: user,
+      signIn: function () { var p = new au.GoogleAuthProvider(); p.setCustomParameters({ prompt: 'select_account' }); return au.signInWithPopup(a, p).then(user); },
+      signOut: function () { return au.signOut(a); },
+      token: function () { return a.currentUser ? a.currentUser.getIdToken() : Promise.resolve(null); }
+    };
+    return AUTH;
+  }
+  function authError(e) {
+    var c = (e && e.code) || '';
+    if (/unauthorized-domain/.test(c)) return 'This web address isn\'t allowed to use Google sign-in yet. In the Firebase console, add ' + location.hostname + ' under Authentication → Settings → Authorized domains.';
+    if (/popup-blocked/.test(c)) return 'The browser blocked the Google sign-in window. Allow pop-ups for this site, then try again.';
+    if (/operation-not-allowed/.test(c)) return 'Google sign-in isn\'t switched on. In the Firebase console: Authentication → Sign-in method → Google → Enable.';
+    if (/network-request-failed/.test(c)) return 'Couldn\'t reach Google. Check your internet connection and try again.';
+    if (/invalid-api-key|api-key-not-valid/.test(c)) return 'The Firebase settings in assets/firebase-config.js don\'t match your project. Copy the firebaseConfig block again.';
+    return (e && e.message) || String(e);
+  }
+
+  /* ------------------------------------------------------------------ the database (Cloud Firestore REST API)
+     Layout (see docs/data-model.md):
+       docs/{id}        the working data, one JSON document per id (site, people, season_2026, round_2026_R1 …)  — admins only
+       public/{id}      the published copy the website reads (site, people, season_<year> bundles)                 — anyone can read
+       photos/{id}      profile photos, JPEG as base64                                                              — anyone can read
+       history/{id}     one entry per changed document per publish (before/after), grouped by publish               — admins only
+       config/admins    { emails: [...] } — who may sign in to the admin
+       config/revision  { n, at, by } — bumped by every publish, so a publish built from stale data is refused */
+  function fsVal(v) {
+    if (v === null || v === undefined) return { nullValue: null };
+    if (typeof v === 'string') return { stringValue: v };
+    if (typeof v === 'boolean') return { booleanValue: v };
+    if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+    if (Array.isArray(v)) return { arrayValue: { values: v.map(fsVal) } };
+    return { mapValue: { fields: fsFields(v) } };
+  }
+  function fsFields(o) { var f = {}; Object.keys(o).forEach(function (k) { if (o[k] !== undefined) f[k] = fsVal(o[k]); }); return f; }
+  function fsPlain(v) {
+    if (!v) return null;
+    if ('stringValue' in v) return v.stringValue;
+    if ('integerValue' in v) return +v.integerValue;
+    if ('doubleValue' in v) return v.doubleValue;
+    if ('booleanValue' in v) return v.booleanValue;
+    if ('timestampValue' in v) return v.timestampValue;
+    if ('arrayValue' in v) return ((v.arrayValue && v.arrayValue.values) || []).map(fsPlain);
+    if ('mapValue' in v) return fsObj((v.mapValue && v.mapValue.fields) || {});
+    return null;
+  }
+  function fsObj(fields) { var o = {}; Object.keys(fields || {}).forEach(function (k) { o[k] = fsPlain(fields[k]); }); return o; }
+  function docKey(d) { return String(d.name).split('/').pop(); }
+  async function fs(method, path, body, opt) {
+    opt = opt || {};
+    var headers = {}, tok = AUTH ? await AUTH.token() : null;
+    if (tok) headers.Authorization = 'Bearer ' + tok;
+    if (body) headers['Content-Type'] = 'application/json';
+    var r;
+    try { r = await fetch(DB + path, { method: method, headers: headers, cache: 'no-store', body: body ? JSON.stringify(body) : undefined }); }
+    catch (e) { throw new Error('Couldn\'t reach the database. Check your internet connection and try again.'); }
+    var j = null; try { j = await r.json(); } catch (e) { j = null; }
+    if (r.ok) return j;
+    if (r.status === 404 && opt.allow404) return null;
+    var code = (j && j.error && j.error.status) || '', err = new Error((j && j.error && j.error.message) || ('The database returned ' + r.status));
+    err.status = r.status; err.code = code;
+    if (r.status === 401 || r.status === 403 || code === 'PERMISSION_DENIED' || code === 'UNAUTHENTICATED') {
+      err.denied = true; err.message = 'The database refused this. Your Google account may not be on the admin list, or the database rules haven\'t been set up yet.';
+    } else if (opt.commit && (code === 'FAILED_PRECONDITION' || code === 'ALREADY_EXISTS' || code === 'ABORTED' || code === 'NOT_FOUND')) err.conflict = true;
+    throw err;
+  }
+  async function listAll(coll, extra) {
+    var out = [], tok = '';
+    do {
+      var j = await fs('GET', '/' + coll + '?pageSize=300' + (extra || '') + (tok ? '&pageToken=' + encodeURIComponent(tok) : ''));
+      ((j && j.documents) || []).forEach(function (d) { out.push(d); });
+      tok = j && j.nextPageToken;
+    } while (tok);
+    return out;
+  }
+  function idFor(path) {
+    var m;
+    if (path === SITE) return 'site';
+    if (path === PEOPLE) return 'people';
+    if ((m = path.match(/^data\/seasons\/(\d+)\/season\.json$/))) return 'season_' + m[1];
+    if ((m = path.match(/^data\/seasons\/(\d+)\/rounds\/(.+)\.json$/))) return 'round_' + m[1] + '_' + m[2];
+    throw new Error('No database id for ' + path);
+  }
+  function pathFor(id) {
+    var m;
+    if (id === 'site') return SITE;
+    if (id === 'people') return PEOPLE;
+    if ((m = id.match(/^season_(\d+)$/))) return seasonPath(m[1]);
+    if ((m = id.match(/^round_(\d+)_(.+)$/))) return roundPath(m[1], m[2]);
+    return null;
+  }
+  function photoIdOf(path) { var m = String(path).match(/^data\/people\/(.+)\.jpg$/); return m ? m[1] : null; }
+  function revOf(d) { return d ? { n: fsObj(d.fields).n || 0, updateTime: d.updateTime } : null; }
+  function adminsOf(d) { return d ? { list: (fsObj(d.fields).emails || []).map(function (x) { return String(x).toLowerCase(); }), updateTime: d.updateTime } : null; }
+
+  async function liveLoad() {
+    var docs = await listAll('docs');
+    var res = await Promise.all([fs('GET', '/config/admins', null, { allow404: true }), fs('GET', '/config/revision', null, { allow404: true })]);
+    A.docs = {}; A.meta = {}; A.bins = {}; A.photoCache = {}; A.history = null; A.dropPublic = [];
+    docs.forEach(function (d) {
+      var p = pathFor(docKey(d)); if (!p) return;
+      var obj; try { obj = JSON.parse(fsObj(d.fields).json); } catch (e) { throw new Error(label(p) + ' in the database isn\'t valid data (' + e.message + ').'); }
+      A.docs[p] = { orig: norm(obj), obj: obj, deleted: false }; A.meta[p] = d.updateTime;
+    });
+    A.admins = adminsOf(res[0]); A.rev = revOf(res[1]);
+    A.empty = !A.docs[SITE];
+    if (!A.empty) afterLoad();
+  }
+  async function demoLoad() {   // explore with the published data; nothing is ever saved
+    if (!CONFIGURED) throw new Error('The demo needs the database connection (assets/firebase-config.js).');
+    var staged = await readPublished();
+    A.mode = 'demo'; A.user = null; A.meta = {}; A.docs = {}; A.bins = {}; A.history = null; A.rev = null; A.admins = null; A.empty = false; A.photoCache = {}; A.dropPublic = [];
+    Object.keys(staged.docs).forEach(function (p) { var obj = staged.docs[p]; A.docs[p] = { orig: norm(obj), obj: obj, deleted: false }; });
+    afterLoad();
+  }
+  async function readPublished() {   // the published copy (public/ documents), which anyone can read
+    async function pub(id) { var d = await fs('GET', '/public/' + encodeURIComponent(id), null, { allow404: true }); return d ? JSON.parse(fsObj(d.fields).json) : null; }
+    var out = { docs: {} }, s = await pub('site');
+    if (!s) throw new Error('Nothing has been published yet, so there\'s nothing to explore in the demo.');
+    out.docs[SITE] = s; out.docs[PEOPLE] = (await pub('people')) || { people: [] };
+    var ys = (s.seasons || []).map(function (x) { return x.year; });
+    for (var i = 0; i < ys.length; i++) {
+      var b = await pub('season_' + ys[i]); if (!b) continue;
+      out.docs[seasonPath(ys[i])] = b.season;
+      Object.keys(b.rounds || {}).forEach(function (id) { out.docs[roundPath(ys[i], id)] = b.rounds[id]; });
+    }
+    return out;
+  }
+  function afterLoad() {
+    peopleDoc();
+    var ys = years();
+    if (A.year == null || ys.indexOf(A.year) < 0) A.year = ys.indexOf(+site().currentSeason) >= 0 ? +site().currentSeason : ys[0];
+  }
+  /* Replace the whole working copy with a set of documents (import or restore). Documents not in the set are
+     removed; nothing is saved until you publish. Photos from a backup are staged too. */
+  async function stageAll(set) {
+    Object.keys(A.docs).forEach(function (p) { if (!set.docs[p]) A.docs[p].deleted = true; });
+    Object.keys(set.docs).forEach(function (p) {
+      var obj = clone(set.docs[p]);
+      if (A.docs[p]) { A.docs[p].obj = obj; A.docs[p].deleted = false; } else A.docs[p] = { orig: null, obj: obj, deleted: false };
+    });
+    var ppl = (set.docs[PEOPLE] && A.docs[PEOPLE].obj.people) || [];
+    for (var i = 0; i < ppl.length; i++) {
+      var p = ppl[i], b64 = set.photos && set.photos[p.id];
+      if (b64) { A.bins[photoPath(p.id)] = { b64: b64, deleted: false }; p.photo = 'db:' + p.id; }
+    }
+    afterLoad();
+  }
+  function readBackup(text) {
+    var b; try { b = JSON.parse(text); } catch (e) { throw new Error('That file isn\'t a backup (it isn\'t valid JSON).'); }
+    if (!b || b.format !== 'nr-rally-backup' || !b.docs || !b.docs[SITE]) throw new Error('That file isn\'t a backup made by this admin.');
+    return b;
+  }
+  async function backupText() {
+    var out = { format: 'nr-rally-backup', version: 1, exportedAt: new Date().toISOString(), exportedBy: A.user ? A.user.email : 'demo', docs: {}, photos: {} };
+    Object.keys(A.docs).sort().forEach(function (p) { if (!A.docs[p].deleted) out.docs[p] = A.docs[p].obj; });
+    var ppl = ((out.docs[PEOPLE] || {}).people) || [];
+    for (var i = 0; i < ppl.length; i++) {
+      var p = ppl[i], bin = A.bins[photoPath(p.id)];
+      if (bin && !bin.deleted) out.photos[p.id] = bin.b64;
+      else if (/^db:/.test(p.photo || '')) { var b64 = await photoB64(p.photo.slice(3)); if (b64) out.photos[p.id] = b64; }
+    }
+    return JSON.stringify(out, null, 1);
+  }
+  async function photoB64(id) {
+    if (A.photoCache[id] !== undefined) return A.photoCache[id];
+    var d = await fs('GET', '/photos/' + encodeURIComponent(id), null, { allow404: true });
+    A.photoCache[id] = d ? fsObj(d.fields).b64 : null;
+    return A.photoCache[id];
+  }
+
+  /* The published copy: rebuilt from the full working copy on every publish. Only fields meant for the public
+     are copied, so private fields added to the working data later never reach the website. */
+  function publicDocs() {
+    var out = [], st = clone(site()); delete st.repo;
+    out.push({ id: 'site', json: JSON.stringify(st) });
+    out.push({ id: 'people', json: JSON.stringify({ people: peopleDoc().people.map(function (p) {
+      return { id: p.id, name: p.name, aliases: p.aliases || [], bio: p.bio || '', photo: p.photo || '', links: p.links || {} };
+    }) }) });
+    years().forEach(function (y) {
+      var se = season(y); if (!se) return;
+      var rounds = {}; (se.rounds || []).forEach(function (r) { var raw = r.results && rawRound(r.id, y); if (raw) rounds[r.id] = raw; });
+      out.push({ id: 'season_' + y, json: JSON.stringify({ season: se, rounds: rounds }) });
+    });
+    return out;
+  }
+  function buildWrites(list, message) {
+    var now = new Date().toISOString(), by = A.user.email, group = now.replace(/\D/g, '').slice(0, 14) + '-' + Math.random().toString(36).slice(2, 8);
+    var W = [], track = {};
+    list.forEach(function (c) {                         // 1. working data, refused if it changed since it was loaded
+      if (c.binary) return;
+      var pre = A.meta[c.path] ? { updateTime: A.meta[c.path] } : { exists: false }, name = NAME + 'docs/' + idFor(c.path);
+      W.push(c.kind === 'delete' ? { 'delete': name, currentDocument: pre } : { update: { name: name, fields: fsFields({ json: c.text, updatedAt: now, updatedBy: by }) }, currentDocument: pre });
+      track[W.length - 1] = c.path;
+    });
+    list.forEach(function (c) {                         // 2. photos
+      if (!c.binary) return;
+      var name = NAME + 'photos/' + photoIdOf(c.path);
+      W.push(c.kind === 'delete' ? { 'delete': name } : { update: { name: name, fields: fsFields({ b64: c.b64, type: 'image/jpeg', updatedAt: now }) } });
+    });
+    publicDocs().forEach(function (d) { W.push({ update: { name: NAME + 'public/' + d.id, fields: fsFields({ json: d.json, updatedAt: now }) } }); });   // 3. the published copy
+    (A.dropPublic || []).forEach(function (id) { W.push({ 'delete': NAME + 'public/' + id }); });
+    var revAt = W.length;                               // 4. the revision: any publish by someone else since we loaded makes this whole commit fail
+    W.push({ update: { name: NAME + 'config/revision', fields: fsFields({ n: (A.rev ? A.rev.n : 0) + 1, at: now, by: by }) }, currentDocument: A.rev ? { updateTime: A.rev.updateTime } : { exists: false } });
+    list.forEach(function (c, i) {                      // 5. history, one entry per changed document
+      W.push({ update: { name: NAME + 'history/' + group + '-' + i, fields: fsFields({ group: group, at: now, by: by, message: message, path: c.path, kind: c.kind,
+        before: c.binary ? null : (c.before || null), after: c.binary || c.kind === 'delete' ? null : c.text }) }, currentDocument: { exists: false } });
+    });
+    return { writes: W, track: track, revAt: revAt };
+  }
+  async function rebase(list) {   // someone else published since we loaded: take their changes, keep ours — unless we both changed the same document
+    var mine = {}; list.forEach(function (c) { if (!c.binary) mine[c.path] = true; });
+    var docs = await listAll('docs'), rev = await fs('GET', '/config/revision', null, { allow404: true });
+    var latest = {}; docs.forEach(function (d) { var p = pathFor(docKey(d)); if (p) latest[p] = d; });
+    var clash = Object.keys(mine).filter(function (p) { return (latest[p] ? latest[p].updateTime : null) !== (A.meta[p] || null); });
+    if (clash.length) { var err = new Error('Someone else published changes to ' + clash.map(label).join(', ') + ' after you opened the admin.'); err.conflict = true; err.clash = true; throw err; }
+    Object.keys(latest).forEach(function (p) {
+      if (mine[p]) return;
+      var obj = JSON.parse(fsObj(latest[p].fields).json);
+      A.docs[p] = { orig: norm(obj), obj: obj, deleted: false }; A.meta[p] = latest[p].updateTime;
+    });
+    Object.keys(A.docs).forEach(function (p) { if (!latest[p] && !mine[p] && A.meta[p]) { delete A.docs[p]; delete A.meta[p]; } });
+    A.rev = revOf(rev);
+  }
+  async function publish(message) {
+    var unknown = knownNames(); if (unknown.length) addPeople(unknown);
+    var list = changes(); if (!list.length) throw new Error('There are no changes to publish.');
+    if (A.mode !== 'live') { markSaved(); return { demo: true, files: list.length }; }
+    var res, b;
+    for (var attempt = 0; ; attempt++) {
+      b = buildWrites(list, message);
+      try { res = await fs('POST', ':commit', { writes: b.writes }, { commit: true }); break; }
+      catch (e) {
+        if (!e.conflict || e.clash || attempt > 0) throw e;
+        await rebase(list);
+        if (knownNames().length) addPeople(knownNames());
+        list = changes();
+      }
+    }
+    var wr = (res && res.writeResults) || [];
+    Object.keys(b.track).forEach(function (i) { var p = b.track[i]; if (A.docs[p] && A.docs[p].deleted) delete A.meta[p]; else if (wr[i] && wr[i].updateTime) A.meta[p] = wr[i].updateTime; });
+    A.rev = { n: (A.rev ? A.rev.n : 0) + 1, updateTime: wr[b.revAt] && wr[b.revAt].updateTime };
+    markSaved(); A.history = null; A.empty = false;
+    return { files: list.length };
+  }
+  function markSaved() {
+    Object.keys(A.docs).forEach(function (p) { var d = A.docs[p]; if (d.deleted) delete A.docs[p]; else d.orig = norm(d.obj); });
+    Object.keys(A.bins).forEach(function (p) { var id = photoIdOf(p), b = A.bins[p]; if (id) A.photoCache[id] = b.deleted ? null : b.b64; });
+    A.bins = {}; A.dropPublic = [];
+  }
+  function stageRemove(path) { if (photoIdOf(path)) A.bins[path] = { deleted: true }; else dropDoc(path); }
+  async function loadHistory() {
+    var docs = await listAll('history', '&orderBy=' + encodeURIComponent('at desc'));
+    var groups = {}, order = [];
+    docs.forEach(function (d) {
+      var f = fsObj(d.fields);
+      if (!groups[f.group]) { groups[f.group] = { group: f.group, at: f.at, by: f.by, message: f.message, items: [] }; order.push(f.group); }
+      groups[f.group].items.push(f);
+    });
+    return order.map(function (g) { return groups[g]; });
+  }
+  function stageUndo(g) {
+    var before = clone(peopleDoc().people);
+    g.items.forEach(function (it) {
+      if (photoIdOf(it.path)) return;                   // photos aren't kept in the history
+      if (it.before == null) { if (A.docs[it.path]) dropDoc(it.path); }
+      else { var obj = JSON.parse(it.before); if (A.docs[it.path]) { A.docs[it.path].obj = obj; A.docs[it.path].deleted = false; } else A.docs[it.path] = { orig: null, obj: obj, deleted: false }; }
+    });
+    var keep = {}; peopleDoc().people.forEach(function (p) { if (/^db:/.test(p.photo || '')) keep[p.photo] = 1; });
+    before.forEach(function (p) { if (/^db:/.test(p.photo || '') && !keep[p.photo]) A.bins[photoPath(p.photo.slice(3))] = { deleted: true }; });
+    afterLoad();
+  }
+  async function saveAdmins(list) {   // takes effect immediately (it isn't part of a publish)
+    var r = await fs('POST', ':commit', { writes: [{ update: { name: NAME + 'config/admins', fields: fsFields({ emails: list }) }, currentDocument: { updateTime: A.admins.updateTime } }] }, { commit: true });
+    A.admins = { list: list, updateTime: r.writeResults[0].updateTime };
+  }
+
+  /* ------------------------------------------------------------------ rendering infrastructure */
+  var binds = {}, acts = {}, seq = 0, liveRefresh = null;
+  function K(fn) { var k = 'k' + (++seq); binds[k] = fn; return k; }
+  function ACT(fn) { var k = 'a' + (++seq); acts[k] = fn; return k; }
+  function input(fn, value, attrs) { return '<input data-k="' + K(fn) + '" value="' + esc(value == null ? '' : value) + '"' + (attrs ? ' ' + attrs : '') + '>'; }
+  function area(fn, value, attrs) { return '<textarea data-k="' + K(fn) + '"' + (attrs ? ' ' + attrs : '') + '>' + esc(value == null ? '' : value) + '</textarea>'; }
+  function select(fn, value, opts, attrs) {
+    var has = opts.some(function (o) { return String(o[0]) === String(value == null ? '' : value); });
+    if (!has && value) opts = opts.concat([[value, value]]);
+    return '<select data-k="' + K(fn) + '"' + (attrs ? ' ' + attrs : '') + '>' + opts.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (String(o[0]) === String(value == null ? '' : value) ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select>';
+  }
+  function check(fn, on, text, attrs) { return '<label class="chk"><input type="checkbox" data-k="' + K(fn) + '"' + (on ? ' checked' : '') + (attrs ? ' ' + attrs : '') + '><span>' + text + '</span></label>'; }
+  function fileIn(fn, accept, text) { return '<label class="btn file-btn"><input type="file" class="sr-only" accept="' + accept + '" data-k="' + K(fn) + '">' + text + '</label>'; }
+  function fld(lbl, control, help, cls) { return '<label class="fld' + (cls ? ' ' + cls : '') + '"><span class="fl">' + lbl + '</span>' + control + (help ? '<small>' + help + '</small>' : '') + '</label>'; }
+  function btn(fn, text, cls, attrs) { return '<button type="button" class="btn' + (cls ? ' ' + cls : '') + '" data-act="' + ACT(fn) + '"' + (attrs ? ' ' + attrs : '') + '>' + text + '</button>'; }
+  function toast(msg, kind) {
+    var box = document.getElementById('toasts');
+    if (!box) { box = document.createElement('div'); box.id = 'toasts'; box.className = 'toasts'; box.setAttribute('role', 'status'); document.body.appendChild(box); }
+    var t = document.createElement('div'); t.className = 'toast ' + (kind || ''); t.textContent = msg; box.appendChild(t);
+    setTimeout(function () { t.classList.add('out'); setTimeout(function () { t.remove(); }, 400); }, kind === 'bad' ? 9000 : 4500);
+  }
+  var busyCount = 0;
+  function busy(on) { busyCount += on ? 1 : -1; document.body.classList.toggle('is-busy', busyCount > 0); }
+  function runAct(fn, el) {
+    try {
+      var r = fn(el);
+      if (r && typeof r.then === 'function') { busy(true); r.then(function () { busy(false); }, function (e) { busy(false); toast(e.message || String(e), 'bad'); if (window.console) console.error(e); render(); }); }
+    } catch (e) { toast(e.message || String(e), 'bad'); if (window.console) console.error(e); }
+  }
+  var edited = debounce(function () { updateBadge(); if (liveRefresh) { try { liveRefresh(); } catch (e) { if (window.console) console.error(e); } } }, 250);
+  ROOT.addEventListener('input', function (ev) {
+    var t = ev.target, k = t.getAttribute && t.getAttribute('data-k');
+    if (!k || !binds[k] || t.type === 'checkbox' || t.type === 'file' || t.tagName === 'SELECT') return;
+    binds[k](t.value, t); edited();
+  });
+  ROOT.addEventListener('change', function (ev) {
+    var t = ev.target, k = t.getAttribute && t.getAttribute('data-k');
+    if (!k || !binds[k]) return;
+    if (t.type === 'checkbox') runAct(function () { return binds[k](t.checked, t); });
+    else if (t.type === 'file') { var files = t.files; if (files && files.length) runAct(function () { return binds[k](files, t); }); t.value = ''; return; }
+    else if (t.tagName === 'SELECT') runAct(function () { return binds[k](t.value, t); });
+    else { if (t.hasAttribute('data-rerender')) render(); return; }
+    edited();
+    if (t.hasAttribute('data-rerender')) render();
+  });
+  ROOT.addEventListener('click', function (ev) {
+    var el = ev.target.closest ? ev.target.closest('[data-act]') : null;
+    if (!el) return; var fn = acts[el.getAttribute('data-act')]; if (!fn) return;
+    ev.preventDefault(); runAct(fn, el);
+  });
+  window.addEventListener('beforeunload', function (ev) { if (A.mode && changes().length) { ev.preventDefault(); ev.returnValue = ''; } });
+  window.addEventListener('hashchange', function () { render(); });
+
+  function route() {
+    var parts = (location.hash || '').replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
+    return { view: parts[0] || 'dashboard', a: parts[1] || '', b: parts[2] || '' };
+  }
+  function go(h) { if (location.hash === h) render(); else location.hash = h; }
+  function updateBadge() {
+    var n = changes().length, el = document.getElementById('chg');
+    if (el) { el.textContent = n ? n + ' unpublished change' + (n === 1 ? '' : 's') : 'All changes published'; el.className = 'chg' + (n ? ' on' : ''); }
+    var pb = document.getElementById('pubBtn'); if (pb) pb.classList.toggle('primary', n > 0);
+  }
+
+  /* ------------------------------------------------------------------ shell */
+  var NAV = [['dashboard', 'Dashboard'], ['results', 'Results'], ['events', 'Events & calendar'], ['competitors', 'Competitors'], ['season', 'Season settings'], ['site', 'Site & info'], ['history', 'History'], ['publish', 'Review & publish']];
+  function render() {
+    binds = {}; acts = {}; liveRefresh = null;
+    var keepY = window.scrollY;
+    if (!A.mode) { ROOT.innerHTML = viewSignIn(); return; }
+    var r = route();
+    var html;
+    if (!site()) r = { view: 'import' };
+    try {
+      switch (r.view) {
+        case 'import': html = viewImport(); break;
+        case 'results': html = viewResults(r.a); break;
+        case 'events': html = viewEvents(); break;
+        case 'competitors': html = viewCompetitors(); break;
+        case 'competitor': html = viewCompetitor(r.a); break;
+        case 'season': html = viewSeason(); break;
+        case 'site': html = viewSite(); break;
+        case 'history': html = viewHistory(); break;
+        case 'publish': html = viewPublish(); break;
+        default: html = viewDashboard();
+      }
+    } catch (e) { html = '<div class="card empty"><h2>Something went wrong</h2><p class="mono small">' + esc(e.message) + '</p></div>'; if (window.console) console.error(e); }
+    var active = r.view === 'competitor' ? 'competitors' : r.view;
+    var ys = years();
+    var who = A.mode === 'live' ? '<span class="who">' + (A.user.photo ? '<img src="' + esc(A.user.photo) + '" alt="" referrerpolicy="no-referrer">' : '') + '<span><b>' + esc(A.user.name || A.user.email) + '</b><small>' + esc(A.user.email) + '</small></span></span>' :
+      '<span class="who demo"><span><b>Demo mode</b><small>Nothing is saved</small></span></span>';
+    ROOT.innerHTML = (A.mode === 'demo' ? '<div class="demo-bar">Demo mode — practise freely with a copy of the published data; nothing is ever saved. ' + btn(function () { A.mode = null; render(); }, 'Leave the demo', 'tiny') + '</div>' : '') +
+      '<header class="adm-top"><div class="checker" aria-hidden="true"></div><div class="adm-top-in">' +
+      '<a class="brand" href="#/"><svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><rect x="1" y="1" width="38" height="38" rx="10" fill="#14161a"/><path d="M7 29 L17 11 L23 21 L27 15 L34 29 Z" fill="#ff5a1f"/><path d="M7 29 L17 11 L20 16 L13 29 Z" fill="#ffc21a" opacity=".9"/></svg>' +
+      '<span class="brand-text"><strong>' + esc((site() && site().siteName) || 'Rally results') + '</strong><span>Admin</span></span></a>' +
+      (ys.length ? '<label class="season-sel"><span class="sr-only">Season</span>' + select(function (v) { A.year = +v; A.imp = null; A.open = {}; render(); }, A.year, ys.map(function (y) { return [y, y + ' season']; }), 'id="yearSel"') + '</label>' : '') +
+      '<span id="chg" class="chg"></span>' +
+      '<a class="btn" id="pubBtn" href="#/publish">Review &amp; publish</a>' + who +
+      '<button type="button" class="btn tiny ghost" id="signOutBtn" data-act="' + ACT(signOut) + '">' + (A.mode === 'live' ? 'Sign out' : 'Exit demo') + '</button>' +
+      '</div></header><div class="adm-wrap"><nav class="adm-nav" aria-label="Admin sections">' +
+      (site() ? NAV : [['import', 'Load the data'], ['publish', 'Review & publish']]).map(function (n) { return '<a href="#/' + n[0] + '"' + (n[0] === active ? ' class="on" aria-current="page"' : '') + '>' + n[1] + '</a>'; }).join('') +
+      '<a class="ext" href="../#/' + A.year + '" target="_blank" rel="noopener">View public site ↗</a>' +
+      '</nav><main id="main" class="adm-main">' + html + '</main></div>';
+    updateBadge();
+    if (liveRefresh) liveRefresh();
+    window.scrollTo(0, route().view === r.view ? keepY : 0);
+  }
+  async function signOut() {
+    if (A.mode && changes().length && !window.confirm('You have unpublished changes. Leave and lose them?')) return;
+    if (A.mode === 'live' || signInState.denied) { try { await (await auth()).signOut(); } catch (e) { /* already signed out */ } }
+    A.mode = null; A.user = null; A.docs = {}; A.bins = {}; A.meta = {}; A.rev = null; A.admins = null; A.history = null; A.lastCommit = null; A.conflict = null;
+    signInState.denied = ''; signInState.err = ''; location.hash = '#/'; render();
+  }
+  function pageHead(eyebrow, title, intro, side) {
+    return '<div class="page-head"><div><p class="eyebrow">' + eyebrow + '</p><h1>' + title + '</h1>' + (intro ? '<p>' + intro + '</p>' : '') + '</div>' + (side || '') + '</div>';
+  }
+
+  /* ------------------------------------------------------------------ sign in */
+  var signInState = { err: '', denied: '' };
+  function googleMark() { return '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.3-2.1 3.5-5.2 3.5-8.7Z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.9-3c-1.1.7-2.5 1.2-4.1 1.2-3.1 0-5.8-2.1-6.7-5H1.3v3.1A12 12 0 0 0 12 24Z"/><path fill="#FBBC05" d="M5.3 14.3a7.2 7.2 0 0 1 0-4.6V6.6h-4a12 12 0 0 0 0 10.8l4-3.1Z"/><path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.3 6.6l4 3.1c.9-2.9 3.6-4.9 6.7-4.9Z"/></svg>'; }
+  function viewSignIn() {
+    var s = signInState;
+    return '<div class="signin"><div class="card signin-card"><div class="checker" aria-hidden="true"></div>' +
+      '<p class="eyebrow">Results admin</p><h1>Sign in to edit the site</h1>' +
+      '<p>Admins sign in with their Google account. Only accounts on the admin list can see or change the results data.</p>' +
+      (!CONFIGURED ? '<div class="callout warn"><div><b>This site isn\'t connected to its database yet.</b> Paste the <code>firebaseConfig</code> block from the Firebase console into <code>assets/firebase-config.js</code>, then upload that file to the website (see the README).</div></div>' : '') +
+      (s.denied ? '<div class="callout bad"><div><b>Signed in as ' + esc(s.denied) + ', but this account can\'t open the admin.</b> Ask an existing admin to add this address under Site &amp; info → Admins. Setting up for the first time? Check that the database rules are published and that your address is in <code>config/admins</code> in the Firebase console.<div class="actions">' + btn(signOut, 'Use a different Google account', 'tiny') + '</div></div></div>' : '') +
+      (s.err ? '<div class="callout bad"><div><b>Couldn\'t sign in.</b> ' + esc(s.err) + '</div></div>' : '') +
+      '<div class="actions">' + (CONFIGURED ? btn(async function () {
+        s.err = ''; s.denied = '';
+        var au = await auth();
+        try { await au.signIn(); } catch (e) { if (/popup-closed|cancelled-popup/.test((e && e.code) || '')) return; s.err = authError(e); render(); return; }
+        await enter();
+      }, googleMark() + ' Sign in with Google', 'primary google', 'id="signInBtn"') : '') +
+      (CONFIGURED ? btn(async function () { await demoLoad(); go('#/'); }, 'Practise in demo mode (nothing is saved)', '', 'id="demoBtn"') : '') + '</div>' +
+      '<p class="small muted">You stay signed in until you close this tab or choose Sign out. Changes are recorded with your name.</p></div></div>';
+  }
+  async function enter() {   // after Google sign-in: check access, then load the data
+    var au = await auth(), u = au.user(); if (!u) return;
+    A.user = u;
+    try { await liveLoad(); }
+    catch (e) { if (e.denied) { A.mode = null; signInState.denied = u.email; render(); return; } throw e; }
+    A.mode = 'live'; signInState.err = ''; signInState.denied = '';
+    toast('Signed in as ' + u.email, 'good');
+    go(A.empty ? '#/import' : '#/');
+  }
+  function viewImport() {
+    var html = pageHead('First-time setup or recovery', 'Load the results data', 'The database is empty. Load a backup file once, check it, then publish. After that, everything is edited here. The site\'s code never contains results data.');
+    var staged = changes().length;
+    html += '<div class="card"><h3>From a backup file</h3><p class="small">A backup downloaded from this admin (Dashboard → Backups). The private project archive holds <code>data-backup-2026-11-06.json</code> with all the 2026 results.</p><div class="actions">' +
+      fileIn(async function (files) { await stageAll(readBackup(await files[0].text())); toast('Backup loaded. Check it, then publish.', 'good'); go('#/publish'); }, 'application/json,.json', 'Choose a backup file') + '</div></div>';
+    if (staged) html += '<div class="callout"><div>' + staged + ' document' + (staged === 1 ? '' : 's') + ' loaded and waiting. <a href="#/publish">Review &amp; publish</a></div></div>';
+    return html;
+  }
+  function backupCard() {
+    return '<div class="card"><h3>Backups</h3><p class="small">A backup is one file holding every season, competitor and photo. Download one each month and keep it in the private project archive. Restoring replaces the working copy with the backup; nothing changes on the site until you publish.</p><div class="actions">' +
+      btn(async function () { download('nr-rally-backup-' + new Date().toISOString().slice(0, 10) + '.json', await backupText()); toast('Backup downloaded.', 'good'); }, 'Download a backup', '', 'id="backupBtn"') +
+      fileIn(async function (files) {
+        var b = readBackup(await files[0].text());
+        if (!window.confirm('Replace the working copy with the backup from ' + (b.exportedAt || 'this file').slice(0, 10) + '? Nothing changes on the site until you publish.')) return;
+        await stageAll(b); toast('Backup loaded. Review the changes, then publish.', 'good'); go('#/publish');
+      }, 'application/json,.json', 'Restore from a backup') + '</div></div>';
+  }
+
+  /* ------------------------------------------------------------------ dashboard */
+  function viewDashboard() {
+    var s = season(), m = model(), cal = (s && s.rounds) || [];
+    var done = cal.filter(function (r) { return r.results; }), next = cal.filter(function (r) { return !r.results; })[0];
+    var issues = { error: 0, warn: 0 }, perRound = [];
+    done.forEach(function (r) {
+      var raw = rawRound(r.id); if (!raw) return;
+      var iss = E.validateRound(raw, {}); var e = iss.filter(function (x) { return x.level === 'error'; }).length, w = iss.filter(function (x) { return x.level === 'warn'; }).length;
+      issues.error += e; issues.warn += w; if (e || w) perRound.push([r.id, e, w]);
+    });
+    var unknown = knownNames(), nChg = changes().length;
+    var html = pageHead(esc(A.mode === 'live' ? 'Signed in as ' + A.user.email : 'Demo'), A.year + ' season', 'Add results after each round, keep competitor profiles up to date and publish when you\'re ready. Nothing goes live until you publish.');
+    html += '<div class="grid grid-3">' +
+      '<div class="card stat-card"><p class="eyebrow">Rounds with results</p><b>' + done.length + ' / ' + cal.length + '</b><span>' + esc(s ? (s.status || '') : '') + '</span>' +
+      (next ? '<a class="btn primary" href="#/results/' + next.id + '">Add ' + next.id + ' results</a>' : (cal.length ? '<span class="small muted">Every round on the calendar has results.</span>' : '<a class="btn" href="#/events">Add events &amp; rounds</a>')) + '</div>' +
+      '<div class="card stat-card"><p class="eyebrow">Checks</p><b>' + (issues.error ? issues.error + ' error' + (issues.error === 1 ? '' : 's') : 'No errors') + '</b><span>' + issues.warn + ' warning' + (issues.warn === 1 ? '' : 's') + ' to review</span>' +
+      (perRound.length ? '<div class="mini-list">' + perRound.map(function (x) { return '<a href="#/results/' + x[0] + '">' + x[0] + ': ' + (x[1] ? x[1] + ' error' + (x[1] === 1 ? '' : 's') : '') + (x[1] && x[2] ? ', ' : '') + (x[2] ? x[2] + ' warning' + (x[2] === 1 ? '' : 's') : '') + '</a>'; }).join('') + '</div>' : '') + '</div>' +
+      '<div class="card stat-card"><p class="eyebrow">Unpublished</p><b>' + (nChg ? nChg + ' change' + (nChg === 1 ? '' : 's') : 'Nothing waiting') + '</b><span>' + (A.mode === 'live' ? 'Publishing updates the public site straight away.' : 'Demo mode never saves.') + '</span>' +
+      (nChg ? '<a class="btn primary" href="#/publish">Review &amp; publish</a>' : '') + '</div></div>';
+    if (m && m.standings.drivers.length) {
+      html += '<div class="section"><div class="section-head"><h2>Standings preview</h2><span class="small muted">Includes unpublished changes</span></div><div class="grid grid-2">' +
+        ['drivers', 'codrivers'].map(function (k) {
+          return '<div class="card"><h3>' + (k === 'drivers' ? 'Drivers' : 'Co-drivers') + '</h3><table class="data mini"><tbody>' + m.standings[k].slice(0, 6).map(function (r) {
+            return '<tr><td class="num">' + r.rank + '</td><td>' + esc(r.name) + (r.eligible ? '' : ' *') + '</td><td><span class="cls ' + esc(r.cls) + '">' + esc(r.cls) + '</span></td><td class="num"><b>' + r.total + '</b></td></tr>';
+          }).join('') + '</tbody></table></div>';
+        }).join('') + '</div></div>';
+    }
+    if (unknown.length) html += '<div class="callout" style="margin-top:18px"><div><b>' + unknown.length + ' new name' + (unknown.length === 1 ? '' : 's') + ' in the results</b> will be added to Competitors when you publish: ' + esc(unknown.slice(0, 8).join(', ')) + (unknown.length > 8 ? '…' : '') + '. If one is just another spelling of an existing competitor, add it as an “also printed as” name instead.</div></div>';
+    html += '<div class="section"><div class="section-head"><h2>Start the next season</h2></div>' + newSeasonCard() + '</div>';
+    html += '<div class="section">' + backupCard() + '</div>';
+    return html;
+  }
+  function newSeasonCard() {
+    var ys = years(), next = (ys[0] || new Date().getFullYear()) + 1, st = A.newSeason || (A.newSeason = { year: next, from: ys[0], current: false });
+    return '<div class="card"><p style="margin-top:0">Creates an empty calendar for a new year and copies the classes, points scales and minimum starts from an earlier season. Results, events and documents start empty. Earlier seasons stay on the site; visitors switch with the season picker.</p><div class="form-grid">' +
+      fld('Year', input(function (v) { st.year = numOrNull(v); }, st.year, 'inputmode="numeric" id="nsYear"')) +
+      fld('Copy settings from', select(function (v) { st.from = +v; }, st.from, ys.map(function (y) { return [y, y]; }))) +
+      '<div class="fld">' + check(function (v) { st.current = v; }, st.current, 'Make it the season the public site opens on') + '</div></div>' +
+      '<div class="actions">' + btn(function () {
+        var y = st.year; if (!y || y < 1990 || y > 2100) throw new Error('Enter a four-digit year.');
+        if (years().indexOf(y) >= 0) throw new Error('There is already a ' + y + ' season.');
+        var src = season(st.from) || {};
+        var fresh = { year: y, championship: src.championship || '', shortName: src.shortName || '', status: 'planned', pointsScale: clone(src.pointsScale || { overall: [], cls: [] }), minStarts: src.minStarts || 0,
+          classes: clone(src.classes || []), classMap: { drivers: {}, codrivers: {} }, msa: { label: (src.msa && src.msa.label) || 'MSA standings', url: '', generated: '', confirmedRounds: [] }, documents: [], events: [], rounds: [], notes: [] };
+        putDoc(seasonPath(y), fresh);
+        site().seasons.push({ year: y, label: String(y) }); site().seasons.sort(function (a, b) { return a.year - b.year; });
+        if (st.current) site().currentSeason = y;
+        A.year = y; A.newSeason = null; toast(y + ' season created. Add its events and rounds next, then publish.', 'good'); go('#/events');
+      }, 'Create season', 'primary', 'id="nsBtn"') + '</div></div>';
+  }
+
+  /* ------------------------------------------------------------------ results */
+  var STATUS = [['classified', 'Classified'], ['DNF', 'DNF'], ['DNS', 'DNS']];
+  function classOpts(blank) { var s = season(); return (blank ? [['', blank]] : []).concat((s.classes || []).map(function (c) { return [c.id, c.id]; })); }
+  function peopleList() {
+    var out = []; peopleDoc().people.forEach(function (p) { out.push(p.name); (p.aliases || []).forEach(function (a) { out.push(a); }); });
+    return '<datalist id="dl-people">' + out.sort().map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>';
+  }
+  function cleanEntry(e) {
+    return { status: e.status || 'classified', pos: e.status && e.status !== 'classified' ? null : numOrNull(e.pos), car: String(e.car || ''), driver: e.driver || '', codriver: e.codriver || '', 'class': E.normClass(e['class']),
+      vehicle: e.vehicle || '', stages: numOrNull(e.stages), times: (e.times || []).map(strOrNull), stagePos: (e.stagePos || []).map(numOrNull), pen: strOrNull(e.pen), total: strOrNull(e.total) };
+  }
+  function ensureArrays(raw) {
+    var n = (raw.stages || []).length;
+    (raw.entries || []).forEach(function (e) {
+      e.times = (e.times || []).slice(0, n); while (e.times.length < n) e.times.push(null);
+      e.stagePos = (e.stagePos || []).slice(0, n); while (e.stagePos.length < n) e.stagePos.push(null);
+    });
+  }
+  function viewResults(id) {
+    var s = season(), cal = (s && s.rounds) || [];
+    var html = pageHead(A.year + ' · results', 'Results', 'Enter each round from its official classification PDF. Copy the text out of the PDF and paste it in, or type and correct it in the table. Never use live timing.');
+    if (!cal.length) return html + '<div class="card empty"><h2>No rounds on the ' + A.year + ' calendar yet</h2><p><a class="btn primary" href="#/events">Add events &amp; rounds</a></p></div>';
+    if (!id || !calRound(id)) id = (cal.filter(function (r) { return !r.results; })[0] || cal[cal.length - 1]).id;
+    var meta = calRound(id), ev = eventById(meta.eventId) || { name: meta.eventId };
+    html += '<div class="round-switch">' + cal.map(function (r, i) {
+      var e = eventById(r.eventId) || {};
+      return '<a href="#/results/' + r.id + '" class="' + (r.id === id ? 'on' : '') + '">' + (r.results ? '<i class="dot ok"></i>' : '<i class="dot"></i>') + 'R' + (i + 1) + ' ' + esc(e.short || r.eventId) + '</a>';
+    }).join('') + '</div>';
+    var raw = rawRound(id);
+    html += '<div class="round-title"><h2>Round ' + roundNo(id) + ' · ' + esc(ev.name) + '</h2><span class="muted">' + esc(meta.day) + (meta.date ? ' · ' + esc(meta.date) : '') + ' · file ' + esc(id) + '.json</span></div>';
+    html += importPanel(id, !raw);
+    if (!raw) {
+      html += '<div class="card empty"><h3>No results for this round yet</h3><p>Paste the text from the official PDF above, or start with an empty table and type the results in.</p>' +
+        btn(function () { putDoc(roundPath(A.year, id), { id: id, title: '', status: 'Final Official Classification', stages: ['SS1', 'SS2', 'SS3', 'SS4', 'SS5', 'SS6'], notes: [], source: { file: '', url: (ev.links && ev.links.results) || '' }, entries: [] }); meta.results = true; addRow(rawRound(id)); render(); }, 'Start with an empty table', '', 'id="blankBtn"') + '</div>';
+      return html;
+    }
+    ensureArrays(raw);
+    html += peopleList();
+    var msa = s.msa || (s.msa = { label: '', url: '', generated: '', confirmedRounds: [] });
+    if (!msa.confirmedRounds) msa.confirmedRounds = [];
+    var src = raw.source || (raw.source = { file: '', url: '' });
+    html += '<div class="card"><h3>Sheet details</h3><div class="form-grid">' +
+      fld('Title on the sheet', input(function (v) { raw.title = v; }, raw.title), '', 'span2') +
+      fld('Sheet status', input(function (v) { raw.status = v; }, raw.status, 'list="dl-status"'), 'As printed, e.g. “Final Official Classification”. A status containing “Provisional” is flagged on the site.') +
+      fld('Stages', input(function (v) { raw.stages = words(v.toUpperCase()); ensureArrays(raw); }, (raw.stages || []).join(', '), 'data-rerender spellcheck="false" id="fStages"'), 'Stage names in order, separated by commas (e.g. SS1, SS3, SS4 if SS2 was cancelled).') +
+      fld('Results page', input(function (v) { src.url = v; }, src.url, 'type="url" placeholder="https://"'), 'Where the PDF was published (e.g. the event\'s results page).') +
+      fld('PDF file name', input(function (v) { src.file = v; }, src.file), 'The name of the official PDF, for the record. Keep the PDF itself in the private project archive.') +
+      fld('Notes shown with this round', area(function (v) { raw.notes = lines(v); }, (raw.notes || []).join('\n'), 'rows="3"'), 'One per line — for example remarks printed on the sheet.', 'span2') +
+      '<div class="fld span2">' + check(function (v) { var i = msa.confirmedRounds.indexOf(id); if (v && i < 0) msa.confirmedRounds.push(id); if (!v && i >= 0) msa.confirmedRounds.splice(i, 1); }, msa.confirmedRounds.indexOf(id) >= 0, 'Points for this round match the published MSA standings') + '<small>Tick once MSA\'s standings include this round and agree. Unticked rounds show as “points calculated”.</small></div>' +
+      '</div><datalist id="dl-status"><option value="Final Official Classification"><option value="Provisional Official Classification"></datalist></div>';
+    html += '<div class="card" id="valCard"><h3>Checks</h3><div id="val"></div></div>';
+    html += resultsGrid(raw);
+    html += extraStartsCard(raw);
+    html += '<div class="card"><div class="card-head"><h3>Points preview</h3><span class="small muted">Computed exactly as the public site will, including unpublished changes</span></div><div id="pts"></div></div>';
+    html += '<div class="card danger"><h3>Remove this round\'s results</h3><p class="small">Takes the round off the standings and graphs when you publish. The calendar entry stays.</p>' +
+      btn(function () { if (!window.confirm('Remove the ' + id + ' results? (Nothing changes on the site until you publish.)')) return; dropDoc(roundPath(A.year, id)); meta.results = false; var i = msa.confirmedRounds.indexOf(id); if (i >= 0) msa.confirmedRounds.splice(i, 1); render(); }, 'Remove results', 'bad') + '</div>';
+    liveRefresh = function () { refreshResults(id); };
+    return html;
+  }
+  function addRow(raw) {
+    var n = (raw.stages || []).length, cl = (raw.entries || []).filter(function (e) { return e.status === 'classified'; }).length;
+    raw.entries.push({ status: 'classified', pos: cl + 1, car: '', driver: '', codriver: '', 'class': '', vehicle: '', stages: n, times: new Array(n).fill(null), stagePos: new Array(n).fill(null), pen: null, total: null });
+  }
+  function resultsGrid(raw) {
+    var S = raw.stages || [];
+    var head = '<tr><th>#</th><th>Status</th><th class="num">Pos</th><th>Car</th><th>Driver</th><th>Co-driver</th><th>Class</th><th>Vehicle</th><th class="num" title="Stages completed">Stg</th>' +
+      S.map(function (s) { return '<th class="num">' + esc(s) + '<br><small>time · pos</small></th>'; }).join('') + '<th>Penalty</th><th>Total</th><th></th></tr>';
+    var body = raw.entries.map(function (e, i) {
+      var more = A.open[i];
+      var flags = (e.credit || e.scoredClass || (e.notes && e.notes.length) || e.skipSumCheck) ? ' has-more' : '';
+      var row = '<tr data-row="' + i + '"><td class="num muted">' + (i + 1) + '</td>' +
+        '<td>' + select(function (v) { e.status = v; if (v !== 'classified') { e.pos = null; e.total = null; } render(); }, e.status || 'classified', STATUS) + '</td>' +
+        '<td>' + input(function (v) { e.pos = numOrNull(v); }, e.pos, 'class="w3" inputmode="numeric"' + (e.status !== 'classified' ? ' disabled' : '')) + '</td>' +
+        '<td>' + input(function (v) { e.car = v.trim(); }, e.car, 'class="w4"') + '</td>' +
+        '<td>' + input(function (v) { e.driver = v; }, e.driver, 'class="wn" list="dl-people"') + '</td>' +
+        '<td>' + input(function (v) { e.codriver = v; }, e.codriver, 'class="wn" list="dl-people"') + '</td>' +
+        '<td>' + select(function (v) { e['class'] = v; }, e['class'], classOpts('—')) + '</td>' +
+        '<td>' + input(function (v) { e.vehicle = v; }, e.vehicle, 'class="wv"') + '</td>' +
+        '<td>' + input(function (v) { e.stages = numOrNull(v); }, e.stages, 'class="w3" inputmode="numeric"') + '</td>' +
+        S.map(function (s, k) {
+          return '<td class="stc">' + input(function (v) { e.times[k] = strOrNull(v); }, e.times[k], 'class="wt" placeholder="m:ss.s" spellcheck="false"') + input(function (v) { e.stagePos[k] = numOrNull(v); }, e.stagePos[k], 'class="w2" inputmode="numeric" title="Stage position"') + '</td>';
+        }).join('') +
+        '<td>' + input(function (v) { e.pen = strOrNull(v); }, e.pen, 'class="wt" placeholder="0:00"') + '</td>' +
+        '<td>' + input(function (v) { e.total = strOrNull(v); }, e.total, 'class="wh" placeholder="h:mm:ss.s"' + (e.status !== 'classified' ? ' disabled' : '')) + '</td>' +
+        '<td class="nowrap">' + btn(function () { A.open[i] = !A.open[i]; render(); }, more ? 'Less' : 'More', 'tiny' + flags, 'title="Points credit, scored class and notes"') + btn(function () { raw.entries.splice(i, 1); A.open = {}; render(); }, '✕', 'tiny ghost', 'title="Delete this row" aria-label="Delete row ' + (i + 1) + '"') + '</td></tr>';
+      if (more) {
+        var cr = e.credit || {};
+        var setCredit = function (k, v) { var c = e.credit || {}; if (v === '' || v === false || v == null) delete c[k]; else c[k] = v; if (Object.keys(c).length) e.credit = c; else delete e.credit; };
+        row += '<tr class="more-row"><td></td><td colspan="' + (11 + S.length) + '"><div class="form-grid tight">' +
+          fld('Scored class', select(function (v) { if (v) e.scoredClass = v; else delete e.scoredClass; }, e.scoredClass || '', classOpts('Automatic')), 'Normally automatic: the competitor\'s season class (Competitors) or the class printed on the sheet.') +
+          fld('Points go to driver', input(function (v) { setCredit('driver', v.trim()); }, cr.driver, 'list="dl-people" placeholder="as printed"'), 'Only if the championship credits someone other than the printed driver.') +
+          fld('Points go to co-driver', input(function (v) { setCredit('codriver', v.trim()); }, cr.codriver, 'list="dl-people" placeholder="as printed"')) +
+          '<div class="fld">' + check(function (v) { setCredit('noCodriver', v); }, cr.noCodriver, 'Don\'t count a co-driver start') + '</div>' +
+          fld('Why (shown on the site)', input(function (v) { setCredit('why', v.trim()); }, cr.why), '', 'span2') +
+          fld('Notes for this car', area(function (v) { var l = lines(v); if (l.length) e.notes = l; else delete e.notes; }, (e.notes || []).join('\n'), 'rows="2"'), 'One per line.', 'span2') +
+          '<div class="fld span2">' + check(function (v) { if (v) e.skipSumCheck = true; else delete e.skipSumCheck; }, e.skipSumCheck, 'The total is printed this way on the sheet even though the stage times don\'t add up to it') + '</div>' +
+          '</div></td></tr>';
+      }
+      return row;
+    }).join('');
+    return '<div class="card grid-card"><div class="card-head"><h3>Classification (' + raw.entries.length + ' rows)</h3><span class="small muted">Times as printed: m:ss.s for stages, h:mm:ss.s for totals. Leave a stage empty if the crew didn\'t complete it.</span></div>' +
+      '<div class="table-wrap"><table class="data edit"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>' +
+      '<div class="actions">' + btn(function () { addRow(raw); render(); }, '+ Add a row', '', 'id="addRowBtn"') + btn(function () { sortRows(raw); render(); }, 'Sort: classified by position, then DNF and DNS') + '</div></div>';
+  }
+  function sortRows(raw) {
+    var rank = { classified: 0, DNF: 1, DNS: 2 };
+    raw.entries.sort(function (a, b) { var ra = rank[a.status] || 0, rb = rank[b.status] || 0; if (ra !== rb) return ra - rb; if (ra === 0) return (a.pos || 999) - (b.pos || 999); return (b.stages || 0) - (a.stages || 0); });
+    A.open = {};
+  }
+  function extraStartsCard(raw) {
+    var xs = raw.extraStarts || [];
+    return '<details class="card"' + (xs.length ? ' open' : '') + '><summary><h3>Starts recorded by MSA but missing from the sheet (' + xs.length + ')</h3></summary><p class="small muted">Rare. Use only when the MSA standings count a start for a crew that isn\'t on this round\'s official sheet; it scores 0 points but counts as a start.</p>' +
+      xs.map(function (x, i) {
+        return '<div class="form-grid tight bordered">' + fld('Car', input(function (v) { x.car = v; }, x.car)) + fld('Driver', input(function (v) { x.driver = v; }, x.driver, 'list="dl-people"')) + fld('Co-driver', input(function (v) { x.codriver = v; }, x.codriver, 'list="dl-people"')) +
+          fld('Class', select(function (v) { x['class'] = v; }, x['class'], classOpts('—'))) + fld('Note (shown on the site)', input(function (v) { x.note = v; }, x.note), '', 'span2') +
+          '<div class="fld">' + btn(function () { xs.splice(i, 1); if (!xs.length) delete raw.extraStarts; render(); }, 'Remove', 'tiny ghost') + '</div></div>';
+      }).join('') + '<div class="actions">' + btn(function () { raw.extraStarts = xs; xs.push({ car: '', driver: '', codriver: '', 'class': '', note: '' }); render(); }, '+ Add a start') + '</div></details>';
+  }
+  function refreshResults(id) {
+    var raw = rawRound(id); if (!raw) return;
+    var val = document.getElementById('val'), pts = document.getElementById('pts');
+    var iss = E.validateRound(raw, { people: peopleDoc() });
+    Array.prototype.forEach.call(document.querySelectorAll('tr[data-row]'), function (tr) { tr.classList.remove('row-error', 'row-warn'); });
+    iss.forEach(function (x) { if (x.row == null) return; var tr = document.querySelector('tr[data-row="' + x.row + '"]'); if (tr) tr.classList.add(x.level === 'error' ? 'row-error' : x.level === 'warn' ? 'row-warn' : 'row-info'); });
+    if (val) {
+      var order = { error: 0, warn: 1, info: 2 };
+      iss.sort(function (a, b) { return order[a.level] - order[b.level]; });
+      val.innerHTML = iss.length ? '<ul class="issues">' + iss.map(function (x) { return '<li class="' + x.level + '"><b>' + (x.level === 'error' ? 'Error' : x.level === 'warn' ? 'Check' : 'Note') + '</b> ' + esc(x.msg) + '</li>'; }).join('') + '</ul>' : '<p class="ok-line">Everything adds up: positions, totals and stage times are consistent.</p>';
+    }
+    if (pts) {
+      var m; try { m = model(); } catch (e) { pts.innerHTML = '<p class="bad-line">Points can\'t be worked out yet: ' + esc(e.message) + '</p>'; return; }
+      var r = m && m.rounds.filter(function (x) { return x.id === id; })[0];
+      if (!r) { pts.innerHTML = '<p class="muted">No results.</p>'; return; }
+      var ents = r.entries.slice().sort(function (a, b) { var ra = a.status === 'classified' ? 0 : a.status === 'DNF' ? 1 : 2, rb = b.status === 'classified' ? 0 : b.status === 'DNF' ? 1 : 2; return ra - rb || (a.pos || 0) - (b.pos || 0); });
+      pts.innerHTML = '<div class="table-wrap"><table class="data mini"><thead><tr><th class="num">Pos</th><th>Car</th><th>Points to (driver / co-driver)</th><th>Scored class</th><th class="num">Class pos</th><th class="num">Overall</th><th class="num">Class</th><th class="num">Total</th></tr></thead><tbody>' +
+        ents.map(function (e) {
+          return '<tr><td class="num">' + (e.status === 'classified' ? e.pos : e.status) + '</td><td>' + esc(e.car) + '</td><td>' + esc(e.champDriver) + ' / ' + (e.noCreditCodriver ? '<span class="muted">no co-driver start</span>' : esc(e.champCodriver)) + '</td><td><span class="cls ' + esc(e.cls) + '">' + esc(e.cls) + '</span>' + (e.cls !== e.printedClass ? ' <span class="small muted">(sheet ' + esc(e.printedClass) + ')</span>' : '') + '</td><td class="num">' + (e.classPos || '') + '</td>' +
+            '<td class="num">' + (e.points ? e.points.overall : '–') + '</td><td class="num">' + (e.points ? e.points.cls : '–') + '</td><td class="num"><b>' + (e.points ? e.points.total : '–') + '</b></td></tr>';
+        }).join('') + '</tbody></table></div>';
+    }
+  }
+  function importPanel(id, open) {
+    var st = A.imp && A.imp.id === id ? A.imp : (A.imp = { id: id, kind: 'pdf', text: '', res: null });
+    var raw0 = rawRound(id);
+    function read(text) {
+      if (!String(text || '').trim()) throw new Error('Paste the text first.');
+      var res = st.kind === 'pdf' ? E.parseClassificationText(text, { people: peopleDoc() }) : E.parseSpreadsheet(text);
+      if (res.error) throw new Error(res.error);
+      if (!res.entries || !res.entries.length) throw new Error('No result rows were found. Check you copied the whole sheet, or use the spreadsheet template.');
+      st.res = res; render();
+    }
+    var html = '<details class="card imp"' + (open || st.res ? ' open' : '') + '><summary><h3>' + (open ? 'Import the official results' : 'Replace with an import') + '</h3></summary>' +
+      '<p class="small muted">Nothing is saved by importing. The rows go into the table below, every row is checked, and nothing reaches the website until you publish.</p>' +
+      '<div class="seg" role="tablist">' + btn(function () { st.kind = 'pdf'; st.res = null; render(); }, 'Text copied from the PDF', st.kind === 'pdf' ? 'on' : '') + btn(function () { st.kind = 'sheet'; st.res = null; render(); }, 'Spreadsheet (any sheet, including scans)', st.kind === 'sheet' ? 'on' : '') + '</div>';
+    if (st.kind === 'pdf') {
+      html += '<ol class="steps"><li>Open the official classification PDF in Chrome or Edge.</li><li>Press <kbd>Ctrl</kbd>+<kbd>A</kbd> then <kbd>Ctrl</kbd>+<kbd>C</kbd> to copy all its text.</li><li>Paste it below and choose <b>Read the results</b>.</li></ol>' +
+        '<p class="small muted">Works for the two official layouts used in 2026 (the nrcsa.co.za results system and RallyScoring). Any other layout is refused, never guessed. Scanned or photographed sheets have no text: use the spreadsheet option or type into the table.</p>';
+    } else {
+      html += '<ol class="steps"><li>' + btn(function () {
+          var stages = (raw0 && raw0.stages && raw0.stages.length) ? raw0.stages : null;
+          download('results-template-' + A.year + '-' + id + '.csv', E.spreadsheetTemplate(stages));
+        }, 'Download a template for this round', 'tiny', 'id="tplBtn"') + ' and open it in Excel. ' + (raw0 && raw0.stages && raw0.stages.length ? 'It has a column for each of this round\'s stages.' : 'It has six stage columns: rename them to match the sheet (SS1, SS3…) and delete the ones you don\'t need.') + '</li>' +
+        '<li>Before typing, select all the cells and set them to <b>Text</b> (Home → Number format → Text), so Excel doesn\'t change times such as 7:41.5.</li>' +
+        '<li>Type one row per car, exactly as printed. <b>Status</b> is Classified, DNF or DNS. Leave a stage empty if the car has no time for it.</li>' +
+        '<li>Select the filled cells including the header row, copy, and paste them below. Or save as CSV and choose the file.</li></ol>';
+    }
+    html += area(function (v) { st.text = v; }, st.text, 'rows="7" class="mono" spellcheck="false" placeholder="Paste here…" id="impText"') +
+      '<div class="actions">' + btn(function () { read(st.text); }, 'Read the results', 'primary', 'id="impRead"') +
+      (st.kind === 'sheet' ? fileIn(async function (files) { st.text = await files[0].text(); read(st.text); }, '.csv,.tsv,.txt,text/csv,text/plain', 'Choose a CSV file') : '') + '</div>';
+    if (st.res) {
+      var r = st.res, S = r.stages || [];
+      var count = { classified: 0, DNF: 0, DNS: 0 }; r.entries.forEach(function (e) { count[e.status] = (count[e.status] || 0) + 1; });
+      var sums = E.sumReport({ stages: S, entries: r.entries.map(cleanEntry) });
+      var idx = E.peopleIndex(peopleDoc()), fresh = {};
+      r.entries.forEach(function (e) { [e.driver, e.codriver].forEach(function (n) { if (E.normName(n) && !idx.resolve(n).known) fresh[E.normName(n)] = E.similarNames(n, peopleDoc()); }); });
+      var notes = (r.warnings || []).map(function (w) { return ['warn', w]; });
+      notes.unshift(sums.mismatched.length ? ['error', sums.mismatched.length + ' classified row' + (sums.mismatched.length > 1 ? 's don\'t' : ' doesn\'t') + ' add up (car ' + sums.mismatched.join(', ') + '): stage times + penalty differ from the total. Compare those rows with the PDF after importing.'] :
+        ['ok', sums.matched + ' of ' + sums.classified + ' classified rows add up exactly (stage times + penalty = official total).' + (sums.unchecked.length ? ' Not checkable (missing times): car ' + sums.unchecked.join(', ') + '.' : '')]);
+      Object.keys(fresh).forEach(function (n) { notes.push(fresh[n].length ? ['warn', 'New name "' + n + '" looks like existing competitor "' + fresh[n][0] + '". If it\'s the same person, add it under Competitors → ' + fresh[n][0] + ' → Also printed as.'] : ['info', 'New competitor: ' + n + '.']); });
+      html += '<div class="imp-result"><p><b>Found ' + r.entries.length + ' rows</b> (' + count.classified + ' classified, ' + count.DNF + ' DNF, ' + count.DNS + ' DNS)' + (r.format ? ' · ' + esc(r.format) + (r.format === 'Spreadsheet' ? '' : ' layout') : '') + ' · stages: ' + esc(S.join(', ')) +
+        (r.title ? '<br><span class="small muted">' + esc(r.title) + (r.status ? ' — ' + esc(r.status) : '') + '</span>' : '') + '</p>' +
+        '<ul class="issues">' + notes.map(function (n) { var lv = n[0] === 'ok' ? 'info ok' : n[0]; return '<li class="' + lv + '"><b>' + (n[0] === 'ok' ? 'Adds up' : n[0] === 'error' ? 'Error' : n[0] === 'warn' ? 'Check' : 'Note') + '</b> ' + esc(n[1]) + '</li>'; }).join('') + '</ul>' +
+        '<div class="table-wrap"><table class="data mini"><thead><tr><th class="num">Pos</th><th>Car</th><th>Driver</th><th>Co-driver</th><th>Class</th><th>Stage times</th><th>Total</th></tr></thead><tbody>' +
+        r.entries.slice(0, 80).map(function (e) { return '<tr' + (sums.mismatched.indexOf(String(e.car)) >= 0 ? ' class="row-error"' : '') + '><td class="num">' + (e.status === 'classified' ? esc(e.pos) : esc(e.status)) + '</td><td>' + esc(e.car) + '</td><td>' + esc(e.driver) + '</td><td>' + esc(e.codriver) + '</td><td>' + esc(e['class']) + '</td><td class="mono small">' + esc((e.times || []).map(function (t) { return t || '—'; }).join('  ')) + '</td><td class="mono">' + esc(e.total || '') + '</td></tr>'; }).join('') +
+        '</tbody></table></div><div class="actions">' + btn(function () { applyImport(id, r); A.imp = null; toast('Results imported. Review the checks below, then publish.', 'good'); render(); }, raw0 ? 'Replace this round\'s results with these ' + r.entries.length + ' rows' : 'Use these ' + r.entries.length + ' rows', 'primary', 'id="impApply"') + btn(function () { st.res = null; render(); }, 'Cancel') + '</div></div>';
+    }
+    return html + '</details>';
+  }
+  function applyImport(id, res) {
+    var meta = calRound(id), old = rawRound(id) || {}, ev = eventById(meta.eventId) || {};
+    var byCar = {}; (old.entries || []).forEach(function (e) { byCar[e.car] = e; });
+    var entries = res.entries.map(function (e) {
+      var n = cleanEntry(e), o = byCar[n.car];
+      if (o) ['credit', 'scoredClass', 'notes', 'skipSumCheck'].forEach(function (k) { if (o[k] != null) n[k] = clone(o[k]); });
+      return n;
+    });
+    var raw = { id: id, title: res.title || old.title || '', status: res.status || old.status || '', stages: res.stages && res.stages.length ? res.stages : (old.stages || []), notes: old.notes || [],
+      source: old.source || { file: '', url: (ev.links && ev.links.results) || '' }, entries: entries };
+    if (old.extraStarts) raw.extraStarts = old.extraStarts;
+    ensureArrays(raw);
+    putDoc(roundPath(A.year, id), raw); meta.results = true; A.open = {};
+  }
+
+  /* ------------------------------------------------------------------ events & calendar */
+  var LINKS = [['results', 'Official results page'], ['entryList', 'Entry list'], ['srs', 'Supplementary regulations'], ['noticeboard', 'Noticeboard (Sportity)'], ['spectatorGuide', 'Spectator guide']];
+  function viewEvents() {
+    var s = season(); s.events = s.events || []; s.rounds = s.rounds || [];
+    var html = pageHead(A.year + ' · calendar', 'Events &amp; calendar', 'An event is one rally weekend; each day that has its own Northern Regions classification is a round. Rounds are numbered in calendar order.');
+    html += '<div class="section"><div class="section-head"><h2>Events</h2></div>';
+    html += s.events.map(function (ev, i) {
+      ev.links = ev.links || {};
+      var used = s.rounds.some(function (r) { return r.eventId === ev.id; });
+      return '<div class="card"><div class="card-head"><h3>' + esc(ev.name || 'New event') + '</h3><span class="small muted">id: ' + esc(ev.id) + '</span></div><div class="form-grid">' +
+        fld('Name', input(function (v) { ev.name = v; }, ev.name), '', 'span2') + fld('Short name', input(function (v) { ev.short = v; }, ev.short), 'Used on buttons and tables, e.g. “Ermelo”.') +
+        fld('Dates', input(function (v) { ev.dates = v; }, ev.dates, 'placeholder="21–22 August ' + A.year + '"')) + fld('Venue', input(function (v) { ev.venue = v; }, ev.venue)) +
+        fld('Surface', select(function (v) { ev.surface = v; }, ev.surface || '', [['', '—'], ['Gravel', 'Gravel'], ['Tarmac', 'Tarmac'], ['Mixed', 'Mixed']])) +
+        LINKS.map(function (l) { return fld(l[1], input(function (v) { if (v.trim()) ev.links[l[0]] = v.trim(); else delete ev.links[l[0]]; }, ev.links[l[0]], 'type="url" placeholder="https://"')); }).join('') +
+        '</div><div class="actions">' + (used ? '<span class="small muted">Remove its rounds first to delete this event.</span>' : btn(function () { if (window.confirm('Delete ' + (ev.name || 'this event') + '?')) { s.events.splice(i, 1); render(); } }, 'Delete event', 'tiny ghost')) + '</div></div>';
+    }).join('');
+    var ne = A.newEvent || (A.newEvent = { name: '' });
+    html += '<div class="card add-card"><div class="form-grid">' + fld('New event name', input(function (v) { ne.name = v; }, ne.name, 'placeholder="e.g. TRAC N4 Rally" id="neName"'), '', 'span2') + '<div class="fld">' +
+      btn(function () {
+        if (!ne.name.trim()) throw new Error('Type the event name first.');
+        var taken = {}; s.events.forEach(function (e) { taken[e.id] = 1; });
+        s.events.push({ id: uniqueId(E.slug(ne.name), taken), name: ne.name.trim(), short: ne.name.trim().replace(/\s+Rally$/i, ''), dates: '', venue: '', surface: 'Gravel', links: {} });
+        A.newEvent = null; render();
+      }, '+ Add event', 'primary', 'id="neBtn"') + '</div></div></div></div>';
+    html += '<div class="section"><div class="section-head"><h2>Rounds</h2></div>';
+    if (!s.events.length) html += '<div class="card empty">Add an event first.</div>';
+    else {
+      html += '<div class="table-wrap"><table class="data edit"><thead><tr><th>Round</th><th>File</th><th>Event</th><th>Day</th><th>Date</th><th>Results</th><th></th></tr></thead><tbody>' +
+        s.rounds.map(function (r, i) {
+          return '<tr><td><b>R' + (i + 1) + '</b></td><td class="mono small">' + esc(r.id) + '</td><td>' + select(function (v) { r.eventId = v; }, r.eventId, s.events.map(function (e) { return [e.id, e.name]; })) + '</td>' +
+            '<td>' + input(function (v) { r.day = v; }, r.day, 'list="dl-days" class="wv"') + '</td><td>' + input(function (v) { r.date = v; }, r.date, 'type="date"') + '</td>' +
+            '<td>' + (r.results ? '<a href="#/results/' + r.id + '">✓ Edit</a>' : '<a href="#/results/' + r.id + '">Add</a>') + '</td>' +
+            '<td>' + (r.results ? '' : btn(function () { if (window.confirm('Remove round R' + (i + 1) + ' from the calendar?')) { s.rounds.splice(i, 1); render(); } }, '✕', 'tiny ghost', 'aria-label="Remove round"')) + '</td></tr>';
+        }).join('') + '</tbody></table></div><datalist id="dl-days"><option value="One-day event"><option value="Day 1 (Friday)"><option value="Day 2 (Saturday)"></datalist>';
+      var nr = A.newRound || (A.newRound = { eventId: s.events[s.events.length - 1].id, day: 'Day 1 (Friday)', date: '' });
+      html += '<div class="card add-card"><div class="form-grid">' + fld('Event', select(function (v) { nr.eventId = v; }, nr.eventId, s.events.map(function (e) { return [e.id, e.name]; }))) +
+        fld('Day', input(function (v) { nr.day = v; }, nr.day, 'list="dl-days"')) + fld('Date', input(function (v) { nr.date = v; }, nr.date, 'type="date"')) + '<div class="fld">' +
+        btn(function () {
+          var max = 0; s.rounds.forEach(function (r) { var n = +String(r.id).replace(/\D/g, ''); if (n > max) max = n; });
+          s.rounds.push({ id: 'R' + (max + 1), eventId: nr.eventId, day: nr.day, date: nr.date });
+          A.newRound = { eventId: nr.eventId, day: /Day 1/.test(nr.day) ? 'Day 2 (Saturday)' : nr.day, date: '' }; render();
+        }, '+ Add round', 'primary', 'id="nrBtn"') + '</div></div><p class="small muted">New rounds go to the end of the calendar. Add them in date order.</p></div>';
+    }
+    return html + '</div>';
+  }
+
+  /* ------------------------------------------------------------------ competitors */
+  function appearances() {
+    var out = {};
+    years().forEach(function (y) {
+      var m; try { m = model(y); } catch (e) { return; }
+      if (!m) return;
+      m.people.forEach(function (p) { (out[p.id] = out[p.id] || []).push({ year: y, apps: p.apps }); });
+    });
+    return out;
+  }
+  function viewCompetitors() {
+    var doc = peopleDoc(), apps = appearances(), unknown = knownNames();
+    var html = pageHead('All seasons', 'Competitors', 'One profile per person, shared by every season. Names on the official sheets are matched to a profile by its name or any of its “also printed as” spellings.',
+      '<div class="actions">' + btn(function () {
+        var n = window.prompt('Full name of the new competitor'); if (!n || !n.trim()) return;
+        var taken = {}; doc.people.forEach(function (p) { taken[p.id] = 1; });
+        var id = uniqueId(E.slug(n), taken); doc.people.push({ id: id, name: n.trim(), aliases: [], bio: '', photo: '', links: {} });
+        doc.people.sort(function (a, b) { return a.name.localeCompare(b.name); }); go('#/competitor/' + id);
+      }, '+ Add competitor', 'primary') + '</div>');
+    if (unknown.length) html += '<div class="callout"><div><b>' + unknown.length + ' name' + (unknown.length === 1 ? '' : 's') + ' from the results ' + (unknown.length === 1 ? 'isn\'t' : 'aren\'t') + ' in the list yet:</b> ' + esc(unknown.join(', ')) + '. They\'re added automatically when you publish. If one is another spelling of an existing competitor, open that competitor and add it under “also printed as”. ' + btn(function () { addPeople(unknown); render(); }, 'Add them now', 'tiny') + '</div></div>';
+    html += '<div class="filters"><label class="sr-only" for="pSearch">Search competitors</label><input id="pSearch" class="search" type="search" placeholder="Search names…" autocomplete="off" data-k="' + K(function (v) {
+      v = v.trim().toLowerCase(); Array.prototype.forEach.call(document.querySelectorAll('#pTable tbody tr'), function (tr) { tr.hidden = !!v && tr.getAttribute('data-s').indexOf(v) < 0; });
+    }) + '"></div>';
+    html += '<div class="table-wrap"><table class="data" id="pTable"><thead><tr><th>Name</th><th>Also printed as</th><th class="num">Starts listed</th><th>Seasons</th><th>Profile</th></tr></thead><tbody>' +
+      doc.people.map(function (p) {
+        var a = apps[p.id] || [], n = 0; a.forEach(function (s) { n += s.apps.length; });
+        var prof = [p.photo ? 'photo' : '', p.bio ? 'bio' : '', p.links && Object.keys(p.links).length ? 'links' : ''].filter(Boolean).join(', ');
+        return '<tr data-s="' + esc((p.name + ' ' + (p.aliases || []).join(' ')).toLowerCase()) + '"><td><a href="#/competitor/' + encodeURIComponent(p.id) + '"><b>' + esc(p.name) + '</b></a></td><td class="small">' + esc((p.aliases || []).join(', ')) + '</td><td class="num">' + n + '</td><td>' + a.map(function (s) { return s.year; }).join(', ') + '</td><td class="small muted">' + (prof || '—') + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+    return html;
+  }
+  var SOCIALS = [['instagram', 'Instagram'], ['facebook', 'Facebook'], ['youtube', 'YouTube'], ['tiktok', 'TikTok'], ['x', 'X'], ['website', 'Website']];
+  function viewCompetitor(id) {
+    var doc = peopleDoc(), p = doc.people.filter(function (x) { return x.id === id; })[0];
+    if (!p) return '<div class="card empty"><h2>Competitor not found</h2><p><a href="#/competitors">Back to competitors</a></p></div>';
+    p.aliases = p.aliases || []; p.links = p.links || {};
+    var s = season(); s.classMap = s.classMap || { drivers: {}, codrivers: {} }; s.classMap.drivers = s.classMap.drivers || {}; s.classMap.codrivers = s.classMap.codrivers || {};
+    var apps = appearances()[id] || [];
+    var bin = A.bins[photoPath(id)], photoSrc = '';
+    if (bin && !bin.deleted) photoSrc = 'data:image/jpeg;base64,' + bin.b64;
+    else if (/^db:/.test(p.photo || '')) {
+      var pid = p.photo.slice(3);
+      if (A.photoCache[pid]) photoSrc = 'data:image/jpeg;base64,' + A.photoCache[pid];
+      else if (A.photoCache[pid] === undefined) photoB64(pid).then(function (b) { if (b && route().view === 'competitor') render(); });
+    } else if (/^https:/.test(p.photo || '')) photoSrc = p.photo;
+    var html = '<p class="crumbs"><a href="#/competitors">← Competitors</a></p>' + pageHead('Competitor · id ' + esc(id), esc(p.name), 'The id stays the same if you rename someone, so links to their profile keep working.');
+    html += '<div class="grid grid-2 top"><div class="card"><h3>Profile</h3><div class="form-grid one">' +
+      fld('Name shown on the site', input(function (v) { p.name = v; }, p.name)) +
+      fld('Also printed as', area(function (v) { p.aliases = lines(v); }, p.aliases.join('\n'), 'rows="3"'), 'Other spellings used on official sheets, one per line, such as initials or an alternative surname spelling. Results printed with these names count for this person.') +
+      fld('Short bio', area(function (v) { p.bio = v.trim(); }, p.bio, 'rows="4" maxlength="700"'), 'A few lines: car, club, years rallying. Only publish what the competitor is happy to share.') +
+      '</div></div><div class="card"><h3>Photo</h3><div class="photo-edit">' + (photoSrc ? '<img src="' + esc(photoSrc) + '" alt="">' : '<div class="avatar ph">' + esc(p.name.split(' ').map(function (w) { return w[0]; }).slice(0, 2).join('')) + '</div>') +
+      '<div>' + fileIn(async function (files) {
+        var b64 = await imageToJpegB64(files[0], 640); A.bins[photoPath(id)] = { b64: b64, deleted: false }; p.photo = 'db:' + id; render(); toast('Photo added (resized to 640 px). It\'s uploaded when you publish.', 'good');
+      }, 'image/*', p.photo ? 'Replace photo' : 'Upload photo') + (p.photo ? btn(function () { if (/^db:/.test(p.photo)) stageRemove(photoPath(p.photo.slice(3))); p.photo = ''; render(); }, 'Remove', 'tiny ghost') : '') +
+      '<p class="small muted">Use a photo you have permission to publish. It is resized in your browser before uploading.</p></div></div>' +
+      '<h3 style="margin-top:16px">Links</h3><div class="form-grid">' + SOCIALS.map(function (sx) { return fld(sx[1], input(function (v) { if (v.trim()) p.links[sx[0]] = v.trim(); else delete p.links[sx[0]]; }, p.links[sx[0]], 'type="url" placeholder="https://"')); }).join('') + '</div></div></div>';
+    html += '<div class="card"><h3>' + A.year + ' class</h3><p class="small muted" style="margin-top:4px">The class this person is scored in for the whole ' + A.year + ' season. Leave on “as printed” to use the class on each sheet. Set it when the sheet and the championship disagree.</p><div class="form-grid">' +
+      fld('As a driver', select(function (v) { if (v) s.classMap.drivers[id] = v; else delete s.classMap.drivers[id]; }, s.classMap.drivers[id] || '', classOpts('As printed on each sheet'))) +
+      fld('As a co-driver', select(function (v) { if (v) s.classMap.codrivers[id] = v; else delete s.classMap.codrivers[id]; }, s.classMap.codrivers[id] || '', classOpts('Same as their driver'))) + '</div></div>';
+    html += '<div class="card"><h3>Results listed</h3>' + (apps.length ? apps.map(function (sx) {
+      return '<p class="small"><b>' + sx.year + ':</b> ' + sx.apps.map(function (a) { return esc(a.r) + ' car ' + esc(a.car) + ' (' + (a.status === 'classified' ? 'P' + a.pos : esc(a.status)) + (a.pts != null ? ', ' + a.pts + ' pts' : '') + ')'; }).join(' · ') + '</p>';
+    }).join('') : '<p class="muted">None yet.</p>') + '</div>';
+    var others = doc.people.filter(function (x) { return x.id !== id; });
+    var mg = A.merge && A.merge.id === id ? A.merge : (A.merge = { id: id, other: '' });
+    html += '<div class="card"><h3>Merge a duplicate into ' + esc(p.name) + '</h3><p class="small muted">If the same person has two profiles (two spellings), merge the other one into this one. Its name and spellings become “also printed as” names here and the other profile is removed.</p><div class="form-grid">' +
+      fld('Duplicate profile', select(function (v) { mg.other = v; }, mg.other, [['', 'Choose…']].concat(others.map(function (x) { return [x.id, x.name]; })))) + '<div class="fld">' +
+      btn(function () {
+        var o = doc.people.filter(function (x) { return x.id === mg.other; })[0]; if (!o) throw new Error('Choose the duplicate profile first.');
+        if (!window.confirm('Merge ' + o.name + ' into ' + p.name + '?')) return;
+        [o.name].concat(o.aliases || []).forEach(function (n) { if (n !== p.name && p.aliases.indexOf(n) < 0) p.aliases.push(n); });
+        if (!p.bio && o.bio) p.bio = o.bio; if (!p.photo && o.photo) p.photo = o.photo;
+        Object.keys(o.links || {}).forEach(function (k) { if (!p.links[k]) p.links[k] = o.links[k]; });
+        years().forEach(function (y) { var se = season(y); if (!se || !se.classMap) return; ['drivers', 'codrivers'].forEach(function (k) { var cm = se.classMap[k] || {}; if (cm[o.id] && !cm[id]) cm[id] = cm[o.id]; delete cm[o.id]; }); });
+        doc.people.splice(doc.people.indexOf(o), 1); A.merge = null; toast('Merged. Publish to make it live.', 'good'); render();
+      }, 'Merge') + '</div></div></div>';
+    html += '<div class="card danger"><h3>Delete profile</h3><p class="small">' + (apps.length ? 'This person appears in results, so their profile would simply be re-created from the sheets. Merge instead if it\'s a duplicate.' : 'Removes the profile.') + '</p>' +
+      (apps.length ? '' : btn(function () { if (!window.confirm('Delete ' + p.name + '?')) return; doc.people.splice(doc.people.indexOf(p), 1); if (/^db:/.test(p.photo || '')) stageRemove(photoPath(p.photo.slice(3))); go('#/competitors'); }, 'Delete', 'bad')) + '</div>';
+    return html;
+  }
+
+  /* ------------------------------------------------------------------ season settings */
+  function listEditor(arr, fields, addLabel, blank) {
+    return arr.map(function (item, i) {
+      return '<div class="form-grid tight bordered">' + fields.map(function (f) { return f(item, i); }).join('') + '<div class="fld">' + btn(function () { arr.splice(i, 1); render(); }, 'Remove', 'tiny ghost') + '</div></div>';
+    }).join('') + '<div class="actions">' + btn(function () { arr.push(blank()); render(); }, addLabel) + '</div>';
+  }
+  function viewSeason() {
+    var s = season(), st = site(); s.classes = s.classes || []; s.documents = s.documents || []; s.pointsScale = s.pointsScale || { overall: [], cls: [] };
+    var msa = s.msa || (s.msa = { label: '', url: '', generated: '', confirmedRounds: [] }); msa.confirmedRounds = msa.confirmedRounds || [];
+    var html = pageHead(A.year + ' · settings', A.year + ' season settings', 'Championship rules for this season. Changing the points scale or classes recalculates every round of the season.',
+      +st.currentSeason === A.year ? '<span class="badge final">The public site opens on this season</span>' : '<div class="actions">' + btn(function () { st.currentSeason = A.year; render(); }, 'Open the public site on ' + A.year) + '</div>');
+    html += '<div class="card"><h3>Championship</h3><div class="form-grid">' +
+      fld('Championship name', input(function (v) { s.championship = v; }, s.championship), '', 'span2') + fld('Short name', input(function (v) { s.shortName = v; }, s.shortName)) +
+      fld('Season status', select(function (v) { s.status = v; }, s.status || '', [['planned', 'Planned'], ['in progress', 'In progress'], ['complete', 'Complete']])) +
+      fld('Minimum starts to be eligible', input(function (v) { s.minStarts = numOrNull(v) || 0; }, s.minStarts, 'inputmode="numeric"')) +
+      fld('Overall points (1st, 2nd, 3rd…)', input(function (v) { s.pointsScale.overall = nums(v); }, s.pointsScale.overall.join(', ')), 'Comma-separated.', 'span2') +
+      fld('Class points (1st, 2nd, 3rd…)', input(function (v) { s.pointsScale.cls = nums(v); }, s.pointsScale.cls.join(', ')), 'Comma-separated.', 'span2') +
+      fld('Season notes (shown under “Sources & data notes”)', area(function (v) { s.notes = lines(v); }, (s.notes || []).join('\n'), 'rows="3"'), 'One per line.', 'span2') + '</div></div>';
+    html += '<div class="card"><h3>Classes</h3>' + listEditor(s.classes, [
+      function (c) { return fld('Class', input(function (v) { c.id = E.normClass(v); }, c.id, 'class="w4"')); },
+      function (c) { return fld('Description', input(function (v) { c.desc = v; }, c.desc), '', 'span2'); },
+      function (c) { return '<div class="fld">' + check(function (v) { if (v) c.classOnly = true; else delete c.classOnly; }, c.classOnly, 'Class points only (no overall points)') + '</div>'; }
+    ], '+ Add class', function () { return { id: '', desc: '' }; }) + '</div>';
+    html += '<div class="card"><h3>MSA standings</h3><p class="small muted">The official championship points published by MSA. Rounds ticked here show “Points match MSA”; the rest show “Points calculated”.</p><div class="form-grid">' +
+      fld('Label', input(function (v) { msa.label = v; }, msa.label)) + fld('Link to the latest MSA points PDF', input(function (v) { msa.url = v; }, msa.url, 'type="url" placeholder="https://"'), '', 'span2') +
+      fld('Published', input(function (v) { msa.generated = v; }, msa.generated, 'placeholder="15 September ' + A.year + '"')) + '</div>' +
+      '<div class="chk-row">' + (s.rounds || []).map(function (r, i) {
+        return check(function (v) { var k = msa.confirmedRounds.indexOf(r.id); if (v && k < 0) msa.confirmedRounds.push(r.id); if (!v && k >= 0) msa.confirmedRounds.splice(k, 1); msa.confirmedRounds.sort(function (a, b) { return roundNo(a) - roundNo(b); }); }, msa.confirmedRounds.indexOf(r.id) >= 0, 'R' + (i + 1));
+      }).join('') + '</div></div>';
+    html += '<div class="card"><h3>Regulations &amp; documents</h3><p class="small muted">Shown on the Info page: sporting regulations (SSRs), bulletins, the MSA standings and so on. Link to the official copy (for example on motorsport.co.za).</p>' + listEditor(s.documents, [
+      function (d) { return fld('Title', input(function (v) { d.title = v; }, d.title), '', 'span2'); },
+      function (d) { return fld('Kind', select(function (v) { d.kind = v; }, d.kind || 'SSR', [['SSR', 'SSR'], ['Bulletin', 'Bulletin'], ['Standings', 'Standings'], ['Regulations', 'Regulations'], ['Other', 'Other']])); },
+      function (d) { return fld('Date', input(function (v) { d.date = v; }, d.date, 'type="date"')); },
+      function (d) { return fld('Link', input(function (v) { d.url = v; }, d.url, 'placeholder="https://"'), '', 'span2'); }
+    ], '+ Add document', function () { return { title: '', kind: 'SSR', date: '', url: '' }; }) + '</div>';
+    var hasResults = (s.rounds || []).some(function (r) { return r.results; });
+    html += '<div class="section"><div class="section-head"><h2>Start the next season</h2></div>' + newSeasonCard() + '</div>';
+    if (!hasResults && years().length > 1) html += '<div class="card danger"><h3>Delete the ' + A.year + ' season</h3><p class="small">Only possible while it has no results.</p>' + btn(function () {
+      if (!window.confirm('Delete the ' + A.year + ' season?')) return;
+      dropDoc(seasonPath(A.year)); A.dropPublic.push('season_' + A.year); st.seasons = st.seasons.filter(function (x) { return +x.year !== A.year; });
+      if (+st.currentSeason === A.year) st.currentSeason = years()[0];
+      A.year = years()[0]; go('#/');
+    }, 'Delete season', 'bad') + '</div>';
+    return html;
+  }
+
+  /* ------------------------------------------------------------------ site & info */
+  var NETWORKS = [['facebook', 'Facebook'], ['instagram', 'Instagram'], ['whatsapp', 'WhatsApp'], ['youtube', 'YouTube'], ['tiktok', 'TikTok'], ['x', 'X'], ['website', 'Website']];
+  function viewSite() {
+    var st = site(); st.info = st.info || {}; st.info.documents = st.info.documents || []; st.social = st.social || []; st.contact = st.contact || {};
+    var html = pageHead('Whole site', 'Site &amp; info', 'Text and links on the Info page and around the site. Social links without an address show as “Coming soon”.');
+    html += '<div class="card"><h3>Basics</h3><div class="form-grid">' + fld('Site name', input(function (v) { st.siteName = v; }, st.siteName)) +
+      fld('Tagline', input(function (v) { st.tagline = v; }, st.tagline), '', 'span2') + fld('Intro on the Info page', area(function (v) { st.info.intro = v.trim(); }, st.info.intro, 'rows="4"'), '', 'span3') + '</div></div>';
+    html += '<div class="card"><h3>Social media</h3>' + listEditor(st.social, [
+      function (x) { return fld('Network', select(function (v) { x.network = v; }, x.network, NETWORKS)); },
+      function (x) { return fld('Label', input(function (v) { x.label = v; }, x.label)); },
+      function (x) { return fld('Address', input(function (v) { x.url = v.trim(); }, x.url, 'type="url" placeholder="https:// — leave empty for “Coming soon”"'), '', 'span2'); }
+    ], '+ Add social link', function () { return { network: 'facebook', label: 'Facebook', url: '' }; }) + '</div>';
+    html += '<div class="card"><h3>Useful links</h3>' + listEditor(st.info.documents, [
+      function (d) { return fld('Title', input(function (v) { d.title = v; }, d.title), '', 'span2'); },
+      function (d) { return fld('Link', input(function (v) { d.url = v.trim(); }, d.url, 'type="url" placeholder="https://"'), '', 'span2'); },
+      function (d) { return fld('Note', input(function (v) { d.note = v; }, d.note)); }
+    ], '+ Add link', function () { return { title: '', url: '', note: '' }; }) + '</div>';
+    html += '<div class="card"><h3>Contact</h3><div class="form-grid">' + fld('Email address', input(function (v) { st.contact.email = v.trim(); }, st.contact.email, 'type="email"'), 'Shown publicly. Leave empty to hide.') +
+      fld('Note', area(function (v) { st.contact.note = v.trim(); }, st.contact.note, 'rows="2"'), '', 'span2') + '</div></div>';
+    html += adminsCard();
+    return html;
+  }
+
+  function adminsCard() {
+    var html = '<div class="card" id="admins"><h3>Admins</h3><p class="small muted">Google accounts that can sign in to this admin. Changes here take effect immediately (they aren\'t part of a publish).</p>';
+    if (A.mode !== 'live' || !A.admins) return html + '<p class="small">The admin list is managed here once you\'re signed in.</p></div>';
+    var list = A.admins.list, na = A.newAdmin || (A.newAdmin = { email: '' });
+    html += '<table class="data mini"><tbody>' + list.map(function (em) {
+      return '<tr><td>' + esc(em) + (A.user && em === A.user.email ? ' <span class="small muted">(you)</span>' : '') + '</td><td class="num">' + (list.length > 1 ? btn(async function () {
+        if (!window.confirm('Remove ' + em + ' from the admins?' + (A.user && em === A.user.email ? ' You will lose access yourself.' : ''))) return;
+        await saveAdmins(list.filter(function (x) { return x !== em; })); toast(em + ' removed.', 'good'); render();
+      }, 'Remove', 'tiny ghost') : '<span class="small muted">last admin</span>') + '</td></tr>';
+    }).join('') + '</tbody></table><div class="form-grid">' + fld('Add a Google account', input(function (v) { na.email = v; }, na.email, 'type="email" placeholder="name@gmail.com" id="newAdmin"')) +
+      '<div class="fld">' + btn(async function () {
+        var em = String(na.email || '').trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) throw new Error('Type the person\'s full Google email address.');
+        if (list.indexOf(em) >= 0) throw new Error(em + ' is already an admin.');
+        await saveAdmins(list.concat([em])); A.newAdmin = null; toast(em + ' can now sign in.', 'good'); render();
+      }, 'Add admin', 'primary', 'id="addAdminBtn"') + '</div></div><p class="small muted">They sign in at this page with that Google account. Ask them to turn on 2-Step Verification for it.</p></div>';
+    return html;
+  }
+
+  /* ------------------------------------------------------------------ history */
+  function viewHistory() {
+    var html = pageHead('Every published change', 'History', 'Each publish is recorded with who made it and when. Undo puts the data back the way it was before that change; you review it before publishing.');
+    if (A.mode !== 'live') return html + '<div class="card empty">The history is kept in the database. Sign in to see it.</div>';
+    if (!A.history) {
+      A.history = { loading: true };
+      loadHistory().then(function (g) { A.history = { groups: g }; if (route().view === 'history') render(); },
+        function (e) { A.history = { error: e.message }; if (route().view === 'history') render(); });
+    }
+    if (A.history.loading) return html + '<div class="card empty">Loading the history…</div>';
+    if (A.history.error) return html + '<div class="callout bad"><div>' + esc(A.history.error) + '</div></div>';
+    var gs = A.history.groups.slice(0, 40);
+    if (!gs.length) return html + '<div class="card empty">Nothing has been published yet.</div>';
+    return html + '<div class="table-wrap"><table class="data"><thead><tr><th>When</th><th>Change</th><th>By</th><th>What changed</th><th></th></tr></thead><tbody>' + gs.map(function (g) {
+      var first = g.items.some(function (it) { return it.path === SITE && it.kind === 'add'; });
+      return '<tr><td class="nowrap">' + esc(when(g.at)) + '</td><td>' + esc(g.message) + '</td><td class="small">' + esc(g.by) + '</td><td class="small">' + esc(g.items.map(function (it) { return label(it.path); }).join(', ')) + '</td><td>' +
+        (first ? '<span class="small muted">First load</span>' : btn(function () {
+          if (changes().length && !window.confirm('You have unpublished changes. Undoing this change adds to them. Continue?')) return;
+          stageUndo(g); A.undoMsg = 'Undo: ' + g.message; toast('Undo staged for “' + g.message + '”. Review it, then publish.', 'good'); go('#/publish');
+        }, 'Undo', 'tiny')) + '</td></tr>';
+    }).join('') + '</tbody></table></div><p class="small muted">Undoing an older change also reverts any later edits to the same items. Check the review screen before publishing. Photos aren\'t kept in the history, so an undo can remove a photo but not bring one back.</p>';
+  }
+
+  /* ------------------------------------------------------------------ review & publish */
+  function diffLines(a, b) {
+    var A1 = a.split('\n'), B1 = b.split('\n'), s = 0;
+    while (s < A1.length && s < B1.length && A1[s] === B1[s]) s++;
+    var ea = A1.length - 1, eb = B1.length - 1;
+    while (ea >= s && eb >= s && A1[ea] === B1[eb]) { ea--; eb--; }
+    var a2 = A1.slice(s, ea + 1), b2 = B1.slice(s, eb + 1), n = a2.length, m = b2.length, out = [];
+    if (n * m > 4e6) return [{ t: '~', s: n + ' lines replaced by ' + m + ' lines' }];
+    var dp = []; for (var i = 0; i <= n; i++) dp.push(new Uint32Array(m + 1));
+    for (i = n - 1; i >= 0; i--) for (var j = m - 1; j >= 0; j--) dp[i][j] = a2[i] === b2[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    i = 0; j = 0;
+    while (i < n && j < m) { if (a2[i] === b2[j]) { out.push({ t: ' ', s: a2[i] }); i++; j++; } else if (dp[i + 1][j] >= dp[i][j + 1]) out.push({ t: '-', s: a2[i++] }); else out.push({ t: '+', s: b2[j++] }); }
+    while (i < n) out.push({ t: '-', s: a2[i++] }); while (j < m) out.push({ t: '+', s: b2[j++] });
+    var res = A1.slice(Math.max(0, s - 2), s).map(function (x) { return { t: ' ', s: x }; });
+    var run = [];
+    out.forEach(function (o) { if (o.t === ' ') run.push(o); else { if (run.length > 5) res.push(run[0], run[1], { t: '~', s: '…' }, run[run.length - 2], run[run.length - 1]); else res = res.concat(run); run = []; res.push(o); } });
+    res = res.concat(run.length > 5 ? [run[0], run[1], { t: '~', s: '…' }] : run);
+    return res.concat(A1.slice(ea + 1, ea + 3).map(function (x) { return { t: ' ', s: x }; }));
+  }
+  function autoMessage(list) {
+    if (A.undoMsg) return A.undoMsg;
+    if (list.some(function (c) { return c.path === SITE && c.kind === 'add'; })) return 'Load the results data into the database';
+    var parts = [], seen = {};
+    list.forEach(function (c) {
+      var m, t;
+      if ((m = c.path.match(/rounds\/(.+)\.json$/))) t = (c.kind === 'delete' ? 'Remove ' : c.kind === 'add' ? 'Add ' : 'Update ') + c.path.split('/')[2] + ' ' + m[1] + ' results';
+      else if (c.path === PEOPLE || /^data\/people\//.test(c.path)) t = 'Update competitors';
+      else if (c.path === SITE) t = 'Update site info';
+      else if ((m = c.path.match(/seasons\/(\d+)\/season\.json$/))) t = (c.kind === 'add' ? 'Add ' : 'Update ') + m[1] + ' season settings';
+      else if (/\/docs\//.test(c.path)) t = 'Update documents';
+      if (t && !seen[t]) { seen[t] = 1; parts.push(t); }
+    });
+    var msg = parts.join('; '); return msg.length > 72 ? parts[0] + ' and ' + (parts.length - 1) + ' more change' + (parts.length > 2 ? 's' : '') : (msg || 'Update results data');
+  }
+  function viewPublish() {
+    var list = changes(), unknown = knownNames();
+    var html = pageHead(A.mode === 'live' ? esc(A.user.email) : 'Demo mode', 'Review &amp; publish', A.mode === 'live' ? 'Publishing saves everything below in one step, refreshes the public copy the website reads and records it in the History.' : 'In demo mode publishing only shows what would be saved.');
+    if (A.lastCommit) {
+      html += '<div class="callout good"><div><b>' + (A.lastCommit.demo ? 'Demo: ' + A.lastCommit.files + ' change' + (A.lastCommit.files === 1 ? '' : 's') + ' would have been saved.' : 'Published ' + A.lastCommit.files + ' change' + (A.lastCommit.files === 1 ? '' : 's') + '.') + '</b> ' +
+        (A.lastCommit.demo ? '' : 'The public site shows it now; refresh the page if it\'s already open. <a href="../#/' + A.year + '" target="_blank" rel="noopener">Open the site ↗</a>') + '</div></div>';
+    }
+    if (!list.length && !unknown.length) return html + '<div class="card empty"><h2>Nothing to publish</h2><p>Changes you make in the other sections collect here until you publish them.</p></div>';
+    var errors = [], warns = 0;
+    list.forEach(function (c) {
+      var m = c.path.match(/^data\/seasons\/(\d+)\/rounds\/(.+)\.json$/);
+      if (m && c.kind !== 'delete') { var iss = E.validateRound(getDoc(c.path), {}); iss.forEach(function (x) { if (x.level === 'error') errors.push(m[1] + ' ' + m[2] + ': ' + x.msg); if (x.level === 'warn') warns++; }); }
+    });
+    years().forEach(function (y) { try { model(y); } catch (e) { errors.push(y + ' season can\'t be calculated: ' + e.message); } });
+    html += '<div class="card"><h3>' + list.length + ' change' + (list.length === 1 ? '' : 's') + '</h3><div class="changes">' + list.map(function (c) {
+      var kind = { add: 'New', update: 'Changed', 'delete': 'Removed' }[c.kind];
+      var body = '';
+      if (!c.binary) { var d = diffLines(c.before || '', c.kind === 'delete' ? '' : c.text); body = '<pre class="diff">' + d.slice(0, 500).map(function (l) { return '<span class="' + (l.t === '+' ? 'add' : l.t === '-' ? 'del' : l.t === '~' ? 'gap' : '') + '">' + (l.t === '~' ? '' : l.t + ' ') + esc(l.s) + '</span>'; }).join('\n') + (d.length > 500 ? '\n…' : '') + '</pre>'; }
+      else body = '<p class="small muted">' + (c.kind === 'delete' ? 'Photo removed.' : 'Photo uploaded (' + Math.round(c.b64.length * 0.75 / 1024) + ' KB).') + '</p>';
+      return '<details class="chg-item"><summary><span class="badge ' + (c.kind === 'delete' ? 'prov' : 'final') + '">' + kind + '</span> <b>' + esc(label(c.path)) + '</b></summary>' + body + '</details>';
+    }).join('') + '</div></div>';
+    if (unknown.length) html += '<div class="callout"><div><b>Also adding ' + unknown.length + ' new competitor' + (unknown.length === 1 ? '' : 's') + ':</b> ' + unknown.map(function (n) { var like = E.similarNames(n, peopleDoc()); return esc(n) + (like.length ? ' <span class="small">(looks like existing <b>' + esc(like[0]) + '</b>: if it\'s the same person, add this spelling under Competitors → ' + esc(like[0]) + ' → Also printed as)</span>' : ''); }).join('; ') + '.</div></div>';
+    if (errors.length) html += '<div class="callout bad"><div><b>Fix these before publishing:</b><ul>' + errors.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('') + '</ul></div></div>';
+    else if (warns) html += '<div class="callout warn"><div>' + warns + ' check' + (warns === 1 ? '' : 's') + ' to review in the results — they don\'t stop publishing.</div></div>';
+    var ms = A.pubMsg != null ? A.pubMsg : autoMessage(list);
+    html += '<div class="card"><div class="form-grid">' + fld('Describe this change (saved in the history)', input(function (v) { A.pubMsg = v; }, ms, 'id="pubMsg" maxlength="200"'), '', 'span3') + '</div><div class="actions">' +
+      btn(async function () {
+        if (errors.length) throw new Error('Fix the errors listed above first.');
+        var msg = (A.pubMsg != null ? A.pubMsg : ms).trim() || 'Update results data';
+        try { A.lastCommit = await publish(msg); }
+        catch (e) {
+          if (e.conflict) { A.conflict = e.message; render(); return; }
+          throw e;
+        }
+        A.pubMsg = null; A.undoMsg = null; A.conflict = null; toast(A.lastCommit.demo ? 'Demo: nothing was saved.' : 'Published.', 'good'); render();
+      }, A.mode === 'live' ? 'Publish to the website' : 'Publish (demo)', 'primary', (errors.length ? 'disabled ' : '') + 'id="pubGo"') +
+      btn(function () { if (!window.confirm('Throw away all unpublished changes?')) return; return reload(); }, 'Discard all changes', 'ghost', 'id="discardBtn"') +
+      btn(async function () { download('nr-rally-backup-' + new Date().toISOString().slice(0, 10) + '.json', await backupText()); }, 'Download a backup (includes these changes)', 'ghost') + '</div></div>';
+    if (A.conflict) html += '<div class="callout bad"><div><b>' + esc(A.conflict) + '</b> Publishing now would overwrite their work. Download a backup (it includes your changes), reload to get the latest version, then make your edits again. ' + btn(function () { if (window.confirm('Reload the latest data and lose your unpublished changes?')) { A.conflict = null; return reload(); } }, 'Reload the latest data', 'tiny', 'id="reloadBtn"') + '</div></div>';
+    return html;
+  }
+  async function reload() {
+    A.imp = null; A.open = {}; A.pubMsg = null; A.undoMsg = null;
+    if (A.mode === 'live') await liveLoad(); else await demoLoad();
+    toast('Reloaded the latest data.', 'good'); if (A.empty) go('#/import'); else render();
+  }
+
+  /* ------------------------------------------------------------------ boot */
+  (async function boot() {
+    render();
+    if (!CONFIGURED) return;
+    try {
+      var au = await auth(); await au.ready();
+      if (au.user()) { ROOT.innerHTML = '<div class="signin"><div class="card signin-card"><p>Signing in…</p></div></div>'; await enter(); }
+    } catch (e) { A.mode = null; signInState.err = authError(e); render(); }
+  })();
+})();

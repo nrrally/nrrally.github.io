@@ -1,0 +1,49 @@
+rules_version = '2';
+
+// Security rules for the Northern Regions Rally results database (Cloud Firestore).
+// Paste into: Firebase console → Firestore Database → Rules → Publish.
+// Anything not allowed below is refused.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // An admin is a signed-in Google account whose email address (lower case) is in config/admins → emails.
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() in get(/databases/$(database)/documents/config/admins).data.emails;
+    }
+
+    // The published copy and profile photos: the public website reads these without signing in.
+    match /public/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /photos/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // The working data: admins only.
+    match /docs/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    // History: entries can be added and read, never changed or deleted.
+    match /history/{id} {
+      allow read, create: if isAdmin();
+    }
+
+    // Publish counter (stops a publish built from out-of-date data).
+    match /config/revision {
+      allow read, write: if isAdmin();
+    }
+
+    // The admin list. Created once by hand in the Firebase console; admins can change it but never empty it.
+    match /config/admins {
+      allow read: if isAdmin();
+      allow update: if isAdmin()
+        && request.resource.data.emails is list
+        && request.resource.data.emails.size() > 0;
+    }
+  }
+}
