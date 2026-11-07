@@ -3,7 +3,7 @@
   'use strict';
   var E = window.NREngine, key = 'nr-analytics-choice';
   var button = document.getElementById('analyticsToggle'), status = document.getElementById('analyticsStatus');
-  var settings, current = '', currentKey = '', lastKey = '', script, ready = false, loaded = false, failed = false, storageOK = true, choice;
+  var settings, current = '', currentKey = '', lastKey = '', script, configured = false, ready = false, loaded = false, failed = false, storageOK = true, choice;
   var publicPage = /\/(?:index\.html|disclaimer\.html|privacy\.html)?$/.test(location.pathname) && !/\/admin(?:\/|$)/i.test(location.pathname);
   var categories = { home: 'Home', standings: 'Standings', rounds: 'Rounds', round: 'Round',
     crews: 'Crews', person: 'Crew profile', about: 'Sources', info: 'Info', disclaimer: 'Disclaimer', privacy: 'Privacy' };
@@ -30,7 +30,8 @@
   }
   function stop() {
     if (settings) window['ga-disable-' + settings.measurementId] = true;
-    if (window.dataLayer && !loaded) window.dataLayer.length = 0;
+    // Retain queued suppression/config while disabled: removing it lets a pending container
+    // auto-configure with the document URL when the visitor returns to a public route.
     cookiesOff();
   }
   function updateControl() {
@@ -42,33 +43,46 @@
       !settings || !settings.enabled ? 'Analytics is not enabled on this site.' : 'Background analytics is enabled. You can turn it off.';
   }
   function gtag() { window.dataLayer.push(arguments); }
+  function pageFields() {
+    return { page_location: location.origin + '/#/' + current, page_referrer: '',
+      page_title: categories[current.split('/')[0]] + ' - Northern Regions Rally' };
+  }
+  function setDefaults() {
+    var defaults = pageFields();
+    defaults.send_page_view = false;
+    defaults.allow_google_signals = false;
+    defaults.allow_ad_personalization_signals = false;
+    gtag('set', defaults);
+  }
   function send() {
     if (!allowed() || !loaded || currentKey === lastKey) return;
     window['ga-disable-' + settings.measurementId] = false;
-    gtag('event', 'page_view', {
-      send_to: settings.measurementId,
-      page_location: location.origin + '/#/' + current,
-      page_referrer: '',
-      page_title: categories[current.split('/')[0]] + ' - Northern Regions Rally'
-    });
+    setDefaults();
+    var fields = pageFields(); fields.send_to = settings.measurementId;
+    gtag('event', 'page_view', fields);
     lastKey = currentKey;
   }
   function activate() {
     if (!allowed() || !ready) return;
     window['ga-disable-' + settings.measurementId] = false;
     if (!loaded) {
-      // Set sanitized defaults before config; GA must never use the real URL/title/referrer.
-      gtag('consent', 'default', { ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
-      gtag('js', new Date());
-      gtag('config', settings.measurementId, {
-        send_page_view: false, allow_google_signals: false, allow_ad_personalization_signals: false,
-        page_location: location.origin + '/#/' + current,
-        page_referrer: '', page_title: categories[current.split('/')[0]] + ' - Northern Regions Rally',
-        cookie_path: '/', cookie_expires: 31536000
-      });
+      configure();
       loaded = true;
     }
     send();
+  }
+  function configure() {
+    if (!configured) {
+      // Queue before script insertion: real containers can auto-configure during execution.
+      gtag('consent', 'default', { ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
+      setDefaults();
+      gtag('js', new Date());
+      gtag('config', settings.measurementId, {
+        send_page_view: false, allow_google_signals: false, allow_ad_personalization_signals: false,
+        cookie_path: '/', cookie_expires: 31536000
+      });
+      configured = true;
+    }
   }
   function start() {
     if (!allowed()) { stop(); updateControl(); return; }
@@ -76,11 +90,12 @@
     window.dataLayer = [];
     window.gtag = gtag;
     window['ga-disable-' + settings.measurementId] = false;
+    configure();
     script = document.createElement('script');
     script.async = true;
     script.referrerPolicy = 'no-referrer';
     script.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(settings.measurementId);
-    script.onload = function () { ready = true; activate(); };
+    script.onload = function () { ready = true; if (allowed()) activate(); else stop(); };
     script.onerror = function () {
       failed = true; stop(); updateControl();
       warning('Google Analytics could not load; results are unaffected.');

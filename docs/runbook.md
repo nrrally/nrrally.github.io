@@ -30,7 +30,7 @@ V4 is the maintained baseline. GitHub Pages serves code only; Firestore is the o
 
 Deleting files from the current tree does not remove earlier commits, tags, forks, cached pages or downloaded copies. Historical cleanup and live cutover need a separately coordinated plan; do not restore v1-v3 to roll back a code change.
 
-For the active-rally notice and analytics, deploy the coordinated `ga-2` HTML, scripts and styles before
+For the active-rally notice and analytics, deploy the coordinated `ga-3` HTML, scripts and styles before
 enabling it. Existing settings without `activeRally` remain disabled; no Firestore migration,
 entry backfill, auth/domain change or rules publication is needed. Never enable a rally as
 part of a code release without an explicit admin decision. After an intended enable/publish,
@@ -106,10 +106,21 @@ actual runtime or property configuration.
 For a pre-release check using the actual Google runtime but no real property, use the optional
 [synthetic runtime check](testing.md#optional-actual-google-runtime-check). It records actual
 collector payloads without forwarding them. A pass verifies that snapshot's behavior with its
-generated-ID container, not the actual stream's remote settings. Default session/first-visit
+generated-ID container or explicitly authorized ID-substituted offline container, not later
+changes to the actual stream's settings. Default session/first-visit
 metadata and engagement remain possible even with Enhanced Measurement off. Enhanced Measurement
 or later remote customizations can defeat manual pageview counts and data minimization by supplying
 their own URL/search/form/link parameters; keep it off and recheck live traffic after any GA changes.
+
+Release `ga-3` fixes real-container automatic initialization before the old `onload` config.
+It queues global pageview suppression and sanitized defaults **before** Google's script can execute;
+per-stream `send_page_view:false` alone was insufficient in the captured configured container.
+Keep analytics disabled while deploying this fix, then verify the real stream with synthetic
+markers and collector interception before an intended re-enable. Inspect **every raw query and
+POST-body location/title/referrer field**, not only a merged effective event: a safe overriding
+body field cannot make an unsafe query field acceptable. HTTP success from a collector is not
+evidence that only the intended view was sent. There must be exactly one initial manual pageview,
+not a raw-document automatic view followed by a safe manual one.
 
 Restoring an older backup without `analytics` disables it only after publishing. Undo can restore
 previous settings, including a previous ID or enabled state; review that deliberately. Do not

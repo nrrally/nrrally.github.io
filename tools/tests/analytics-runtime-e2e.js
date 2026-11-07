@@ -1,5 +1,5 @@
 /* Actual Google tag supplied externally; synthetic origins/data, all browser traffic intercepted.
-   Download only the generated test-ID runtime outside the checkout, never a real property tag. */
+   Optional offline remote-container replay replaces property IDs in memory before execution. */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -10,13 +10,18 @@ const measurementId = 'G-' + 'A'.repeat(10);
 const base = 'https://synthetic.example.test';
 const tagPath = process.env.GA_SYNTHETIC_RUNTIME;
 assert.ok(tagPath, 'Set GA_SYNTHETIC_RUNTIME to the downloaded Google tag for the generated all-A test ID.');
-const runtime = fs.readFileSync(tagPath, 'utf8');
+const originalRuntime = fs.readFileSync(tagPath, 'utf8');
+// Explicit offline replay only: replace property IDs before executing a captured remote container.
+// Never fetch or forward a browser request, even when testing remotely configured transformations.
+const runtime = process.env.GA_OFFLINE_REDACT_IDS === '1' ?
+  originalRuntime.replace(/G-[A-Z0-9]{10}(?![A-Z0-9])/g, measurementId) : originalRuntime;
 assert.ok(runtime.includes(measurementId), 'Runtime must be downloaded for the generated test ID, never a real property.');
 assert.ok([...runtime.matchAll(/G-[A-Z0-9]{10}(?![A-Z0-9])/g)].every(m => m[0] === measurementId),
   'Refuse any runtime containing another GA4 Measurement ID.');
 const fixtures = F.docs(), site = fixtures['data/site.json'];
 site.analytics = { enabled: true, measurementId };
 const external = [], collectors = [], scriptHeaders = [], errors = [], csp = [];
+let runtimeDelay = 0;
 function events() {
   return collectors.flatMap(record => {
     const url = new URL(record.url), common = new URLSearchParams(url.search);
@@ -41,6 +46,15 @@ function assertPrivateAbsent() {
     assert.ok(!e.headers.referer, 'Collector HTTP Referer must be suppressed.');
     assert.ok(!e.params.uid, 'No User-ID may be sent.');
   }
+  for (const record of collectors) {
+    const query = new URL(record.url).searchParams;
+    for (const params of [query, ...record.body.split('\n').map(line => new URLSearchParams(line))]) {
+      const location = params.get('dl');
+      if (location) assert.ok(/^https:\/\/synthetic\.example\.test\/#\/(?:home|standings\/(?:drivers|codrivers)|rounds|round\/(?:graph|classification|stages)|crews|person|about|info|privacy|disclaimer)$/.test(location), 'Raw query/body location must be sanitized even if another field overrides it.');
+      assert.ok(!params.get('dr'), 'Raw query/body referrer must be empty.');
+      if (params.get('dt')) assert.ok(/^(?:Home|Standings|Rounds|Round|Crews|Crew profile|Sources|Info|Privacy|Disclaimer) - Northern Regions Rally$/.test(params.get('dt')), 'Raw query/body title must be fixed.');
+    }
+  }
   for (const record of scriptHeaders) assert.ok(!record.headers.referer);
 }
 async function main() {
@@ -52,6 +66,7 @@ async function main() {
       if (url.startsWith('https://www.googletagmanager.com/gtag/js?')) {
         assert.equal(new URL(url).searchParams.get('id'), measurementId);
         scriptHeaders.push({ url, headers: await req.allHeaders() });
+        if (runtimeDelay) await new Promise(resolve => setTimeout(resolve, runtimeDelay));
         return route.fulfill({ contentType: 'text/javascript', body: runtime });
       }
       if (/^https:\/\/(?:www|region1)\.google-analytics\.com\/g\/collect/.test(url)) {
@@ -104,6 +119,9 @@ async function main() {
     assertPrivateAbsent();
     const commands = await page.evaluate(() => window.dataLayer.filter(a => a[0]).map(a => Array.from(a)));
     assert.equal(commands.find(a => a[0] === 'config')[2].send_page_view, false);
+    const globalIndex = commands.findIndex(a => a[0] === 'set');
+    assert.ok(globalIndex >= 0 && globalIndex < commands.findIndex(a => a[0] === 'js'));
+    assert.equal(commands[globalIndex][1].send_page_view, false);
     await page.evaluate(() => {
       document.title = 'PRIVATE_TITLE SYNTHETIC_PRIVATE';
       location.hash = '#/2026/standings?search=PRIVATE_SEARCH';
@@ -128,6 +146,11 @@ async function main() {
       assert.equal(views().at(-1).params.dl, base + '/#/' + category);
       assertPrivateAbsent();
     }
+    await page.evaluate(id => window.gtag('event', 'user_engagement', { send_to: id }), measurementId);
+    await flush();
+    assert.equal(events().filter(e => e.params.en === 'user_engagement').at(-1).params.dl, base + '/#/info',
+      'Default events must follow the latest sanitized category, not the initial config.');
+    assertPrivateAbsent();
     // Exercise enhancement-prone DOM interactions without navigating or sending real input.
     const beforeInteractions = events().length;
     await page.evaluate(() => {
@@ -162,8 +185,26 @@ async function main() {
     assert.equal(views().length, beforeDisclaimer + 1);
     assert.equal(views().at(-1).params.dl, base + '/#/disclaimer');
     await page.goto(base + '/privacy.html'); await flush(); assertPrivateAbsent();
+    runtimeDelay = 800;
+    const pendingViews = views().length;
+    await page.goto(base + '/index.html?PRIVATE_QUERY=SYNTHETIC_PRIVATE#/info', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => !!document.querySelector('script[src*="googletagmanager"]'));
+    await page.evaluate(() => location.hash = '#/admin?PRIVATE_QUERY=SYNTHETIC_PRIVATE');
+    await flush(); assert.equal(views().length, pendingViews, 'A pending container must stay disabled on an excluded route.');
+    assertPrivateAbsent();
+    await page.evaluate(() => location.hash = '#/info'); await flush();
+    assert.equal(views().length, pendingViews + 1);
+    assertPrivateAbsent();
+    runtimeDelay = 0;
+    await page.goto(base + '/privacy.html'); await flush();
+    runtimeDelay = 800;
+    const pendingOptOut = collectors.length;
+    await page.goto(base + '/privacy.html?PRIVATE_QUERY=SYNTHETIC_PRIVATE', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => !!document.querySelector('script[src*="googletagmanager"]'));
     await Promise.all([page.waitForEvent('load'), page.getByRole('button', { name: 'Turn off analytics' }).click()]);
     await flush();
+    assert.equal(collectors.length, pendingOptOut, 'Opt-out before container execution must not allow automatic initialization traffic.');
+    runtimeDelay = 0;
     const optedOut = collectors.length, tagCount = scriptHeaders.length;
     assert.equal((await ctx.cookies()).filter(c => /^_ga/.test(c.name)).length, 0);
     await page.goto(base + '/index.html?PRIVATE_QUERY=SYNTHETIC_PRIVATE#/info');
@@ -182,6 +223,8 @@ async function main() {
 main().catch(e => {
   console.error(e);
   console.error('Observed event summary:', events().map(e => ({ event: e.params.en, location: e.params.dl, referrer: e.params.dr })));
+  console.error('Raw location fields:', collectors.map(r => ({ query: new URL(r.url).searchParams.get('dl'),
+    body: r.body.split('\n').map(line => new URLSearchParams(line).get('dl')) })));
   console.error('CSP issues:', csp);
   console.error('Other blocked destinations:', external.map(e => new URL(e.url).origin + new URL(e.url).pathname));
   process.exitCode = 1;

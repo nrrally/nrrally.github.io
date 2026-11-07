@@ -110,7 +110,16 @@ info categories, plus standalone disclaimer/privacy categories. Full route ident
 only in memory to distinguish navigation from query/filter rerenders; they never enter the tag's
 data layer. Event URLs use only the origin and a synthetic category fragment; titles are fixed,
 referrers empty. Seasons, person/round IDs, query strings, search text, DOM titles and account
-information are not passed to GA. Config repeats `send_page_view:false` on every page.
+information are not passed to GA. Before inserting Google's script, the module queues consent
+restrictions and **global** `gtag('set', …)` defaults with `send_page_view:false` and sanitized
+page location/title/referrer, then `js` and per-stream `config`. Real configured containers can
+auto-initialize independently of the per-stream config; delaying these defaults until `onload`,
+or using only per-stream suppression, can emit an extra raw-document pageview. The global page
+context is updated before each manual view, so default events inherit the latest safe category.
+Page context is not pinned in per-stream config, which can take precedence over later global
+updates. Queued protective configuration is retained while a pending tag is disabled; deleting
+it can defer raw automatic initialization until tracking resumes. No manual events are queued
+before the runtime is ready, and the disable flag prevents collection while excluded or opted out.
 **The stream's Enhanced Measurement must also be off**, including history-based pageviews,
 search, forms, outbound clicks, downloads and other enhanced events; remote settings can otherwise
 override this manual-only design. Google automatic session/engagement events and browser metadata
@@ -134,9 +143,12 @@ cannot establish real provider behavior, lawful consent or stream-side settings.
 
 An optional actual-runtime test loads a generated-ID Google tag from a local downloaded snapshot
 and intercepts every browser request; see [testing.md](testing.md#optional-actual-google-runtime-check).
-The checked snapshot preserves sanitized config/event defaults, suppressed HTTP referrers and
-manual pageview counts. First-visit/session flags and cookie/browser identifiers remain expected.
-It cannot reproduce a real property's remote configuration. Enhanced Measurement can issue its
+The original generated-ID snapshot masked automatic initialization in a configured real stream.
+Offline replay of a captured real-stream container, with property IDs substituted in memory,
+reproduced that leak and verifies the global-preinitialization fix with all traffic intercepted.
+Both snapshots preserve sanitized query/body fields, suppressed HTTP referrers and manual counts
+with the fix. First-visit/session flags and cookie/browser identifiers remain expected.
+A captured snapshot is not a guarantee about later property configuration. Enhanced Measurement can issue its
 own history pageviews or include search terms, form/link metadata and event-specific URL parameters
 despite `send_page_view:false`; it must stay off. CSP restricts destinations, not collector payloads,
 and the loaded Google JavaScript can read the page. This is not a sandbox or a guarantee against

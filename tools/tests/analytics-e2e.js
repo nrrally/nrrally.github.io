@@ -54,7 +54,11 @@ function handle(req) {
 }
 const mockTag = `
   const layer = window.dataLayer;
+  const globals = {};
+  const tagId = new URL(document.currentScript.src).searchParams.get('id');
+  window.NR_TEST_GA_PRELOAD = layer.map(args => Array.from(args));
   function process(args) {
+    if (args[0] === 'set') Object.assign(globals, args[1]);
     if (args[0] === 'config') {
       if (args[2].send_page_view !== false) throw new Error('Automatic pageviews not suppressed');
       document.cookie = '_ga=synthetic; path=/';
@@ -65,6 +69,13 @@ const mockTag = `
     }
   }
   layer.forEach(process);
+  // Real configured containers can auto-initialize independently of the queued per-stream config.
+  // Global suppression must already be queued when the tag executes.
+  if (globals.send_page_view !== false && !window['ga-disable-' + tagId]) {
+    fetch('https://www.google-analytics.com/g/collect', {method:'POST',body:JSON.stringify({
+      event:'page_view',page_location:location.href,page_referrer:document.referrer,page_title:document.title
+    })});
+  }
   layer.push = function(args) { const n = Array.prototype.push.call(layer,args); process(args); return n; };
 `;
 async function main() {
@@ -155,8 +166,16 @@ async function main() {
     assert.equal(hits[0].page_location, base + '/#/standings/drivers');
     assert.equal(hits[0].page_title, 'Standings - Northern Regions Rally'); assert.equal(hits[0].page_referrer, '');
     const commands = await page.evaluate(() => window.dataLayer.map(a => Array.from(a)));
+    const preload = await page.evaluate(() => window.NR_TEST_GA_PRELOAD);
+    const globalIndex = preload.findIndex(a => a[0] === 'set');
+    assert.ok(globalIndex >= 0 && globalIndex < preload.findIndex(a => a[0] === 'js'));
+    assert.ok(globalIndex < preload.findIndex(a => a[0] === 'config'));
+    assert.equal(preload[globalIndex][1].send_page_view, false);
+    assert.equal(preload[globalIndex][1].page_location, base + '/#/standings/drivers');
+    assert.equal(preload[globalIndex][1].page_referrer, '');
     const cfg = commands.find(a => a[0] === 'config')[2];
     assert.equal(cfg.send_page_view, false); assert.equal(cfg.allow_google_signals, false);
+    assert.equal(Object.prototype.hasOwnProperty.call(cfg, 'page_location'), false, 'Per-stream config must not pin the initial category over later global context.');
     assert.equal(cfg.allow_ad_personalization_signals, false); assert.equal(cfg.cookie_expires, 31536000);
     const consent = commands.find(a => a[0] === 'consent')[2]; assert.equal(consent.ad_storage, 'denied');
     assert.equal(Object.prototype.hasOwnProperty.call(consent, 'analytics_storage'), false);
@@ -177,6 +196,7 @@ async function main() {
     }
     assert.equal(hits.length, beforePrivate);
     await page.evaluate(() => location.hash = '#/info'); await waitHits(beforePrivate + 1);
+    assert.equal(await page.evaluate(() => window.dataLayer.filter(a => a[0] === 'set').at(-1)[1].page_location), base + '/#/info');
     const beforeBack = hits.length; await page.goBack(); await page.waitForTimeout(100); assert.equal(hits.length, beforeBack);
     await page.goForward(); await waitHits(beforeBack + 1);
     assert.ok(!/Private|private|Secret|secret|Hidden|email=|search=/.test(JSON.stringify(hits)));

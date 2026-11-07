@@ -70,8 +70,7 @@ separate post-deployment checks in [runbook.md](runbook.md#google-analytics-4).
 
 `analytics-runtime-e2e.js` runs Google's actual JavaScript against synthetic HTTPS origins,
 generated settings and synthetic Firestore fixtures. Unlike the usual mock suite, it requires a
-separately downloaded runtime for **only** the generated all-A test ID. Do not download or use a
-real property's tag, stream or configuration in this test. Keep Google's script outside the repo;
+separately downloaded runtime, normally for the generated all-A test ID. Keep Google's script outside the repo;
 it is not a dependency to commit, and can change independently of this code.
 
 PowerShell example (use an existing Node/Playwright installation):
@@ -83,29 +82,46 @@ $env:GA_SYNTHETIC_RUNTIME = '<scratch>\synthetic-gtag.js'
 node tools\tests\analytics-runtime-e2e.js
 ```
 
-The only external download is this generated-ID script. Every browser request is intercepted:
+The usual external download is this generated-ID script. Every browser request is intercepted:
 local assets and Firestore are synthetic, the downloaded runtime is fulfilled locally, collection
 is recorded and fulfilled without forwarding, and all other destinations are aborted. Service
-workers are blocked. The script refuses any runtime containing another GA4 Measurement ID.
-It prints a content hash so a passing run identifies the unpinned snapshot. Allow about three
-minutes: the actual SDK batches subsequent collection requests, so immediate mock-style timing
+workers are blocked. By default the script refuses any runtime containing another GA4 Measurement ID.
+For an explicitly authorized **offline replay** of a captured configured stream, pass its external
+scratch path in `GA_SYNTHETIC_RUNTIME` and set `GA_OFFLINE_REDACT_IDS=1`. Property IDs are replaced
+with the generated ID in memory before execution; the original is not printed or committed.
+This mode never downloads, forwards, creates or edits a stream; all browser requests remain
+intercepted. Do not commit captured provider scripts or property configuration.
+It prints a hash of the executed, ID-substituted content so a passing run identifies the snapshot.
+Allow several minutes: the actual SDK batches subsequent collection requests, so immediate mock-style timing
 is insufficient.
 
 The check verifies one initial view, route/profile/round/history navigation, no query/replaceState
-duplicates, standalone privacy/disclaimer, category-only `dl`, fixed `dt`, empty `dr`, suppressed
+duplicates, standalone privacy/disclaimer, category-only `dl`, fixed `dt`, empty `dr` in **each raw
+query and event-body field** as well as effective events, suppressed
 HTTP Referer, no User-ID or private synthetic markers in any captured request, no additional CSP
 requirements, and opt-out unloading/cookie removal. Click/form/scroll probes do not produce
 enhanced events with the downloaded fake-container runtime. A deliberately issued
-`user_engagement` event probes actual SDK default parameters; it is not evidence that the fake
+`user_engagement` event probes actual SDK default parameters and latest-category global defaults; it is not evidence that the fake
 container auto-fired engagement. First-visit/session flags and browser/cookie identifiers still
 appear, as expected for analytics.
 
 On 2026-11-07 the actual-runtime check passed with snapshot SHA256
 `affda88a3989d647cf5aafe9313025cad825bff95f47f3e716d0d0335878f573`.
-No raw query, DOM title, profile/round identifier, page referrer or HTTP Referer escaped in the
-captured traffic, and no CSP expansion or production code change was required.
-This does **not** test a real stream's remotely supplied Enhanced Measurement, automatic-event
-configuration, connected destinations, server processing or Realtime. Turning on history/search/
+That generated-ID container did **not** reproduce a real configured container's initialization.
+A later offline captured-container replay exposed two initial views: a raw document URL/query,
+DOM title and document.referrer, followed by the safe manual view. Moving only per-stream config
+before script insertion did not fix it. `ga-3` queues global `send_page_view:false` and sanitized
+page context before `js`, config and script insertion, and refreshes global context on navigation.
+The safe context is not pinned in per-stream config, and pending global suppression is not
+discarded on excluded routes: regressions cover both stale default-event categories and deferred
+raw initialization on return to a public route.
+The configured-container regression passes with executed ID-substituted snapshot SHA256
+`642fa549563ccf17f0f6d321c883e583163df1768b6cbfd4041b9a6506dc49d8`.
+The mock now simulates independent automatic initialization unless global suppression was already
+queued, preventing the original timing error from passing that suite. Actual-container replay also
+checks excluded navigation and opt-out while the script is pending.
+No CSP expansion is required. These checks do **not** verify later remotely supplied Enhanced Measurement,
+automatic-event configuration, connected destinations, server processing or Realtime. Turning on history/search/
 form/link enhancements can supply their own event parameters and defeat the manual-only privacy
 design; keep the actual stream's Enhanced Measurement off and perform the live checks separately.
 
