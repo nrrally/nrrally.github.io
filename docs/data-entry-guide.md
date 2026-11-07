@@ -1,6 +1,29 @@
 # Data entry guide
 
-How to get a round's official results into the site correctly, without help from AI or a developer. Read it once before the first event of a season.
+How to get a season or round's official data into the site correctly. Manual entry, deterministic PDF/spreadsheet import and optional AI preparation are all available.
+
+## AI Import (free ChatGPT or Claude)
+
+AI Import prepares data; it cannot publish. Free chat accounts do not provide supported free API access, so there are no provider keys, automatic uploads or paid backend. You choose your AI service and attach the documents there. No prompt guarantees correctness.
+
+1. Open **AI Import** and choose **New season**, **Update season / regulations**, **Entry-list competitors** or **Official round results**. Choose the year and, for results, the round.
+2. List the official document filenames, kinds, dates/versions and URLs. Start with the SSRs, applicable SRs and amendments. For results use the actual official classification, not live timing or an entry list. Download Sportity documents if the AI cannot read a login-only link.
+3. Generate the prompt pack. Copy the prompt or download it and the exact JSON contract. Upload documents yourself in a free ChatGPT or Claude chat. Existing name/alias context is **off by default**; include it only if sharing those names with your chosen service is appropriate. Never attach a database backup, licence/contact details, biographies or photos.
+4. Use staged, complete batches: regulations first, then an Update season pack for calendar/classes/entry additions, then one classification per results pack. Free upload/context quotas vary. A missing or unreadable governing document is a blocker; request it instead of guessing.
+5. Paste the returned JSON or choose its file and select **Read returned JSON**. Markdown fences, incomplete JSON, unsupported rules, missing evidence, incomplete coverage and invalid rows are rejected before any working data changes. Use **Generate repair / developer handoff prompt** to request a corrected response or document unsupported rules.
+6. Review source pages/clauses, row/status counts, all unclear stage times and each proposed exception. Paged identity review matches unique exact names automatically; fuzzy matches and alias suggestions require your decision. Search for another existing profile instead of creating a duplicate.
+7. Approve the rules against the regulations and the source/exception review, then **Calculate change preview**. Inspect added/changed documents, removed result rows and before/after driver/co-driver starts, points and ranks. Stage the reviewed task only after it is correct.
+8. Use **Review & publish** normally. Nothing automatically changes the public default season; set that separately under Season settings.
+
+Entry lists may bulk-add name-only profiles but never starts, points, results or season-wide class overrides. AI cannot invent confirmations against MSA standings or bypass a total mismatch. Existing evidence-backed row overrides survive replacement only for the same car **and resolved crew**, not a reused car number.
+
+Omitted fields and unrelated data are preserved. Calendar/class/event/document updates add or update records rather than deleting absent ones; remove obsolete items deliberately through the manual editors. Repeated identical imports make no changes. Changes to existing results or scoring clear affected MSA confirmations.
+
+Use **Download local import draft** to save/resume unfinished preparation. Keep that file private: it contains the response and a local identity/season snapshot. Resuming requires another review, and changed target data requires **Recheck against current draft**. Closing the tab loses unsaved preparation; no private documents are stored in browser storage.
+
+Imported scoring/settings changes block publishing until reviewed again. If only values or calendar details changed and the declared policies still apply, review them under Season settings or AI Import. If the scoring policy changed, import the amended regulations. Unsupported policies need a developer change; a checkbox cannot make them supported.
+
+The browser accepts up to 4 MiB of returned JSON, 10,000 items per array, 16,000 characters per string and 20 schema levels. These are local safety limits, not provider quotas. Use smaller complete batches. Publication remains atomic and refuses oversized documents or requests; do not work around this by partially publishing a broken season.
 
 ## Principles
 

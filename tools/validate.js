@@ -4,6 +4,7 @@
    Exits with code 1 if it finds errors. */
 const fs = require('fs'), path = require('path');
 const { readJson, exists, listRoundFiles, hasPhoto, sourceLabel, E } = require('./load.js');
+const AI = require('../assets/ai-import.js');
 let errors = 0, warnings = 0;
 const gh = !!process.env.GITHUB_ACTIONS;
 function err(file, msg) { errors++; console.log(gh ? `::error file=${file}::${msg}` : `ERROR   ${file}: ${msg}`); }
@@ -12,6 +13,20 @@ function tryRead(rel) { try { return readJson(rel); } catch (e) { err(rel, exist
 
 console.log(`Checking ${sourceLabel()}`);
 const site = tryRead('data/site.json'), people = tryRead('data/people.json');
+if (site && people) {
+  const docs = { 'data/site.json': site, 'data/people.json': people };
+  for (const meta of site.seasons || []) {
+    const sp = `data/seasons/${meta.year}/season.json`;
+    if (!exists(sp)) continue;
+    const se = tryRead(sp); if (!se) continue;
+    docs[sp] = se;
+    for (const name of listRoundFiles(meta.year)) {
+      const rp = `data/seasons/${meta.year}/rounds/${name}`;
+      const raw = tryRead(rp); if (raw) docs[rp] = raw;
+    }
+  }
+  AI.validateDocuments(docs).filter(i => i.level === 'error').forEach(i => err(i.path, i.msg));
+}
 if (site && people) {
   const years = (site.seasons || []).map(s => +s.year);
   if (!years.length) err('data/site.json', 'no seasons listed');

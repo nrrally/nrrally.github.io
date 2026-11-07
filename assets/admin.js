@@ -6,6 +6,7 @@
 (function () {
   'use strict';
   var E = window.NREngine;
+  var AI = window.NRAIImport;
   var ROOT = document.getElementById('admin');
   var SITE = 'data/site.json', PEOPLE = 'data/people.json';
   function seasonPath(y) { return 'data/seasons/' + y + '/season.json'; }
@@ -85,6 +86,12 @@
     });
     return out;
   }
+  function workingDocs() {
+    var docs = {};
+    Object.keys(A.docs).forEach(function (p) { if (!A.docs[p].deleted) docs[p] = A.docs[p].obj; });
+    return docs;
+  }
+  function publishIssues() { return AI.validateDocuments(workingDocs()); }
   function label(p) {
     var m;
     if (p === SITE) return 'Site & info';
@@ -319,8 +326,8 @@
     }) }) });
     years().forEach(function (y) {
       var se = season(y); if (!se) return;
-      var rounds = {}; (se.rounds || []).forEach(function (r) { var raw = r.results && rawRound(r.id, y); if (raw) rounds[r.id] = raw; });
-      out.push({ id: 'season_' + y, json: JSON.stringify({ season: se, rounds: rounds }) });
+      var rounds = {}; (se.rounds || []).forEach(function (r) { var raw = r.results && rawRound(r.id, y); if (raw) rounds[r.id] = AI.projectPublic(raw); });
+      out.push({ id: 'season_' + y, json: JSON.stringify({ season: AI.projectPublic(se), rounds: rounds }) });
     });
     return out;
   }
@@ -339,13 +346,19 @@
       W.push(c.kind === 'delete' ? { 'delete': name } : { update: { name: name, fields: fsFields({ b64: c.b64, type: 'image/jpeg', updatedAt: now }) } });
     });
     publicDocs().forEach(function (d) { W.push({ update: { name: NAME + 'public/' + d.id, fields: fsFields({ json: d.json, updatedAt: now }) } }); });   // 3. the published copy
-    (A.dropPublic || []).forEach(function (id) { W.push({ 'delete': NAME + 'public/' + id }); });
+    var removedSeasons = list.filter(function (c) { return c.kind === 'delete' && /^data\/seasons\/\d+\/season\.json$/.test(c.path); }).map(function (c) { return 'season_' + c.path.split('/')[2]; });
+    Array.from(new Set((A.dropPublic || []).concat(removedSeasons))).forEach(function (id) { W.push({ 'delete': NAME + 'public/' + id }); });
     var revAt = W.length;                               // 4. the revision: any publish by someone else since we loaded makes this whole commit fail
     W.push({ update: { name: NAME + 'config/revision', fields: fsFields({ n: (A.rev ? A.rev.n : 0) + 1, at: now, by: by }) }, currentDocument: A.rev ? { updateTime: A.rev.updateTime } : { exists: false } });
     list.forEach(function (c, i) {                      // 5. history, one entry per changed document
       W.push({ update: { name: NAME + 'history/' + group + '-' + i, fields: fsFields({ group: group, at: now, by: by, message: message, path: c.path, kind: c.kind,
         before: c.binary ? null : (c.before || null), after: c.binary || c.kind === 'delete' ? null : c.text }) }, currentDocument: { exists: false } });
     });
+    if (W.length > 500) throw new Error('This publish needs ' + W.length + ' writes (maximum 500). Use smaller reviewed imports; nothing was published.');
+    W.forEach(function (w) {
+      if (w.update && AI.bytes(JSON.stringify(w.update)) > 1048576 - 2048) throw new Error('A database document exceeds the safe 1 MiB limit. Reduce the import or archive size; nothing was published.');
+    });
+    if (AI.bytes(JSON.stringify({ writes: W })) > 10 * 1024 * 1024) throw new Error('This atomic publish exceeds 10 MiB. Reduce the batch; nothing was published.');
     return { writes: W, track: track, revAt: revAt };
   }
   async function rebase(list) {   // someone else published since we loaded: take their changes, keep ours — unless we both changed the same document
@@ -365,9 +378,15 @@
   async function publish(message) {
     var unknown = knownNames(); if (unknown.length) addPeople(unknown);
     var list = changes(); if (!list.length) throw new Error('There are no changes to publish.');
+    function checkPublish() {
+      var errors = publishIssues().filter(function (i) { return i.level === 'error'; });
+      if (errors.length) throw new Error(errors.map(function (i) { return label(i.path) + ': ' + i.msg; }).join('\n'));
+    }
+    checkPublish();
     if (A.mode !== 'live') { markSaved(); return { demo: true, files: list.length }; }
     var res, b;
     for (var attempt = 0; ; attempt++) {
+      checkPublish();
       b = buildWrites(list, message);
       try { res = await fs('POST', ':commit', { writes: b.writes }, { commit: true }); break; }
       catch (e) {
@@ -465,7 +484,7 @@
     if (!el) return; var fn = acts[el.getAttribute('data-act')]; if (!fn) return;
     ev.preventDefault(); runAct(fn, el);
   });
-  window.addEventListener('beforeunload', function (ev) { if (A.mode && changes().length) { ev.preventDefault(); ev.returnValue = ''; } });
+  window.addEventListener('beforeunload', function (ev) { if (A.mode && (changes().length || A.ai && A.ai.text)) { ev.preventDefault(); ev.returnValue = ''; } });
   window.addEventListener('hashchange', function () { render(); });
 
   function route() {
@@ -480,7 +499,7 @@
   }
 
   /* ------------------------------------------------------------------ shell */
-  var NAV = [['dashboard', 'Dashboard'], ['results', 'Results'], ['events', 'Events & calendar'], ['competitors', 'Competitors'], ['season', 'Season settings'], ['site', 'Site & info'], ['history', 'History'], ['publish', 'Review & publish']];
+  var NAV = [['dashboard', 'Dashboard'], ['ai-import', 'AI Import'], ['results', 'Results'], ['events', 'Events & calendar'], ['competitors', 'Competitors'], ['season', 'Season settings'], ['site', 'Site & info'], ['history', 'History'], ['publish', 'Review & publish']];
   function render() {
     binds = {}; acts = {}; liveRefresh = null;
     var keepY = window.scrollY;
@@ -491,6 +510,7 @@
     try {
       switch (r.view) {
         case 'import': html = viewImport(); break;
+        case 'ai-import': html = viewAIImport(); break;
         case 'results': html = viewResults(r.a); break;
         case 'events': html = viewEvents(); break;
         case 'competitors': html = viewCompetitors(); break;
@@ -628,6 +648,180 @@
         if (st.current) site().currentSeason = y;
         A.year = y; A.newSeason = null; toast(y + ' season created. Add its events and rounds next, then publish.', 'good'); go('#/events');
       }, 'Create season', 'primary', 'id="nsBtn"') + '</div></div>';
+  }
+
+  /* ------------------------------------------------------------------ AI preparation and local review */
+  function aiSnapshot(year) {
+    var docs = workingDocs(), selected = { people: (peopleDoc().people || []).map(function (p) { return { id: p.id, name: p.name, aliases: p.aliases || [] }; }),
+      seasons: site().seasons };
+    Object.keys(docs).forEach(function (p) { if (p.indexOf('data/seasons/' + year + '/') === 0) selected[p] = docs[p]; });
+    return AI.canonical(selected);
+  }
+  function aiResetReview(st) { st.payload = null; st.preview = null; st.errors = []; st.choices = {}; st.rules = false; st.evidence = false; st.page = 0; st.identityPage = 0; st.identities = null; }
+  function aiContext(st) {
+    var se = season(st.year), context = { task: st.task, target: { year: st.year, roundId: st.task === 'results' ? st.roundId : null },
+      baseToken: st.token, sourceChecklist: st.sources, calendar: se ? se.rounds.map(function (r) { return { id: r.id, eventId: r.eventId, day: r.day, date: r.date }; }) : [],
+      classes: se ? se.classes : [], existingNames: [] };
+    if (st.includeNames) context.existingNames = peopleDoc().people.map(function (p) { return { id: p.id, name: p.name, aliases: p.aliases || [] }; });
+    return context;
+  }
+  function aiRead(st) {
+    aiResetReview(st);
+    try {
+      var p = AI.parse(st.text);
+      if (!st.token || p.baseToken !== st.token || p.task !== st.task || p.target.year !== st.year || p.target.roundId !== (st.task === 'results' ? st.roundId : null)) throw new Error('The response does not match this prompt pack/task/target. Generate a pack and ask the AI to copy its target and baseToken.');
+      st.payload = p; st.errors = AI.assess(p).errors;
+    } catch (e) { st.errors = [e.message]; }
+    render();
+  }
+  function aiPreview(st) {
+    if (!st.payload) throw new Error('Read the returned JSON first.');
+    if (st.base !== aiSnapshot(st.year)) throw new Error('The target season or identity list changed. Choose Recheck against current draft, then review again.');
+    st.preview = AI.plan(st.payload, workingDocs(), st.choices, { rules: st.rules, evidence: st.evidence });
+    st.errors = st.preview.errors; render();
+  }
+  function aiIssues(errors, warns) {
+    return '<ul class="issues">' + errors.map(function (s) { return '<li class="error"><b>Blocked</b> ' + esc(s) + '</li>'; }).concat((warns || []).map(function (s) { return '<li class="warn"><b>Check</b> ' + esc(s) + '</li>'; })).join('') + '</ul>';
+  }
+  function aiReviewedSettingsCard(s) {
+    if (!s || !s._aiImport) return '';
+    var m = s._aiImport, changed = m.signature !== AI.signature(s);
+    return '<div class="card"><h3>Imported regulations review</h3><p class="small">' + (changed ? 'Settings or calendar changed since the last rules review. Publishing is blocked.' : 'Supported rules reviewed. Changes to scoring, documents or calendar require a fresh review.') +
+      ' Compare the values and every governing clause; AI evidence is not a guarantee.</p><details><summary>Rule declarations and sources</summary><pre class="ai-json">' + esc(JSON.stringify({ rules: m.rules, sources: m.sources }, null, 2)) + '</pre></details>' +
+      (changed ? btn(function () {
+        if (!m.rules || Object.keys(AI.policy).some(function (k) { return !m.rules[k] || m.rules[k].value !== AI.policy[k] || m.rules[k].assessment !== 'supported'; })) throw new Error('Unsupported rules cannot be approved. Prepare a corrected regulations import.');
+        if (!window.confirm('Have you compared ALL changed values with the official regulations and verified that every declared scoring policy still applies? If rules changed, cancel and import the new regulations.')) return;
+        m.signature = AI.signature(s); m.approved = true; if (s.msa) s.msa.confirmedRounds = []; render();
+      }, 'I reviewed the changed settings against the regulations', '', 'id="aiSettingsApprove"') : '') + '</div>';
+  }
+  function viewAIImport() {
+    var st = A.ai || (A.ai = { task: 'season', year: Math.max.apply(null, years()) + 1, roundId: '', phase: 'regulations', sources: '', includeNames: false,
+      text: '', token: '', base: '', prompt: '', errors: [], choices: {}, rules: false, evidence: false, page: 0, search: '' });
+    var html = pageHead('Document preparation · local review only', 'AI Import', 'Prepare a season, entries or official results with free ChatGPT or Claude. You upload documents in your own chat; this site never sends them to AI. Nothing is saved until normal publishing.');
+    html += '<div class="callout warn"><div><b>AI can be wrong.</b> No prompt guarantees correctness. Use official SSRs/SRs and amendments, entry lists and classifications; verify the cited pages. Sportity links may require login: download the actual files. Free chat accounts do not provide free API access. Never attach backups or private licence/contact information to AI.</div></div>';
+    html += aiReviewedSettingsCard(season(st.year));
+    function changeTarget(fn) { return function (v) { fn(v); st.token = ''; st.prompt = ''; aiResetReview(st); render(); }; }
+    var rounds = (season(st.year) && season(st.year).rounds) || [];
+    html += '<div class="card"><h3>1. Choose the task and documents</h3><div class="form-grid">' +
+      fld('Task', select(changeTarget(function (v) { st.task = v; st.year = v === 'season' ? Math.max.apply(null, years()) + 1 : A.year; st.roundId = ''; }),
+        st.task, [['season', 'New season'], ['amendment', 'Update season / regulations'], ['competitors', 'Entry-list competitors'], ['results', 'Official round results']], 'id="aiTask"')) +
+      fld('Target year', st.task === 'season' ? input(changeTarget(function (v) { st.year = +v; }), st.year, 'type="number" min="1990" max="2100" id="aiYear"') :
+        select(changeTarget(function (v) { st.year = +v; st.roundId = ''; }), st.year, years().map(function (y) { return [y, y]; }), 'id="aiYear"')) +
+      fld('Prompt phase', select(function (v) { st.phase = v; st.prompt = ''; render(); }, st.phase, [['regulations', 'Regulations / capability check'], ['setup', 'Calendar, classes and entries'], ['results', 'One official classification']], 'id="aiPhase"')) +
+      (st.task === 'results' ? fld('Round', select(changeTarget(function (v) { st.roundId = v; }), st.roundId, [['', 'Choose round']].concat(rounds.map(function (r) { return [r.id, r.id + ' · ' + r.date]; })), 'id="aiRound"')) : '') +
+      fld('Document checklist', area(function (v) { st.sources = v; st.prompt = ''; }, st.sources, 'rows="4" id="aiSources"'),
+        'List filenames, document kinds, versions/dates and official URLs. Regulations tasks need SSRs and amendments; results need the official classification. Upload documents yourself to the AI.', 'span3') +
+      '<div class="fld span3">' + check(function (v) { st.includeNames = v; st.prompt = ''; render(); }, st.includeNames,
+        'Include existing names/aliases in the prompt (optional: only share with your chosen AI if appropriate)', 'id="aiNames"') + '</div></div><div class="actions">' +
+      btn(function () {
+        if (!Number.isInteger(st.year) || st.year < 1990 || st.year > 2100) throw new Error('Choose a valid year.');
+        if (st.task === 'season' && season(st.year)) throw new Error('That season exists. Use Update season / regulations.');
+        if (st.task !== 'season' && !season(st.year)) throw new Error('Choose an existing season.');
+        if (st.task === 'results' && !rounds.some(function (r) { return r.id === st.roundId; })) throw new Error('Choose an existing round.');
+        if (!st.sources.trim()) throw new Error('List the official documents you will attach.');
+        st.token = crypto.randomUUID(); st.base = aiSnapshot(st.year); aiResetReview(st);
+        st.prompt = AI.prompt(aiContext(st), st.phase); render();
+      }, 'Generate prompt pack', 'primary', 'id="aiGenerate"') +
+      fileIn(async function (files) {
+        var text = await files[0].text(); if (AI.bytes(text) > 12 * 1024 * 1024) throw new Error('Saved import draft is too large.');
+        var saved; try { saved = JSON.parse(text); } catch (e) { throw new Error('Saved draft is not valid JSON.'); }
+        if (!saved || saved.format !== 'nr-rally-ai-draft' || saved.version !== 1 || !saved.state) throw new Error('Choose a saved AI Import draft, not a backup.');
+        var v = saved.state;
+        if (['season', 'amendment', 'competitors', 'results'].indexOf(v.task) < 0 || !Number.isInteger(v.year) ||
+          ['regulations', 'setup', 'results'].indexOf(v.phase) < 0 || ['roundId', 'sources', 'text', 'token', 'base'].some(function (k) { return typeof v[k] !== 'string'; })) throw new Error('Invalid saved import draft.');
+        A.ai = { task: v.task, year: v.year, roundId: v.roundId, phase: v.phase, sources: v.sources, includeNames: false, text: v.text,
+          token: v.token, base: v.base, prompt: '', errors: [], choices: {}, rules: false, evidence: false, page: 0, search: '' };
+        if (v.text) aiRead(A.ai); else render();
+      }, 'application/json,.json', 'Resume saved import draft') + '</div></div>';
+    if (st.token) {
+      if (st.prompt) html += '<div class="card"><h3>2. Copy the prompt and attach your files in the AI chat</h3><p class="small">For large seasons use complete smaller batches. Start with regulations, then use Update season for calendar/entry additions. Import one round classification at a time. Free account limits vary.</p>' +
+        '<textarea class="mono" rows="8" readonly id="aiPrompt">' + esc(st.prompt) + '</textarea><div class="actions">' +
+        btn(async function () { if (!navigator.clipboard) throw new Error('Clipboard unavailable. Select and copy the prompt text above.'); await navigator.clipboard.writeText(st.prompt); toast('Prompt copied.', 'good'); }, 'Copy prompt', '', 'id="aiCopy"') +
+        btn(function () { download('ai-import-instructions-' + st.year + '.txt', st.prompt); download('ai-import-contract-v1.json', JSON.stringify(AI.contract, null, 2)); }, 'Download prompt & contract') + '</div></div>';
+      html += '<div class="card"><h3>3. Read the returned JSON</h3>' +
+        area(function (v) { st.text = v; aiResetReview(st); }, st.text, 'rows="7" class="mono" id="aiJSON" placeholder="Paste one complete JSON object (no Markdown fences)"') +
+        '<div class="actions">' + btn(function () { aiRead(st); }, 'Read returned JSON', 'primary', 'id="aiRead"') +
+        fileIn(async function (files) {
+          if (files[0].size > AI.contract.limits.bytes) throw new Error('JSON exceeds 4 MiB; ask for a smaller batch.');
+          st.text = await files[0].text(); aiRead(st);
+        }, 'application/json,.json', 'Choose returned JSON') +
+        btn(function () { download('ai-import-draft-' + st.year + '.json', JSON.stringify({ format: 'nr-rally-ai-draft', version: 1, state: {
+          task: st.task, year: st.year, roundId: st.roundId, phase: st.phase, sources: st.sources, text: st.text, token: st.token, base: st.base
+        } }, null, 2)); }, 'Download local import draft') +
+        (st.errors.length ? btn(function () { st.prompt = AI.prompt(aiContext(st), st.phase, st.errors); render(); }, 'Generate repair / developer handoff prompt', '', 'id="aiRepair"') : '') + '</div></div>';
+    }
+    if (st.errors.length) html += '<div class="card" id="aiErrors"><h3>Import blockers</h3>' + aiIssues(st.errors) + '</div>';
+    if (!st.payload || AI.assess(st.payload).errors.length) return html;
+    var p = st.payload, ids = st.identities || (st.identities = AI.identities(p, peopleDoc())), stale = st.base !== aiSnapshot(st.year);
+    html += '<div class="card"><h3>4. Review identities, evidence and rules</h3>' +
+      (stale ? '<p class="bad-line">The draft changed since this pack was generated. Recheck below; nothing can stage from a stale preview.</p>' : '') +
+      '<details><summary>Sources, coverage and field evidence</summary><pre class="ai-json">' + esc(JSON.stringify({ sources: p.sources, coverage: p.coverage, evidence: p.evidence, rules: p.rules, issues: p.issues }, null, 2)) + '</pre></details>' +
+      '<p class="small">' + ids.length + ' competitor references. Exact unique names resolve automatically; look-alikes, alias proposals and AI identity suggestions require your decision. No fuzzy merge is automatic.</p>' +
+      aiIdentityTable(st, ids) + '<div class="chk-row">' +
+      (p.rules ? check(function (v) { st.rules = v; st.preview = null; render(); }, st.rules, 'I verified every supported rule and changed setting against the official regulations', 'id="aiRulesApprove"') : '') +
+      check(function (v) { st.evidence = v; st.preview = null; render(); }, st.evidence, 'I checked source coverage, all unclear/missing times and every proposed identity/credit/class/extra-start exception', 'id="aiEvidenceApprove"') +
+      '</div><div class="actions">' + btn(function () { aiPreview(st); }, 'Calculate change preview', 'primary', (stale ? 'disabled ' : '') + 'id="aiPreview"') +
+      btn(function () { st.base = aiSnapshot(st.year); st.rules = false; st.evidence = false; st.preview = null; st.identities = null; st.errors = AI.assess(st.payload).errors; render(); }, 'Recheck against current draft', '', 'id="aiRecheck"') + '</div></div>';
+    if (st.preview && !st.preview.errors.length) {
+      var preview = st.preview, changes = preview.changes;
+      html += '<div class="card" id="aiConsequences"><h3>5. Proposed changes (' + changes.length + ' documents)</h3>' + aiIssues([], preview.warns) +
+        '<p class="small">Omitted fields and unrelated seasons remain unchanged. Entry-list profiles have no starts/points. Rules/results changes clear affected MSA confirmations. Nothing switches the public default season automatically.</p>' +
+        changes.map(function (c) { return '<details><summary>' + esc(label(c.path)) + '</summary><pre class="ai-json">' +
+          esc(JSON.stringify({ before: c.before, after: c.after }, null, 2)) + '</pre></details>'; }).join('') +
+        aiStandingsPreview(preview) + aiResultPreview(st, p) + '<div class="actions">' +
+        btn(function () {
+          if (st.base !== aiSnapshot(st.year)) throw new Error('The draft changed. Recheck and review again.');
+          var checked = AI.plan(st.payload, workingDocs(), st.choices, { rules: st.rules, evidence: st.evidence });
+          if (checked.errors.length) throw new Error(checked.errors.join('\n'));
+          checked.changes.forEach(function (c) { putDoc(c.path, clone(c.after)); });
+          st.base = aiSnapshot(st.year); st.preview = null; st.errors = []; st.text = ''; A.year = st.year;
+          toast(checked.changes.length ? 'Reviewed import staged. Nothing is live until you publish.' : 'No changes: this data is already present.', 'good'); go('#/publish');
+        }, 'Stage this reviewed task in the working draft', 'primary', 'id="aiStage"') + '</div></div>';
+    }
+    return html;
+  }
+  function aiIdentityTable(st, ids) {
+    var search = (st.identitySearch || '').toLowerCase(), candidateSearch = (st.candidateSearch || '').toLowerCase();
+    var filtered = ids.filter(function (r) { return (r.name + ' ' + r.ref).toLowerCase().indexOf(search) >= 0; });
+    var last = Math.max(0, Math.ceil(filtered.length / 50) - 1); st.identityPage = Math.min(st.identityPage || 0, last);
+    return '<div class="form-grid">' +
+      fld('Search imported names', input(function (v) { st.identitySearch = v; st.identityPage = 0; }, st.identitySearch, 'data-rerender id="aiIdentitySearch"')) +
+      fld('Find another existing profile', input(function (v) { st.candidateSearch = v; }, st.candidateSearch, 'data-rerender id="aiCandidateSearch"'), 'Search name or ID to add matching profiles to the choices (up to 30).') +
+      '</div><div class="table-wrap"><table class="data mini"><thead><tr><th>Printed name</th><th>Aliases proposed</th><th>Identity decision</th></tr></thead><tbody>' +
+      filtered.slice(st.identityPage * 50, st.identityPage * 50 + 50).map(function (row) {
+        var choice = Object.prototype.hasOwnProperty.call(st.choices, row.ref) ? st.choices[row.ref] : row.choice;
+        var candidates = peopleDoc().people.filter(function (p) {
+          return row.exact.indexOf(p.id) >= 0 || p.id === row.suggested || p.id === choice || row.similar.indexOf(p.name) >= 0;
+        });
+        if (candidateSearch) peopleDoc().people.filter(function (p) { return (p.id + ' ' + p.name).toLowerCase().indexOf(candidateSearch) >= 0; }).slice(0, 30).forEach(function (p) { if (!candidates.some(function (x) { return x.id === p.id; })) candidates.push(p); });
+        return '<tr><td>' + esc(row.name) + (row.similar.length ? '<small> Looks like: ' + esc(row.similar.join(', ')) + '</small>' : '') + '</td><td>' + esc(row.aliases.join(', ')) + '</td><td>' +
+          select(function (v) { st.choices[row.ref] = v; st.preview = null; }, choice, [['', 'Choose identity'], ['new', 'New person']].concat(candidates.map(function (p) { return [p.id, p.name]; })), 'aria-label="Identity for ' + esc(row.name) + '"') + '</td></tr>';
+      }).join('') + '</tbody></table></div><div class="actions">' +
+      btn(function () { st.identityPage--; render(); }, 'Previous names', 'tiny', st.identityPage ? '' : 'disabled') +
+      '<span class="small">Names page ' + (st.identityPage + 1) + ' of ' + (last + 1) + '</span>' +
+      btn(function () { st.identityPage++; render(); }, 'Next names', 'tiny', st.identityPage < last ? '' : 'disabled') + '</div>';
+  }
+  function aiStandingsPreview(preview) {
+    if (!preview.afterModel) return '';
+    return ['drivers', 'codrivers'].map(function (role) {
+      var before = {};
+      if (preview.beforeModel) preview.beforeModel.standings[role].forEach(function (r) { before[r.id] = r; });
+      return '<details><summary>' + (role === 'drivers' ? 'Driver' : 'Co-driver') + ' starts / points / standings consequences</summary><div class="table-wrap"><table class="data mini"><thead><tr><th>Name</th><th>Before starts / points / rank</th><th>After starts / points / rank</th></tr></thead><tbody>' +
+        preview.afterModel.standings[role].map(function (r) { var b = before[r.id]; delete before[r.id]; return '<tr><td>' + esc(r.name) + '</td><td>' + (b ? b.starts + ' / ' + b.total + ' / ' + b.rank : 'Not listed') + '</td><td>' + r.starts + ' / ' + r.total + ' / ' + r.rank + '</td></tr>'; }).join('') +
+        Object.keys(before).map(function (id) { var r = before[id]; return '<tr><td>' + esc(r.name) + '</td><td>' + r.starts + ' / ' + r.total + ' / ' + r.rank + '</td><td>Removed from this season</td></tr>'; }).join('') + '</tbody></table></div></details>';
+    }).join('');
+  }
+  function aiResultPreview(st, p) {
+    var rows = [];
+    p.rounds.forEach(function (r) { r.entries.forEach(function (e) { rows.push({ round: r.id, entry: e }); }); });
+    var filtered = rows.filter(function (r) { return (r.round + ' ' + r.entry.car + ' ' + r.entry.driverRef + ' ' + r.entry.codriverRef).toLowerCase().indexOf((st.search || '').toLowerCase()) >= 0; });
+    var last = Math.max(0, Math.ceil(filtered.length / 50) - 1); st.page = Math.min(st.page || 0, last);
+    return '<h3>Result row review (' + rows.length + ' rows)</h3>' + fld('Search round/car/competitor reference', input(function (v) { st.search = v; st.page = 0; }, st.search, 'data-rerender id="aiSearch"')) +
+      '<div class="table-wrap"><table class="data mini"><thead><tr><th>Round / car / status</th><th>Driver / co-driver references</th><th>Stage times as printed</th><th>Total</th></tr></thead><tbody>' +
+      filtered.slice(st.page * 50, st.page * 50 + 50).map(function (r) { var e = r.entry; return '<tr><td>' + esc(r.round + ' / ' + e.car + ' / ' + e.status) + '</td><td>' + esc(e.driverRef + ' / ' + (e.codriverRef || '')) +
+        '</td><td class="mono small">' + esc(e.times.map(function (t) { return t === null ? 'missing' : t; }).join(' | ')) + '</td><td>' + esc(e.total || '') + '</td></tr>'; }).join('') +
+      '</tbody></table></div><div class="actions">' + btn(function () { st.page--; render(); }, 'Previous 50', 'tiny', st.page ? '' : 'disabled') +
+      '<span class="small">Page ' + (st.page + 1) + ' of ' + (last + 1) + '</span>' + btn(function () { st.page++; render(); }, 'Next 50', 'tiny', st.page < last ? '' : 'disabled') + '</div>';
   }
 
   /* ------------------------------------------------------------------ results */
@@ -970,6 +1164,7 @@
     var msa = s.msa || (s.msa = { label: '', url: '', generated: '', confirmedRounds: [] }); msa.confirmedRounds = msa.confirmedRounds || [];
     var html = pageHead(A.year + ' · settings', A.year + ' season settings', 'Championship rules for this season. Changing the points scale or classes recalculates every round of the season.',
       +st.currentSeason === A.year ? '<span class="badge final">The public site opens on this season</span>' : '<div class="actions">' + btn(function () { st.currentSeason = A.year; render(); }, 'Open the public site on ' + A.year) + '</div>');
+    html += aiReviewedSettingsCard(s);
     html += '<div class="card"><h3>Championship</h3><div class="form-grid">' +
       fld('Championship name', input(function (v) { s.championship = v; }, s.championship), '', 'span2') + fld('Short name', input(function (v) { s.shortName = v; }, s.shortName)) +
       fld('Season status', select(function (v) { s.status = v; }, s.status || '', [['planned', 'Planned'], ['in progress', 'In progress'], ['complete', 'Complete']])) +
@@ -1113,10 +1308,7 @@
     }
     if (!list.length && !unknown.length) return html + '<div class="card empty"><h2>Nothing to publish</h2><p>Changes you make in the other sections collect here until you publish them.</p></div>';
     var errors = [], warns = 0;
-    list.forEach(function (c) {
-      var m = c.path.match(/^data\/seasons\/(\d+)\/rounds\/(.+)\.json$/);
-      if (m && c.kind !== 'delete') { var iss = E.validateRound(getDoc(c.path), {}); iss.forEach(function (x) { if (x.level === 'error') errors.push(m[1] + ' ' + m[2] + ': ' + x.msg); if (x.level === 'warn') warns++; }); }
-    });
+    publishIssues().forEach(function (i) { if (i.level === 'error') errors.push(label(i.path) + ': ' + i.msg); if (i.level === 'warn') warns++; });
     years().forEach(function (y) { try { model(y); } catch (e) { errors.push(y + ' season can\'t be calculated: ' + e.message); } });
     html += '<div class="card"><h3>' + list.length + ' change' + (list.length === 1 ? '' : 's') + '</h3><div class="changes">' + list.map(function (c) {
       var kind = { add: 'New', update: 'Changed', 'delete': 'Removed' }[c.kind];

@@ -22,6 +22,12 @@ Other database documents:
 | `config/admins` | `{ emails: ["name@gmail.com", …] }`, in lower case. |
 | `config/revision` | `{ n, at, by }`, increased by every publish. |
 
+**AI preparation metadata.** Imported season and round documents may contain `_aiImport`. It is admin-only: retained in working data, private backups and history, and removed from the public projection. Season metadata stores version, supported rule declarations and cited sources, approval and a canonical settings/calendar signature. Changing those settings invalidates approval until a human reviews them. Round metadata stores reviewed source/coverage/evidence; it never contains computed points. Old seasons without this field retain legacy behavior.
+
+**Import contract.** `assets/ai-import.js` exports `contract` with the exact version-1 nested schema, evidence-reference conventions, supported policy and limits. The envelope is `{format:"nr-rally-ai-import", version:1, task, target:{year,roundId}, baseToken, sources, rules, season, competitors, rounds, issues, coverage, evidence}`. Unknown properties are rejected. `season`/`rules` are null for competitor/results tasks. Competitors use task-local references; the site resolves them and allocates stable profile IDs. Results use those references, explicit statuses and printed times, not executable instructions, arbitrary database paths or precomputed points.
+
+A saved local preparation file has `format: "nr-rally-ai-draft"`, version 1 and `state` containing task/target, source checklist, returned text, pack token and a local base snapshot. It is not a database backup, contains private context and cannot be restored through the backup workflow.
+
 **Backups.** A backup downloaded from the admin is one JSON file:
 ```
 { "format": "nr-rally-backup", "version": 1, "exportedAt": "…", "exportedBy": "…",

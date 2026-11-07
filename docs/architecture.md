@@ -30,6 +30,7 @@ Two providers are involved, and there's no application server:
 | Engine | `assets/engine.js` | Pure functions shared by the site, admin and Node tools: time parsing, name matching and look-alike detection, the season model (points, classes, standings, stage progressions, crew histories), checks, and the importers for pasted PDF text (known layouts only) and spreadsheets. No browser or network code. See [data-entry-guide.md](data-entry-guide.md). |
 | Public site | `index.html`, `assets/site.js`, `assets/styles.css` | A single-page app. Reads `public/site`, `public/people` and `public/season_<year>` through the Firestore REST API, then calls `NREngine.buildSeason`. |
 | Admin | `admin/index.html`, `assets/admin.js`, `assets/admin.css` | Google sign-in, an in-memory editable copy of the data, checks, points preview, publishing, history and undo, backups and the admin list. |
+| AI preparation | `assets/ai-import.js` | Pure versioned contract/prompt generation, strict parsing, capability/evidence checks, identity assessment and scoped change planning. Shared by admin and Node tests/tools; no network or provider SDK. |
 | Connection settings | `assets/firebase-config.js` | Says which Firebase project to use. Public by design: it identifies the project and grants no access. |
 | Access rules | `docs/firestore.rules` | The database's security rules, pasted into the Firebase console. They decide who can read and write what. |
 | Tools | `tools/load.js`, `tools/validate.js`, `tools/report.js` | Node scripts that run on a backup file: check all data, and list every override and note. |
@@ -73,6 +74,10 @@ Profile photos (`photo: "db:<id>"`) are read from `photos/<id>`. Visitors see ne
 6. **Backups.** Downloads every document and photo as one JSON file (`format: nr-rally-backup`). Restoring stages a backup for publishing. An empty database can only be filled from a backup file; the code contains no data to fall back on.
 7. **Demo mode.** Loads the published copy (readable by anyone) into a practice session that can never save. It's used for training and for the pre-season import rehearsal.
 8. **Admin list.** `config/admins` is edited under Site & info → Admins. Changes take effect immediately.
+
+9. **AI Import.** Admin-operated prompt/file upload in a separate free AI chat, followed by local JSON parsing, evidence/identity/rules review and scoped staging. A pack token correlates the response; a local canonical snapshot detects changed target data. Neither is authorization. Preparation may be downloaded/resumed privately; it is not stored remotely until reviewed data is staged and explicitly published.
+
+Publishing validates the full working dataset at entry and on every retry after rebase. Season/round `_aiImport` metadata is excluded from public bundles. Private working/history/public documents must fit a conservative 1 MiB budget (2 KiB reserved for Firestore metadata), with at most 500 writes and a 10 MiB request. Oversized publication is rejected without partial writes. Undoing a season addition removes its public bundle as well.
 
 ## Security model
 

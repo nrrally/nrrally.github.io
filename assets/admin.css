@@ -1,5 +1,7 @@
 /* Northern Regions Rally — admin styles (extends styles.css) */
 body.adm-body { background: var(--bg); }
+.ai-json { max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--mono); font-size: 12px; padding: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; }
+#aiConsequences details { margin-block: 12px; }
 .demo-bar { background: #ffc21a; color: #241600; font-weight: 700; font-size: 13.5px; padding: 7px 16px; text-align: center; display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap; }
 .adm-top { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(10px); border-block-end: 1px solid var(--line); }
 .adm-top-in { display: flex; align-items: center; gap: 12px; padding: 8px 18px; flex-wrap: wrap; }

@@ -26,6 +26,7 @@ Driver and co-driver standings are kept separately. Both crew members score the 
 - **Total** is the sum of round points. **Starts** is the number of rounds with a result (DNF counts, DNS doesn't).
 - **Eligible** means starts ≥ `minStarts`. Eligible crews are listed first, then ineligible ones, marked `*`.
 - **Order:** higher total first. Ties are broken on countback: more 1st places, then more 2nd places, and so on, using overall finishing positions. Any tie left after that is sorted by name.
+  Countback considers all represented finishing positions, including positions beyond 30.
 - **Displayed class:** the person's season class (`classMap.drivers` or `classMap.codrivers`) if set; otherwise the class from their most recent round.
 
 ## Stage graphs
@@ -63,3 +64,13 @@ Driver and co-driver standings are kept separately. Both crew members score the 
 ## Confirmed against the official standings
 
 `season.msa.confirmedRounds` lists the rounds whose points have been checked against the published MSA standings. The site marks those rounds "Points match MSA". All other rounds show "Points calculated" and are treated as provisional.
+
+## AI Import capabilities and limits
+
+The versioned capability profile in `assets/ai-import.js` describes the algorithms above, not all possible future championship rules. Point scales, class IDs/descriptions, class-only exclusions, minimum starts and calendars are configurable. An empty overall scale can express class-only scoring. Co-driver class maps affect the displayed class, not separate co-driver points.
+
+All-round/unweighted aggregation, overall-plus-class totals, equal crew credit, eligibility-first ordering, DNF/DNS handling, scored-class precedence and countback are fixed policies. Best-N/dropped or weighted rounds, stage/bonus points, per-class scales, membership filters, independent co-driver scoring, different tie-breaks and DSQ/NC/restart semantics are unsupported. Missing or incompatible rule declarations block imports; there is no AI-generated-code execution or silent fallback.
+
+AI-imported regulations require cited clauses and explicit human review. This cannot detect a regulation that both AI and reviewer overlook. New results clear that round's MSA confirmation; reviewed scoring/calendar amendments clear season confirmations. AI cannot declare points officially confirmed.
+
+Season/dataset checks are shared by admin publishing and the Node validator: finite non-negative scales, minimum starts, unique identifiers, season/calendar relationships, resolved class membership and unambiguous profile names. The publish path reruns them after a concurrent-edit rebase.

@@ -7,7 +7,7 @@
 | Add a round's results | After each event | Follow [data-entry-guide.md](data-entry-guide.md). Keep the official PDF in the private archive. |
 | Pre-season import rehearsal | Before the first event of each season | In demo mode, import the new season's first official PDF (see the end of the data entry guide) |
 | Mark rounds as confirmed | When MSA publishes updated standings | Admin → Season settings → MSA standings: update the link and date, then tick the rounds whose points match |
-| Start a new season | Once a year | Admin → Dashboard → Start the next season. Then add events and rounds, and the SSRs in Season settings. |
+| Start a new season | Once a year | Admin → AI Import for reviewed bulk setup from official regulations; or Dashboard → Start the next season for manual setup. Follow the AI Import section in the data entry guide. |
 | Make the new season the default | When it starts | Admin → Season settings → Open the public site on <year> |
 | Back up | Monthly, and before big changes | Admin → Dashboard → Backups → Download a backup. Save it in the private project archive. |
 | Check the data | After a big change, or before a handover | `node tools/validate.js <backup.json>` and `node tools/report.js <year> <backup.json>` |
@@ -60,6 +60,10 @@ Keep the named access register in the private project archive, not this public d
 | Admin: "Couldn't load Google sign-in" | A network problem, or an extension blocking `www.gstatic.com` | Try another network or browser. If the browser console shows a Content-Security-Policy error, add the blocked address to the CSP line in `admin/index.html`. |
 | Wrong result is live | Data-entry error | Fix it in the admin and publish, or Admin → History → Undo |
 | The importer says the text "doesn't match the official results layouts" | The timing provider changed its PDF layout | Use the spreadsheet template for now. Ask a developer to add the layout (see the end of the data entry guide). |
+| AI Import reports unsupported or unresolved rules | Regulations exceed the engine's declared capabilities, or sources are missing | Obtain the missing official documents or download the repair/developer handoff prompt. Do not approximate the rules to get past validation. |
+| AI Import says the draft changed | Target season or identities changed after prompt generation/review | Recheck against the current draft and review again; generate a new pack if the task/target changed. |
+| Publishing says imported settings changed | A scoring/document/calendar edit invalidated the rules review | Compare changed values with the official regulations. Review in Season settings if policies still apply; otherwise import the amended regulations. |
+| Publishing reports a document/request/write limit | Firestore atomic publication capacity exceeded | Save a private backup/import draft and reduce the batch or metadata size. A season bundle that exceeds 1 MiB needs a separately planned storage change, not partial publication. |
 | The site says "Results coming soon" or "temporarily unavailable" | Nothing published, the database unreachable, or the daily read limit hit | Check the Firebase console (Firestore data, usage, rules). If the database was emptied, restore the latest backup through the admin. |
 | "Someone else published changes to …" | Two admins changed the same item | Download a backup (it includes your changes), reload, then make your edit again |
 | An admin's Google account is compromised | — | Remove it from the admin list at once. Check History and undo anything unexpected. The person then secures their Google account. |

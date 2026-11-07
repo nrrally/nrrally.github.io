@@ -206,8 +206,9 @@
       out.sort(function (a, b) {
         if (a.eligible !== b.eligible) return a.eligible ? -1 : 1;
         if (b.total !== a.total) return b.total - a.total;
-        for (var i = 1; i <= 30; i++) {
-          var ca = a.finishes.filter(function (p) { return p === i; }).length, cb = b.finishes.filter(function (p) { return p === i; }).length;
+        var positions = Array.from(new Set(a.finishes.concat(b.finishes))).sort(function (x, y) { return x - y; });
+        for (var i = 0; i < positions.length; i++) {
+          var ca = a.finishes.filter(function (p) { return p === positions[i]; }).length, cb = b.finishes.filter(function (p) { return p === positions[i]; }).length;
           if (ca !== cb) return cb - ca;
         }
         return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
@@ -278,6 +279,7 @@
       if (r.pen != null && r.pen !== '' && isNaN(parseTime(r.pen))) add('error', label + ': penalty "' + r.pen + '" is not a time.', i);
       if (st === 'classified') {
         if (!r.pos) add('error', label + ': classified but has no position.', i);
+        else if (!Number.isInteger(r.pos) || r.pos < 1) add('error', label + ': classified position must be a positive integer.', i);
         else if (positions[r.pos]) add('error', label + ': position ' + r.pos + ' is used twice.', i);
         positions[r.pos] = 1;
         var tot = parseTime(r.total);
@@ -316,6 +318,90 @@
       });
     }
     return issues;
+  }
+
+  function validateSeason(season, rounds, people) {
+    var issues = [];
+    function error(msg) { issues.push({ level: 'error', msg: msg }); }
+    if (!season || typeof season !== 'object') return [{ level: 'error', msg: 'Season is missing.' }];
+    if (!Number.isInteger(season.year) || season.year < 1990 || season.year > 2100) error('Season year must be an integer from 1990 to 2100.');
+    if (!Number.isInteger(season.minStarts) || season.minStarts < 0) error('Minimum starts must be a non-negative integer.');
+    ['overall', 'cls'].forEach(function (k) {
+      var scale = season.pointsScale && season.pointsScale[k];
+      if (!Array.isArray(scale) || scale.some(function (n) { return typeof n !== 'number' || !Number.isFinite(n) || n < 0; })) error(k + ' points must be a list of finite, non-negative numbers.');
+    });
+    function ids(arr, kind) {
+      var seen = Object.create(null);
+      if (!Array.isArray(arr)) { error(kind + ' must be a list.'); return seen; }
+      arr.forEach(function (x) {
+        if (!x || typeof x.id !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(x.id) || /^(?:__proto__|prototype|constructor)$/.test(x.id)) { error('Invalid ' + kind + ' id.'); return; }
+        if (seen[x.id]) error('Duplicate ' + kind + ' id: ' + x.id);
+        seen[x.id] = true;
+      });
+      return seen;
+    }
+    var classes = ids(season.classes, 'class'), events = ids(season.events, 'event');
+    ids(season.rounds, 'round');
+    (season.rounds || []).forEach(function (meta) {
+      if (!meta) return;
+      if (!events[meta.eventId]) error(meta.id + ': unknown event ' + meta.eventId);
+      var raw = rounds && rounds[meta.id];
+      if (meta.results && !raw) error(meta.id + ': marked as having results but results are missing.');
+      if (!raw) return;
+      if (raw.id !== meta.id) error(meta.id + ': result id does not match calendar.');
+      var idx = peopleIndex(people), map = (season.classMap && season.classMap.drivers) || {};
+      (raw.entries || []).forEach(function (entry) {
+        var credited = idx.resolve((entry.credit && entry.credit.driver) || entry.driver);
+        var cls = normClass(entry.scoredClass || map[credited.id] || entry['class']);
+        if (!classes[cls]) error(meta.id + ' car ' + entry.car + ': unknown scored class ' + cls);
+      });
+      (raw.extraStarts || []).forEach(function (x) { if (!classes[normClass(x['class'])]) error(meta.id + ': unknown extra-start class ' + x['class']); });
+    });
+    ['drivers', 'codrivers'].forEach(function (role) {
+      var map = (season.classMap && season.classMap[role]) || {}, idx = peopleIndex(people);
+      Object.keys(map).forEach(function (id) {
+        if (!idx.byId[id]) error(role + ' class map refers to unknown competitor ' + id);
+        if (!classes[map[id]]) error(role + ' class map refers to unknown class ' + map[id]);
+      });
+    });
+    return issues;
+  }
+  function validateDataset(docs) {
+    var out = [], st = docs && docs['data/site.json'], ppl = docs && docs['data/people.json'];
+    function add(path, msg) { out.push({ level: 'error', path: path, msg: msg }); }
+    if (!st || !Array.isArray(st.seasons) || !st.seasons.length) { add('data/site.json', 'At least one season is required.'); return out; }
+    if (!ppl || !Array.isArray(ppl.people)) { add('data/people.json', 'Competitor list is missing.'); return out; }
+    var peopleIds = Object.create(null), keys = Object.create(null);
+    ppl.people.forEach(function (p) {
+      if (!p.id || !p.name || peopleIds[p.id]) add('data/people.json', 'Missing or duplicate competitor id/name: ' + (p.id || ''));
+      peopleIds[p.id] = true;
+      [p.name].concat(p.aliases || []).forEach(function (n) {
+        var k = keyName(n);
+        if (keys[k] && keys[k] !== p.id) add('data/people.json', 'Ambiguous name or alias: ' + n);
+        keys[k] = p.id;
+      });
+    });
+    var years = Object.create(null);
+    st.seasons.forEach(function (meta) {
+      var y = meta.year, path = 'data/seasons/' + y + '/season.json', se = docs[path], rounds = {};
+      if (years[y]) add('data/site.json', 'Duplicate season ' + y);
+      years[y] = true;
+      if (!se) { add(path, 'Season is missing.'); return; }
+      if (se.year !== y) add(path, 'Year does not match site calendar.');
+      (se.rounds || []).forEach(function (r) {
+        var rp = 'data/seasons/' + y + '/rounds/' + r.id + '.json', raw = docs[rp];
+        if (raw) {
+          rounds[r.id] = raw;
+          if (!r.results) out.push({ level: 'warn', path: rp, msg: 'Results exist but are not enabled in the calendar.' });
+          try { validateRound(raw, {}).forEach(function (i) { out.push({ level: i.level, path: rp, msg: i.msg }); }); }
+          catch (e) { add(rp, 'Invalid result structure: ' + e.message); }
+        }
+      });
+      try { validateSeason(se, rounds, ppl).forEach(function (i) { out.push({ level: i.level, path: path, msg: i.msg }); }); }
+      catch (e) { add(path, 'Invalid season structure: ' + e.message); }
+    });
+    if (!years[st.currentSeason]) add('data/site.json', 'Default season is not listed.');
+    return out;
   }
 
   /* ---------------------------------------------------------------- import: text copied from an official PDF */
@@ -517,6 +603,7 @@
 
   var api = { parseTime: parseTime, fmtTime: fmtTime, slug: slug, normName: normName, normClass: normClass, ord: ord, r1: r1, prettyJson: prettyJson,
     peopleIndex: peopleIndex, buildSeason: buildSeason, validateRound: validateRound, parseClassificationText: parseClassificationText, parseSpreadsheet: parseSpreadsheet,
-    similarNames: similarNames, sumReport: sumReport, spreadsheetTemplate: spreadsheetTemplate };
+    similarNames: similarNames, sumReport: sumReport, spreadsheetTemplate: spreadsheetTemplate,
+    validateSeason: validateSeason, validateDataset: validateDataset };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.NREngine = api;
 })(typeof window !== 'undefined' ? window : this);

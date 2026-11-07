@@ -11,6 +11,19 @@ node tools/report.js 2026 nr-rally-backup-2026-11-06.json   # lists every overri
 
 The admin runs the same per-round checks before it lets you publish.
 
+## AI Import regression checks (synthetic, no live database)
+
+```
+node --test tools/tests/ai-import.test.js
+node tools/tests/ai-import-e2e.js
+```
+
+The first command needs Node only. The browser test needs an existing Playwright installation (`PLAYWRIGHT_MODULE` may point to it). It serves the checkout locally, supplies fake authentication and intercepts Firestore requests with an in-process mock; other external requests are refused. Never run synthetic imports against live Firebase.
+
+Coverage includes schema/version/unsafe-field rejection, evidence and unsupported rules, large entry batches, identity ambiguity and slug collisions, entry-only zero starts, cancelled stages and DNF/DNS, exact arithmetic, scoped/idempotent amendments, same-car/different-crew overrides, private metadata projection, stale review and resumable drafts, explicit publishing, public standings, undo, document limits and validation after rebase. The 1,500-exact-identity batch must complete within 10 seconds.
+
+Continue running the private engine/importer and admin/site regressions below: the synthetic suite does not replace established 2026 coverage. No real competitor fixtures or documents belong in this repository.
+
 ## Manual check after a publish
 
 1. Open the changed round on the site and compare the Classification tab with the official PDF.

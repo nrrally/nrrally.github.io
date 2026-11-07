@@ -64,6 +64,7 @@ Nothing goes live until you publish, and every publish can be undone.
   - **Season class:** the class a person is scored in for that season.
   - **Bio, photo and links:** optional, and only with the competitor's permission (POPIA).
 - **New season:** go to **Dashboard → Start the next season**. Then add events and rounds, and add the SSRs under **Season settings**. When it should become the default, choose **Open the public site on <year>**.
+- **AI Import:** bulk-prepare new seasons, calendars, classes, entry-list names and official results. The admin generates a versioned prompt for free ChatGPT or Claude; you attach official files in your own AI chat and paste the returned JSON back. Review sources, identities, scoring and consequences, then stage and publish normally. Manual editing remains available. Unsupported or uncertain scoring rules are blocked, never guessed. See [the AI Import guide](docs/data-entry-guide.md#ai-import-free-chatgpt-or-claude).
 - **Undo:** **History** lists every publish. **Undo** stages the previous version for review and publishing.
 - **Admins:** go to **Site & info → Admins** to add or remove Google accounts. Changes take effect immediately.
 - **Backups:** go to **Dashboard → Backups → Download a backup**. Do this monthly and keep the file in the private archive. **Restore from a backup** stages the backup's contents for publishing.
