@@ -92,6 +92,9 @@
     return docs;
   }
   function entryContractError() {
+    if (!E || E.rallyNoticeContractVersion !== 1 || typeof E.validateActiveRally !== 'function' || typeof E.nrcDestination !== 'function') {
+      return 'Rally-notice scripts are missing or out of date. Refresh this page with Ctrl+Shift+R before restoring or publishing; nothing has been published.';
+    }
     return !E || E.entryContractVersion !== 2 || typeof E.validateEntryLists !== 'function' || typeof E.entryEvidenceLoss !== 'function' ||
       !AI || AI.entryContractVersion !== 2 || typeof AI.validateDocuments !== 'function' ?
       'Entry-aware scripts are missing or out of date. Refresh this page with Ctrl+Shift+R before restoring or publishing; nothing has been published.' : '';
@@ -426,6 +429,7 @@
   async function publish(message) {
     requireEntryContract();
     preparePublishPeople();
+    prepareRallyNotice();
     var list = changes(); if (!list.length) throw new Error('There are no changes to publish.');
     function checkPublish() {
       var errors = publishIssues().filter(function (i) { return i.level === 'error'; });
@@ -442,6 +446,7 @@
         if (!e.conflict || e.clash || attempt > 0) throw e;
         await rebase(list);
         preparePublishPeople();
+        prepareRallyNotice();
         list = changes();
       }
     }
@@ -1296,11 +1301,38 @@
 
   /* ------------------------------------------------------------------ site & info */
   var NETWORKS = [['facebook', 'Facebook'], ['instagram', 'Instagram'], ['whatsapp', 'WhatsApp'], ['youtube', 'YouTube'], ['tiktok', 'TikTok'], ['x', 'X'], ['website', 'Website']];
+  function rallyActivationId() {
+    return window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+  }
+  function prepareRallyNotice() {
+    var st = site(), d = A.docs[SITE], before = d && d.orig ? JSON.parse(d.orig).activeRally : undefined;
+    // Restore and undo can reactivate an old notice too; never reuse its old bypass.
+    if (st && st.activeRally && st.activeRally.enabled && AI.canonical(before) !== AI.canonical(st.activeRally)) {
+      st.activeRally.activationId = rallyActivationId();
+    }
+  }
+  function activeRallyCard(st) {
+    var n = st.activeRally || { enabled: false, name: '', url: 'https://nrcsa.co.za/' };
+    function edit() {
+      if (!st.activeRally) st.activeRally = { enabled: false, name: '', url: 'https://nrcsa.co.za/', activationId: rallyActivationId() };
+      return st.activeRally;
+    }
+    return '<div class="card" id="activeRallySettings"><h3>Rally in progress</h3>' +
+      '<p class="small muted">Manual public notice for entries, SSRs and active-event information. Nothing changes live until you review and publish. Admin access and the disclaimer stay available.</p>' +
+      check(function (on) { var cfg = edit(); cfg.enabled = on; if (on) cfg.activationId = rallyActivationId(); }, n.enabled,
+        'Enable the active-rally notice', 'id="activeRallyEnabled"') +
+      '<div class="form-grid">' + fld('Rally name', input(function (v) { edit().name = v.trim(); }, n.name, 'id="activeRallyName" maxlength="120"'),
+        'For example: Example Rally', 'span2') +
+      fld('Official NRC destination', input(function (v) { edit().url = v.trim(); }, n.url, 'id="activeRallyUrl" type="url"'),
+        'HTTPS on nrcsa.co.za or www.nrcsa.co.za only; an official event page is allowed.', 'span3') + '</div>' +
+      '<p class="small">Visitors initially see a full-page yellow notice. &ldquo;View past results&rdquo; bypasses it for that browser visit, leaving a yellow reminder on every public page. A changed rally or reactivation shows the full notice again. It is never enabled from calendar dates or results.</p></div>';
+  }
   function viewSite() {
     var st = site(); st.info = st.info || {}; st.info.documents = st.info.documents || []; st.social = st.social || []; st.contact = st.contact || {};
     var html = pageHead('Whole site', 'Site &amp; info', 'Text and links on the Info page and around the site. Social links without an address show as “Coming soon”.');
     html += '<div class="card"><h3>Basics</h3><div class="form-grid">' + fld('Site name', input(function (v) { st.siteName = v; }, st.siteName)) +
       fld('Tagline', input(function (v) { st.tagline = v; }, st.tagline), '', 'span2') + fld('Intro on the Info page', area(function (v) { st.info.intro = v.trim(); }, st.info.intro, 'rows="4"'), '', 'span3') + '</div></div>';
+    html += activeRallyCard(st);
     html += '<div class="card"><h3>Social media</h3>' + listEditor(st.social, [
       function (x) { return fld('Network', select(function (v) { x.network = v; }, x.network, NETWORKS)); },
       function (x) { return fld('Label', input(function (v) { x.label = v; }, x.label)); },

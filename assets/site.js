@@ -58,6 +58,7 @@
   var ST = { site: null, people: null, profiles: {}, models: {}, pending: {}, photos: {}, error: null };
   function loadError(kind, msg) { var e = new Error(msg); e.kind = kind; return e; }
   function getPublic(id) {   // one published document; null if it doesn't exist
+    if (id === 'site' && window.NRRallyNotice) return window.NRRallyNotice.sitePromise;
     return fetch(DBURL + '/public/' + encodeURIComponent(id), { cache: 'no-store' }).then(function (r) {
       if (r.status === 404) return null;
       if (!r.ok) throw loadError('down', 'The results database returned ' + r.status + '.');

@@ -170,8 +170,13 @@ test('backup loss compares crew identity, evidence and scopes, not row counts', 
 test('coordinated entry-aware scripts have a shared cache-busting version', () => {
   assert.equal(E.entryContractVersion, 2); assert.equal(AI.entryContractVersion, E.entryContractVersion);
   const repo = path.resolve(__dirname, '..', '..');
+  const versions = [];
   for (const [file, assets] of [['index.html', ['engine', 'site']], [path.join('admin', 'index.html'), ['engine', 'ai-import', 'admin']]]) {
     const html = fs.readFileSync(path.join(repo, file), 'utf8');
-    for (const asset of assets) assert.ok(html.includes('/' + asset + '.js?v=entries-2"'));
+    for (const asset of assets) {
+      const match = html.match(new RegExp('/' + asset + '\\.js\\?v=([^"]+)"'));
+      assert.ok(match); versions.push(match[1]);
+    }
   }
+  assert.equal(new Set(versions).size, 1);
 });

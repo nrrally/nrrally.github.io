@@ -497,10 +497,34 @@
     });
     return issues.concat(validateEntryLists(season, people));
   }
+  function nrcDestination(value) {
+    if (typeof value !== 'string' || !/^https:\/\//i.test(value) || /[\s\\]/.test(value)) return '';
+    try {
+      var url = new URL(value);
+      return url.protocol === 'https:' && /^(www\.)?nrcsa\.co\.za$/.test(url.hostname) &&
+        !url.username && !url.password && !url.port ? url.href : '';
+    } catch (e) { return ''; }
+  }
+  function validateActiveRally(notice) {
+    if (notice === undefined) return [];
+    if (!notice || typeof notice !== 'object' || Array.isArray(notice)) return ['Active rally must be a settings object.'];
+    var errors = [];
+    Object.keys(notice).forEach(function (k) {
+      if (['enabled', 'name', 'url', 'activationId'].indexOf(k) < 0) errors.push('Active rally has an unknown field: ' + k + '.');
+    });
+    if (typeof notice.enabled !== 'boolean') errors.push('Active rally enabled must be true or false.');
+    if (typeof notice.name !== 'string' || notice.name.length > 120 || /[\u0000-\u001f\u007f]/.test(notice.name) ||
+      (notice.enabled && !notice.name.trim())) errors.push('Active rally needs a name of at most 120 characters.');
+    if (typeof notice.url !== 'string' || !nrcDestination(notice.url)) errors.push('Active rally destination must be an HTTPS address on nrcsa.co.za or www.nrcsa.co.za, without credentials or a custom port.');
+    if (typeof notice.activationId !== 'string' || !/^[A-Za-z0-9_-]{8,80}$/.test(notice.activationId)) errors.push('Active rally needs a valid activation ID.');
+    return errors;
+  }
+
   function validateDataset(docs) {
     var out = [], st = docs && docs['data/site.json'], ppl = docs && docs['data/people.json'];
     function add(path, msg) { out.push({ level: 'error', path: path, msg: msg }); }
     if (!st || !Array.isArray(st.seasons) || !st.seasons.length) { add('data/site.json', 'At least one season is required.'); return out; }
+    validateActiveRally(st.activeRally).forEach(function (msg) { add('data/site.json', msg); });
     if (!ppl || !Array.isArray(ppl.people)) { add('data/people.json', 'Competitor list is missing.'); return out; }
     var peopleIds = Object.create(null), keys = Object.create(null);
     ppl.people.forEach(function (p) {
@@ -732,7 +756,8 @@
     return { stages: stages, entries: entries, warnings: warnings, format: 'Spreadsheet' };
   }
 
-  var api = { entryContractVersion: 2, parseTime: parseTime, fmtTime: fmtTime, slug: slug, normName: normName, normClass: normClass, ord: ord, r1: r1, prettyJson: prettyJson,
+  var api = { rallyNoticeContractVersion: 1, validateActiveRally: validateActiveRally, nrcDestination: nrcDestination,
+    entryContractVersion: 2, parseTime: parseTime, fmtTime: fmtTime, slug: slug, normName: normName, normClass: normClass, ord: ord, r1: r1, prettyJson: prettyJson,
     peopleIndex: peopleIndex, buildSeason: buildSeason, validateRound: validateRound, parseClassificationText: parseClassificationText, parseSpreadsheet: parseSpreadsheet,
     similarNames: similarNames, sumReport: sumReport, spreadsheetTemplate: spreadsheetTemplate,
     validateSeason: validateSeason, validateDataset: validateDataset, validateEntryLists: validateEntryLists, entryEvidenceLoss: entryEvidenceLoss };

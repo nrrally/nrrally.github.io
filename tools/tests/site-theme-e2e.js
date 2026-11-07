@@ -237,7 +237,7 @@ async function main() {
     await page.locator('.site-disclosure a[href="disclaimer.html"]').click();
     await page.getByRole('heading', { name: 'Independent by design.' }).waitFor();
     assert.ok((await page.innerText('.site-disclosure')).includes('take precedence'));
-    assert.equal(await page.locator('a[href="https://nrcsa.co.za/"]').count(), 1);
+    assert.equal(await page.locator('main a[href="https://nrcsa.co.za/"]').count(), 1);
     assert.equal(await page.locator('a[href="https://motorsport.co.za/"]').count(), 1);
     await noOverflow();
     const noJS = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 320, height: 900 } });

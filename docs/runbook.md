@@ -9,6 +9,7 @@
 | Mark rounds as confirmed | When MSA publishes updated standings | Admin → Season settings → MSA standings: update the link and date, then tick the rounds whose points match |
 | Start a new season | Once a year | Admin → AI Import for reviewed bulk setup from official regulations; or Dashboard → Start the next season for manual setup. Follow the AI Import section in the data entry guide. |
 | Make the new season the default | When it starts | Admin → Season settings → Open the public site on <year> |
+| Direct visitors to an active rally | When entries open, by explicit admin decision | Admin → Site & info → Rally in progress: name, official HTTPS NRC address, enable, then Review & publish. Disable and publish when the active period ends. |
 | Back up | Monthly, and before big changes | Admin → Dashboard → Backups → Download a backup. Save it in the private project archive. |
 | Check the data | After a big change, or before a handover | `node tools/validate.js <backup.json>` and `node tools/report.js <year> <backup.json>` |
 | Add or remove an admin | As needed | Admin → Site & info → Admins (takes effect immediately) |
@@ -27,6 +28,15 @@ V4 is the maintained baseline. GitHub Pages serves code only; Firestore is the o
 6. Check public results and Google sign-in after deployment. With no file fallback, missing published data, changed rules or a database outage make results unavailable; resolve that before cutover.
 
 Deleting files from the current tree does not remove earlier commits, tags, forks, cached pages or downloaded copies. Historical cleanup and live cutover need a separately coordinated plan; do not restore v1-v3 to roll back a code change.
+
+For the active-rally notice, deploy the coordinated `rally-1` HTML, scripts and styles before
+enabling it. Existing settings without `activeRally` remain disabled; no Firestore migration,
+entry backfill, auth/domain change or rules publication is needed. Never enable a rally as
+part of a code release without an explicit admin decision. After an intended enable/publish,
+check a fresh session, **View past results**, another public route, the disclaimer and admin access.
+An already open tab needs a refresh to read changed settings. Restoring an older backup can
+remove active settings; review the Site & info diff before publishing. Do not roll back to an
+older editor while this feature is in use.
 
 ## Access
 

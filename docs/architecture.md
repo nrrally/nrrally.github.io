@@ -29,6 +29,7 @@ Two providers are involved, and there's no application server:
 |---|---|---|
 | Engine | `assets/engine.js` | Pure functions shared by the site, admin and Node tools: time parsing, name matching and look-alike detection, the season model (points, classes, standings, stage progressions, crew histories), checks, and the importers for pasted PDF text (known layouts only) and spreadsheets. No browser or network code. See [data-entry-guide.md](data-entry-guide.md). |
 | Public site | `index.html`, `assets/site.js`, `assets/styles.css` | A single-page app. Reads `public/site`, `public/people` and `public/season_<year>` through the Firestore REST API, then calls `NREngine.buildSeason`. |
+| Active-rally notice | `assets/rally-notice.js`, `assets/rally-notice.css`, `disclaimer.html` | Reads only `public/site`; shares that initial promise with the results app. Native full-page yellow modal, followed by a sticky compact reminder after bypass. Not loaded by the admin. |
 | Admin | `admin/index.html`, `assets/admin.js`, `assets/admin.css` | Google sign-in, an in-memory editable copy of the data, checks, points preview, publishing, history and undo, backups and the admin list. |
 | AI preparation | `assets/ai-import.js` | Pure versioned contract/prompt generation, strict parsing, capability/evidence checks, identity assessment and scoped change planning. Shared by admin and Node tests/tools; no network or provider SDK. |
 | Connection settings | `assets/firebase-config.js` | Says which Firebase project to use. Public by design: it identifies the project and grants no access. |
@@ -58,6 +59,40 @@ Data loading works like this:
 - **If the database is unreachable, or nothing has been published,** visitors see a short message ("Results coming soon" or "temporarily unavailable"). The site never shows old or built-in data.
 
 Profile photos (`photo: "db:<id>"`) are read from `photos/<id>`. Visitors see new results the next time they load or refresh a page.
+
+### Active-rally notice
+
+Only published `site.activeRally.enabled:true` activates the notice. Site settings load independently
+of people and seasons, so empty, missing, slow or failed results cannot remove an already loaded
+notice. Its DOM lives outside the results render root, covering every public hash route and error
+screen. The yellow warning overrides light/dark palette choices without changing the site's
+white/red/charcoal branding.
+
+The primary link navigates to the validated official NRC destination in the same tab.
+**View past results** and Escape dismiss the native modal and leave the compact reminder, which
+has the same official link and **Show rally notice**. Focus starts on the official link, remains
+inside the modal while open, and moves to the reminder on dismissal. Controls support keyboard
+navigation, narrow screens and scrollable short viewports.
+
+The bypass is stored in `sessionStorage` as the activation ID, rally name and normalized destination,
+not in a cookie or persistent local preference. It survives routes and reloads in that tab's visit;
+a fresh browser session shows the notice again. Storage denial is logged and falls back to in-memory
+dismissal on the current page, with the reminder still present; a reload can show the notice again.
+Publication renews the ID for changed enabled settings, including reactivation through undo/restore.
+Open pages read new settings on refresh, not by background polling.
+
+The standalone disclaimer deliberately shows only the reminder initially, even without a bypass,
+so the warning can never hide the disclaimer. Reading it does not itself bypass the results warning.
+Its content remains available without JavaScript or the database. Failed or invalid notice settings
+are logged; the disclaimer adds an official-source fallback message instead of blocking its content.
+If `public/site` itself cannot be read, the site cannot know whether a rally is active; it never
+guesses or serves cached activation settings. The static independent-site disclosure remains.
+The admin does not load the notice script; an admin-sign-in link is also available within the modal.
+Printing retains the compact reminder and independent disclosure, not the full-page overlay.
+
+All dependent script/style references share a cache version across public, disclaimer and admin pages.
+The admin refuses restoration/publication with a mixed or missing rally-notice engine contract.
+Deploy compatible code before enabling the feature, and do not use older editors for active settings.
 
 ## Admin
 

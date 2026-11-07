@@ -1,0 +1,81 @@
+/* Yellow is reserved for this active-event warning, independent of the saved theme. */
+.rally-reminder, .rally-notice {
+  color-scheme: light;
+  background: #ffdf48;
+  color: #17191d;
+  overflow-wrap: anywhere;
+}
+.rally-reminder {
+  position: sticky;
+  top: 0;
+  z-index: 110;
+  padding: 12px 24px;
+  border-bottom: 2px solid #17191d;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+.rally-reminder p { margin: 0; font-size: 14px; }
+.rally-reminder-actions, .rally-notice-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.rally-reminder-actions { flex-shrink: 0; }
+.rally-notice {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 32px 24px;
+  border: 0;
+  overflow-y: auto;
+}
+.rally-notice[open] { display: flex; align-items: safe center; justify-content: center; }
+.rally-notice::backdrop { background: #ffdf48; }
+.rally-notice-inner { width: min(100%, 760px); }
+.rally-kicker { font-weight: 800; text-transform: uppercase; letter-spacing: .14em; }
+.rally-notice h1 { font-size: clamp(30px, 6vw, 64px); line-height: 1.08; margin: 24px 0; }
+.rally-notice #rallyNoticeText { font-size: 18px; max-width: 640px; }
+.rally-notice-actions { margin: 32px 0; }
+.rally-official {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 12px 20px;
+  border: 2px solid #17191d;
+  border-radius: 8px;
+  background: #17191d;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 750;
+}
+.rally-small {
+  min-height: 44px;
+  padding: 8px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #17191d;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.rally-notice .rally-official { min-height: 56px; font-size: 18px; }
+.rally-disclosure { margin-top: 48px; border-top: 1px solid #17191d; padding-top: 20px; font-size: 12px; }
+.rally-reminder a:hover, .rally-notice a:hover { color: #17191d; }
+.rally-official:hover { background: #fff; }
+.rally-reminder :focus-visible, .rally-notice :focus-visible { outline: 3px solid #17191d; outline-offset: 3px; }
+body.rally-notice-open { overflow: hidden; }
+@media (max-width: 760px) {
+  .rally-reminder { flex-direction: column; align-items: stretch; padding: 10px 16px; gap: 8px; }
+  .rally-reminder-actions { flex-shrink: 1; }
+  .rally-reminder .rally-official { padding: 8px 10px; font-size: 13px; }
+}
+@media print {
+  .rally-notice { display: none !important; }
+  .rally-reminder { position: static; background: #fff; color: #000; border: 2px solid #000; }
+  .rally-reminder-actions { display: none; }
+  body.rally-notice-open { overflow: visible; }
+}
