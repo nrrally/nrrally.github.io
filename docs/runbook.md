@@ -103,6 +103,14 @@ features to make a test pass. This integration permits `www.googletagmanager.com
 need a reviewed code update. Local tests mock the tag and collector and cannot certify Google's
 actual runtime or property configuration.
 
+For a pre-release check using the actual Google runtime but no real property, use the optional
+[synthetic runtime check](testing.md#optional-actual-google-runtime-check). It records actual
+collector payloads without forwarding them. A pass verifies that snapshot's behavior with its
+generated-ID container, not the actual stream's remote settings. Default session/first-visit
+metadata and engagement remain possible even with Enhanced Measurement off. Enhanced Measurement
+or later remote customizations can defeat manual pageview counts and data minimization by supplying
+their own URL/search/form/link parameters; keep it off and recheck live traffic after any GA changes.
+
 Restoring an older backup without `analytics` disables it only after publishing. Undo can restore
 previous settings, including a previous ID or enabled state; review that deliberately. Do not
 roll back to an older editor while analytics settings are in use. Emergency disable takes effect

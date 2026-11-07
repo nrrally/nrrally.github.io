@@ -132,6 +132,16 @@ in addition to existing resources. No analytics hosts are added to the admin CSP
 policy is `no-referrer`. Tag-load failures warn without retry loops or blocking results. Mocked tests
 cannot establish real provider behavior, lawful consent or stream-side settings.
 
+An optional actual-runtime test loads a generated-ID Google tag from a local downloaded snapshot
+and intercepts every browser request; see [testing.md](testing.md#optional-actual-google-runtime-check).
+The checked snapshot preserves sanitized config/event defaults, suppressed HTTP referrers and
+manual pageview counts. First-visit/session flags and cookie/browser identifiers remain expected.
+It cannot reproduce a real property's remote configuration. Enhanced Measurement can issue its
+own history pageviews or include search terms, form/link metadata and event-specific URL parameters
+despite `send_page_view:false`; it must stay off. CSP restricts destinations, not collector payloads,
+and the loaded Google JavaScript can read the page. This is not a sandbox or a guarantee against
+future SDK changes or subsequently changed stream settings.
+
 ## Admin
 
 1. **Sign in.** The Firebase Authentication SDK opens Google's sign-in pop-up. It is the admin's only third-party code, loaded from `www.gstatic.com` and pinned to the version in `FB_SDK` in `assets/admin.js`. The session lasts until the tab is closed.

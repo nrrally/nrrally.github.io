@@ -56,6 +56,49 @@ used. The fake tag checks commands and mocked payloads, not Google's real SDK. S
 Enhanced Measurement, actual provider requests, Realtime and consent requirements require the
 separate post-deployment checks in [runbook.md](runbook.md#google-analytics-4).
 
+### Optional actual Google runtime check
+
+`analytics-runtime-e2e.js` runs Google's actual JavaScript against synthetic HTTPS origins,
+generated settings and synthetic Firestore fixtures. Unlike the usual mock suite, it requires a
+separately downloaded runtime for **only** the generated all-A test ID. Do not download or use a
+real property's tag, stream or configuration in this test. Keep Google's script outside the repo;
+it is not a dependency to commit, and can change independently of this code.
+
+PowerShell example (use an existing Node/Playwright installation):
+
+```powershell
+$fake = 'G-' + ('A' * 10)
+curl.exe --fail --silent --show-error ("https://www.googletagmanager.com/gtag/js?id=" + $fake) --output <scratch>\synthetic-gtag.js
+$env:GA_SYNTHETIC_RUNTIME = '<scratch>\synthetic-gtag.js'
+node tools\tests\analytics-runtime-e2e.js
+```
+
+The only external download is this generated-ID script. Every browser request is intercepted:
+local assets and Firestore are synthetic, the downloaded runtime is fulfilled locally, collection
+is recorded and fulfilled without forwarding, and all other destinations are aborted. Service
+workers are blocked. The script refuses any runtime containing another GA4 Measurement ID.
+It prints a content hash so a passing run identifies the unpinned snapshot. Allow about three
+minutes: the actual SDK batches subsequent collection requests, so immediate mock-style timing
+is insufficient.
+
+The check verifies one initial view, route/profile/round/history navigation, no query/replaceState
+duplicates, standalone privacy/disclaimer, category-only `dl`, fixed `dt`, empty `dr`, suppressed
+HTTP Referer, no User-ID or private synthetic markers in any captured request, no additional CSP
+requirements, and opt-out unloading/cookie removal. Click/form/scroll probes do not produce
+enhanced events with the downloaded fake-container runtime. A deliberately issued
+`user_engagement` event probes actual SDK default parameters; it is not evidence that the fake
+container auto-fired engagement. First-visit/session flags and browser/cookie identifiers still
+appear, as expected for analytics.
+
+On 2026-11-07 the actual-runtime check passed with snapshot SHA256
+`affda88a3989d647cf5aafe9313025cad825bff95f47f3e716d0d0335878f573`.
+No raw query, DOM title, profile/round identifier, page referrer or HTTP Referer escaped in the
+captured traffic, and no CSP expansion or production code change was required.
+This does **not** test a real stream's remotely supplied Enhanced Measurement, automatic-event
+configuration, connected destinations, server processing or Realtime. Turning on history/search/
+form/link enhancements can supply their own event parameters and defeat the manual-only privacy
+design; keep the actual stream's Enhanced Measurement off and perform the live checks separately.
+
 Coverage includes schema/version/unsafe-field rejection, evidence and unsupported rules, large entry batches, identity ambiguity and slug collisions, entry-only zero starts, cancelled stages and DNF/DNS, exact arithmetic, scoped/idempotent amendments, same-car/different-crew overrides, private metadata projection, stale review and resumable drafts, explicit publishing, public standings, undo, document limits and validation after rebase. The 1,500-exact-identity batch must complete within 10 seconds.
 
 Continue running the private engine/importer and admin/site regressions below: the synthetic suite does not replace established 2026 coverage. No real competitor fixtures or documents belong in this repository.
