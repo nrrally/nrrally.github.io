@@ -20,9 +20,17 @@ node tools/tests/ai-import-e2e.js
 node tools/tests/site-theme-e2e.js
 node --test tools/tests/rally-notice.test.js
 node tools/tests/rally-notice-e2e.js
+node tools/tests/admin-access-e2e.js
 ```
 
 The first command needs Node only. The browser test needs an existing Playwright installation (`PLAYWRIGHT_MODULE` may point to it). It serves the checkout locally, supplies fake authentication and intercepts Firestore requests with an in-process mock; other external requests are refused. Never run synthetic imports against live Firebase.
+
+The admin access browser test covers signed-out and non-admin routes, authorized simulation and live
+admin, reload, sign-out, authorization failures and delayed requests. It uses synthetic data and
+intercepts all network access. The hosted app and its simulation are client-side: anyone can inspect
+or download the public JavaScript. Interface gating is not code confidentiality. Private data is
+protected by the deployed Firestore rules, not by hiding the interface; `docs/firestore.rules` specifies
+verified-email allowlist checks for working data and writes. Verify the deployed rules separately.
 
 The public theme test uses synthetic published documents and read-only mocked requests. It checks public routes at 320, 390, 768 and 1440 pixels (home, driver/co-driver standings and filters, rounds, all three round tabs, crews, profiles, info, season-specific sources and missing-page/round/profile states), saved light/dark preferences, primary-button WCAG AA contrast, final/provisional/unclear headings (including legacy page-count headings), consistent source badges, printed disclosure, loading/empty/unconfigured/database-failure links and JavaScript-free disclaimer access. The AI Import E2E also checks the persistent disclaimer link on dashboard, backup import, AI Import, results editing, calendar, competitors/profile editing, season settings, site info, history and review/publish. The link is static outside both apps' render roots, so route changes and sign-in/error rendering cannot remove it. These checks do not certify all WCAG criteria or replace visual review.
 
