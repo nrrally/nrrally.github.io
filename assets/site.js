@@ -31,6 +31,18 @@
   function ext(u, text, cls) { u = safeUrl(u); return u ? '<a href="' + esc(u) + '" target="_blank" rel="noopener"' + (cls ? ' class="' + cls + '"' : '') + '>' + text + '</a>' : ''; }
   function plink(name) { return name ? '<a href="#/person/' + slug(name) + '">' + esc(name) + '</a>' : '<span class="muted">—</span>'; }
   function clsTag(c) { return c ? '<span class="cls ' + esc(c) + '">' + esc(c) + '</span>' : ''; }
+  function classificationState(r) {
+    if (r.provisional) return 'provisional';
+    // Legacy PDF imports can retain a trailing page count in the printed heading.
+    return !r.finalityUnclear && /^\s*final\s+(?:official\s+)?classification(?:\s+\d+\/\d+)?\s*$/i.test(r.status || '') ? 'final' : 'unclear';
+  }
+  function classificationBadge(r, detail) {
+    var state = classificationState(r);
+    var label = state === 'final' ? (detail ? 'Final classification' : 'Final') :
+      state === 'provisional' ? (detail ? 'Provisional sheet' : 'Provisional') :
+      (detail ? 'Classification finality unclear' : 'Finality unclear');
+    return '<span class="badge ' + (state === 'final' ? 'final' : 'prov') + '">' + label + '</span>';
+  }
   function posBadge(p, status) {
     if (status === 'DNF' || status === 'DNS') return '<span class="pos dnf">' + status + '</span>';
     if (p == null) return '<span class="pos dnf">—</span>';
@@ -160,16 +172,14 @@
       '</div></header>';
   }
   function logoSvg() {
-    return '<svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><rect x="1" y="1" width="38" height="38" rx="10" fill="#14161a"/>' +
-      '<path d="M7 29 L17 11 L23 21 L27 15 L34 29 Z" fill="#ff5a1f"/><path d="M7 29 L17 11 L20 16 L13 29 Z" fill="#ffc21a" opacity=".9"/>' +
-      '<g fill="#fff"><rect x="24" y="6" width="3" height="3"/><rect x="30" y="6" width="3" height="3"/><rect x="27" y="9" width="3" height="3"/><rect x="33" y="9" width="3" height="3"/></g></svg>';
+    return '<img class="brand-mark" src="assets/brand.svg" alt="" width="40" height="40">';
   }
   function themeIcon() { return '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z"/></svg>'; }
   function footer() {
     var social = (ST.site.social || []).filter(function (s) { return safeUrl(s.url); });
-    return '<footer class="footer"><div class="footer-inner"><span>Independent results site for the ' + esc(D.championship) + '. Times, positions and penalties come from the official classifications only.</span>' +
+    return '<footer class="footer"><div class="footer-inner"><span>' + esc(D.championship) + ' · Independently compiled, source-derived information.</span>' +
       '<span class="footer-links">' + social.map(function (s) { return ext(s.url, socialIcon(s.network) + '<span class="sr-only">' + esc(s.label) + '</span>', 'soc-mini'); }).join('') +
-      '<a href="#/info">Info &amp; regulations</a><a href="' + sh('/about') + '">Sources &amp; data notes</a></span></div></footer>';
+      '<a href="#/info">Info &amp; regulations</a><a href="' + sh('/about') + '">Sources &amp; data notes</a><a href="disclaimer.html">Independence &amp; disclaimer</a></span></div></footer>';
   }
 
   /* ------------------------------------------------------------------ render */
@@ -239,9 +249,9 @@
     var html = '';
     var stages = D.rounds.reduce(function (a, r) { return a + r.stages.length; }, 0);
     var upcoming = D.calendar.filter(function (r) { return !r.hasResults; });
-    html += '<section class="hero"><p class="eyebrow">' + esc(D.championship) + '</p>' +
+    html += '<section class="hero"><p class="hero-kicker">Gauteng · Limpopo · Mpumalanga · Free State · North West</p><p class="eyebrow">' + esc(D.championship) + '</p>' +
       '<h1>' + (D.rounds.length ? 'Every NR stage, time and point of ' + YEAR + '.' : 'The ' + YEAR + ' season.') + '</h1>' +
-      '<p>' + esc(ST.site.tagline || '') + ' Built only from the official classifications.</p>' +
+      '<p>' + esc(ST.site.tagline || '') + ' Independently compiled from classification documents.</p>' +
       '<div class="hero-stats">' + stat(D.rounds.length + (upcoming.length ? ' / ' + D.calendar.length : ''), 'Rounds run') + stat(D.events.length, 'Events') +
       stat(d.length, 'Drivers scored') + stat(stages, 'Special stages') + '</div>' +
       '<div class="hero-actions">' + (lastRound ? '<a class="btn primary" href="' + sh('/round/' + lastRound.id) + '">Open the latest stage graph</a><a class="btn ghost-dark" href="' + sh('/standings') + '">Championship standings</a>' :
@@ -302,7 +312,7 @@
         if (!r) return '<div class="event-round upcoming"><span class="rnd">R' + c.n + '</span><span class="w"><b>' + (c.date ? fmtDate(c.date) : 'Date to be confirmed') + '</b><span>' + esc(c.day) + ' · results not published yet</span></span><span class="go muted">Upcoming</span></div>';
         var w = winnerOf(r);
         return '<a class="event-round" href="' + sh('/round/' + r.id) + '"><span class="rnd">R' + r.n + '</span><span class="w">' + (w ? '<b>' + esc(w.driver) + '</b> / ' + esc(w.codriver) : '—') +
-          '<span>' + esc(r.day) + ' · ' + r.stages.length + ' stages · ' + classifiedSorted(r).length + ' classified' + (r.provisional ? ' · provisional sheet' : '') + '</span></span><span class="go">Graph →</span></a>';
+          '<span>' + esc(r.day) + ' · ' + r.stages.length + ' stages · ' + classifiedSorted(r).length + ' classified' + (classificationState(r) === 'provisional' ? ' · provisional sheet' : classificationState(r) === 'unclear' ? ' · finality unclear' : '') + '</span></span><span class="go">Graph →</span></a>';
       }).join('');
       return '<div class="card event-card"><div class="event-top"><h3>' + esc(ev.name) + '</h3><div class="meta">' + [ev.dates, ev.venue, ev.surface].filter(Boolean).map(esc).join(' · ') + '</div>' + eventLinks(ev) + '</div><div class="event-rounds">' + (rows || '<div class="event-round upcoming"><span class="w"><span>No rounds added yet</span></span></div>') + '</div></div>';
     }).join('') + '</div>';
@@ -364,7 +374,7 @@
           var w = winnerOf(r);
           var cw = CLASSES.map(function (c) { var e = classifiedSorted(r).filter(function (x) { return x.cls === c; })[0]; return '<td class="nowrap">' + (e ? esc(surname(e.champDriver)) : '<span class="muted">—</span>') + '</td>'; }).join('');
           return '<tr><td><a href="' + sh('/round/' + r.id) + '"><b>R' + r.n + '</b></a></td><td class="nowrap">' + esc(eventOf(r).short) + ' · ' + esc(r.day.split(' (')[0]) + '</td><td class="nowrap">' + fmtDate(r.date) + '</td><td class="num">' + r.stages.length + '</td><td class="nowrap">' + (w ? '<b>' + esc(w.driver) + '</b>' : '—') + '</td>' + cw +
-            '<td>' + (r.provisional ? '<span class="badge prov">Provisional</span>' : r.finalityUnclear ? '<span class="badge prov">Finality unclear</span>' : '<span class="badge final">Final</span>') + '</td></tr>';
+            '<td>' + classificationBadge(r) + '</td></tr>';
         }).join('') + '</tbody></table></div></div>';
     }
     return { title: 'Rounds', html: html };
@@ -410,7 +420,7 @@
     }).join('') + '</div>';
     html += '<div class="page-head"><div><p class="eyebrow">Round ' + r.n + ' of ' + D.calendar.length + ' · ' + esc(r.day) + '</p><h1>' + esc(ev.name) + '</h1>' +
       '<div class="round-meta">' + [fmtDate(r.date), esc(ev.venue), esc(ev.surface)].filter(Boolean).map(function (x) { return '<span>' + x + '</span>'; }).join('<span class="sep">/</span>') + '<span class="sep">/</span><span>' + r.stages.length + ' stages (' + esc(r.stages[0]) + '–' + esc(r.stages[r.stages.length - 1]) + ')</span>' +
-      (r.provisional ? '<span class="badge prov" title="The sheet is headed Provisional">Provisional sheet</span>' : r.finalityUnclear ? '<span class="badge prov">Classification finality unclear</span>' : '<span class="badge final">Final classification</span>') +
+      classificationBadge(r, true) +
       (r.confirmed ? '<span class="badge final" title="Points match the MSA standings">Points match MSA</span>' : '<span class="badge calc" title="Points calculated on this site">Points calculated</span>') + '</div></div>' +
       '<div style="display:flex;gap:8px">' + (idx > 0 ? '<a class="btn" href="' + sh('/round/' + ROUND_IDS[idx - 1] + '/' + tab) + '">← R' + roundsById[ROUND_IDS[idx - 1]].n + '</a>' : '') + (idx < ROUND_IDS.length - 1 ? '<a class="btn" href="' + sh('/round/' + ROUND_IDS[idx + 1] + '/' + tab) + '">R' + roundsById[ROUND_IDS[idx + 1]].n + ' →</a>' : '') + '</div></div>';
     var tabs = [['graph', 'Stage graph'], ['classification', 'Classification'], ['stages', 'Stage times']];
@@ -860,12 +870,12 @@
 
   /* ---------- about the data (per season) */
   function viewAbout() {
-    var html = '<div class="page-head"><div><p class="eyebrow">' + YEAR + ' · how this site works</p><h1>Sources &amp; data notes</h1><p>This site only uses the official classification for each round. Live timing is never used.</p></div></div>';
+    var html = '<div class="page-head"><div><p class="eyebrow">' + YEAR + ' · how this site works</p><h1>Sources &amp; data notes</h1><p>Independently transcribed from official classification documents, normally final. Provisional or unclear sources are labelled; live timing is never used. <a href="disclaimer.html">Independence &amp; full disclaimer</a>.</p></div></div>';
     if (D.rounds.length) {
       html += '<div class="prose"><h2>Sources</h2></div><div class="table-wrap"><table class="data"><thead><tr><th>Round</th><th>Event</th><th>Official document</th><th>Status</th><th>Results page</th></tr></thead><tbody>' +
         D.rounds.map(function (r) {
           var ev = eventOf(r), src = r.source || {}, page = src.url || (ev.links && ev.links.results);
-          return '<tr><td><b>R' + r.n + '</b></td><td class="nowrap">' + esc(ev.short) + ' · ' + esc(r.day.split(' (')[0]) + '</td><td>' + esc(r.title) + (src.file ? '<br><span class="small muted">' + esc(src.file) + '</span>' : '') + (src.pdf ? '<br>' + ext(src.pdf, 'Copy of the PDF') : '') + '</td><td>' + (r.provisional ? '<span class="badge prov">' : '<span class="badge final">') + esc(r.status || 'Official') + '</span></td><td>' + (page ? ext(page, esc(page.replace(/^https?:\/\//, '').split('/')[0])) : '') + '</td></tr>';
+          return '<tr><td><b>R' + r.n + '</b></td><td class="nowrap">' + esc(ev.short) + ' · ' + esc(r.day.split(' (')[0]) + '</td><td>' + esc(r.title) + (src.file ? '<br><span class="small muted">' + esc(src.file) + '</span>' : '') + (src.pdf ? '<br>' + ext(src.pdf, 'Copy of the PDF') : '') + '</td><td>' + classificationBadge(r) + (r.status ? '<br><span class="small muted">' + esc(r.status) + '</span>' : '') + '</td><td>' + (page ? ext(page, esc(page.replace(/^https?:\/\//, '').split('/')[0])) : '') + '</td></tr>';
         }).join('') + '</tbody></table></div>';
     }
     var sc = D.pointsScale;
@@ -876,13 +886,14 @@
     var prov = unconfirmed();
     if (conf.length && D.msa) html += '<p>' + roundList(conf) + ' points reproduce the ' + msaLink() + (D.msa.generated ? ' (' + esc(D.msa.generated) + ')' : '') + ' exactly.' + (prov.length ? ' Points for ' + roundList(prov) + ' are calculated here with the same scale and are provisional until MSA publishes updated standings.' : '') + '</p>';
     else if (D.rounds.length) html += '<p>Points are calculated here from the official classifications with the scale above.</p>';
-    html += '<h2>Stage graphs</h2><p>Positions and gaps after each stage are worked out from the official stage times. Penalties are only printed as a total, so they are applied at the <b>Final</b> point, which is the official classification. Crews who retire drop off the graph after their last completed stage. Stage positions are the figures printed on the sheet.</p>' +
+    html += '<h2>Stage graphs</h2><p>Positions and gaps after each stage are worked out from the source stage times. Penalties are only printed as a total, so they are applied at the <b>Final</b> point, the classification endpoint. This label does not establish that the source is final; check its status above. Crews who retire drop off the graph after their last completed stage. Stage positions are the figures printed on the sheet.</p>' +
       '<h2>Classes</h2><ul>' + D.classes.map(function (c) { return '<li>' + clsTag(c.id) + ' ' + esc(c.desc || '') + (c.classOnly ? ' <span class="muted">(class points only)</span>' : '') + '</li>'; }).join('') + '</ul>';
     var notes = (D.notes || []).map(function (n) { return '<li>' + esc(n) + '</li>'; });
     D.rounds.forEach(function (r) {
       r.entries.forEach(function (e) { (e.notes || []).forEach(function (n) { notes.push('<li><b>R' + r.n + ' ' + esc(eventOf(r).short) + ', car ' + esc(e.car) + ':</b> ' + esc(n) + '</li>'); }); });
       (r.extraStarts || []).forEach(function (x) { if (x.note) notes.push('<li><b>R' + r.n + ' ' + esc(eventOf(r).short) + ':</b> ' + esc(x.note) + '</li>'); });
       if (r.provisional) notes.push('<li><b>R' + r.n + ' ' + esc(eventOf(r).short) + ':</b> the sheet is headed “' + esc(r.status) + '”.</li>');
+      else if (classificationState(r) === 'unclear') notes.push('<li><b>R' + r.n + ' ' + esc(eventOf(r).short) + ':</b> classification finality is unclear; do not treat the source as confirmed final results.</li>');
     });
     if (notes.length) html += '<h2>Data notes</h2><ul>' + notes.join('') + '</ul>';
     html += '</div>';
@@ -933,7 +944,7 @@
     }
     var ct = S.contact || {};
     html += '<div class="section"><div class="section-head"><h2>Contact</h2></div><div class="card"><p style="margin:0">' + esc(ct.note || '') + '</p>' + (ct.email ? '<p style="margin:10px 0 0"><a class="btn" href="mailto:' + esc(ct.email) + '">' + socialIcon('email') + esc(ct.email) + '</a></p>' : '') +
-      '<p class="small muted" style="margin:12px 0 0">How results are handled: <a href="' + sh('/about') + '">sources &amp; data notes</a>.</p></div></div>';
+      '<p class="small muted" style="margin:12px 0 0">How results are handled: <a href="' + sh('/about') + '">sources &amp; data notes</a> and <a href="disclaimer.html">independence &amp; disclaimer</a>.</p></div></div>';
     return { title: 'Info', html: html };
   }
 

@@ -2,6 +2,8 @@
 
 Results, standings, crew profiles and interactive stage graphs for the MSA Northern Regions Regional Rally Championship. Everything is built only from the official classification PDFs, never from live timing.
 
+This is an independent archive, not an official championship publication. Final classifications are the normal source; provisional or unclear headings remain labelled, including legacy imports without explicit finality metadata. Points and graphs are site-derived, even where recorded points match cited MSA standings. NRC South Africa and Motorsport South Africa are the authoritative sources for official decisions and discrepancies. Every public view carries a short disclosure linking to `disclaimer.html`, which remains available without JavaScript or the results database; the disclosure is also retained in print. The visual identity uses white, red and charcoal with an original NR monogram and abstract stage-route artwork. It contains no manufacturer logos, copied motorsport branding or national flag motifs.
+
 The setup has three parts:
 
 - **Public site:** https://nrrally.github.io. It works on phones and has a season picker.

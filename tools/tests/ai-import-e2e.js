@@ -88,6 +88,12 @@ async function main() {
     const read = async p => { await page.fill('#aiJSON', JSON.stringify(p)); await page.click('#aiRead'); };
     const publish = async () => { await go('#/publish'); await page.click('#pubGo'); await page.waitForSelector('.callout.good'); };
     await page.goto(base + '/admin/index.html'); await page.waitForSelector('.adm-main h1');
+    for (const hash of ['#/', '#/import', '#/ai-import', '#/results/R1', '#/events',
+      '#/competitors', '#/competitor/alex-test', '#/season', '#/site', '#/history', '#/publish']) {
+      await go(hash);
+      assert.equal(await page.locator('.site-disclosure a[href="../disclaimer.html"]').count(), 1);
+      assert.ok(await page.locator('.site-disclosure a[href="../disclaimer.html"]').isVisible());
+    }
     await go('#/site');
     await page.getByText('Tagline', { exact: true }).locator('..').locator('input').fill('Manual draft survives');
     await go('#/ai-import');

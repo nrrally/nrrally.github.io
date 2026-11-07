@@ -528,7 +528,7 @@
       '<span class="who demo"><span><b>Demo mode</b><small>Nothing is saved</small></span></span>';
     ROOT.innerHTML = (A.mode === 'demo' ? '<div class="demo-bar">Demo mode — practise freely with a copy of the published data; nothing is ever saved. ' + btn(function () { A.mode = null; render(); }, 'Leave the demo', 'tiny') + '</div>' : '') +
       '<header class="adm-top"><div class="checker" aria-hidden="true"></div><div class="adm-top-in">' +
-      '<a class="brand" href="#/"><svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><rect x="1" y="1" width="38" height="38" rx="10" fill="#14161a"/><path d="M7 29 L17 11 L23 21 L27 15 L34 29 Z" fill="#ff5a1f"/><path d="M7 29 L17 11 L20 16 L13 29 Z" fill="#ffc21a" opacity=".9"/></svg>' +
+      '<a class="brand" href="#/"><img class="brand-mark" src="../assets/brand.svg" alt="" width="40" height="40">' +
       '<span class="brand-text"><strong>' + esc((site() && site().siteName) || 'Rally results') + '</strong><span>Admin</span></span></a>' +
       (ys.length ? '<label class="season-sel"><span class="sr-only">Season</span>' + select(function (v) { A.year = +v; A.imp = null; A.open = {}; render(); }, A.year, ys.map(function (y) { return [y, y + ' season']; }), 'id="yearSel"') + '</label>' : '') +
       '<span id="chg" class="chg"></span>' +
