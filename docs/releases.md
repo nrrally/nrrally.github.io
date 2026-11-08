@@ -44,8 +44,8 @@ must be addressed; there is no automation that can infer approvals or certify pr
   official links and independence disclosures. Routes and topic anchors are unchanged.
 - The National/Regional comparison names the class structures and explains fuel
   distinctions, verified against 2026 NR SSRs 3 and 11.3 and National SSRs 910,
-  911 and 912. Because the documents also contain NR provisions, readers are directed
-  to both applicable SSRs and a technical official, rather than a blanket eligibility claim.
+  911 and 912. The 2026 NR SSRs state National rules prevail in a conflict; readers
+  are directed to both applicable SSRs and a technical official, not a blanket eligibility claim.
 - Removed the visible guide-edition/check-date notice and header badge at user request.
   Maintainer metadata remains 2026, checked 8 November 2026; dated source labels and
   current-regulations guidance remain. No newer season's rules were verified or implied.
