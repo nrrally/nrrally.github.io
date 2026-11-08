@@ -67,6 +67,18 @@ must be addressed; there is no automation that can infer approvals or certify pr
   analytics were exercised. Annual review and any subsequent authorized release remain
   separate work.
 
+Deployment verified at `39f7aef64777ceedabbd1712e8d056a8159e8b56`: Pages built that
+exact commit, 20 deployed runtime/crawl/brand files matched Git blobs byte-for-byte,
+and HTTP/www redirected to canonical HTTPS. Live guide smoke covered 320/1440 widths,
+light/dark, topic expansion, 2026 class/fuel and season content, independence disclosure,
+absence of the edition banner and retained SEO canonical. Firebase requests were
+intercepted with synthetic responses and all other external requests blocked; no real
+analytics, private data, live authentication or deployed rules were tested.
+
+This documentation-only follow-up records the verification and changes no runtime,
+data, contract or provider behavior. Recheck main before its normal push; verify its
+final Pages build afterward and report its SHA in the handoff.
+
 ## 2026-11-08: small authorized SEO release
 
 Approval: the user requested conservative optimization of existing content and said

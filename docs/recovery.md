@@ -54,6 +54,10 @@ edition, validation, compatibility and actual deployment status belong in
 [releases.md](releases.md); the approval does not authorize Firebase/provider changes.
 The guide remains database-independent and its 2026 edition metadata is for maintainers,
 not a visible edition badge. Verify the currently built SHA rather than assuming release.
+Its code commit `39f7aef64777ceedabbd1712e8d056a8159e8b56` was verified built,
+with matching deployed assets and synthetic browser smoke; the documentation-only
+follow-up and limitations are recorded in [releases.md](releases.md). This does not
+verify live private data, authentication, rules or future regulations.
 
 ## 2. Technical inventory and reading map
 
