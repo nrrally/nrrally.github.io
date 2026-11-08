@@ -18,7 +18,8 @@ test('the bundled guide covers a season and the mechanics of an event without ev
     assert.ok(view.html.includes('id="guide-' + id + '"'), id);
   }
   for (const phrase of ['Standing Supplementary Regulations', 'Supplementary Regulations',
-    'club membership', 'different class structures', 'homologation', 'non-homologated', 'Fuel rules differ',
+    'club membership', 'NRC1&ndash;NRC4', 'NR1&ndash;NR4', 'NR0', 'class points but no overall NR points',
+    'homologation', 'non-homologated', 'control racing fuel', 'no additives', 'methanol', 'GCR 240',
     'generally cheaper', 'documentation', 'scrutineering', 'briefing', 'timecard', 'time controls',
     'flying finish', 'Service', 'Provisional results', 'Entering does not establish a start',
     'minimum number of round starts', 'separate NR rounds and classifications', 'current regulations']) {
