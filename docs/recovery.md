@@ -43,6 +43,12 @@ canonical domain. Firebase/Firestore and Google Auth are separate from GitHub Pa
 The design uses `africa-south1` Johannesburg, standard Firestore default database and a
 free-plan deployment; the code cannot prove the current billing plan or cloud location.
 
+The user-authorized season-readiness code release was subsequently verified at
+`12503221d3b0cf0575026cae6169e7e2e34520dc`, including Pages build, byte-identical
+static assets and canonical HTTPS redirects. See [releases.md](releases.md) for
+the verification scope and documentation-only follow-up. Recheck current Pages/main
+at handover; synthetic UI smoke does not verify private live data, Auth or deployed rules.
+
 ## 2. Technical inventory and reading map
 
 There is no package manifest, bundler, application server or compiled output to recover.

@@ -53,10 +53,26 @@ Prior validation: 51 synthetic units, timezone checks and responsive public brow
 regressions passed; import/notice/analytics/admin-access suites also passed during
 preparation. No real-data/private runtime fixtures or live Auth/rules verification.
 
-Deployment verification is pending this authorized push. Verify latest built SHA
-and exact live asset contents; browser smoke fixtures must be synthetic and all
-Firebase and analytics traffic intercepted. Retire old admin tabs or hard-refresh
-before future edits; already-open pages do not automatically upgrade.
+Deployment verified for code release
+`12503221d3b0cf0575026cae6169e7e2e34520dc`: Pages reported that exact commit built,
+all 19 public/admin/static assets matched their pushed Git blobs byte-for-byte,
+and HTTP/www redirected to canonical HTTPS. Live UI smoke used synthetic intercepted
+Firebase responses for populated 2026, calendar-only 2027, unknown-date card/detail,
+guide reference edition and signed-out admin shell. Google Auth SDK requests were
+deliberately blocked; actual sign-in and deployed rules were not exercised.
+No Firebase writes/settings changes or analytics collection occurred.
+Pre-release synthetic units were rerun: all 51 passed.
+
+This documentation-only follow-up records that verified deployment and updates the
+recovery entry point before its own normal push to main. Runtime/data/contracts are
+unchanged from the verified code release; no additional permission or migration is
+required. Its final commit must also be checked against Pages and live asset contents
+after pushing; report the final SHA in the release handoff rather than embedding a
+self-referential commit hash here.
+
+Retire old admin tabs or hard-refresh before future edits; already-open pages do
+not automatically upgrade. Private real-data fixtures, live Auth/rules and future
+GA provider configuration remain outside this verification.
 
 ## 2026-11-08: local season-rollover readiness (historical preparation)
 
