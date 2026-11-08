@@ -45,7 +45,8 @@ and in crew/profile documented-event counts, not in a new DNS section.
 Upcoming calendar rounds also show a quiet documented entry count when day scope is established,
 with partial/unknown coverage wording; missing coverage is never shown as zero or inferred DNS.
 
-Coordinated public/admin scripts carry the same `?v=entries-2` asset version. The new public UI tolerates
+Coordinated public/admin/privacy/disclaimer scripts carry the same asset version (see
+[releases.md](releases.md)). The entry-aware public UI tolerates
 an old engine by omitting unsupported entry displays. The new admin refuses restore/publish if the
 entry-aware engine/import contract is missing and asks for **Ctrl+Shift+R**. Deploy HTML and scripts
 together and retire old open admin tabs before backfill; an already-loaded old admin cannot be made safe
@@ -65,7 +66,7 @@ The browser accepts up to 4 MiB of returned JSON, 10,000 items per array, 16,000
 
 1. **Official classification PDFs only.** Use the final classification published on the event's results page or its noticeboard. Never use live timing.
 2. **Enter exactly what is printed.** Don't correct the sheet. Where the championship treats something differently from the sheet, record that as an *override* with a reason (see "Judgement calls" below).
-3. **Nothing goes live until you publish,** and every publish can be undone (History → Undo).
+3. **Sports/settings edits remain drafts until publish.** History → Undo stages document before versions for review, not full photo/config/Auth recovery. Admin-list changes save immediately outside this flow.
 
 ## How importing works (no AI involved)
 
@@ -149,6 +150,11 @@ These are decisions a person makes. They are recorded in the data as overrides w
 When the sheet and the official standings disagree, follow the standings and record the reason. Ask the event organisers if it's unclear.
 
 ## Before each season: a 15-minute rehearsal
+
+Start with [the complete season/event lifecycle](season-lifecycle.md). A calendar-only
+year needs no competitors or results. Copied settings must be verified against actual
+new SSRs and supported scoring policies; the shared guide requires an independent edition
+review. Do not invent surface/links/day allocation or import a fictional season into live data.
 
 1. Sign in with an authorized admin account, then choose **Practise in simulation**. The simulation uses published data and never saves to Firebase. Return to the live admin or sign out when finished.
 2. Import the first official PDF of the new season into any round.

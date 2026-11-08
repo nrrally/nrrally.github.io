@@ -24,8 +24,20 @@
   function surname(n) { var p = String(n).split(' '); return p.length > 1 ? p.slice(1).join(' ') : n; }
   function fmtDate(iso) {
     if (!iso) return '';
-    var d = new Date(iso + 'T12:00:00'); if (isNaN(d)) return esc(iso);
-    return d.toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    var d = calendarDate(iso);
+    if (!d) return 'Date to be confirmed';
+    return d.toLocaleDateString('en-ZA', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  function calendarDate(iso) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || '')) return null;
+    var d = new Date(iso + 'T12:00:00Z');
+    return !isNaN(d) && d.toISOString().slice(0, 10) === iso ? d : null;
+  }
+  function calendarStatus(iso) {
+    if (!calendarDate(iso)) return 'Date to be confirmed';
+    // South African calendar days are UTC+02:00, independent of the visitor's timezone.
+    var today = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    return iso < today ? 'Awaiting results' : iso === today ? 'Scheduled today' : 'Upcoming';
   }
   function safeUrl(u) { u = String(u || '').trim(); return /^(https?:|mailto:)/i.test(u) || /^[\w./-]+$/.test(u) ? u : ''; }
   function ext(u, text, cls) { u = safeUrl(u); return u ? '<a href="' + esc(u) + '" target="_blank" rel="noopener"' + (cls ? ' class="' + cls + '"' : '') + '>' + text + '</a>' : ''; }
@@ -159,13 +171,13 @@
   try { theme = localStorage.getItem('nr-theme'); if (theme) document.documentElement.setAttribute('data-theme', theme); } catch (e) { theme = null; }
   function header(active) {
     var S = ST.site || { siteName: 'Northern Regions Rally' }, guide = active === 'getting-started';
-    var NAV = [['', 'Home', sh('')], ['standings', 'Standings', sh('/standings')], ['rounds', 'Rounds & graphs', sh('/rounds')], ['crews', 'Crews', sh('/crews')], ['getting-started', 'Getting started', '#/getting-started'], ['info', 'Info', '#/info']];
+    var NAV = [['', 'Home', sh('')], ['standings', 'Standings', sh('/standings')], ['rounds', 'Rounds & graphs', sh('/rounds')], ['crews', 'Crews', sh('/crews')], ['getting-started', 'Getting started', '#/getting-started'], ['info', 'Info', sh('/info')]];
     var links = NAV.map(function (n) {
       var on = n[0] === active || (n[0] === 'rounds' && active === 'round') || (n[0] === 'crews' && active === 'person') || (n[0] === 'info' && active === 'about');
       return '<a href="' + n[2] + '"' + (on ? ' class="active" aria-current="page"' : '') + '>' + n[1] + '</a>';
     }).join('');
     var years = seasonList();
-    var sel = guide ? '<span class="season-pill">2026 guide</span>' : years.length > 1 ? '<label class="season-sel"><span class="sr-only">Season</span><select id="seasonSel">' + years.map(function (y) {
+    var sel = guide ? '<span class="season-pill">' + esc(window.NRGettingStarted.edition.year) + ' reference guide</span>' : years.length > 1 ? '<label class="season-sel"><span class="sr-only">Season</span><select id="seasonSel">' + years.map(function (y) {
       return '<option value="' + y + '"' + (y === YEAR ? ' selected' : '') + '>' + y + ' season</option>';
     }).join('') + '</select></label>' : '<span class="season-pill" title="Season">' + esc(YEAR) + '</span>';
     return '<header class="site-header"><div class="checker" aria-hidden="true"></div><div class="header-inner">' +
@@ -183,7 +195,7 @@
     var social = ((ST.site && ST.site.social) || []).filter(function (s) { return safeUrl(s.url); });
     return '<footer class="footer"><div class="footer-inner"><span>' + esc(D ? D.championship : 'Northern Regions Rally') + ' · Independently compiled, source-derived information.</span>' +
       '<span class="footer-links">' + social.map(function (s) { return ext(s.url, socialIcon(s.network) + '<span class="sr-only">' + esc(s.label) + '</span>', 'soc-mini'); }).join('') +
-      '<a href="#/info">Info &amp; regulations</a><a href="' + sh('/about') + '">Sources &amp; data notes</a><a href="disclaimer.html">Independence &amp; disclaimer</a><a href="privacy.html">Privacy &amp; analytics</a></span></div></footer>';
+      '<a href="' + sh('/info') + '">Info &amp; regulations</a><a href="' + sh('/about') + '">Sources &amp; data notes</a><a href="disclaimer.html">Independence &amp; disclaimer</a><a href="privacy.html">Privacy &amp; analytics</a></span></div></footer>';
   }
 
   /* ------------------------------------------------------------------ render */
@@ -238,7 +250,7 @@
     var tb = document.getElementById('themeBtn'); if (tb) tb.addEventListener('click', toggleTheme);
     var ss = document.getElementById('seasonSel');
     if (ss) ss.addEventListener('change', function () {
-      var keep = { standings: 1, rounds: 1, crews: 1, about: 1 };
+      var keep = { standings: 1, rounds: 1, crews: 1, about: 1, info: 1 };
       location.hash = '#/' + ss.value + (keep[page] ? '/' + page + (page === 'standings' && parts[1] ? '/' + parts[1] : '') : '');
     });
     mounts.forEach(function (fn) { fn(); });
@@ -279,14 +291,17 @@
     var upcoming = D.calendar.filter(function (r) { return !r.hasResults; });
     html += '<section class="hero"><p class="hero-kicker">Gauteng · Limpopo · Mpumalanga · Free State · North West</p><p class="eyebrow">' + esc(D.championship) + '</p>' +
       '<h1>' + (D.rounds.length ? 'Every NR stage, time and point of ' + YEAR + '.' : 'The ' + YEAR + ' season.') + '</h1>' +
-      (ST.site.tagline ? '<p>' + esc(ST.site.tagline) + '</p>' : '') +
-      '<div class="hero-stats">' + stat(D.rounds.length + (upcoming.length ? ' / ' + D.calendar.length : ''), 'Rounds run') + stat(D.events.length, 'Events') +
-      stat(d.length, 'Drivers scored') + stat(stages, 'Special stages') + '</div>' +
+      (D.rounds.length && ST.site.tagline ? '<p>' + esc(ST.site.tagline) + '</p>' : '') +
+      '<div class="hero-stats">' + (D.rounds.length ?
+        stat(D.rounds.length + (upcoming.length ? ' / ' + D.calendar.length : ''), 'Rounds with results') + stat(D.events.length, 'Events') +
+        stat(d.length, 'Drivers scored') + stat(stages, 'Recorded special stages') :
+        (D.events.length ? stat(D.events.length, 'Events listed') : '') + (D.calendar.length ? stat(D.calendar.length, 'Rounds listed') : '')) + '</div>' +
       '<div class="hero-actions">' + (lastRound ? '<a class="btn primary" href="' + sh('/round/' + lastRound.id) + '">Open the latest stage graph</a><a class="btn ghost-dark" href="' + sh('/standings') + '">Championship standings</a>' :
-        '<a class="btn primary" href="' + sh('/rounds') + '">See the calendar</a><a class="btn ghost-dark" href="#/info">Regulations &amp; info</a>') +
+        '<a class="btn primary" href="' + sh('/rounds') + '">See the calendar</a><a class="btn ghost-dark" href="' + sh('/info') + '">Regulations &amp; info</a>') +
         '<a class="btn ghost-dark" href="#/getting-started">Getting started in NR Rally</a></div></section>';
     if (!D.rounds.length) {
-      html += '<div class="section"><div class="card empty"><h2>No results yet</h2><p>Standings and stage graphs appear here once the first ' + YEAR + ' round has an official classification.</p></div></div>';
+      html += '<div class="section"><div class="card empty"><h2>No results yet</h2><p>No ' + YEAR + ' classifications have been published here. Calendar details may still be incomplete; listed dates do not confirm that an event ran. Standings and stage graphs appear after classifications are added.</p>' +
+        (D.people.length ? '<p><a href="' + sh('/crews') + '">See documented entry-list crews</a>. An entry is not a start or a scored result.</p>' : '') + '</div></div>';
       html += '<div class="section"><div class="section-head"><h2>The ' + YEAR + ' calendar</h2></div>' + eventCards() + '</div>';
       return { title: 'Home', html: html };
     }
@@ -346,14 +361,14 @@
       }
       var rows = D.calendar.filter(function (c) { return c.eventId === ev.id; }).map(function (c) {
         var r = roundsById[c.id];
-        if (!r) return '<div class="event-round upcoming"><span class="rnd">R' + c.n + '</span><span class="w"><b>' + (c.date ? fmtDate(c.date) : 'Date to be confirmed') + '</b><span>' + esc(c.day) + ' · results not published yet</span>' + upcomingEntries(c.id) + '</span><span class="go muted">Upcoming</span></div>';
+        if (!r) return '<a class="event-round upcoming" href="' + sh('/round/' + c.id) + '"><span class="rnd">R' + c.n + '</span><span class="w"><b>' + (c.date ? fmtDate(c.date) : 'Date to be confirmed') + '</b><span>' + esc(c.day) + ' · results not published yet</span>' + upcomingEntries(c.id) + '</span><span class="go muted">' + calendarStatus(c.date) + '</span></a>';
         var w = winnerOf(r);
         return '<a class="event-round" href="' + sh('/round/' + r.id) + '"><span class="rnd">R' + r.n + '</span><span class="w">' + (w ? '<b>' + esc(w.driver) + '</b> / ' + esc(w.codriver) : '—') +
           '<span>' + esc(r.day) + ' · ' + r.stages.length + ' stages · ' + classifiedSorted(r).length + ' classified' + (classificationState(r) === 'provisional' ? ' · provisional sheet' : classificationState(r) === 'unclear' ? ' · finality unclear' : '') + '</span></span><span class="go">Graph →</span></a>';
       }).join('');
       var entryNote = list && (list.eventEntries || list.complete) ? list.eventEntries + ' NR Entries' +
-        (list.complete ? '' : ' (partial)') : 'NR Entries unknown';
-      return '<div class="card event-card"><div class="event-top"><h3>' + esc(ev.name) + '</h3><div class="meta">' + [ev.dates, ev.venue, ev.surface].filter(Boolean).map(esc).join(' · ') + '</div><div class="small muted">' + entryNote + '</div>' + eventLinks(ev, list) + '</div><div class="event-rounds">' + (rows || '<div class="event-round upcoming"><span class="w"><span>No rounds added yet</span></span></div>') + '</div></div>';
+        (list.complete ? '' : ' (partial)') : '';
+      return '<div class="card event-card"><div class="event-top"><h3>' + esc(ev.name) + '</h3><div class="meta">' + [ev.dates, ev.venue, ev.surface].filter(Boolean).map(esc).join(' · ') + '</div>' + (entryNote ? '<div class="small muted">' + entryNote + '</div>' : '') + eventLinks(ev, list) + '</div><div class="event-rounds">' + (rows || '<div class="event-round upcoming"><span class="w"><span>No rounds added yet</span></span></div>') + '</div></div>';
     }).join('') + '</div>';
   }
 
@@ -365,9 +380,12 @@
     var showBreak = q.pts === 'split';
     var base = '/standings' + (role === 'codriver' ? '/codrivers' : '');
     var html = '<div class="page-head"><div><p class="eyebrow">' + YEAR + ' standings</p><h1>' + (role === 'driver' ? 'Drivers' : 'Co-drivers') + (cls ? ' · ' + cls : '') + '</h1>' +
-      '<p>Overall + class points · Minimum ' + D.minStarts + ' starts for eligibility.</p></div>' +
+      '<p>' + (D.rounds.length ? 'Overall + class points · Minimum ' + D.minStarts + ' starts for eligibility.' : 'Standings appear after recorded championship starts; entries alone do not score points.') + '</p></div>' +
       '<div class="seg" role="tablist"><a href="' + buildHash('/standings', { 'class': cls }) + '" class="' + (role === 'driver' ? 'on' : '') + '">Drivers</a><a href="' + buildHash('/standings/codrivers', { 'class': cls }) + '" class="' + (role === 'codriver' ? 'on' : '') + '">Co-drivers</a></div></div>';
-    if (!D.rounds.length) return { title: 'Standings', html: html + '<div class="card empty">No ' + YEAR + ' results yet.</div>' };
+    if (!D.rounds.length) return { title: 'Standings', html: html + '<div class="card empty">No ' + YEAR + ' results yet. <a href="' + sh('/rounds') + '">See the calendar</a>' +
+      (D.people.length ? ' or <a href="' + sh('/crews') + '">documented entry-list crews</a>' : '') + '.</div>' };
+    if (!rows.length) return { title: 'Standings', html: html + '<div class="card empty">No recorded ' + (role === 'driver' ? 'driver' : 'co-driver') +
+      ' championship starts yet for ' + YEAR + '. Entries and DNS do not create starts. <a href="' + sh('/rounds') + '">See published classifications</a> or <a href="' + sh('/crews') + '">documented crews</a>.</div>' };
     html += '<div class="filters"><div class="seg">' + [''].concat(CLASSES).map(function (c) {
       return '<a href="' + buildHash(base, { 'class': c, pts: q.pts }) + '" class="' + (c === cls ? 'on' : '') + '">' + (c || 'All classes') + '</a>';
     }).join('') + '</div><div class="seg"><a href="' + buildHash(base, { 'class': cls }) + '" class="' + (showBreak ? '' : 'on') + '">Points</a><a href="' + buildHash(base, { 'class': cls, pts: 'split' }) + '" class="' + (showBreak ? 'on' : '') + '">Overall + class split</a></div></div>';
@@ -450,7 +468,9 @@
       if (!c) return notFound();
       var ev0 = eventsById[c.eventId] || { name: 'Round ' + c.n, links: {} };
       return { title: 'R' + c.n, html: '<div class="page-head"><div><p class="eyebrow">Round ' + c.n + ' · ' + esc(c.day) + '</p><h1>' + esc(ev0.name) + '</h1><div class="round-meta"><span>' + (c.date ? fmtDate(c.date) : 'Date to be confirmed') + '</span></div></div></div>' +
-        '<div class="card empty"><h2>Results not published yet</h2><p>The stage graph and classification appear here once the official classification for this round has been added.</p>' + eventLinks(ev0) + '</div>' };
+        '<div class="card empty"><h2>' + calendarStatus(c.date) + '</h2><p>Results not published yet. The stage graph and classification appear here once the official classification for this round has been added. A scheduled date is not confirmation that the rally ran or is live.</p>' +
+        eventLinks(ev0, D.entryLists.filter(function (l) { return l.eventId === c.eventId; })[0]) +
+        '<p><a href="' + sh('/crews') + '">Documented crews</a> · <a href="' + sh('/info') + '">Season documents</a></p></div>' };
     }
     var ev = eventOf(r);
     var idx = ROUND_IDS.indexOf(id);
@@ -807,7 +827,7 @@
   /* ---------- crews */
   function viewCrews() {
     var html = '<div class="page-head"><div><p class="eyebrow">' + D.people.length + ' competitors in ' + YEAR + '</p><h1>Crews</h1><p>Drivers and co-drivers in ' + YEAR + ' Northern Regions classifications and entry lists.</p></div></div>';
-    if (!D.people.length) return { title: 'Crews', html: html + '<div class="card empty">No ' + YEAR + ' results yet.</div>' };
+    if (!D.people.length) return { title: 'Crews', html: html + '<div class="card empty">No crews are documented in ' + YEAR + ' entry lists or classifications yet. Earlier participation is not a new-season entry; historical profiles remain available from archived seasons.</div>' };
     html += '<div class="filters"><label class="sr-only" for="crewSearch">Search crews</label><input id="crewSearch" class="search" type="search" placeholder="Search by name or car number…" autocomplete="off"></div>';
     var rows = D.people.map(function (p) {
       var sd = standingIdx.driver[p.id], sc = standingIdx.codriver[p.id];
@@ -888,7 +908,7 @@
       var row = sd || sc;
       if (row) html += '<div class="card chart-card">' + pointsBars(row) + '</div>';
       var apps = s.person.apps.slice().sort(function (a, b) { return ROUND_IDS.indexOf(a.r) - ROUND_IDS.indexOf(b.r); });
-      html += '<div class="table-wrap" style="margin-top:14px"><table class="data"><thead><tr><th>Round</th><th>Event</th><th class="num">Car</th><th>Role</th><th>With</th><th>Car</th><th class="num">Result</th><th class="num">Class</th><th class="num">Points</th><th></th></tr></thead><tbody>' +
+      html += apps.length ? '<div class="table-wrap" style="margin-top:14px"><table class="data"><thead><tr><th>Round</th><th>Event</th><th class="num">Car</th><th>Role</th><th>With</th><th>Car</th><th class="num">Result</th><th class="num">Class</th><th class="num">Points</th><th></th></tr></thead><tbody>' +
         apps.map(function (a) {
           var r = roundsById[a.r]; if (!r) return '';
           var rt = a.credited ? (a.credited === 'driver' ? 'Driver' : 'Co-driver') : (a.role === 'co-driver' ? 'Co-driver' : 'Driver');
@@ -900,7 +920,7 @@
           return '<tr><td><a href="' + sh('/round/' + r.id) + '"><b>R' + r.n + '</b></a></td><td class="nowrap">' + esc(eventOf(r).short) + ' · ' + esc(r.day.split(' (')[0]) + '</td><td class="num"><span class="carno-lg">' + esc(a.car) + '</span></td><td>' + rt + note + '</td><td class="nowrap">' + plink(a.partner) + '</td><td class="nowrap">' + esc(a.vehicle || '—') + '</td>' +
             '<td class="num">' + res + '</td><td class="num">' + (a.classPos ? ord(a.classPos) + ' ' + clsTag(a.cls) : clsTag(a.cls)) + '</td><td class="num"><b>' + (a.pts != null ? a.pts : '–') + '</b></td>' +
             '<td>' + (a.msaOnly ? '' : '<a class="go" href="' + buildHash('/round/' + r.id + '/graph', { cars: a.car }) + '">Graph →</a>') + '</td></tr>';
-        }).join('') + '</tbody></table></div></div>';
+        }).join('') + '</tbody></table></div></div>' : '<p class="small muted">No classification appearances recorded for this season. Entries are not confirmed starts.</p></div>';
       useSeason(save);
     });
     if (!seasons.length) html += '<div class="card empty">No official results recorded yet.</div>';
@@ -935,6 +955,16 @@
 
   /* ---------- about the data (per season) */
   function viewAbout() {
+    if (!D.rounds.length) {
+      var empty = '<div class="page-head"><div><p class="eyebrow">' + YEAR + ' sources</p><h1>Sources &amp; data notes</h1><p>No classifications have been published here for ' + YEAR + '. No standings, points comparisons or stage graphs are available yet. Live timing is never used.</p></div></div>' +
+        '<div class="card"><h2>Calendar &amp; regulations</h2><p><a href="' + sh('/info') + '">Open ' + YEAR + ' documents and official event links</a> · <a href="' + sh('/rounds') + '">Calendar</a>. Only supplied details are listed; dates do not establish an actual start.</p></div>';
+      if (D.entryLists.length) empty += '<div class="card"><h2>Entry evidence</h2><p>Entries are separate from starts, results and points. Missing coverage is not zero participation.</p><ul>' + D.entryLists.map(function (l) {
+        return '<li>' + esc((eventsById[l.eventId] || {}).name || l.eventId) + ': ' + ext(l.source.url, 'Official entry source') +
+          (l.complete ? ' (complete list)' : ' (partial coverage)') + '</li>';
+      }).join('') + '</ul><a href="' + sh('/crews') + '">Documented crews</a></div>';
+      if (D.notes.length) empty += '<div class="prose"><h2>Season notes</h2><ul>' + D.notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>';
+      return { title: 'Sources & data notes', html: empty };
+    }
     var html = '<div class="page-head"><div><p class="eyebrow">' + YEAR + ' · how this site works</p><h1>Sources &amp; data notes</h1><p>Independently transcribed from official classification documents, normally final. Provisional or unclear sources are labelled; live timing is never used. <a href="disclaimer.html">Independence &amp; full disclaimer</a>.</p></div></div>';
     if (D.rounds.length) {
       html += '<div class="prose"><h2>Sources</h2></div><div class="table-wrap"><table class="data"><thead><tr><th>Round</th><th>Event</th><th>Official document</th><th>Status</th><th>Results page</th></tr></thead><tbody>' +
@@ -980,7 +1010,7 @@
   function socialLabel(k) { return (SOCIAL[k] || [k.charAt(0).toUpperCase() + k.slice(1)])[0]; }
   function viewInfo() {
     var S = ST.site, info = S.info || {};
-    var html = '<div class="page-head"><div><p class="eyebrow">Information</p><h1>About the championship</h1>' + (info.intro ? '<p>' + esc(info.intro) + '</p>' : '') + '</div></div>';
+    var html = '<div class="page-head"><div><p class="eyebrow">' + YEAR + ' information</p><h1>About the championship</h1>' + (info.intro ? '<p>' + esc(info.intro) + '</p><p class="small muted">Shared championship introduction; use the selected season&rsquo;s documents below for dated rules.</p>' : '') + '</div></div>';
     html += '<p class="guide-entry">New to Northern Regions? <a href="#/getting-started">Start with the spectator, crew and rally-weekend guide</a>.</p>';
     var social = S.social || [];
     if (social.length) {
@@ -1004,7 +1034,7 @@
         }).join('') + '</tbody></table></div></div>';
     }
     if ((info.documents || []).length) {
-      html += '<div class="section"><div class="section-head"><h2>Useful links</h2></div><div class="doc-list">' + info.documents.map(function (d) {
+      html += '<div class="section"><div class="section-head"><h2>Shared useful links</h2></div><div class="doc-list">' + info.documents.map(function (d) {
         return '<a class="card doc" href="' + esc(safeUrl(d.url)) + '" target="_blank" rel="noopener"><span class="doc-kind">Link</span><span class="doc-main"><b>' + esc(d.title) + '</b><span>' + esc(d.note || '') + '</span></span><span class="go">Open ↗</span></a>';
       }).join('') + '</div></div>';
     }

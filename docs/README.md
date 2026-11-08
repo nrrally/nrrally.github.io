@@ -2,6 +2,13 @@
 
 Read this if you're taking over the Northern Regions Rally results site, moving it to another platform, or fixing something. It doesn't assume you were part of how the site was built.
 
+**Recovery entry point:** [recovery.md](recovery.md) inventories the entire solution, safe
+restore/rollback, provider boundaries, private recovery requirements and failure diagnosis.
+Read [AGENTS.md](../AGENTS.md) and [releases.md](releases.md) for the mandatory
+**documentation update before EVERY push** and current local/deployed scope.
+For annual operation start with [season-lifecycle.md](season-lifecycle.md).
+Public Git cannot recover private Firestore/Auth/config/History/source data by itself.
+
 ## What the system is
 
 There are two parts:
@@ -16,10 +23,10 @@ Results come only from the official classification PDFs, never from live timing.
 | What | Where | Who can see it |
 |---|---|---|
 | Code and these docs | GitHub repository `nrrally/nrrally.github.io` (organisation `nrrally`) | Public. It holds no results or personal data. |
-| Live site | https://nrrally.github.io, served by GitHub Pages | Public |
-| Admin page | https://nrrally.github.io/admin/ | Anyone can open the page, but only Google accounts on the admin list can read or change data |
+| Live site | https://nrrally.co.za/, served by GitHub Pages | Public |
+| Admin page | https://nrrally.co.za/admin/ | Anyone can open the page, but only Google accounts on the admin list can read or change data |
 | Results data, competitor profiles, history | Firebase project (Cloud Firestore, Johannesburg region) | The published copy is public. Everything else is admins only. |
-| Official PDFs, data-decision notes, backups, full test kit | Private project archive (`nr-rally-private-archive.zip`, kept in the maintainer's OneDrive) | Private |
+| Official PDFs, data-decision notes, backups, full test kit, access/config recovery register | Privately maintained archive and recovery package, outside the repository | Private; custody and completeness must be verified |
 
 ## The five rules the system is built on
 
@@ -27,10 +34,13 @@ Results come only from the official classification PDFs, never from live timing.
 2. **Store what's printed.** Times, penalties and positions are kept exactly as printed. Corrections are made through overrides, never by editing printed values.
 3. **Calculate, don't store.** Points, standings and graphs are worked out from the raw data, so fixing one time fixes everything that depends on it.
 4. **Every override explains itself.** Each override carries a reason that is shown on the site. `node tools/report.js <year> <backup.json>` lists all of them.
-5. **Every change is reviewed and kept.** Each publish is recorded with who made it and when, and any publish can be undone.
+5. **Every publication is reviewed and kept.** Each publish records who/when and document before/after. Undo stages earlier versions, not a full project/photograph restore. Admin-list and owner/provider changes are outside this flow.
 
 ## Documents
 
+- [recovery.md](recovery.md): comprehensive reconstruction inventory, private recovery package, versioned/atomic restoration, hosting/credentials, boundaries and diagnosis.
+- [season-lifecycle.md](season-lifecycle.md): pre-season calendar-only setup, unknown/partial/entry-only behavior, date semantics, annual guide review and event/default/archive lifecycle.
+- [releases.md](releases.md): mandatory before-every-push checklist, baseline and local release/validation record.
 - [data-entry-guide.md](data-entry-guide.md): how to load a round's results correctly, how the import and its checks work, and the judgement calls.
 - [architecture.md](architecture.md): the parts, how data flows, the security model, and what to change to move platforms.
 - [firestore.rules](firestore.rules): the database's access rules, to paste into the Firebase console.

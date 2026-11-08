@@ -32,7 +32,7 @@ test('the bundled guide has complete, original, dated NR orientation and no data
 });
 test('watching is the welcoming starting point, with competition requirements kept in crew sections', () => {
   const html = guide().html;
-  const opening = html.slice(0, html.indexOf('<nav'));
+  const opening = html.slice(0, html.indexOf('<p class="guide-edition"'));
   const watch = html.slice(html.indexOf('id="guide-watch"'), html.indexOf('id="guide-crew"'));
   assert.ok(opening.includes('Come watch a Northern Regions rally'));
   assert.ok(opening.includes('If you later want to join a crew'));
@@ -43,6 +43,16 @@ test('watching is the welcoming starting point, with competition requirements ke
     'gap between cars does not mean the road is open']) assert.ok(watch.includes(phrase), phrase);
   assert.ok(!/rally[- ]raid|Your first three steps|guide-orientation/i.test(html));
   assert.ok(html.includes('To <strong>compete</strong>'));
+});
+test('reference edition remains explicit independently of season or database availability', () => {
+  const context = { window: {} };
+  vm.runInNewContext(code, context);
+  assert.equal(context.window.NRGettingStarted.edition.year, 2026);
+  assert.equal(context.window.NRGettingStarted.edition.checked, '8 November 2026');
+  const html = context.window.NRGettingStarted.view().html;
+  assert.ok(html.indexOf('Reference edition: 2026') < html.indexOf('guide-watch'));
+  assert.ok(html.includes('not verified for other seasons'));
+  assert.ok(html.includes('Changing the site season does not update this guide'));
 });
 test('topic anchors resolve uniquely and all references are official HTTPS destinations', () => {
   const html = guide().html;

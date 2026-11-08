@@ -754,7 +754,7 @@
   }
   function newSeasonCard() {
     var ys = years(), next = (ys[0] || new Date().getFullYear()) + 1, st = A.newSeason || (A.newSeason = { year: next, from: ys[0], current: false });
-    return '<div class="card"><p style="margin-top:0">Creates an empty calendar for a new year and copies the classes, points scales and minimum starts from an earlier season. Results, events and documents start empty. Earlier seasons stay on the site; visitors switch with the season picker.</p><div class="form-grid">' +
+    return '<div class="card"><p style="margin-top:0">Creates an empty calendar for a new year and copies the classes, points scales and minimum starts from an earlier season. Results, events and documents start empty. Earlier seasons stay on the site; visitors switch with the season picker.</p><p><strong>Copied settings are placeholders, not approved new-year rules.</strong> Verify classes, points, minimum starts and supported scoring policies against the new official SSRs before publishing. Do not invent missing calendar details or entry lists. The bundled Getting started guide has its own reference edition and needs a separate annual review.</p><div class="form-grid">' +
       fld('Year', input(function (v) { st.year = numOrNull(v); }, st.year, 'inputmode="numeric" id="nsYear"')) +
       fld('Copy settings from', select(function (v) { st.from = +v; }, st.from, ys.map(function (y) { return [y, y]; }))) +
       '<div class="fld">' + check(function (v) { st.current = v; }, st.current, 'Make it the season the public site opens on') + '</div></div>' +

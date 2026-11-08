@@ -123,9 +123,11 @@
         '<p><strong>Year end:</strong> check final official standings and awards, review the season with your crew, and plan maintenance and entries. Rules can change: the July National SSRs already announce safety changes for 2027.</p>' +
         cite('nr', 'SSRs 4.3, 6 and 7') }
   ];
+  var edition = { year: 2026, checked: '8 November 2026' };
   function view() {
     var html = '<article class="getting-started"><div class="page-head"><div><p class="eyebrow">Northern Regions &middot; a first rally, one step at a time</p>' +
       '<h1>Getting started in NR Rally</h1><p>Come watch a Northern Regions rally and enjoy the day. If you later want to join a crew, this guide takes you through preparing, entering and taking part.</p></div></div>' +
+      '<p class="guide-edition"><strong>Reference edition: ' + edition.year + '.</strong> Rules checked ' + edition.checked + '. Dated class, licence, safety and fuel guidance is not verified for other seasons. For your event, use its current official regulations and bulletins. Changing the site season does not update this guide.</p>' +
       '<nav class="guide-jumps" aria-label="Getting started topics">' + sections.map(function (s) {
         return '<a href="#/getting-started/' + s.id + '">' + s.label + '</a>';
       }).join('') + '</nav>';
@@ -135,11 +137,11 @@
         '<details><summary>' + s.summary + '</summary><div class="guide-detail">' + s.detail + '</div></details></div></section>';
     });
     html += '<section class="section guide-section" aria-labelledby="guide-references"><div class="section-head"><h2 id="guide-references" tabindex="-1">Official references</h2></div>' +
-      '<div class="card guide-copy"><p>This independent guide uses <strong>2026 rules, checked 8 November 2026</strong>; it is not a substitute for the current SSRs, event SRs and bulletins. Event examples illustrate arrangements that can vary.</p><ul class="guide-references">' +
+      '<div class="card guide-copy"><p>This independent guide uses <strong>' + edition.year + ' rules, checked ' + edition.checked + '</strong>; it is not a substitute for the current SSRs, event SRs and bulletins. Event examples illustrate arrangements that can vary.</p><ul class="guide-references">' +
       Object.keys(sources).map(function (id) { return '<li>' + link(id) + '<span>' + sources[id].edition + '</span></li>'; }).join('') +
       '</ul><p>The NR and National SSRs have differing NR event-count wording. Use the calendar and Series Controllers&rsquo; updates for the current programme.</p>' +
       '<p><a class="btn" href="#/rounds">Find an event &amp; its documents</a> <a class="btn" href="#/info">Regulations &amp; site info</a></p></div></section></article>';
     return { title: 'Getting started in NR Rally', html: html };
   }
-  window.NRGettingStarted = { view: view };
+  window.NRGettingStarted = { edition: edition, view: view };
 })();

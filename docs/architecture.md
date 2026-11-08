@@ -3,7 +3,7 @@
 ## Overview
 
 ```
-Visitors ──HTTPS──▶ https://nrrally.github.io   GitHub Pages: the code only (HTML, CSS, JavaScript), no data
+Visitors ──HTTPS──▶ https://nrrally.co.za/   GitHub Pages: the code only (HTML, CSS, JavaScript), no results data
     │
     │ read the published copy, no sign-in
     ▼
@@ -15,7 +15,7 @@ Cloud Firestore (Firebase project, region africa-south1 Johannesburg)
     config/    admin list, publish counter                 admins only
     ▲
     │ Google sign-in, then read and write
-Admin page (https://nrrally.github.io/admin/)
+Admin page (https://nrrally.co.za/admin/)
 ```
 
 Hosting and data use two providers, with optional public analytics and no application server:
@@ -30,6 +30,7 @@ Hosting and data use two providers, with optional public analytics and no applic
 |---|---|---|
 | Engine | `assets/engine.js` | Pure functions shared by the site, admin and Node tools: time parsing, name matching and look-alike detection, the season model (points, classes, standings, stage progressions, crew histories), checks, and the importers for pasted PDF text (known layouts only) and spreadsheets. No browser or network code. See [data-entry-guide.md](data-entry-guide.md). |
 | Public site | `index.html`, `assets/site.js`, `assets/styles.css` | A single-page app. Reads `public/site`, `public/people` and `public/season_<year>` through the Firestore REST API, then calls `NREngine.buildSeason`. |
+| Getting started | `assets/getting-started.js` | Bundled original guide, independent of results/database state. Explicit reference edition supplies the badge/warning; annual source/body review is separate from season cutover. |
 | Active-rally notice | `assets/rally-notice.js`, `assets/rally-notice.css`, `disclaimer.html` | Reads only `public/site`; shares that initial promise with the results app. Native full-page yellow modal, followed by a sticky compact reminder after bypass. Not loaded by the admin. |
 | Optional analytics & privacy | `assets/analytics.js`, `privacy.html` | Shares the public site settings promise, validates GA4 settings and sends manual sanitized pageviews after rendering. Dedicated static privacy notice and persistent browser opt-out; never loaded by admin. |
 | Admin | `admin/index.html`, `assets/admin.js`, `assets/admin.css` | Google sign-in, an in-memory editable copy of the data, checks, points preview, publishing, history and undo, backups and the admin list. |
@@ -51,14 +52,23 @@ Hosting and data use two providers, with optional public analytics and no applic
 | `#/<year>/round/<id>/graph`, `…/classification`, `…/stages` | One round. The graph takes `?cars=200,201&m=gap`, where `m` is one of `pos`, `gap`, `cpos`, `cgap`, `loss`, `spos`. |
 | `#/<year>/crews` | Everyone in the season |
 | `#/person/<id>` | One person across all seasons |
+| `#/getting-started`, `#/getting-started/<topic>` | Shared newcomer guide with explicit reference edition, not current-season rules |
 | `#/<year>/about` | Sources and data notes |
-| `#/info` | Info page |
+| `#/<year>/info`, `#/info` | Selected-season documents/events plus labelled shared championship information |
 
 Routes without a year use the current season, so older links still work. Hash routing means the host needs no rewrite rules.
 
 Data loading works like this:
 - **The code holds no results data.** The site reads only the published copy from the database (`public/` documents, no sign-in needed).
 - **If the database is unreachable, or nothing has been published,** visitors see a short message ("Results coming soon" or "temporarily unavailable"). The site never shows old or built-in data.
+- **The guide remains available** with missing, unconfigured or unavailable results. It is reference content, not a results fallback.
+
+Calendar-only models display known events/rounds without result statistics or leaders.
+Missing-round cards/pages use strict date-only dates compared with South African UTC+02:00
+calendar days; scheduled-today/past-awaiting-results are not live-event assertions.
+Missing entry summaries are suppressed, while evidenced complete zero, partial counts and
+unknown day coverage remain distinct. Empty Sources provides season documents and entry
+provenance rather than graph/points claims. See [season-lifecycle.md](season-lifecycle.md).
 
 Profile photos (`photo: "db:<id>"`) are read from `photos/<id>`. Visitors see new results the next time they load or refresh a page.
 
@@ -166,9 +176,9 @@ future SDK changes or subsequently changed stream settings.
    - **`config/revision` + 1.** If anyone else has published since you loaded, the commit fails. The admin then reloads their documents and retries once. If you both changed the same document, it stops and explains instead.
    - **One `history/` entry per changed document,** with the text before and after.
 5. **Undo.** Stages the "before" versions from one publish so you can review and publish them.
-6. **Backups.** Downloads every document and photo as one JSON file (`format: nr-rally-backup`). Restoring stages a backup for publishing. An empty database can only be filled from a backup file; the code contains no data to fall back on.
+6. **Backups.** Downloads current undeleted working draft documents and current-profile referenced photos as one JSON file (`format: nr-rally-backup`). Not History, config, Auth or all photo records; not a guaranteed point-in-time export. Restoring replaces working docs and stages supplied photos for publication, not a full-project restore. See [recovery.md](recovery.md#precisely-what-the-app-backup-does-and-does-not-do).
 7. **Demo mode.** After authorized Google admin sign-in, loads the published copy into a practice simulation that can never save. Returning to live admin reloads working data and discards simulation changes; sign-out or account changes clear the simulation. Public results remain readable without sign-in. It's used for training and pre-season import rehearsal.
-8. **Admin list.** `config/admins` is edited under Site & info → Admins. Changes take effect immediately.
+8. **Admin list.** `config/admins` is edited under Site & info → Admins. Changes take effect immediately with an updateTime precondition, outside publication/revision/History and app backup.
 
 9. **AI Import.** Admin-operated prompt/file upload in a separate free AI chat, followed by local JSON parsing, evidence/identity/rules review and scoped staging. A pack token correlates the response; a local canonical snapshot detects changed target data. Neither is authorization. Preparation may be downloaded/resumed privately; it is not stored remotely until reviewed data is staged and explicitly published.
 
@@ -185,9 +195,11 @@ Publishing validates the full working dataset at entry and on every retry after 
 - **Data location.** Firestore stores the data in `africa-south1` (Johannesburg).
 - **The public repository** holds code and documentation only.
 - **Content-Security-Policy.** Both pages limit where scripts load from and where data can be sent:
-  - the public site may talk only to `firestore.googleapis.com`;
+  - the public site may load optional GA from `www.googletagmanager.com` and connect to `firestore.googleapis.com`, `www.google-analytics.com` and `region1.google-analytics.com`, plus same-origin resources;
   - the admin page may also talk to Google's sign-in services.
-- **No visitor tracking.** The public site sets no cookies and has no visitor accounts.
+- **No visitor accounts.** Optional explicitly enabled GA sets analytics cookies and sends minimized categories; absent/disabled settings do not load it. The local privacy preference is not a consent certification.
+- **Write atomicity, not cross-request read snapshots.** The publication commits related documents atomically, but independent browser fetches can race a publish. Refresh before cross-document verification. Direct/console writes bypassing revision can defeat normal coordination; photos lack individual working-document version guards. See [recovery.md](recovery.md#4-auth-rules-and-administrative-audit-boundaries).
+- **Projection boundary.** People are whitelisted; site/season/round projection strips named private fields, not every possible unknown field. Review new fields for public exposure.
 
 ## What depends on which provider
 
@@ -201,6 +213,11 @@ Everything else works on plain JSON documents and doesn't change. The data model
 
 ## Dependencies
 
-- **Public site:** none.
+- **Public results/guide UI:** no framework dependency; optional GA loads third-party runtime only when enabled.
 - **Admin page:** the Firebase JS SDK (Auth only) from Google's CDN. Before raising `FB_SDK`, read the release notes.
 - **Tools and tests:** Node.js 18 or later.
+- **Browser tests:** external Playwright and Chromium/Edge. No production install/build is required.
+
+For complete file/contract inventory, deployment/recovery and maintenance invariants start
+with [recovery.md](recovery.md). Update this architecture and affected docs/release records
+before every push that changes their described behavior.

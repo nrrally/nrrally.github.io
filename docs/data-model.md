@@ -18,7 +18,7 @@ Other database documents:
 
 | Document | Contents |
 |---|---|
-| `history/<publish>-<n>` | `{ group, at, by, message, path, kind, before, after }`: one per changed document per publish. `before` and `after` are the document's text, or `null`. Photos are listed but their content isn't kept. |
+| `history/<publish>-<n>` | `{ group, at, by, message, path, kind, before, after }`: one per changed document per publish. `before` and `after` are the document's text, or `null`. Photos are listed but their content isn't kept. Admin-list saves do not create these entries. |
 | `config/admins` | `{ emails: ["name@gmail.com", …] }`, in lower case. |
 | `config/revision` | `{ n, at, by }`, increased by every publish. |
 
@@ -39,6 +39,13 @@ The public projection adds `finalityUnclear` for AI-imported rounds whose status
   "photos": { "<personId>": "<JPEG as base64>" } }
 ```
 `tools/validate.js`, `tools/report.js` and the test kit read backups directly.
+
+The backup contains the current browser working draft, not necessarily published data,
+and only supplied/referenced profile photos. It excludes History, config/admins,
+revision, public snapshots, orphan photos, Auth, rules and provider configuration.
+It is not a point-in-time full-project export. Restore stages whole working-document
+replacement, entry-evidence-loss review and supplied photos; it does not prune/restore
+every photo record or recreate external accounts. See [recovery.md](recovery.md#precisely-what-the-app-backup-does-and-does-not-do).
 
 ## Conventions
 
@@ -128,6 +135,15 @@ only on refresh. Visitors' `nr-analytics-choice` (`on`/`off`) is browser-local, 
 | `events` | `[{id, name, short, dates, venue, surface, links:{results, entryList, srs, noticeboard, spectatorGuide}}]` |
 | `rounds` | `[{id, eventId, day, date, results}]` in calendar order. A round's number is its position in this list. `results: true` means a round file exists; the site only loads rounds with this flag. |
 | `notes` | Season-level data notes, shown on the site's "Sources & data notes" page |
+
+Round `date` is strict date-only `YYYY-MM-DD` for calendar display; invalid/blank dates
+remain unconfirmed, not normalized to another day. Event `dates` is supplied display
+text, never parsed to infer round allocations. Public calendar status compares to
+South African UTC+02:00 days, not the visitor timezone. Neither dates nor season status
+activate the rally notice. Unknown venue/surface/links/day allocation stays blank.
+Manual new-season settings are copied placeholders with no persisted rule approval;
+classMap, MSA confirmations, notes/documents/events/results/entry lists start empty.
+See [the yearly workflow](season-lifecycle.md).
 
 ## Documented entry participation (stored on the season)
 

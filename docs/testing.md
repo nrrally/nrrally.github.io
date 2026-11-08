@@ -2,7 +2,8 @@
 
 ## Quick checks (anyone, with Node.js 18 or later)
 
-Download a backup first (Admin → Dashboard → Backups), then run:
+For authorized live data maintenance, use a privately stored backup (Admin → Dashboard →
+Backups). Code-only development needs no live export. Then run:
 
 ```
 node tools/validate.js nr-rally-backup-2026-11-06.json      # checks every season. Exits with code 1 if there are errors.
@@ -22,11 +23,50 @@ node --test tools/tests/rally-notice.test.js
 node tools/tests/rally-notice-e2e.js
 node --test tools/tests/analytics.test.js
 node --test tools/tests/getting-started.test.js
+node --test tools/tests/season-readiness.test.js
 node tools/tests/analytics-e2e.js
 node tools/tests/admin-access-e2e.js
 ```
 
 The first command needs Node only. The browser test needs an existing Playwright installation (`PLAYWRIGHT_MODULE` may point to it). It serves the checkout locally, supplies fake authentication and intercepts Firestore requests with an in-process mock; other external requests are refused. Never run synthetic imports against live Firebase.
+
+### Season-readiness reproduction
+
+`season-readiness.test.js` renders the actual public-site functions in an instrumented
+Node VM, with synthetic season models and no boot/network/analytics. Production code
+does not expose a test API. It verifies calendar-only/wholly empty seasons; useful Home
+actions and omission of zero result statistics/leaders; missing/partial/complete-empty/
+two-day entry counts and day scope; entry-only profiles; archived notes/MSA/results and
+historical identities; strict invalid/leap dates; future/today/past/undated missing rounds;
+selected-season Info links; and explicit guide reference-edition presentation.
+Populated synthetic 2026 models retain standings/points/status evidence unchanged.
+
+Date assertions pin 21:59:59 UTC, 22:00:00 UTC and the following South African midnight,
+not just midday examples. Round-date formatting explicitly uses UTC and status compares
+South Africa UTC+02:00 calendar days, independent of visitor timezone. Reproduce in
+different process timezones if changing the date implementation:
+
+```powershell
+node --test tools\tests\season-readiness.test.js tools\tests\getting-started.test.js
+$env:TZ = 'Pacific/Honolulu'
+node --test tools\tests\season-readiness.test.js
+$env:TZ = 'Pacific/Kiritimati'
+node --test tools\tests\season-readiness.test.js
+Remove-Item Env:TZ
+```
+
+The public theme browser regression adds a fictional 2027 bundle only in its mocked
+Firestore responses. It changes the synthetic default, checks calendar-only states
+and unknown metadata at 320/1440 px in light/dark themes, all date labels, missing-round
+navigation, empty Sources/Crews/standings, selected-season Info switching, entry-only
+crew/profile history and the retained 2026 guide warning. Existing wider route/theme/
+guide/loading/error/print/privacy tests remain in that same runner. No 2027 data file,
+live season, real competitor fixture or regulation claim is produced.
+
+These checks verify behavior, not the truth/currency of actual new SSRs or a private
+database backup. The guide unit checks assert edition metadata/warnings even without
+database context. Existing browser tests cover missing/unconfigured/unavailable results
+and notice/analytics on guide navigation. No remote analytics is forwarded.
 
 The admin access browser test covers signed-out and non-admin routes, authorized simulation and live
 admin, reload, sign-out, authorization failures and delayed requests. It uses synthetic data and
@@ -159,7 +199,9 @@ identity rebase; same-count/different-crew and reduced-scope backup loss versus 
 mixed cached engine/import contracts; and upcoming two-day calendar counts with one-day-only,
 unknown-scope, partial and missing entry evidence.
 Public event cards show concise NR entry counts after the surface, qualify partial lists, and
-show unknown coverage rather than zero for missing or empty partial lists. Checks cover event-level
+suppress the event summary for missing or empty partial lists rather than inventing zero.
+Where entry evidence exists, round-level partial/unknown coverage and source links remain.
+Checks cover event-level
 crew deduplication across days, known-empty complete lists, retained entry-source links, and removal
 of the homepage entry-summary/points callout and the Crews entry-versus-start sentence. Detailed
 points and participation explanations remain on the relevant standings, sources and profile views.
@@ -193,5 +235,7 @@ Extract the archive outside the repository and run the commands from that privat
 
 ## Rule for code changes
 
+- **Before EVERY push:** update affected documentation and recovery/release records, including
+  the actual validation performed and limitations. Use [releases.md](releases.md#before-every-push).
 - **Before changing `assets/engine.js`:** run the engine regression. Any change in 2026 points is a bug, unless a deliberate data correction explains it. If one does, record it in `decisions.md`.
 - **After changing `assets/admin.js` or `assets/site.js`:** run the end-to-end test.

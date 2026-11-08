@@ -72,9 +72,10 @@ async function main() {
     const eventCount = async expected => {
       for (const hash of ['#/', '#/rounds']) {
         await visit(hash);
-        assert.equal(await page.locator('.event-top > .small').innerText(), expected);
+        if (expected) assert.equal(await page.locator('.event-top > .small').innerText(), expected);
+        else assert.equal(await page.locator('.event-top > .small').count(), 0);
         assert.ok((await page.locator('.event-top > .meta').innerText()).endsWith('gravel'));
-        assert.equal(await page.locator('.event-top > .meta + .small').count(), 1);
+        assert.equal(await page.locator('.event-top > .meta + .small').count(), expected ? 1 : 0);
         const text = await page.innerText('main');
         assert.ok(!text.includes('documented event crew entries'));
         assert.ok(!text.includes('documented event entries'));
@@ -343,7 +344,7 @@ async function main() {
       assert.ok(!text.includes('0 documented'));
     }
     bundle.season.entryLists[0].entries = [];
-    await eventCount('NR Entries unknown');
+    await eventCount('');
     bundle.season.entryLists[0].complete = true;
     await eventCount('0 NR Entries');
     bundle.season.entryLists[0].entries = Array.from({ length: 20 }, (_, i) => ({
@@ -351,7 +352,7 @@ async function main() {
     }));
     await eventCount('20 NR Entries');
     delete bundle.season.entryLists;
-    await eventCount('NR Entries unknown');
+    await eventCount('');
     await visit('#/rounds');
     assert.ok(!(await upcoming.first().innerText()).includes('round entry coverage'));
     bundle.season.rounds = calendarBefore; bundle.rounds = roundsBefore;
@@ -367,6 +368,59 @@ async function main() {
     await visit('#/');
     await page.getByRole('heading', { name: 'No results yet' }).waitFor();
     bundle.rounds = savedRounds;
+    // A fictional next season is only a mocked response, never a persisted season.
+    const oldSite = published.site;
+    const next = F.season(2027);
+    next.documents = []; next.notes = []; next.msa = { confirmedRounds: [] };
+    next.events[0].surface = ''; next.events[0].dates = ''; next.events[0].links = {};
+    next.rounds = ['2027-02-28', '2027-03-01', '2027-03-02', '', '2027-02-30'].map((date, i) =>
+      ({ id: 'R' + (i + 1), eventId: 'test-event', day: '', date }));
+    published.season_2027 = { season: next, rounds: {} };
+    published.site = { ...oldSite, currentSeason: 2027, seasons: [{ year: 2026 }, { year: 2027 }] };
+    await page.addInitScript(() => { Date.now = () => Date.parse('2027-03-01T10:00:00Z'); });
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(t => localStorage.setItem('nr-theme', t), theme);
+      for (const width of [320, 1440]) {
+        await page.setViewportSize({ width, height: 1000 });
+        await visit('#/');
+        const home = await page.innerText('main');
+        for (const absent of ['Drivers scored', 'special stages', 'NR Entries unknown', 'Championship leaders']) assert.ok(!home.includes(absent), absent);
+        assert.deepEqual(await page.locator('.hero-actions a').allTextContents(),
+          ['See the calendar', 'Regulations & info', 'Getting started in NR Rally']);
+        assert.deepEqual(await page.locator('.event-round.upcoming .go').allTextContents(),
+          ['Awaiting results', 'Scheduled today', 'Upcoming', 'Date to be confirmed', 'Date to be confirmed']);
+        await page.locator('.event-round.upcoming').first().click();
+        await page.getByRole('heading', { name: 'Awaiting results', exact: true }).waitFor();
+        await noOverflow();
+        await visit('#/2027/about');
+        assert.equal(await page.getByRole('heading', { name: 'Stage graphs', exact: true }).count(), 0);
+        await visit('#/2027/crews');
+        assert.ok((await page.innerText('main')).includes('Earlier participation is not a new-season entry'));
+        await visit('#/2027/info');
+        assert.ok((await page.innerText('main')).includes('No documents have been added for 2027'));
+        await page.locator('#seasonSel').selectOption('2026');
+        await page.waitForURL(url => url.hash === '#/2026/info');
+        await page.getByRole('heading', { name: '2026 regulations & documents' }).waitFor();
+        await visit('#/2027/getting-started');
+        assert.equal(await page.locator('.season-pill').innerText(), '2026 reference guide');
+        assert.ok((await page.locator('.guide-edition').innerText()).includes('not verified for other seasons'));
+        await noOverflow();
+      }
+    }
+    next.entryLists = [{ eventId: 'test-event', roundIds: ['R1'], complete: true,
+      source: { file: 'synthetic.pdf', url: 'https://example.com/entries', date: '', locator: 'Synthetic only' },
+      entries: [{ car: '1', driver: 'Alex Test', codriver: 'Blake Example', class: 'OPEN', vehicle: '',
+        roundIds: ['R1'], status: 'entered', statusEvidence: '', participationEvidence: 'Synthetic NR day evidence', locator: 'Row 1' }] }];
+    await visit('#/2027/crews');
+    assert.equal(await page.locator('#crewTable tbody tr').count(), 2);
+    await page.getByRole('link', { name: 'Alex Test', exact: true }).click();
+    await page.getByRole('heading', { name: '2027 season', exact: true }).waitFor();
+    assert.ok((await page.innerText('main')).includes('2026 season'));
+    await visit('#/2027/standings');
+    assert.ok((await page.innerText('main')).includes('entries alone do not score'));
+    await visit('#/2027/about');
+    assert.ok((await page.innerText('main')).includes('Entry evidence'));
+    published.site = oldSite; delete published.season_2027;
     const savedSite = published.site;
     delete published.site;
     await page.reload();
