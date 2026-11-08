@@ -31,7 +31,34 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
-## 2026-11-08: local season-rollover readiness (not deployed)
+## 2026-11-08: authorized season-readiness release
+
+The user subsequently authorized deployment: **"you can push them live."** This
+supersedes the local-only scope of the historical preparation entries below for
+code/documentation release only. It does not authorize Firebase data/settings/rules
+writes, a new season, a PR, or a provider configuration change.
+
+Pre-push checks: clean reviewed branch at `8a9f987`, remote main still
+`6f83f22f517996ed27950f68d67383106f6fc790`, no divergent remote commits.
+The approved signed-in release account's identity and repository push permission
+were verified privately; credentials remain command/process-scoped.
+Release uses a normal non-force push of the reviewed commits and this record to
+`origin/main`, which Pages serves at repository root on `nrrally.co.za`.
+
+Scope and compatibility: the two reviewed local commits below, coordinated
+`season-1` assets, unchanged entry/AI/notice/analytics contracts and 2026 guide edition.
+No data migration, database publication, DNS change or scoring change is required.
+Affected architecture/schema/lifecycle/recovery/testing docs are included in the push.
+Prior validation: 51 synthetic units, timezone checks and responsive public browser
+regressions passed; import/notice/analytics/admin-access suites also passed during
+preparation. No real-data/private runtime fixtures or live Auth/rules verification.
+
+Deployment verification is pending this authorized push. Verify latest built SHA
+and exact live asset contents; browser smoke fixtures must be synthetic and all
+Firebase and analytics traffic intercepted. Retire old admin tabs or hard-refresh
+before future edits; already-open pages do not automatically upgrade.
+
+## 2026-11-08: local season-rollover readiness (historical preparation)
 
 - Verified remote `main` and local starting HEAD:
   `6f83f22f517996ed27950f68d67383106f6fc790`.
@@ -74,7 +101,7 @@ must be addressed; there is no automation that can infer approvals or certify pr
   regression is covered. Historical configured-container replay evidence remains in
   testing docs, explicitly snapshot-specific rather than newly verified.
 
-## 2026-11-08: local review follow-up (not deployed)
+## 2026-11-08: local review follow-up (historical preparation)
 
 Preserves local commit `280bce6` as the preceding commit; no amendment or remote changes.
 Removes stray separators for absent round days and duplicate unknown-date labels on
