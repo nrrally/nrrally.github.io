@@ -149,6 +149,16 @@ Preserve the square size/brand and crawlable stable URL. No shared runtime/CSS c
 so cache query version stays `season-1`. These hints do not guarantee indexing, ranking,
 site-name selection or favicon display; recrawling can take days or weeks.
 
+The small user-authorized SEO code release was verified on Pages at
+`0bc94e2eb8a8eab372b33142c3c0dd29b8ff8d59`: 20 served runtime/crawl/brand files
+matched Git blobs, root/HTTPS redirects matched, and synthetic live browser smoke
+preserved mobile/desktop light/dark routes, guide edition, static privacy/disclaimer,
+root canonical/site-name microdata and admin noindex. PNG decoded as 192x192.
+Firebase responses/config were synthetic; Auth and analytics were blocked.
+This is deployment/implementation evidence, not proof of Google indexing/ranking,
+private data, sign-in/rules or official-source currency. See [releases.md](releases.md)
+for scope and the documentation-only follow-up; recheck current main/Pages on handover.
+
 ### Working/public schemas and default handling
 
 Use [data-model.md](data-model.md) for every field. The main path mappings are:

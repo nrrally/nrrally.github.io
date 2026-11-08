@@ -93,6 +93,24 @@ private fixture or actual Google runtime verification was performed by this rele
 After pushing, verify Pages SHA, canonical HTTPS and live bytes/UI separately and
 record deployment evidence, not merely successful git transport.
 
+Deployment verified at `0bc94e2eb8a8eab372b33142c3c0dd29b8ff8d59`: Pages reported that
+exact SHA built without error. All 20 runtime/crawl/brand files matched pushed Git
+blobs byte-for-byte, including root/index, all four shells, PNG, robots and sitemap;
+HTTP and www redirected to canonical HTTPS. Live browser smoke at 320/1440 px in
+light/dark themes retained Home/standings/round graph/guide/missing-route rendering,
+root canonical/microdata, disclosure and no public noindex. PNG decoded at 192x192.
+Static privacy/disclaimer content/canonicals remained available without JavaScript;
+admin retained its noindex and independent disclosure. Firebase was intercepted with
+synthetic responses/config; Auth SDK and analytics were blocked. No live sign-in,
+private data, database mutation or analytics collection was exercised.
+
+This documentation-only follow-up records verified deployment here and in recovery
+before its own normal non-force main push. Runtime, crawl metadata/icon, data,
+contracts and operational behavior remain unchanged from `0bc94e2`; no new migration
+or provider change. Check fresh main before pushing and verify the final documentation
+SHA against Pages/live files afterward. The final SHA is reported in the handoff rather
+than embedding a self-referential commit hash in this record.
+
 ## 2026-11-08: authorized season-readiness release
 
 The user subsequently authorized deployment: **"you can push them live."** This
