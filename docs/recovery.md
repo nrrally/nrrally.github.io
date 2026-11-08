@@ -70,6 +70,7 @@ The deployment tree itself is the static site. Node is a developer/test dependen
 | `assets/styles.css`, `admin.css`, `rally-notice.css` | Responsive light/dark/print styling, original identity and yellow event notice |
 | `assets/brand.svg`, `track-motif.svg`, `favicon.png` | Original static brand assets, not competitor photos |
 | `CNAME`, `.nojekyll`, `.gitignore` | Custom domain, unbuilt Pages serving and private-data exclusion conventions |
+| `robots.txt`, `sitemap.xml` | Crawl discovery for the canonical root/privacy/disclaimer only; admin remains crawlable so its HTML `noindex` can be read |
 | `tools/load.js`, `validate.js`, `report.js` | Read a privately held app backup; validate dataset and enumerate overrides/notes |
 | `tools/tests` | Public synthetic unit/VM/browser fixtures; no live write target or real competitor archive |
 | `docs/firestore.rules` | Reference access rules; not proof the deployed rules match |
@@ -122,6 +123,31 @@ use the current in-page season/default. Profile IDs are stable, URI-encoded once
 HTML-escaped, not a name-derived identifier on each render. Guide paths remain shared.
 Info documents/events and Sources notes/MSA evidence are selected-season content;
 Site & info introduction/social/contact/useful links are global and must be evergreen.
+
+### Search metadata and favicon
+
+Public HTML declares one static canonical per document: `https://nrrally.co.za/`,
+`/privacy.html` and `/disclaimer.html`. `/index.html` and every app hash view share the
+root canonical; JavaScript must not replace it or add route-specific `noindex`.
+The homepage has evergreen descriptive initial title/description and nonexecuting
+`WebSite` microdata with the existing site name and canonical root URL. CSP is unchanged;
+do not allow inline scripts merely to add JSON-LD. The site remains an independent archive,
+not an official organisation. Existing rendered route titles remain unchanged.
+
+`robots.txt` allows crawling, including admin and assets, and advertises the three-URL
+sitemap. Admin HTML already supplies `noindex, nofollow`; blocking `/admin/` in robots
+would prevent crawlers reading that directive. Neither robots nor noindex is access
+control: Firebase rules still protect private data. Do not add fragments, admin,
+Firestore documents, fabricated `lastmod` dates or unverified events to the sitemap.
+Hash-route results/profiles/guide topics are not reliably separate Google landing pages;
+fixing that needs a separately approved routing/hosting approach, not sitemap entries.
+
+All four HTML shells retain `assets/brand.svg` as the browser favicon and advertise
+`assets/favicon.png`, a 192x192 raster rendering of that same original NR monogram,
+as a stable Google-compatible fallback. The earlier unused PNG was a different motif.
+Preserve the square size/brand and crawlable stable URL. No shared runtime/CSS changed,
+so cache query version stays `season-1`. These hints do not guarantee indexing, ranking,
+site-name selection or favicon display; recrawling can take days or weeks.
 
 ### Working/public schemas and default handling
 

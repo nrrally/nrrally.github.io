@@ -14,6 +14,16 @@ The admin runs the same per-round checks before it lets you publish.
 
 ## AI Import regression checks (synthetic, no live database)
 
+For small search-metadata/icon changes, run `node --test tools\tests\seo.test.js`
+plus `node tools\tests\site-theme-e2e.js` and `node tools\tests\admin-access-e2e.js`.
+The SEO checks cover unique static canonicals, evergreen titles/descriptions, CSP-safe
+homepage WebSite microdata, only real canonical sitemap URLs, crawlable admin noindex,
+and PNG signature/exact square dimensions with SVG retained in every shell.
+The public browser runner asserts the canonical/microdata/icon remain present and
+no public noindex appears across responsive hash navigation and failure states.
+Browser requests remain synthetic/intercepted. These are implementation regressions,
+not a Search Console inspection or evidence of Google indexing/ranking.
+
 ```
 node --test tools/tests/ai-import.test.js
 node --test tools/tests/entry-participation.test.js
