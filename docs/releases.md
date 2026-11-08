@@ -31,12 +31,17 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
-## 2026-11-08: local season-wide getting-started guide
+## 2026-11-08: authorized season-wide getting-started guide release
 
 - Local work based on `b818767` integrates final SEO main `c06c390` locally, preserving
-  metadata, icons, crawler files and release records. No push, PR, deployment, Firebase
-  or provider write is authorized by this request. Fetch and reconcile then-current main
-  before any separately authorized release.
+  metadata, icons, crawler files and release records. The user explicitly selected
+  **"Push the guide live."** This authorizes a normal code/documentation push to
+  `origin/main` and Pages deployment only; no PR, Firebase write, settings/rules change
+  or provider configuration change is authorized.
+- Before release, fetched main and verified `c06c39079c40c7c4d2351702a7f7a4bea8ed080d`
+  is an ancestor of the reviewed local branch. The authorized release identity and
+  repository push permission were verified privately. Recheck main immediately before
+  pushing; no force push. Record actual deployment separately after verifying Pages.
 - The database-independent guide now introduces the whole season and a general event
   journey, without named event examples, specific fees or unusual event procedures.
   It keeps spectator safety, the neutral National/Regional comparison, entry versus

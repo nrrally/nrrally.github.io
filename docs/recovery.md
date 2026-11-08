@@ -49,6 +49,12 @@ static assets and canonical HTTPS redirects. See [releases.md](releases.md) for
 the verification scope and documentation-only follow-up. Recheck current Pages/main
 at handover; synthetic UI smoke does not verify private live data, Auth or deployed rules.
 
+The user subsequently authorized a season-wide guide code release. Its approval, source
+edition, validation, compatibility and actual deployment status belong in
+[releases.md](releases.md); the approval does not authorize Firebase/provider changes.
+The guide remains database-independent and its 2026 edition metadata is for maintainers,
+not a visible edition badge. Verify the currently built SHA rather than assuming release.
+
 ## 2. Technical inventory and reading map
 
 There is no package manifest, bundler, application server or compiled output to recover.
