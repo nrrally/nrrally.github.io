@@ -82,6 +82,8 @@ async function main() {
     const admin = () => page.locator('.adm-main').waitFor();
     const absent = async () => {
       await signin();
+      assert.equal(await page.locator('meta[name="robots"]').getAttribute('content'), 'noindex, nofollow');
+      assert.equal(await page.locator('link[rel="icon"][type="image/png"]').getAttribute('href'), '../assets/favicon.png');
       assert.equal(await page.locator('#demoBtn, .adm-main, .demo-bar, .adm-nav').count(), 0);
       assert.ok(await page.locator('.site-disclosure').isVisible());
     };

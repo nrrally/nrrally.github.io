@@ -62,6 +62,12 @@ async function main() {
       await page.goto(base + '/index.html' + hash);
       await page.reload();
       await page.waitForSelector('.site-header');
+      assert.equal(await page.locator('link[rel="canonical"]').count(), 1);
+      assert.equal(await page.locator('link[rel="canonical"]').getAttribute('href'), 'https://nrrally.co.za/');
+      assert.equal(await page.locator('meta[name="robots"]').count(), 0);
+      assert.equal(await page.locator('[itemscope][itemtype="https://schema.org/WebSite"]').count(), 1);
+      assert.equal(await page.locator('meta[itemprop="name"]').getAttribute('content'), 'Northern Regions Rally');
+      assert.equal(await page.locator('link[rel="icon"][type="image/png"]').getAttribute('href'), 'assets/favicon.png');
       assert.equal(await page.locator('.site-disclosure').count(), 1);
       assert.equal(await page.locator('.site-disclosure a[href="disclaimer.html"]').count(), 1);
       assert.equal(await page.locator('.footer a[href="disclaimer.html"]').count(), 1);
@@ -463,12 +469,24 @@ async function main() {
     assert.equal(await page.locator('a[href="https://motorsport.co.za/"]').count(), 1);
     await noOverflow();
     const noJS = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 320, height: 900 } });
+    await noJS.route('**/*', route => route.request().url().startsWith(base + '/') ? route.continue() : route.abort());
     const staticPage = await noJS.newPage();
+    for (const file of ['index.html', 'disclaimer.html', 'privacy.html']) {
+      await staticPage.goto(base + '/' + file);
+      assert.equal(await staticPage.locator('link[rel="canonical"]').count(), 1);
+      assert.equal(await staticPage.locator('link[rel="canonical"]').getAttribute('href'),
+        'https://nrrally.co.za/' + (file === 'index.html' ? '' : file));
+      assert.equal(await staticPage.locator('meta[name="robots"]').count(), 0);
+      assert.equal(await staticPage.locator('link[rel="icon"][type="image/png"]').getAttribute('sizes'), '192x192');
+    }
+    await staticPage.goto(base + '/privacy.html');
+    assert.ok(await staticPage.getByRole('heading', { name: 'Privacy & analytics', exact: true }).isVisible());
     await staticPage.goto(base + '/disclaimer.html');
     assert.ok(await staticPage.getByRole('heading', { name: 'Independent by design.' }).isVisible());
     await staticPage.goto(base + '/index.html');
     assert.ok(await staticPage.locator('.site-disclosure a[href="disclaimer.html"]').isVisible());
     await staticPage.goto(base + '/admin/index.html');
+    assert.equal(await staticPage.locator('meta[name="robots"]').getAttribute('content'), 'noindex, nofollow');
     assert.ok(await staticPage.locator('.site-disclosure a[href="../disclaimer.html"]').isVisible());
     assert.deepEqual(errors, []); assert.deepEqual(unexpected, []);
     console.log('PASS public theme: responsive routes and NR guide, keyboard topics/details, saved themes, AA button contrast, classification sources, print, database-independent guide and no-JS disclosures.');

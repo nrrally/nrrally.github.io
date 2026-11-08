@@ -33,10 +33,10 @@ must be addressed; there is no automation that can infer approvals or certify pr
 
 ## 2026-11-08: local season-wide getting-started guide
 
-- Local work based on `b818767`; fetched main at `0bc94e2` includes independent SEO
-  changes that overlap entry HTML, browser tests and recovery/release documentation.
-  No push, PR, deployment, Firebase or provider write is authorized by this request.
-  Reconcile the then-current main and revalidate before any separately authorized release.
+- Local work based on `b818767` integrates final SEO main `c06c390` locally, preserving
+  metadata, icons, crawler files and release records. No push, PR, deployment, Firebase
+  or provider write is authorized by this request. Fetch and reconcile then-current main
+  before any separately authorized release.
 - The database-independent guide now introduces the whole season and a general event
   journey, without named event examples, specific fees or unusual event procedures.
   It keeps spectator safety, the neutral National/Regional comparison, entry versus
@@ -55,11 +55,92 @@ must be addressed; there is no automation that can infer approvals or certify pr
   entry points. No data migration, scoring, import, Auth, notice or analytics contract
   change. Already-open tabs are not upgraded; retire old admin tabs before new data.
   A compatible prior code release can be restored separately; rollback does not restore data.
-- Validation: 12 guide/season synthetic unit tests, responsive public theme/browser tests,
-  and synthetic admin-access, analytics and rally-notice browser regressions passed.
+- Validation after integrating SEO main: 23 guide, season, SEO, analytics and notice
+  synthetic unit tests, plus responsive public and admin-access browser regressions passed.
+  Synthetic analytics and rally-notice browser regressions also passed before integration.
   Browser requests were intercepted/mocked; no live data, Auth, deployed rules or real
   analytics were exercised. Annual review and any subsequent authorized release remain
   separate work.
+
+## 2026-11-08: small authorized SEO release
+
+Approval: the user requested conservative optimization of existing content and said
+**"You can just push those changes live if they're tiny."** This release is confined
+to static HTML metadata, two crawl-discovery files and the existing original favicon,
+with synthetic regressions and recovery/testing documentation. Normal non-force push
+to `origin/main` (Pages root) is within that small-release scope. No PR, Firebase
+write/settings/rules, Analytics/Search Console/provider change, content campaign,
+routing/hosting redesign or future-season creation is included or authorized.
+
+Reviewed base: fresh remote main and latest built Pages SHA
+`b8187675d983bb8c8e9dd67f8a4c468ccfb703af`. The approved signed-in release identity
+and repository push permission were verified privately; credentials are process-scoped,
+with no global credential/account change. Recheck main immediately before pushing.
+
+Changes: one static canonical on each public document (root, privacy and disclaimer),
+descriptive evergreen initial home title, homepage WebSite name/root URL microdata
+without executable JSON-LD or CSP changes, and a stable 192x192 PNG fallback rendered
+directly from the existing NR SVG monogram. The SVG remains the browser favicon on
+all four shells; the formerly unused 64x64 PNG with a different motif is replaced.
+Existing descriptions were already useful and are retained. Admin already had
+`noindex, nofollow`; it remains crawlable so that directive can be read.
+`robots.txt` advertises a sitemap containing only the three canonical public documents.
+No fragment URLs, fake modification dates, event/result rich-data claims, hidden
+keywords or AI-specific files are added.
+
+Compatibility/recovery: visible page content, responsive/themes/guide, rendered route
+titles, source/reference edition (2026), scoring, data/Auth/notice/analytics behavior
+and all contracts are unchanged. No migration or shared runtime/CSS change; coordinated
+asset query version remains `season-1`. A code-only rollback to the reviewed base restores
+the old metadata/icon and removes crawl files without touching data. Recovery/testing
+docs explain static canonicals, crawlable noindex and favicon reproduction.
+
+Validation: 16 targeted synthetic units passed via
+`node --test tools\tests\seo.test.js tools\tests\getting-started.test.js tools\tests\analytics.test.js tools\tests\rally-notice.test.js`.
+`site-theme-e2e.js` and `admin-access-e2e.js` passed with intercepted synthetic
+Firebase/Google requests, including responsive 320/390/768/1440 layouts, light/dark,
+hash navigation, reference guide, error/unconfigured states, no-JS public documents
+and signed-out/non-admin/admin simulation. New assertions cover static canonical and
+microdata persistence, PNG declarations/dimensions, sitemap/robots and retained noindex.
+The PNG was rendered and visually checked as the original NR monogram. Existing
+external Node/Playwright and Edge were reused; no dependency was added.
+The first robots unit assertion needed CRLF normalization for Windows; all final
+selected tests passed. No live database writes or analytics were sent.
+
+Primary guidance checked 8 November 2026:
+[favicons](https://developers.google.com/search/docs/appearance/favicon-in-search),
+[site names](https://developers.google.com/search/docs/appearance/site-names),
+[JavaScript SEO](https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics),
+[sitemaps](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap),
+[AI features](https://developers.google.com/search/docs/appearance/ai-features).
+Google requires no special AI markup/files or extra AI Overview/AI Mode optimizations.
+
+Limitations: hash-route results/profiles/guide topics are not reliably separately
+crawlable landing pages. This is deliberately not presented as solved by canonicals
+or a sitemap; a larger URL/hosting change needs separate approval. Google decides
+indexing, rankings, site names and favicon display; recrawling can take days/weeks.
+No Search Console inspection, ranking/Core Web Vitals certification, real Auth/rules,
+private fixture or actual Google runtime verification was performed by this release.
+After pushing, verify Pages SHA, canonical HTTPS and live bytes/UI separately and
+record deployment evidence, not merely successful git transport.
+
+Deployment verified at `0bc94e2eb8a8eab372b33142c3c0dd29b8ff8d59`: Pages reported that
+exact SHA built without error. All 20 runtime/crawl/brand files matched pushed Git
+blobs byte-for-byte, including root/index, all four shells, PNG, robots and sitemap;
+HTTP and www redirected to canonical HTTPS. Live browser smoke at 320/1440 px in
+light/dark themes retained Home/standings/round graph/guide/missing-route rendering,
+root canonical/microdata, disclosure and no public noindex. PNG decoded at 192x192.
+Static privacy/disclaimer content/canonicals remained available without JavaScript;
+admin retained its noindex and independent disclosure. Firebase was intercepted with
+synthetic responses/config; Auth SDK and analytics were blocked. No live sign-in,
+private data, database mutation or analytics collection was exercised.
+
+This documentation-only follow-up records verified deployment here and in recovery
+before its own normal non-force main push. Runtime, crawl metadata/icon, data,
+contracts and operational behavior remain unchanged from `0bc94e2`; no new migration
+or provider change. Check fresh main before pushing and verify the final documentation
+SHA against Pages/live files afterward. The final SHA is reported in the handoff rather
+than embedding a self-referential commit hash in this record.
 
 ## 2026-11-08: authorized season-readiness release
 
