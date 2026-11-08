@@ -74,6 +74,28 @@ must be addressed; there is no automation that can infer approvals or certify pr
   regression is covered. Historical configured-container replay evidence remains in
   testing docs, explicitly snapshot-specific rather than newly verified.
 
+## 2026-11-08: local review follow-up (not deployed)
+
+Preserves local commit `280bce6` as the preceding commit; no amendment or remote changes.
+Removes stray separators for absent round days and duplicate unknown-date labels on
+calendar cards/detail pages, retaining valid calendar statuses. Tightens calendar-only
+Home and guide-edition text and removes repetitive Info intro subtext; selected-year
+context, source/safety content and the 2026/nonverified-for-other-seasons warning remain.
+
+Document dates are supplied strings in the AI contract even though the manual editor
+offers a date input. Info now formats valid ISO source dates but preserves escaped
+free-form/invalid supplied text and omits the prefix for absent dates. Strict round
+schedule/date-status validation is unchanged. Added focused unit/browser regressions.
+No scoring, data contract, analytics, active-notice, guide edition or live state changes.
+Asset version remains `season-1` within this unpushed local release.
+
+Follow-up validation: all 51 synthetic units passed, including source-date preservation
+and single unknown-date labels; all seven readiness tests passed in Honolulu and
+Kiritimati timezones. The public responsive browser suite passed, including missing-round
+navigation, concise guide warning and existing populated-season/entry behavior.
+JavaScript syntax and whitespace checks passed. All browser data/requests were mocked.
+No push/deployment/live data change is authorized or performed.
+
 ## Historical baseline: 2026-11-08 guide/copy cleanup
 
 The verified deployed base above adds the original Northern Regions newcomer guide and

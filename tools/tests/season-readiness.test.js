@@ -94,8 +94,34 @@ test('missing round pages and cards distinguish future, today, undated and past 
   assert.ok(api.viewRound('R1', 'graph', {}).html.includes('<h2>Awaiting results</h2>'));
   assert.ok(api.viewRound('R2', 'classification', {}).html.includes('<h2>Scheduled today</h2>'));
   assert.ok(api.viewRound('R4', 'stages', {}).html.includes('<h2>Date to be confirmed</h2>'));
-  assert.ok(api.viewRound('R1', 'graph', {}).html.includes('not confirmation that the rally ran or is live'));
+  assert.ok(api.viewRound('R1', 'graph', {}).html.includes('do not confirm the rally ran or is live'));
+  assert.ok(!html.includes('<span> · results'));
+  assert.equal((html.match(/Date to be confirmed/g) || []).length, 2);
+  for (const id of ['R4', 'R5']) {
+    const detail = api.viewRound(id, 'graph', {}).html;
+    assert.equal((detail.match(/Date to be confirmed/g) || []).length, 1);
+    assert.ok(!detail.includes('Round ' + id.slice(1) + ' · '));
+  }
+  s.rounds[0].day = 'Day 1';
+  select(api, s);
+  assert.ok(api.viewRounds().html.includes('Day 1 · results not published yet'));
   assert.equal(api.ST.site.activeRally, undefined);
+});
+test('Info preserves supplied document date text without weakening strict calendar dates', () => {
+  const api = harness(), s = emptySeason();
+  const dates = ['2026-07-09', '9 July 2026', 'July 2026, Version 2', '2026-02-30', '<unconfirmed & supplied>', ''];
+  s.documents = dates.map((date, i) => ({ title: 'Synthetic source ' + i, kind: 'SSR', date, url: 'https://example.com/source', note: i === 5 ? 'Date not supplied' : '' }));
+  api.ST.site.info.intro = 'Evergreen synthetic introduction.';
+  select(api, s);
+  const html = api.viewInfo().html;
+  assert.ok(html.includes('Dated ' + api.fmtDate('2026-07-09')));
+  assert.ok(!html.includes('Dated 2026-07-09'));
+  for (const value of ['Dated 9 July 2026', 'Dated July 2026, Version 2',
+    'Dated 2026-02-30', 'Dated &lt;unconfirmed &amp; supplied&gt;', 'Date not supplied']) assert.ok(html.includes(value), value);
+  assert.ok(!html.includes('Dated Date to be confirmed'));
+  assert.ok(!html.includes('Shared championship introduction'));
+  assert.equal(api.calendarStatus('9 July 2026'), 'Date to be confirmed');
+  assert.equal(api.calendarStatus('2026-02-30'), 'Date to be confirmed');
 });
 test('unknown, partial, known-empty and two-day entry evidence retains its distinct counting semantics', () => {
   const api = harness(), s = emptySeason();

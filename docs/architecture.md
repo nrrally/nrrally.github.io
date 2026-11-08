@@ -54,7 +54,7 @@ Hosting and data use two providers, with optional public analytics and no applic
 | `#/person/<id>` | One person across all seasons |
 | `#/getting-started`, `#/getting-started/<topic>` | Shared newcomer guide with explicit reference edition, not current-season rules |
 | `#/<year>/about` | Sources and data notes |
-| `#/<year>/info`, `#/info` | Selected-season documents/events plus labelled shared championship information |
+| `#/<year>/info`, `#/info` | Selected-season documents/events plus shared championship introduction and labelled shared useful links |
 
 Routes without a year use the current season, so older links still work. Hash routing means the host needs no rewrite rules.
 

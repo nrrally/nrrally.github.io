@@ -120,7 +120,13 @@ about the site standings, not total championship membership.
 Round dates are date-only ISO `YYYY-MM-DD`, not timestamps. The renderer requires both
 the exact format and a real Gregorian date (including leap-day validation); browser
 rollover of `February 30` is rejected. Invalid/blank dates display **Date to be confirmed**.
-An invalid date is not silently treated as past or today.
+An invalid date is not silently treated as past or today. Cards and missing-round
+pages display the unknown-date label only once; absent day descriptions add no separator.
+Valid dates retain their future/today/past status alongside the formatted date.
+
+Document dates are different from schedules. Info preserves supplied free-form source
+date/edition text (escaped) and formats valid ISO dates; it never substitutes
+"Dated Date to be confirmed" for source information. See [data-model.md](data-model.md).
 
 Statuses for rounds with no classification compare the scheduled date to the current
 South African calendar day (UTC+02:00, no daylight-saving change), independent of the
@@ -152,7 +158,9 @@ or automatic source fetch is required to render it.
 
 The reference edition is intentionally 2026 until actual replacement documents are
 reviewed. The warning is visible for all visitors, even offline or opening a year-prefixed
-guide link. Selecting a newer default season does not describe old rules as verified for it.
+guide link. Its concise warning gives the edition, check date, nonverification for
+other seasons and current-regulations direction without repeating the maintenance workflow.
+Selecting a newer default season does not describe old rules as verified for it.
 Guide routes remain shared and omit the season selector: they are reference content,
 not a season-specific rules page. Event/document actions go to the results application's
 season context/default; the dated references remain labelled independently.

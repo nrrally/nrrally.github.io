@@ -145,6 +145,13 @@ Manual new-season settings are copied placeholders with no persisted rule approv
 classMap, MSA confirmations, notes/documents/events/results/entry lists start empty.
 See [the yearly workflow](season-lifecycle.md).
 
+Document `date` is a supplied string: the manual editor offers an ISO date input,
+but the AI schema accepts strings and older/imported/backed-up sources may contain
+free-form edition/date text. Info formats valid ISO dates and otherwise preserves the
+escaped supplied text verbatim, including malformed ISO text rather than normalizing
+it or claiming a scheduled date. Missing dates have no "Dated" prefix. This source
+display does not relax strict round schedule/status validation.
+
 ## Documented entry participation (stored on the season)
 
 Optional `season.entryLists` keeps official entry evidence independent of classifications. Each list is

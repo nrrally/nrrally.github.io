@@ -55,6 +55,13 @@ node --test tools\tests\season-readiness.test.js
 Remove-Item Env:TZ
 ```
 
+Review regressions also assert no leading separator for an unknown round day and
+only one unknown-date label per calendar card/detail page. Valid statuses remain
+visible. Info source-date tests cover valid ISO formatting, free-form dates/edition
+text, invalid ISO preservation, escaped supplied text and absent dates. Calendar
+status still rejects every non-ISO/invalid date. The browser regression verifies
+unknown-date cards/detail pages alongside existing populated-season behavior.
+
 The public theme browser regression adds a fictional 2027 bundle only in its mocked
 Firestore responses. It changes the synthetic default, checks calendar-only states
 and unknown metadata at 320/1440 px in light/dark themes, all date labels, missing-round

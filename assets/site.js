@@ -33,6 +33,9 @@
     var d = new Date(iso + 'T12:00:00Z');
     return !isNaN(d) && d.toISOString().slice(0, 10) === iso ? d : null;
   }
+  function fmtDocumentDate(value) {
+    return calendarDate(value) ? fmtDate(value) : esc(value);
+  }
   function calendarStatus(iso) {
     if (!calendarDate(iso)) return 'Date to be confirmed';
     // South African calendar days are UTC+02:00, independent of the visitor's timezone.
@@ -300,7 +303,7 @@
         '<a class="btn primary" href="' + sh('/rounds') + '">See the calendar</a><a class="btn ghost-dark" href="' + sh('/info') + '">Regulations &amp; info</a>') +
         '<a class="btn ghost-dark" href="#/getting-started">Getting started in NR Rally</a></div></section>';
     if (!D.rounds.length) {
-      html += '<div class="section"><div class="card empty"><h2>No results yet</h2><p>No ' + YEAR + ' classifications have been published here. Calendar details may still be incomplete; listed dates do not confirm that an event ran. Standings and stage graphs appear after classifications are added.</p>' +
+      html += '<div class="section"><div class="card empty"><h2>No results yet</h2><p>Standings and graphs appear after ' + YEAR + ' classifications are added. Calendar details may still be incomplete.</p>' +
         (D.people.length ? '<p><a href="' + sh('/crews') + '">See documented entry-list crews</a>. An entry is not a start or a scored result.</p>' : '') + '</div></div>';
       html += '<div class="section"><div class="section-head"><h2>The ' + YEAR + ' calendar</h2></div>' + eventCards() + '</div>';
       return { title: 'Home', html: html };
@@ -361,7 +364,8 @@
       }
       var rows = D.calendar.filter(function (c) { return c.eventId === ev.id; }).map(function (c) {
         var r = roundsById[c.id];
-        if (!r) return '<a class="event-round upcoming" href="' + sh('/round/' + c.id) + '"><span class="rnd">R' + c.n + '</span><span class="w"><b>' + (c.date ? fmtDate(c.date) : 'Date to be confirmed') + '</b><span>' + esc(c.day) + ' · results not published yet</span>' + upcomingEntries(c.id) + '</span><span class="go muted">' + calendarStatus(c.date) + '</span></a>';
+        if (!r) return '<a class="event-round upcoming" href="' + sh('/round/' + c.id) + '"><span class="rnd">R' + c.n + '</span><span class="w"><b>' + (c.date ? fmtDate(c.date) : 'Date to be confirmed') + '</b><span>' + (c.day ? esc(c.day) + ' · ' : '') + 'results not published yet</span>' + upcomingEntries(c.id) + '</span>' +
+          (calendarDate(c.date) ? '<span class="go muted">' + calendarStatus(c.date) + '</span>' : '') + '</a>';
         var w = winnerOf(r);
         return '<a class="event-round" href="' + sh('/round/' + r.id) + '"><span class="rnd">R' + r.n + '</span><span class="w">' + (w ? '<b>' + esc(w.driver) + '</b> / ' + esc(w.codriver) : '—') +
           '<span>' + esc(r.day) + ' · ' + r.stages.length + ' stages · ' + classifiedSorted(r).length + ' classified' + (classificationState(r) === 'provisional' ? ' · provisional sheet' : classificationState(r) === 'unclear' ? ' · finality unclear' : '') + '</span></span><span class="go">Graph →</span></a>';
@@ -467,8 +471,9 @@
       var c = D.calendar.filter(function (x) { return x.id === id; })[0];
       if (!c) return notFound();
       var ev0 = eventsById[c.eventId] || { name: 'Round ' + c.n, links: {} };
-      return { title: 'R' + c.n, html: '<div class="page-head"><div><p class="eyebrow">Round ' + c.n + ' · ' + esc(c.day) + '</p><h1>' + esc(ev0.name) + '</h1><div class="round-meta"><span>' + (c.date ? fmtDate(c.date) : 'Date to be confirmed') + '</span></div></div></div>' +
-        '<div class="card empty"><h2>' + calendarStatus(c.date) + '</h2><p>Results not published yet. The stage graph and classification appear here once the official classification for this round has been added. A scheduled date is not confirmation that the rally ran or is live.</p>' +
+      return { title: 'R' + c.n, html: '<div class="page-head"><div><p class="eyebrow">Round ' + c.n + (c.day ? ' · ' + esc(c.day) : '') + '</p><h1>' + esc(ev0.name) + '</h1>' +
+        (calendarDate(c.date) ? '<div class="round-meta"><span>' + fmtDate(c.date) + '</span></div>' : '') + '</div></div>' +
+        '<div class="card empty"><h2>' + calendarStatus(c.date) + '</h2><p>Results not published yet. Graphs and classifications appear when added. Scheduled dates do not confirm the rally ran or is live.</p>' +
         eventLinks(ev0, D.entryLists.filter(function (l) { return l.eventId === c.eventId; })[0]) +
         '<p><a href="' + sh('/crews') + '">Documented crews</a> · <a href="' + sh('/info') + '">Season documents</a></p></div>' };
     }
@@ -1010,7 +1015,7 @@
   function socialLabel(k) { return (SOCIAL[k] || [k.charAt(0).toUpperCase() + k.slice(1)])[0]; }
   function viewInfo() {
     var S = ST.site, info = S.info || {};
-    var html = '<div class="page-head"><div><p class="eyebrow">' + YEAR + ' information</p><h1>About the championship</h1>' + (info.intro ? '<p>' + esc(info.intro) + '</p><p class="small muted">Shared championship introduction; use the selected season&rsquo;s documents below for dated rules.</p>' : '') + '</div></div>';
+    var html = '<div class="page-head"><div><p class="eyebrow">' + YEAR + ' information</p><h1>About the championship</h1>' + (info.intro ? '<p>' + esc(info.intro) + '</p>' : '') + '</div></div>';
     html += '<p class="guide-entry">New to Northern Regions? <a href="#/getting-started">Start with the spectator, crew and rally-weekend guide</a>.</p>';
     var social = S.social || [];
     if (social.length) {
@@ -1023,7 +1028,7 @@
     var docs = D.documents || [];
     html += '<div class="section"><div class="section-head"><h2>' + YEAR + ' regulations &amp; documents</h2></div>';
     html += docs.length ? '<div class="doc-list">' + docs.map(function (d) {
-      return '<a class="card doc" href="' + esc(safeUrl(d.url)) + '" target="_blank" rel="noopener"><span class="doc-kind">' + esc(d.kind || 'Document') + '</span><span class="doc-main"><b>' + esc(d.title) + '</b><span>' + (d.date ? 'Dated ' + fmtDate(d.date) : '') + (d.note ? (d.date ? ' · ' : '') + esc(d.note) : '') + '</span></span><span class="go">Open ↗</span></a>';
+      return '<a class="card doc" href="' + esc(safeUrl(d.url)) + '" target="_blank" rel="noopener"><span class="doc-kind">' + esc(d.kind || 'Document') + '</span><span class="doc-main"><b>' + esc(d.title) + '</b><span>' + (d.date ? 'Dated ' + fmtDocumentDate(d.date) : '') + (d.note ? (d.date ? ' · ' : '') + esc(d.note) : '') + '</span></span><span class="go">Open ↗</span></a>';
     }).join('') + '</div>' : '<div class="card empty">No documents have been added for ' + YEAR + ' yet.</div>';
     html += '</div>';
     if (D.events.length) {

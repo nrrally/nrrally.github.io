@@ -127,7 +127,7 @@
   function view() {
     var html = '<article class="getting-started"><div class="page-head"><div><p class="eyebrow">Northern Regions &middot; a first rally, one step at a time</p>' +
       '<h1>Getting started in NR Rally</h1><p>Come watch a Northern Regions rally and enjoy the day. If you later want to join a crew, this guide takes you through preparing, entering and taking part.</p></div></div>' +
-      '<p class="guide-edition"><strong>Reference edition: ' + edition.year + '.</strong> Rules checked ' + edition.checked + '. Dated class, licence, safety and fuel guidance is not verified for other seasons. For your event, use its current official regulations and bulletins. Changing the site season does not update this guide.</p>' +
+      '<p class="guide-edition"><strong>Reference edition: ' + edition.year + '.</strong> Checked ' + edition.checked + '; not verified for other seasons. Use your event&rsquo;s current regulations and bulletins.</p>' +
       '<nav class="guide-jumps" aria-label="Getting started topics">' + sections.map(function (s) {
         return '<a href="#/getting-started/' + s.id + '">' + s.label + '</a>';
       }).join('') + '</nav>';

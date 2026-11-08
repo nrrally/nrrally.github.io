@@ -388,7 +388,16 @@ async function main() {
         assert.deepEqual(await page.locator('.hero-actions a').allTextContents(),
           ['See the calendar', 'Regulations & info', 'Getting started in NR Rally']);
         assert.deepEqual(await page.locator('.event-round.upcoming .go').allTextContents(),
-          ['Awaiting results', 'Scheduled today', 'Upcoming', 'Date to be confirmed', 'Date to be confirmed']);
+          ['Awaiting results', 'Scheduled today', 'Upcoming']);
+        for (const card of await page.locator('.event-round.upcoming').all()) {
+          const text = await card.innerText();
+          assert.ok(!text.includes('· results'));
+          assert.ok((text.match(/Date to be confirmed/g) || []).length <= 1);
+        }
+        await page.locator('.event-round.upcoming').nth(3).click();
+        await page.getByRole('heading', { name: 'Date to be confirmed', exact: true }).waitFor();
+        assert.equal((await page.innerText('main')).match(/Date to be confirmed/g).length, 1);
+        await visit('#/2027/rounds');
         await page.locator('.event-round.upcoming').first().click();
         await page.getByRole('heading', { name: 'Awaiting results', exact: true }).waitFor();
         await noOverflow();

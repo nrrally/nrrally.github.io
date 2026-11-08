@@ -52,7 +52,7 @@ test('reference edition remains explicit independently of season or database ava
   const html = context.window.NRGettingStarted.view().html;
   assert.ok(html.indexOf('Reference edition: 2026') < html.indexOf('guide-watch'));
   assert.ok(html.includes('not verified for other seasons'));
-  assert.ok(html.includes('Changing the site season does not update this guide'));
+  assert.ok(html.includes('Use your event&rsquo;s current regulations and bulletins'));
 });
 test('topic anchors resolve uniquely and all references are official HTTPS destinations', () => {
   const html = guide().html;
