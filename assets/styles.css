@@ -424,6 +424,37 @@ a.doc:hover { border-color: var(--line-2); color: inherit; }
 .soc-mini { display: inline-grid; place-items: center; color: var(--muted); }
 .soc-mini:hover { color: var(--accent); }
 .btn .soc-ico { width: 16px; height: 16px; }
+
+/* ---------- getting started ---------- */
+.getting-started { max-width: 960px; margin-inline: auto; }
+.guide-entry { margin-block: 18px; color: var(--ink-2); }
+.guide-jumps { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 20px; }
+.guide-jumps a { padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); text-decoration: none; }
+.guide-jumps a:hover { background: var(--accent-soft); }
+.guide-section h2 { scroll-margin-top: 160px; }
+.guide-copy { line-height: 1.65; overflow-wrap: anywhere; }
+.guide-copy > p:first-child, .guide-detail > p:first-child { margin-block-start: 0; }
+.guide-copy > p:last-child { margin-block-end: 0; }
+.guide-copy details { border-top: 1px solid var(--line); padding-block-start: 12px; margin-block-start: 16px; }
+.guide-copy summary { cursor: pointer; font-weight: 700; color: var(--accent); padding-block: 4px; }
+.guide-detail { padding-block-start: 16px; }
+.guide-detail h3 { margin-block: 20px 8px; }
+.guide-source { font-size: 12.5px; color: var(--muted); }
+.guide-steps { padding-inline-start: 24px; }
+.guide-steps li { padding-inline-start: 4px; margin-block: 12px; }
+.guide-classes { min-width: 0; white-space: normal; }
+.guide-classes caption { text-align: start; padding-block: 8px; font-weight: 700; }
+.guide-classes th[scope="row"] { vertical-align: top; }
+.guide-classes td { white-space: normal; }
+.guide-references { padding-inline-start: 20px; }
+.guide-references li { margin-block: 12px; }
+.guide-references span { display: block; font-size: 12.5px; color: var(--muted); }
+@media print {
+  .guide-jumps { display: none; }
+  .guide-copy details:not([open]) > .guide-detail { display: block; }
+  .guide-copy details::details-content { content-visibility: visible; }
+  .guide-copy { box-shadow: none; }
+}
 @media (max-width: 640px) {
   .profile-head { align-items: flex-start; }
   .avatar { width: 64px; height: 64px; border-radius: 16px; }

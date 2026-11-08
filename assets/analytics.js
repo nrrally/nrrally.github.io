@@ -6,7 +6,8 @@
   var settings, current = '', currentKey = '', lastKey = '', script, configured = false, ready = false, loaded = false, failed = false, storageOK = true, choice;
   var publicPage = /\/(?:index\.html|disclaimer\.html|privacy\.html)?$/.test(location.pathname) && !/\/admin(?:\/|$)/i.test(location.pathname);
   var categories = { home: 'Home', standings: 'Standings', rounds: 'Rounds', round: 'Round',
-    crews: 'Crews', person: 'Crew profile', about: 'Sources', info: 'Info', disclaimer: 'Disclaimer', privacy: 'Privacy' };
+    crews: 'Crews', person: 'Crew profile', about: 'Sources', info: 'Info', 'getting-started': 'Getting started',
+    disclaimer: 'Disclaimer', privacy: 'Privacy' };
   function warning(message) { console.warn(message); }
   function readChoice() {
     try { choice = localStorage.getItem(key); storageOK = true; }

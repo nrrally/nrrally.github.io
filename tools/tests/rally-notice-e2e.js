@@ -135,7 +135,7 @@ async function main() {
     assert.equal(await open().count(), 0); assert.ok(await page.locator('.rally-reminder').isVisible());
     assert.ok(await page.evaluate(() => document.activeElement.closest('.rally-reminder') !== null));
     for (const hash of ['#/', '#/standings', '#/standings/codrivers', '#/rounds', '#/round/missing',
-      '#/crews', '#/person/missing', '#/info', '#/about', '#/missing']) {
+      '#/crews', '#/person/missing', '#/info', '#/about', '#/getting-started', '#/getting-started/watch', '#/missing']) {
       await page.evaluate(h => location.hash = h, hash);
       assert.ok(await page.locator('.rally-reminder').isVisible()); assert.equal(await open().count(), 0);
     }

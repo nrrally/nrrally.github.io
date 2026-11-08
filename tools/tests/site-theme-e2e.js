@@ -30,7 +30,7 @@ async function main() {
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = 'http://127.0.0.1:' + server.address().port;
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH });
   try {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, colorScheme: 'light' });
     await ctx.route('**/*', async route => {
@@ -69,14 +69,87 @@ async function main() {
     };
     const noOverflow = async () => assert.equal(await page.evaluate(() =>
       document.documentElement.scrollWidth <= window.innerWidth), true);
+    const eventCount = async expected => {
+      for (const hash of ['#/', '#/rounds']) {
+        await visit(hash);
+        assert.equal(await page.locator('.event-top > .small').innerText(), expected);
+        assert.ok((await page.locator('.event-top > .meta').innerText()).endsWith('gravel'));
+        assert.equal(await page.locator('.event-top > .meta + .small').count(), 1);
+        const text = await page.innerText('main');
+        assert.ok(!text.includes('documented event crew entries'));
+        assert.ok(!text.includes('documented event entries'));
+        assert.ok(!text.includes('day scope only where evidenced'));
+        assert.ok(!text.includes('Points for R1 are calculated on this site.'));
+        assert.ok(!text.includes('Treat them as provisional until MSA publishes.'));
+        await noOverflow();
+      }
+    };
     for (const width of [1440, 768, 390, 320]) {
       await page.setViewportSize({ width, height: 1000 });
       for (const hash of ['#/', '#/standings', '#/standings/codrivers', '#/standings?class=OPEN', '#/rounds',
         '#/round/R1/graph', '#/round/R1/classification', '#/round/R1/stages', '#/round/missing',
-        '#/crews', '#/person/alex-test', '#/person/missing', '#/info', '#/about', '#/2026/about', '#/missing']) {
+        '#/crews', '#/person/alex-test', '#/person/missing', '#/info', '#/about', '#/2026/about',
+        '#/getting-started', '#/getting-started/national-regional', '#/2026/getting-started/ready', '#/missing']) {
         await visit(hash); await noOverflow();
+        if (hash === '#/') {
+          assert.equal(await page.locator('.hero > p').last().innerText(), published.site.tagline);
+          assert.deepEqual(await page.locator('.hero-actions a').allTextContents(),
+            ['Open the latest stage graph', 'Championship standings', 'Getting started in NR Rally']);
+        }
+        if (hash.startsWith('#/standings')) assert.equal(await page.locator('.page-head p').last().innerText(),
+          'Overall + class points · Minimum 1 starts for eligibility.');
+        if (hash === '#/rounds') assert.equal(await page.locator('.page-head p').last().innerText(),
+          'Choose a round for graphs, classifications and stage times.');
+        if (hash === '#/crews') assert.equal(await page.locator('.page-head p').last().innerText(),
+          'Drivers and co-drivers in 2026 Northern Regions classifications and entry lists.');
       }
     }
+    // A bundled guide is readable without results; topic navigation works by keyboard.
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(t => localStorage.setItem('nr-theme', t), theme);
+      for (const width of [1440, 768, 390, 320]) {
+        await page.setViewportSize({ width, height: 1000 });
+        await visit('#/getting-started');
+        assert.equal(await page.locator('main h1').innerText(), 'Getting started in NR Rally');
+        const opening = await page.locator('.getting-started .page-head').innerText();
+        assert.ok(opening.includes('Come watch a Northern Regions rally'));
+        assert.ok(!/\blicen[cs]e|eligibility|approved|first three steps/i.test(opening));
+        assert.equal(await page.locator('.guide-orientation').count(), 0);
+        assert.ok(!/rally[- ]raid/i.test(await page.locator('.getting-started').textContent()));
+        assert.equal(await page.locator('.nav a[aria-current="page"]').innerText(), 'Getting started');
+        assert.ok(await page.locator('.nav a.active').evaluate(el => {
+          const a = el.getBoundingClientRect(), n = el.closest('nav').getBoundingClientRect();
+          return a.left >= n.left - 1 && a.right <= n.right + 1;
+        }), 'Active guide navigation remains visible on mobile');
+        assert.equal(await page.locator('#seasonSel').count(), 0);
+        assert.equal(await page.locator('main details').count(), 10);
+        if (process.env.GUIDE_SCREENSHOT_DIR && theme === 'light' && [1440, 390].includes(width)) {
+          fs.mkdirSync(process.env.GUIDE_SCREENSHOT_DIR, { recursive: true });
+          await page.screenshot({ path: path.join(process.env.GUIDE_SCREENSHOT_DIR, 'nr-guide-' + width + '.png') });
+        }
+        for (const detail of await page.locator('main details').all()) {
+          await detail.locator('summary').focus();
+          await page.keyboard.press('Enter');
+          assert.equal(await detail.getAttribute('open'), '');
+        }
+        assert.ok((await page.locator('main').innerText()).includes('Entering does not establish a start'));
+        await noOverflow();
+        const jump = page.locator('.guide-jumps a[href="#/getting-started/during"]');
+        await jump.focus(); await page.keyboard.press('Enter');
+        await page.waitForFunction(() => document.activeElement.id === 'guide-during');
+        assert.ok(await page.locator('#guide-during').isVisible());
+        assert.ok(await page.locator('#guide-during').evaluate(el => el.getBoundingClientRect().top >=
+          document.querySelector('.site-header').getBoundingClientRect().bottom));
+      }
+    }
+    await visit('#/getting-started');
+    await page.emulateMedia({ media: 'print' });
+    assert.ok(await page.locator('.guide-detail').first().isVisible(), 'Print includes collapsed guide detail');
+    assert.ok(await page.locator('.site-disclosure').isVisible());
+    await page.emulateMedia({ media: 'screen' });
+    await visit('#/');
+    await page.locator('.hero-actions').getByRole('link', { name: 'Getting started in NR Rally', exact: true }).click();
+    await page.getByRole('heading', { name: 'Getting started in NR Rally', exact: true }).waitFor();
     // Both saved choices override the system preference and survive navigation.
     for (const theme of ['light', 'dark']) {
       await page.emulateMedia({ colorScheme: theme === 'light' ? 'dark' : 'light' });
@@ -99,6 +172,46 @@ async function main() {
       await page.click('#themeBtn');
       assert.equal(await page.getAttribute('html', 'data-theme'), theme === 'light' ? 'dark' : 'light');
     }
+    // Source evidence remains keyboard-accessible on every round tab, with badges outside the disclosure.
+    const notesBefore = F.copy(bundle.rounds.R1.notes), sourceBefore = F.copy(bundle.rounds.R1.source);
+    const crewNotesBefore = F.copy(bundle.rounds.R1.entries[0].notes);
+    bundle.rounds.R1.notes = ['Synthetic round discrepancy & source evidence'];
+    bundle.rounds.R1.entries[0].notes = ['Synthetic crew discrepancy <evidence>'];
+    bundle.rounds.R1.source.pdf = 'https://example.com/classification.pdf';
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(t => localStorage.setItem('nr-theme', t), theme);
+      for (const width of [1440, 320]) {
+        await page.setViewportSize({ width, height: 1000 });
+        await visit('#/round/R1/graph');
+        for (const [tab, name] of [['graph', 'Stage graph'], ['classification', 'Classification'], ['stages', 'Stage times']]) {
+          await page.locator('.tabs').getByRole('link', { name, exact: true }).click();
+          await page.waitForSelector('.tabs a.on[href$="/' + tab + '"]');
+          const notes = page.locator('details.notes'), summary = notes.locator('summary');
+          assert.equal(await summary.innerText(), 'Source & notes');
+          assert.equal(await notes.getAttribute('open'), null);
+          assert.equal(await notes.locator('div').isVisible(), false);
+          assert.ok(await page.locator('.round-meta .badge.final').isVisible());
+          assert.ok(await page.locator('.round-meta .badge.calc').isVisible());
+          await summary.focus(); await page.keyboard.press('Enter');
+          assert.equal(await notes.locator('div').isVisible(), true);
+          const text = await notes.innerText();
+          assert.ok(text.includes(bundle.rounds.R1.title));
+          assert.ok(text.includes(bundle.rounds.R1.status));
+          assert.ok(text.includes(bundle.rounds.R1.source.file));
+          assert.ok(text.includes('Live timing is not used.'));
+          assert.ok(text.includes('Synthetic round discrepancy & source evidence'));
+          assert.ok(text.includes('Car 1: Synthetic crew discrepancy <evidence>'));
+          assert.equal(await notes.locator('evidence').count(), 0);
+          assert.equal(await notes.locator('a[href="' + sourceBefore.url + '"]').count(), 1);
+          assert.ok(await notes.getByRole('link', { name: 'the official PDF', exact: true }).isVisible());
+          await noOverflow();
+          await summary.focus(); await page.keyboard.press('Enter');
+          assert.equal(await notes.locator('div').isVisible(), false);
+        }
+      }
+    }
+    bundle.rounds.R1.notes = notesBefore; bundle.rounds.R1.source = sourceBefore;
+    bundle.rounds.R1.entries[0].notes = crewNotesBefore;
     // Finality is derived from headings, not merely from the absence of "provisional".
     for (const [status, unclear, label] of [
       ['Final Official Classification', false, 'Final classification'],
@@ -132,13 +245,33 @@ async function main() {
     await page.setViewportSize({ width: 320, height: 1000 });
     await visit('#/crews');
     assert.ok((await page.innerText('main')).includes('Casey Entry'));
+    assert.ok(!(await page.innerText('main')).includes('Entry does not prove a start.'));
     await page.getByRole('link', { name: 'Casey Entry', exact: true }).click();
     await page.waitForSelector('.profile-head');
     assert.ok(page.url().endsWith('/person/entry-person-stable'));
     assert.equal(await page.locator('.kpi').filter({ hasText: 'Starts' }).locator('b').innerText(), '0');
+    assert.equal(await page.locator('main details summary').innerText(), '1 events entered');
     await page.locator('main details summary').click();
     assert.ok((await page.innerText('main')).includes('event only; day scope unknown'));
+    assert.ok((await page.innerText('main')).includes('entry only; not recorded as started in this scope'));
+    assert.equal(await page.locator('main details a[href="https://example.com/entries"]').count(), 1);
     await noOverflow();
+    await eventCount('1 NR Entries');
+    assert.equal(await page.locator('.event-top a[href="https://example.com/entries"]').count(), 1);
+    bundle.season.events[0].links.entryList = 'https://example.com/entries';
+    await eventCount('1 NR Entries');
+    assert.equal(await page.locator('.event-top a[href="https://example.com/entries"]').count(), 1);
+    assert.equal(await page.getByRole('link', { name: 'Entry list ↗', exact: true }).count(), 1);
+    bundle.season.events[0].links.entryList = 'https://example.com/another-entry-list';
+    await eventCount('1 NR Entries');
+    assert.equal(await page.locator('.event-top a[href="https://example.com/entries"]').count(), 1);
+    assert.equal(await page.locator('.event-top a[href="https://example.com/another-entry-list"]').count(), 1);
+    delete bundle.season.events[0].links.entryList;
+    assert.equal(await page.locator('.event-round[href="#/2026/round/R1"]').count(), 1);
+    await visit('#/standings');
+    assert.ok((await page.innerText('main')).includes('not yet confirmed by MSA'));
+    await visit('#/about');
+    assert.ok((await page.innerText('main')).includes('Points are calculated here from the official classifications'));
     for (const id of ['entry /?&#% +person', 'entry" onmouseover="window.attributeBroken=true']) {
       published.people.people.find(p => p.name === 'Casey Entry').id = id;
       await visit('#/crews');
@@ -179,6 +312,10 @@ async function main() {
       { ...entered, driver: 'Blake Example', car: '2', roundIds: ['R2'] },
       { ...entered, car: '3', roundIds: [] }
     ];
+    await eventCount('3 NR Entries');
+    bundle.season.entryLists[0].entries.push({ ...entered, driver: 'Alex Test', car: '4', roundIds: ['R2'] });
+    await eventCount('3 NR Entries');
+    bundle.season.entryLists[0].entries.pop();
     await visit('#/rounds');
     const upcoming = page.locator('.event-round.upcoming');
     assert.equal(await upcoming.count(), 2);
@@ -193,17 +330,28 @@ async function main() {
     assert.ok((await upcoming.nth(0).innerText()).includes('1 documented round entry'));
     assert.ok((await upcoming.nth(1).innerText()).includes('0 documented round entries'));
     bundle.season.entryLists[0].complete = false;
+    await eventCount('1 NR Entries (partial)');
     await visit('#/rounds');
     assert.ok((await upcoming.nth(0).innerText()).includes('partial day coverage'));
     assert.ok((await upcoming.nth(1).innerText()).includes('round entry coverage incomplete'));
     bundle.season.entryLists[0].entries = [entered]; bundle.season.entryLists[0].roundIds = [];
+    await eventCount('1 NR Entries (partial)');
     await visit('#/rounds');
     for (let i = 0; i < 2; i++) {
       const text = await upcoming.nth(i).innerText();
       assert.ok(text.includes('round entry coverage unknown'));
       assert.ok(!text.includes('0 documented'));
     }
+    bundle.season.entryLists[0].entries = [];
+    await eventCount('NR Entries unknown');
+    bundle.season.entryLists[0].complete = true;
+    await eventCount('0 NR Entries');
+    bundle.season.entryLists[0].entries = Array.from({ length: 20 }, (_, i) => ({
+      ...entered, driver: 'Synthetic Crew ' + i, car: String(i + 1)
+    }));
+    await eventCount('20 NR Entries');
     delete bundle.season.entryLists;
+    await eventCount('NR Entries unknown');
     await visit('#/rounds');
     assert.ok(!(await upcoming.first().innerText()).includes('round entry coverage'));
     bundle.season.rounds = calendarBefore; bundle.rounds = roundsBefore;
@@ -224,16 +372,26 @@ async function main() {
     await page.reload();
     await page.getByRole('heading', { name: 'Results coming soon' }).waitFor();
     assert.ok(await page.locator('.site-disclosure a[href="disclaimer.html"]').isVisible());
+    await page.getByRole('link', { name: 'Getting started in NR Rally', exact: true }).click();
+    await page.getByRole('heading', { name: 'Getting started in NR Rally', exact: true }).waitFor();
+    await noOverflow();
     published.site = savedSite;
     configured = false;
+    await page.goto(base + '/index.html');
     await page.reload();
     await page.getByRole('heading', { name: 'Site not connected yet' }).waitFor();
     assert.ok(await page.locator('.site-disclosure a[href="disclaimer.html"]').isVisible());
+    await visit('#/getting-started/ready');
+    assert.ok(await page.locator('#guide-ready').isVisible());
+    await page.locator('.nav').getByRole('link', { name: 'Home', exact: true }).click();
+    await page.getByRole('heading', { name: 'Site not connected yet' }).waitFor();
     configured = true;
     databaseDown = true;
     await page.goto(base + '/index.html');
     await page.getByRole('heading', { name: 'Results are temporarily unavailable' }).waitFor();
     assert.ok(await page.locator('.site-disclosure a[href="disclaimer.html"]').isVisible());
+    await visit('#/getting-started');
+    assert.ok(await page.locator('.getting-started').isVisible());
     await page.locator('.site-disclosure a[href="disclaimer.html"]').click();
     await page.getByRole('heading', { name: 'Independent by design.' }).waitFor();
     assert.ok((await page.innerText('.site-disclosure')).includes('take precedence'));
@@ -249,7 +407,7 @@ async function main() {
     await staticPage.goto(base + '/admin/index.html');
     assert.ok(await staticPage.locator('.site-disclosure a[href="../disclaimer.html"]').isVisible());
     assert.deepEqual(errors, []); assert.deepEqual(unexpected, []);
-    console.log('PASS public theme: responsive routes, saved themes, AA button contrast, final/provisional/unclear headings, sources, print, offline disclaimer and no-JS disclosures.');
+    console.log('PASS public theme: responsive routes and NR guide, keyboard topics/details, saved themes, AA button contrast, classification sources, print, database-independent guide and no-JS disclosures.');
   } finally {
     await browser.close(); await new Promise(resolve => server.close(resolve));
   }

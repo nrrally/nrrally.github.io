@@ -184,9 +184,12 @@ async function main() {
     await page.evaluate(() => { history.replaceState(null, '', '#/2026/standings?search=SecretThree'); dispatchEvent(new HashChangeEvent('hashchange')); });
     await page.waitForTimeout(100); assert.equal(hits.length, 1);
     for (const [hash, category] of [['#/2026/standings/codrivers', 'standings/codrivers'], ['#/round/secret-round/classification?query=Hidden', 'round/classification'],
-      ['#/person/private-person', 'person'], ['#/person/other-private-person', 'person'], ['#/info', 'info']]) {
+      ['#/person/private-person', 'person'], ['#/person/other-private-person', 'person'],
+      ['#/getting-started', 'getting-started'], ['#/getting-started/secret-topic?email=Hidden', 'getting-started'],
+      ['#/info', 'info']]) {
       const count = hits.length; await page.evaluate(h => location.hash = h, hash); await waitHits(count + 1);
       assert.equal(hits.at(-1).page_location, base + '/#/' + category);
+      if (category === 'getting-started') assert.equal(hits.at(-1).page_title, 'Getting started - Northern Regions Rally');
     }
     assert.ok(await page.locator('main a[href="privacy.html"]').isVisible());
     assert.ok(await page.locator('footer a[href="privacy.html"]').isVisible());

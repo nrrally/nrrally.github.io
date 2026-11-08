@@ -21,6 +21,7 @@ node tools/tests/site-theme-e2e.js
 node --test tools/tests/rally-notice.test.js
 node tools/tests/rally-notice-e2e.js
 node --test tools/tests/analytics.test.js
+node --test tools/tests/getting-started.test.js
 node tools/tests/analytics-e2e.js
 node tools/tests/admin-access-e2e.js
 ```
@@ -37,6 +38,19 @@ It also verifies that enabled published analytics never loads the tag in live ad
 and that simulation analytics edits cannot change published settings.
 
 The public theme test uses synthetic published documents and read-only mocked requests. It checks public routes at 320, 390, 768 and 1440 pixels (home, driver/co-driver standings and filters, rounds, all three round tabs, crews, profiles, info, season-specific sources and missing-page/round/profile states), saved light/dark preferences, primary-button WCAG AA contrast, final/provisional/unclear headings (including legacy page-count headings), consistent source badges, printed disclosure, loading/empty/unconfigured/database-failure links and JavaScript-free disclaimer access. The AI Import E2E also checks the persistent disclaimer link on dashboard, backup import, AI Import, results editing, calendar, competitors/profile editing, season settings, site info, history and review/publish. The link is static outside both apps' render roots, so route changes and sign-in/error rendering cannot remove it. These checks do not certify all WCAG criteria or replace visual review.
+
+The getting-started unit checks cover the dated NR topics, official-source allowlist, unique working
+topic anchors, a spectator-first opening without competition prerequisites, spectator safety,
+no rally-raid references, no unverified TC target calculation, no quoted prices or hard-coded
+minimum-start threshold, and coordinated script loading.
+The public theme E2E also checks the guide at all four widths in both themes, native keyboard
+expanders, topic focus/scroll below the header, print detail, homepage hero actions and guide-button
+navigation, entry links and guide access with
+missing/unconfigured/unavailable results. `PLAYWRIGHT_EXECUTABLE_PATH` may select an existing Edge
+or Chromium installation. The analytics E2E verifies generic `getting-started` payloads even for
+unknown/private-looking topic/query values, and the active-rally E2E retains its warning on guide
+routes. All data and collection remain mocked; these tests do not verify official documents'
+future currency. Recheck source links and regulations when reviewing guide content.
 
 The active-rally tests verify absent/disabled defaults, exact safe HTTPS NRC destination validation,
 malformed settings rejection, unchanged scoring and coordinated cache versions. Mocked browser checks
@@ -144,6 +158,15 @@ explicit manual alias/new-person decisions, classification-only legacy auto-add 
 identity rebase; same-count/different-crew and reduced-scope backup loss versus no-loss restore;
 mixed cached engine/import contracts; and upcoming two-day calendar counts with one-day-only,
 unknown-scope, partial and missing entry evidence.
+Public event cards show concise NR entry counts after the surface, qualify partial lists, and
+show unknown coverage rather than zero for missing or empty partial lists. Checks cover event-level
+crew deduplication across days, known-empty complete lists, retained entry-source links, and removal
+of the homepage entry-summary/points callout and the Crews entry-versus-start sentence. Detailed
+points and participation explanations remain on the relevant standings, sources and profile views.
+Concise homepage, rounds, standings and Crews introductions and profile entry summaries are checked
+against their displayed wording. Round source/discrepancy notes stay collapsed behind "Source & notes"
+on all three tabs; browser checks verify keyboard expansion/collapse, preserved source/PDF links and
+escaped round/crew evidence, visible status badges, tab navigation, and both themes at 320/1440 px.
 
 ## Manual check after a publish
 
