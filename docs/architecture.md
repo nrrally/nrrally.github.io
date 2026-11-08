@@ -30,7 +30,7 @@ Hosting and data use two providers, with optional public analytics and no applic
 |---|---|---|
 | Engine | `assets/engine.js` | Pure functions shared by the site, admin and Node tools: time parsing, name matching and look-alike detection, the season model (points, classes, standings, stage progressions, crew histories), checks, and the importers for pasted PDF text (known layouts only) and spreadsheets. No browser or network code. See [data-entry-guide.md](data-entry-guide.md). |
 | Public site | `index.html`, `assets/site.js`, `assets/styles.css` | A single-page app. Reads `public/site`, `public/people` and `public/season_<year>` through the Firestore REST API, then calls `NREngine.buildSeason`. |
-| Getting started | `assets/getting-started.js` | Bundled original guide, independent of results/database state. Explicit reference edition supplies the badge/warning; annual source/body review is separate from season cutover. |
+| Getting started | `assets/getting-started.js` | Bundled original guide, independent of results/database state. Maintainer edition metadata and dated sources support annual review separately from season cutover; no edition badge is rendered. |
 | Active-rally notice | `assets/rally-notice.js`, `assets/rally-notice.css`, `disclaimer.html` | Reads only `public/site`; shares that initial promise with the results app. Native full-page yellow modal, followed by a sticky compact reminder after bypass. Not loaded by the admin. |
 | Optional analytics & privacy | `assets/analytics.js`, `privacy.html` | Shares the public site settings promise, validates GA4 settings and sends manual sanitized pageviews after rendering. Dedicated static privacy notice and persistent browser opt-out; never loaded by admin. |
 | Admin | `admin/index.html`, `assets/admin.js`, `assets/admin.css` | Google sign-in, an in-memory editable copy of the data, checks, points preview, publishing, history and undo, backups and the admin list. |
@@ -52,7 +52,7 @@ Hosting and data use two providers, with optional public analytics and no applic
 | `#/<year>/round/<id>/graph`, `…/classification`, `…/stages` | One round. The graph takes `?cars=200,201&m=gap`, where `m` is one of `pos`, `gap`, `cpos`, `cgap`, `loss`, `spos`. |
 | `#/<year>/crews` | Everyone in the season |
 | `#/person/<id>` | One person across all seasons |
-| `#/getting-started`, `#/getting-started/<topic>` | Shared newcomer guide with explicit reference edition, not current-season rules |
+| `#/getting-started`, `#/getting-started/<topic>` | Shared newcomer guide, not a season-specific rules page |
 | `#/<year>/about` | Sources and data notes |
 | `#/<year>/info`, `#/info` | Selected-season documents/events plus shared championship introduction and labelled shared useful links |
 

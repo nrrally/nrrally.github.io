@@ -38,7 +38,7 @@ does not expose a test API. It verifies calendar-only/wholly empty seasons; usef
 actions and omission of zero result statistics/leaders; missing/partial/complete-empty/
 two-day entry counts and day scope; entry-only profiles; archived notes/MSA/results and
 historical identities; strict invalid/leap dates; future/today/past/undated missing rounds;
-selected-season Info links; and explicit guide reference-edition presentation.
+selected-season Info links; and the guide header without a season selector or edition badge.
 Populated synthetic 2026 models retain standings/points/status evidence unchanged.
 
 Date assertions pin 21:59:59 UTC, 22:00:00 UTC and the following South African midnight,
@@ -66,12 +66,13 @@ The public theme browser regression adds a fictional 2027 bundle only in its moc
 Firestore responses. It changes the synthetic default, checks calendar-only states
 and unknown metadata at 320/1440 px in light/dark themes, all date labels, missing-round
 navigation, empty Sources/Crews/standings, selected-season Info switching, entry-only
-crew/profile history and the retained 2026 guide warning. Existing wider route/theme/
+crew/profile history and the guide's labelled 2026 sources without an edition warning. Existing wider route/theme/
 guide/loading/error/print/privacy tests remain in that same runner. No 2027 data file,
 live season, real competitor fixture or regulation claim is produced.
 
 These checks verify behavior, not the truth/currency of actual new SSRs or a private
-database backup. The guide unit checks assert edition metadata/warnings even without
+database backup. The guide unit checks assert maintainer edition metadata, labelled sources
+and absence of a visible edition notice even without
 database context. Existing browser tests cover missing/unconfigured/unavailable results
 and notice/analytics on guide navigation. No remote analytics is forwarded.
 
@@ -86,9 +87,9 @@ and that simulation analytics edits cannot change published settings.
 
 The public theme test uses synthetic published documents and read-only mocked requests. It checks public routes at 320, 390, 768 and 1440 pixels (home, driver/co-driver standings and filters, rounds, all three round tabs, crews, profiles, info, season-specific sources and missing-page/round/profile states), saved light/dark preferences, primary-button WCAG AA contrast, final/provisional/unclear headings (including legacy page-count headings), consistent source badges, printed disclosure, loading/empty/unconfigured/database-failure links and JavaScript-free disclaimer access. The AI Import E2E also checks the persistent disclaimer link on dashboard, backup import, AI Import, results editing, calendar, competitors/profile editing, season settings, site info, history and review/publish. The link is static outside both apps' render roots, so route changes and sign-in/error rendering cannot remove it. These checks do not certify all WCAG criteria or replace visual review.
 
-The getting-started unit checks cover the dated NR topics, official-source allowlist, unique working
+The getting-started unit checks cover the season and general event journey, official-source allowlist, unique working
 topic anchors, a spectator-first opening without competition prerequisites, spectator safety,
-no rally-raid references, no unverified TC target calculation, no quoted prices or hard-coded
+no rally-raid or named event examples, no unverified TC target calculation, no quoted prices or hard-coded
 minimum-start threshold, and coordinated script loading.
 The public theme E2E also checks the guide at all four widths in both themes, native keyboard
 expanders, topic focus/scroll below the header, print detail, homepage hero actions and guide-button

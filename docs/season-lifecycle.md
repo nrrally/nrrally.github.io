@@ -150,36 +150,35 @@ calendar labels. A graph's "Final" endpoint is not proof the source is final.
 ## Annual Getting started edition/source review
 
 `assets/getting-started.js` is a bundled original guide, not a Firestore document, CMS or
-regulation interpreter. Its `edition` object supplies the year and checked date used by
-the header badge, prominent warning and references statement. All technical body copy
-and source editions must agree with that metadata. **Never bump just `edition.year`.**
+regulation interpreter. Its `edition` object preserves the reference year and checked date
+for maintainers; it does not produce a visible badge or checked-date warning. Source
+editions remain explicitly labelled. **Never bump just `edition.year`.**
 The guide remains readable with missing/unconfigured/failed results; no database read
 or automatic source fetch is required to render it.
 
-The reference edition is intentionally 2026 until actual replacement documents are
-reviewed. The warning is visible for all visitors, even offline or opening a year-prefixed
-guide link. Its concise warning gives the edition, check date, nonverification for
-other seasons and current-regulations direction without repeating the maintenance workflow.
-Selecting a newer default season does not describe old rules as verified for it.
+The maintainer reference edition remains 2026 until actual replacement documents are
+reviewed. The guide directs readers to current regulations without implying the dated
+sources were verified for another season. Selecting a newer default season does not
+update the guide.
 Guide routes remain shared and omit the season selector: they are reference content,
 not a season-specific rules page. Event/document actions go to the results application's
 season context/default; the dated references remain labelled independently.
 
 Annual review checklist:
 
-1. Retrieve actual official NR SSRs, National SSRs, GCRs, relevant circulars and
-   event examples. Confirm edition, date, supersession and applicable NR clauses.
+1. Retrieve actual official NR SSRs, National SSRs, GCRs and relevant circulars.
+   Confirm edition, date, supersession and applicable NR clauses.
    Do not extrapolate a rule from National to Regional without the actual applicability.
 2. Recheck licensing/one-event eligibility, domicile, club membership, class definitions,
    car preparation/homologation, safety equipment, fuel and hierarchy/conflict wording.
    The software does not automatically interpret these or validate a person's eligibility.
-3. Recheck spectator guidance, entry/documentation process, event fees versus day/round
-   coverage, briefings/scrutiny, liaison/timecard/control explanations, penalties,
+3. Recheck spectator guidance, entry/documentation process, general fee comparisons,
+   briefings/scrutiny, liaison/timecard/control explanations, penalties,
    provisional classification/protests and season planning. Avoid quoted prices,
    universal time-control targets, unsupported thresholds or official approval claims.
-4. Keep evergreen spectator-first copy welcoming. Keep the medium-detail NR journey
-   behind keyboard-accessible expanders and the National/Regional comparison neutral.
-   Retain examples as explicitly dated examples, or replace them only with evidence.
+4. Keep spectator-first copy welcoming, the season and general event journey concise
+   behind keyboard-accessible expanders, and the National/Regional comparison neutral.
+   Avoid using an individual event's arrangements as general rules.
 5. Rewrite dated technical content and sources together, then change the edition metadata
    and checked date to the actual review date. Record what was reviewed in this
    repository's release/decision docs; keep private interpretation evidence externally.

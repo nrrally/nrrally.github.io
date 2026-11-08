@@ -178,7 +178,7 @@ test('archived scoring, source status and historical profiles stay separate from
   assert.equal(JSON.stringify(rescored.standings), points);
   assert.ok(api.viewInfo().html.includes('2027 information'));
   assert.ok(api.header('info').includes('href="#/2027/info"'));
-  assert.ok(api.header('getting-started').includes('2026 reference guide'));
+  assert.ok(!/reference guide|season-pill|seasonSel/.test(api.header('getting-started')));
   select(api, old, { R1: { ...raw, status: 'Provisional classification' } });
   assert.ok(api.viewRound('R1', 'graph', {}).html.includes('Provisional sheet'));
   select(api, old, { R1: { ...raw, status: 'Classification' } });

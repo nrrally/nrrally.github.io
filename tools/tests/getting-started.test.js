@@ -10,29 +10,29 @@ function guide() {
   vm.runInNewContext(code, context);
   return context.window.NRGettingStarted.view();
 }
-test('the bundled guide has complete, original, dated NR orientation and no database dependency', () => {
+test('the bundled guide covers a season and the mechanics of an event without event-specific examples', () => {
   const view = guide();
   assert.equal(view.title, 'Getting started in NR Rally');
   assert.equal((view.html.match(/<h1>/g) || []).length, 1);
   for (const id of ['watch', 'crew', 'rules', 'national-regional', 'ready', 'before', 'arrival', 'during', 'after', 'season', 'references']) {
     assert.ok(view.html.includes('id="guide-' + id + '"'), id);
   }
-  for (const phrase of ['8 November 2026', 'Standing Supplementary Regulations', 'Supplementary Regulations',
-    'one-event licences do not count', 'Club membership is separate', 'NR0', 'NR1', 'NR2', 'NR3', 'NR4',
-    'flying finish', 'stop control', 'timecard', 'Scrutineering', 'official provisional classification',
-    'Entering does not establish a start', 'minimum number of round starts',
-    'generally cheaper', 'per day/round', 'non-homologated', 'Fuel wording differs', 'not a substitute']) {
+  for (const phrase of ['Standing Supplementary Regulations', 'Supplementary Regulations',
+    'club membership', 'different class structures', 'homologation', 'non-homologated', 'Fuel rules differ',
+    'generally cheaper', 'documentation', 'scrutineering', 'briefing', 'timecard', 'time controls',
+    'flying finish', 'Service', 'Provisional results', 'Entering does not establish a start',
+    'minimum number of round starts', 'separate NR rounds and classifications', 'current regulations']) {
     assert.ok(view.html.includes(phrase), phrase);
   }
   assert.ok(!/\b(?:fetch|XMLHttpRequest|sendBeacon|localStorage|eval)\s*\(/.test(code));
   assert.ok(!/start at least (?:five|5)/i.test(view.html), 'Do not hard-code a season minimum');
   assert.ok(!/\bR\s?\d{3,}/.test(view.html), 'No quoted entry prices');
-  assert.ok(view.html.includes('do not assume they have the same target time'));
-  assert.ok(!view.html.includes('10:25'), 'No unverified TC target calculation');
+  assert.ok(!/ICAM|GR Legends|re-scrut|8 November 2026|reference edition/i.test(view.html));
+  assert.ok(view.html.includes('time-control check-in and a stage start are separate'));
 });
 test('watching is the welcoming starting point, with competition requirements kept in crew sections', () => {
   const html = guide().html;
-  const opening = html.slice(0, html.indexOf('<p class="guide-edition"'));
+  const opening = html.slice(0, html.indexOf('<nav class="guide-jumps"'));
   const watch = html.slice(html.indexOf('id="guide-watch"'), html.indexOf('id="guide-crew"'));
   assert.ok(opening.includes('Come watch a Northern Regions rally'));
   assert.ok(opening.includes('If you later want to join a crew'));
@@ -40,19 +40,19 @@ test('watching is the welcoming starting point, with competition requirements ke
   assert.ok(watch.includes('Just come and watch'));
   assert.ok(!/\blicen[cs]e|club membership|car&rsquo;s eligibility/i.test(watch));
   for (const phrase of ['spectator guide', 'designated viewing areas', 'do not enter or cross a live stage',
-    'gap between cars does not mean the road is open']) assert.ok(watch.includes(phrase), phrase);
+    'gap between cars does not mean the road is open']) assert.ok(watch.toLowerCase().includes(phrase), phrase);
   assert.ok(!/rally[- ]raid|Your first three steps|guide-orientation/i.test(html));
   assert.ok(html.includes('To <strong>compete</strong>'));
 });
-test('reference edition remains explicit independently of season or database availability', () => {
+test('maintainer edition metadata stays independent of season without a visible edition notice', () => {
   const context = { window: {} };
   vm.runInNewContext(code, context);
   assert.equal(context.window.NRGettingStarted.edition.year, 2026);
   assert.equal(context.window.NRGettingStarted.edition.checked, '8 November 2026');
   const html = context.window.NRGettingStarted.view().html;
-  assert.ok(html.indexOf('Reference edition: 2026') < html.indexOf('guide-watch'));
-  assert.ok(html.includes('not verified for other seasons'));
-  assert.ok(html.includes('Use your event&rsquo;s current regulations and bulletins'));
+  assert.ok(!/reference edition|checked 8 November 2026|not verified for other seasons/i.test(html));
+  assert.ok(html.includes('2026 Northern Regions Rally SSRs'));
+  assert.ok(html.includes('Check the current regulations and event bulletins'));
 });
 test('topic anchors resolve uniquely and all references are official HTTPS destinations', () => {
   const html = guide().html;

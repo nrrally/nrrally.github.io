@@ -180,7 +180,7 @@
       return '<a href="' + n[2] + '"' + (on ? ' class="active" aria-current="page"' : '') + '>' + n[1] + '</a>';
     }).join('');
     var years = seasonList();
-    var sel = guide ? '<span class="season-pill">' + esc(window.NRGettingStarted.edition.year) + ' reference guide</span>' : years.length > 1 ? '<label class="season-sel"><span class="sr-only">Season</span><select id="seasonSel">' + years.map(function (y) {
+    var sel = guide ? '' : years.length > 1 ? '<label class="season-sel"><span class="sr-only">Season</span><select id="seasonSel">' + years.map(function (y) {
       return '<option value="' + y + '"' + (y === YEAR ? ' selected' : '') + '>' + y + ' season</option>';
     }).join('') + '</select></label>' : '<span class="season-pill" title="Season">' + esc(YEAR) + '</span>';
     return '<header class="site-header"><div class="checker" aria-hidden="true"></div><div class="header-inner">' +
@@ -1016,7 +1016,7 @@
   function viewInfo() {
     var S = ST.site, info = S.info || {};
     var html = '<div class="page-head"><div><p class="eyebrow">' + YEAR + ' information</p><h1>About the championship</h1>' + (info.intro ? '<p>' + esc(info.intro) + '</p>' : '') + '</div></div>';
-    html += '<p class="guide-entry">New to Northern Regions? <a href="#/getting-started">Start with the spectator, crew and rally-weekend guide</a>.</p>';
+    html += '<p class="guide-entry">New to Northern Regions? <a href="#/getting-started">Start with the spectator, crew and season guide</a>.</p>';
     var social = S.social || [];
     if (social.length) {
       html += '<div class="section"><div class="section-head"><h2>Follow the championship</h2></div><div class="grid social-grid">' + social.map(function (s) {

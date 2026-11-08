@@ -31,6 +31,32 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## 2026-11-08: local season-wide getting-started guide
+
+- Local work based on `b818767`; fetched main at `0bc94e2` includes independent SEO
+  changes that overlap entry HTML, browser tests and recovery/release documentation.
+  No push, PR, deployment, Firebase or provider write is authorized by this request.
+  Reconcile the then-current main and revalidate before any separately authorized release.
+- The database-independent guide now introduces the whole season and a general event
+  journey, without named event examples, specific fees or unusual event procedures.
+  It keeps spectator safety, the neutral National/Regional comparison, entry versus
+  start and championship eligibility, separate NR rounds on some two-day weekends,
+  official links and independence disclosures. Routes and topic anchors are unchanged.
+- Removed the visible guide-edition/check-date notice and header badge at user request.
+  Maintainer metadata remains 2026, checked 8 November 2026; dated source labels and
+  current-regulations guidance remain. No newer season's rules were verified or implied.
+  Review actual applicable sources annually; this local copy does not establish current
+  eligibility or replace official documents.
+- Coordinated query versions are `guide-1` across public, admin, disclaimer and privacy
+  entry points. No data migration, scoring, import, Auth, notice or analytics contract
+  change. Already-open tabs are not upgraded; retire old admin tabs before new data.
+  A compatible prior code release can be restored separately; rollback does not restore data.
+- Validation: 12 guide/season synthetic unit tests, responsive public theme/browser tests,
+  and synthetic admin-access, analytics and rally-notice browser regressions passed.
+  Browser requests were intercepted/mocked; no live data, Auth, deployed rules or real
+  analytics were exercised. Annual review and any subsequent authorized release remain
+  separate work.
+
 ## 2026-11-08: authorized season-readiness release
 
 The user subsequently authorized deployment: **"you can push them live."** This

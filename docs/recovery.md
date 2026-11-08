@@ -426,7 +426,7 @@ Unknown site settings on outage cannot prove whether an event is active. Admin i
 | Empty new year shows no entrants | Actual entry evidence/scopes and selected year | Obtain official entries; do not reuse archive people as entrants |
 | Past round awaiting results | Calendar date validity, official cancellation/postponement/classification source | Update sourced facts/import whole classification |
 | Info opens wrong year | Hash prefix, season selection, global useful links versus season docs | Correct year-specific documents/navigation |
-| Old guide differs from SSRs | Visible edition/check date and actual official new editions | Review/rewrite dated copy; do not relabel old content |
+| Old guide differs from SSRs | Maintainer edition metadata, labelled sources and actual official new editions | Review/rewrite dated copy; do not relabel old content |
 | Wrong points/crew/start | Printed source, class/credit precedence, DNS/DNF/extraStarts, MSA evidence | Explain corrections through reviewed overrides |
 | Import refuses PDF | Known layout, selectable text, all page/row counts | Use manual/spreadsheet route or implement tested parser |
 | AI rules/signature block | Missing sources, unsupported policy or changed signed settings | Actual rule review or developer implementation, never fabricated support |

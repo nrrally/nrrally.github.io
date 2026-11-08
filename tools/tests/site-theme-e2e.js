@@ -411,8 +411,9 @@ async function main() {
         await page.waitForURL(url => url.hash === '#/2026/info');
         await page.getByRole('heading', { name: '2026 regulations & documents' }).waitFor();
         await visit('#/2027/getting-started');
-        assert.equal(await page.locator('.season-pill').innerText(), '2026 reference guide');
-        assert.ok((await page.locator('.guide-edition').innerText()).includes('not verified for other seasons'));
+        assert.equal(await page.locator('.season-pill, #seasonSel, .guide-edition').count(), 0);
+        assert.ok((await page.locator('.guide-references').innerText()).includes('2026 Northern Regions Rally SSRs'));
+        assert.ok(!/reference edition|checked 8 November 2026/i.test(await page.locator('.getting-started').innerText()));
         await noOverflow();
       }
     }
