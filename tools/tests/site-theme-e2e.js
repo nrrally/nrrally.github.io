@@ -11,22 +11,41 @@ const repo = path.resolve(__dirname, '..', '..');
 const docs = F.docs(), source = F.payload('results', 2026).rounds[0];
 const season = JSON.parse(JSON.stringify(docs['data/seasons/2026/season.json']));
 const nrEventId = season.events[0].id;
+season.events[0].dates = '2026-02-01';
+season.rounds[0].date = '2026-02-01';
+const sharedNrEvents = [
+  { id: 'synthetic-gr-legends', name: 'Synthetic GR Legends Rally', dates: '10–11 July 2026', venue: 'Soetdoring' },
+  { id: 'synthetic-ermelo', name: 'Synthetic INGCO Ermelo Rally', dates: '21 August 2026', venue: 'Ermelo' },
+  { id: 'synthetic-trac', name: 'Synthetic TRAC N4 Rally', dates: '30 October 2026', venue: 'Dullstroom' }
+];
+season.events.push(...sharedNrEvents);
 const people = F.copy(docs['data/people.json']);
 people.people.push({ id: 'blake-example', name: 'Blake Example', aliases: [], bio: '', photo: '', links: {} });
+people.people.push({ id: 'reviewed-rs-driver', name: 'Reviewed RS driver', aliases: [] });
+people.people.push({ id: 'reviewed-rs-codriver', name: 'Reviewed RS co-driver', aliases: [] });
 for (let i = 1; i <= 15; i++) {
   people.people.push({ id: 'rs-driver-' + i, name: 'Synthetic Driver ' + i, aliases: [], bio: '', photo: '', links: {} });
   people.people.push({ id: 'rs-codriver-' + i, name: 'Synthetic Co-driver ' + i, aliases: [], bio: '', photo: '', links: {} });
 }
 const rsEvents = [1, 2, 3, 4, 5].map(roundNumber => ({
   id: 'synthetic-rs-r' + roundNumber, roundNumber, name: 'Synthetic RS R' + roundNumber,
-  dates: '2026-0' + roundNumber + '-01', rulesetConfirmed: true, rulesetEvidence: 'Synthetic SSR applicability',
+  dates: ({ 1: '6 June 2026', 2: '', 3: '21/22 August 2026', 4: '30/31 October 2026', 5: '28 November 2026' })[roundNumber],
+  rulesetConfirmed: true, rulesetEvidence: 'Synthetic SSR applicability',
   countsForChampionship: true, championshipEvidence: 'Synthetic round evidence', doublePoints: false,
-  nrEventId: roundNumber === 2 ? nrEventId : undefined
+  nrEventId: ({ 2: sharedNrEvents[0].id, 3: sharedNrEvents[1].id, 4: sharedNrEvents[2].id })[roundNumber]
 }));
+rsEvents.push({
+  id: 'synthetic-rs-undated', roundNumber: 6, name: 'Synthetic undated RS event', dates: '',
+  rulesetConfirmed: true, rulesetEvidence: 'Synthetic SSR applicability',
+  countsForChampionship: false, championshipEvidence: 'Synthetic event is explicitly outside the championship',
+  doublePoints: false
+});
 const rsResult = {
   id: 'synthetic-rs-r2-results', eventId: rsEvents[1].id, title: 'Synthetic RS final classification',
-  status: 'Final classification', nrRoundId: 'R1', source: { file: 'synthetic-rs.pdf', url: 'https://example.com/synthetic-rs.pdf' },
-  notes: [], stages: [{ id: 'ss1', label: 'SS1', nrStage: 'SS1' }],
+  status: 'Final classification', source: { file: 'synthetic-rs.pdf', url: 'https://example.com/synthetic-rs.pdf' },
+  finalityReview: { acceptedForScoring: true, evidence: 'Synthetic user-confirmed finality review.' },
+  notes: ['Source footer: results are final pending post-event technical checks such as fuel testing.'],
+  stages: [{ id: 'ss1', label: 'SS1' }],
   entries: Array.from({ length: 15 }, (_, i) => ({
     car: String(i + 1), driver: 'Alex Test', codriver: 'Blake Example', class: 'RS2', status: 'classified',
     pos: i + 1, classPos: i + 1, times: ['00:01.' + String(i + 1).padStart(2, '0')],
@@ -40,6 +59,23 @@ rsResult.entries.forEach((entry, i) => {
 entry.driver = 'Synthetic Driver ' + (i + 1);
 entry.codriver = 'Synthetic Co-driver ' + (i + 1);
 });
+rsResult.entries[0].driver = 'Alex Test';
+rsResult.entries[1].driver = 'Same source name';
+rsResult.entries[1].codriver = 'Same source name';
+rsResult.entries[1].identityReview = {
+  driverId: 'reviewed-rs-driver', codriverId: 'reviewed-rs-codriver',
+  evidence: 'Synthetic reviewer-confirmed distinct crew roles.'
+};
+season.rallyesport.results.push({
+  ...rsResult, id: 'synthetic-rs-r1-finality-review', eventId: rsEvents[0].id,
+  title: 'Synthetic user-reviewed classification', status: 'Provisional classification', nrRoundId: undefined,
+  stages: [{ id: 'ss1', label: 'SS1' }], notes: [],
+  entries: rsResult.entries.map(entry => ({ ...entry, times: entry.times.slice(), stagePos: entry.stagePos.slice() }))
+});
+rsResult.entries[2].status = 'DNF';
+rsResult.entries[2].pos = null;
+rsResult.entries[2].classPos = null;
+rsResult.entries[2].total = null;
 const initialRsProjection = AI.projectPublic(season, people);
 const initialRsData = F.copy(initialRsProjection.rallyesport);
 const bundle = { season: initialRsProjection, rounds: { R1: {
@@ -115,9 +151,12 @@ async function main() {
     const eventCount = async expected => {
       for (const hash of ['#/', '#/rounds']) {
         await visit(hash);
-        if (expected) assert.equal(await page.locator('.event-top > .small').innerText(), expected);
-        else assert.equal(await page.locator('.event-top > .small').count(), 0);
-        assert.ok((await page.locator('.event-top > .meta').innerText()).endsWith('gravel'));
+        const entryNotes = page.locator('.event-top > .small');
+        if (expected) {
+          assert.equal(await entryNotes.count(), 1);
+          assert.equal(await entryNotes.first().innerText(), expected);
+        } else assert.equal(await entryNotes.count(), 0);
+        assert.ok((await page.locator('.event-top > .meta').first().innerText()).endsWith('gravel'));
         assert.equal(await page.locator('.event-top > .meta + .small').count(), expected ? 1 : 0);
         const text = await page.innerText('main');
         assert.ok(!text.includes('documented event crew entries'));
@@ -150,6 +189,12 @@ async function main() {
     }
     const projectedScoring = initialRsProjection.rallyesport.scoring;
     assert.equal(projectedScoring.results.find(row => row.eventId === rsEvents[1].id).status, 'ready');
+    assert.equal(projectedScoring.results.find(row => row.eventId === rsEvents[1].id).finalityBasis, 'user-confirmed');
+    assert.deepEqual(projectedScoring.results.find(row => row.resultId === rsResult.id).entries.find(row => row.car === '3'),
+      { car: '3', driverPoints: 0, codriverPoints: 0 });
+    assert.equal(initialRsProjection.rallyesport.results[0].entries[1].driver, 'Same source name');
+    assert.equal(initialRsProjection.rallyesport.results[0].entries[1].codriver, 'Same source name');
+    assert.equal(initialRsProjection.rallyesport.results[0].entries[1].identityReview, undefined);
     assert.ok(projectedScoring.provisionalStandings, 'unresolved rounds leave supported RS points available provisionally');
     assert.equal(initialRsProjection.rallyesport.nonScoringPeople, undefined);
     assert.equal(initialRsProjection.rallyesport.results[0].entries[0].invited, undefined);
@@ -161,51 +206,169 @@ async function main() {
         await visit('#/');
         const nrHeroStats = await page.locator('.hero-stats').innerText();
         assert.equal(await page.getByRole('heading', { name: 'Class leaders · drivers' }).count(), 1);
-        assert.equal(await page.getByRole('link', { name: 'Show RS driver leaders' }).count(), 1);
-        assert.equal(await page.getByRole('link', { name: 'Show RS co-driver leaders' }).count(), 1);
-        assert.equal(await page.getByRole('link', { name: 'Show RS class leaders' }).count(), 1);
-        assert.equal(await page.getByRole('link', { name: 'Switch to RS results' }).count(), 1);
-        assert.equal(await page.locator('.rs-event-card').count(), 0, 'standalone RS events stay out of default NR result cards');
-        await page.getByRole('link', { name: 'Show RS class leaders' }).click();
+        const competitionSwitch = name => page.getByRole('switch', { name: 'Show RallyeSport ' + name });
+        for (const name of ['leaders', 'class leaders', 'results']) {
+          assert.equal(await competitionSwitch(name).getAttribute('aria-checked'), 'false');
+        }
+        assert.equal(await page.getByRole('link', { name: 'Full standings →' }).getAttribute('href'), '#/2026/standings');
+        assert.equal(await page.getByRole('link', { name: 'Full calendar →' }).getAttribute('href'), '#/2026/rounds');
+        assert.equal(await page.locator('.champ a[href*="/person/"]').count(), 2,
+          'NR profile links remain in the default NR leader card');
+        assert.equal(await page.locator('.rs-event-card').count(), 0, 'NR results remain the default on the homepage');
+        await visit('#/?classes=rs');
+        for (const name of ['leaders', 'class leaders', 'results']) {
+          assert.equal(await competitionSwitch(name).getAttribute('aria-checked'), 'true',
+            'legacy partial RS deep links select all homepage sections');
+        }
         await page.getByRole('heading', { name: 'RS class leaders · drivers' }).waitFor();
+        assert.equal(await page.getByRole('link', { name: 'Full RS tables →' }).getAttribute('href'), '#/2026/rallyesport');
+        assert.equal(await page.getByRole('link', { name: 'Full RS calendar & results →' }).getAttribute('href'), '#/2026/rallyesport');
+        assert.equal(await page.locator('.rs-event-card').count(), 6);
         assert.ok((await page.locator('.home-rs-note').innerText()).includes('Provisional RS points'));
-        assert.ok((await page.locator('.home-rs-classes').innerText()).includes('Provisional RS points'));
-        await page.getByRole('link', { name: 'Show NR class leaders' }).click();
-        const driverToggle = page.getByRole('link', { name: 'Show RS driver leaders' });
-        await driverToggle.focus(); await page.keyboard.press('Enter');
-        await page.getByRole('heading', { name: 'RS drivers', exact: true }).waitFor();
-        assert.ok((await page.locator('.leader-card-head').allTextContents()).some(text => text.includes('RS co-drivers')));
-        assert.ok((await page.locator('.home-rs-note').innerText()).includes('Provisional RS points'));
-        const rsLeader = page.locator('.leader-card-head').filter({ hasText: 'RS drivers' }).locator('xpath=..').locator('.leader').first();
-        assert.ok((await rsLeader.innerText()).includes('Synthetic Driver 1'));
-        assert.ok((await rsLeader.innerText()).includes('15pts'), 'the public UI consumes the projected event points');
+        assert.ok(!(await page.locator('.home-rs-note').innerText()).includes('blocked or unscored'));
+        assert.ok(!(await page.locator('.home-rs-classes').innerText()).includes('Provisional RS points'),
+          'class rows do not repeat the section-level provisional note');
+        await competitionSwitch('class leaders').click();
+        await page.waitForFunction(() => {
+          const controls = Array.from(document.querySelectorAll('[data-home-competition-switch]'));
+          return !location.hash.includes('leaders=rs') && !location.hash.includes('classes=rs') &&
+            !location.hash.includes('results=rs') && controls.length === 3 &&
+            controls.every(control => control.getAttribute('aria-checked') === 'false');
+        });
+        for (const name of ['leaders', 'class leaders', 'results']) {
+          assert.equal(await competitionSwitch(name).getAttribute('aria-checked'), 'false');
+        }
+        await page.goBack();
+        await page.waitForFunction(() => {
+          const controls = Array.from(document.querySelectorAll('[data-home-competition-switch]'));
+          return location.hash.includes('classes=rs') && controls.length === 3 &&
+            controls.every(control => control.getAttribute('aria-checked') === 'true');
+        });
+        for (const name of ['leaders', 'class leaders', 'results']) {
+          assert.equal(await competitionSwitch(name).getAttribute('aria-checked'), 'true',
+            'browser back restores the legacy RS URL with synchronized controls');
+        }
+        await competitionSwitch('leaders').focus();
+        await page.keyboard.press('Enter');
+        await page.waitForFunction(() => {
+          const controls = Array.from(document.querySelectorAll('[data-home-competition-switch]'));
+          return !location.hash.includes('leaders=rs') && !location.hash.includes('classes=rs') &&
+            !location.hash.includes('results=rs') && controls.length === 3 &&
+            controls.every(control => control.getAttribute('aria-checked') === 'false');
+        });
+        await competitionSwitch('results').focus();
+        await page.keyboard.press('Space');
+        await page.waitForFunction(() => {
+          const controls = Array.from(document.querySelectorAll('[data-home-competition-switch]'));
+          return location.hash.includes('leaders=rs') && location.hash.includes('classes=rs') &&
+            location.hash.includes('results=rs') && controls.length === 3 &&
+            controls.every(control => control.getAttribute('aria-checked') === 'true');
+        });
+        await page.getByRole('heading', { name: 'Championship leaders' }).waitFor();
+        await page.locator('.leader-card-head').filter({ hasText: 'RS drivers' }).waitFor();
+        const rsChampCard = page.locator('.champ');
+        assert.ok((await rsChampCard.innerText()).includes('Provisional RS driver leader'));
+        assert.ok((await rsChampCard.innerText()).includes('Provisional RS co-driver leader'));
+        assert.equal(await rsChampCard.locator('a[href*="/person/"]').count(), 0,
+          'RS mode replaces the NR champion card with RS leaders');
+        const rsDriverCard = page.locator('.leader-card-head').filter({ hasText: 'RS drivers' }).locator('xpath=..');
+        const rsCodriverCard = page.locator('.leader-card-head').filter({ hasText: 'RS co-drivers' }).locator('xpath=..');
+        assert.equal(await rsDriverCard.locator('.leader').count(), 5, 'RS driver leader cards are capped at five rows');
+        assert.equal(await rsCodriverCard.locator('.leader').count(), 5, 'RS co-driver leader cards are capped at five rows');
+        const rsDriverLink = rsDriverCard.locator('a[href*="/rallyesport"]');
+        const rsCodriverLink = rsCodriverCard.locator('a[href*="/rallyesport"]');
+        assert.equal(await rsDriverLink.count(), 1, 'full driver tables remain linked');
+        assert.equal(await rsCodriverLink.count(), 1, 'full co-driver tables remain linked');
+        assert.ok((await rsDriverLink.innerText()).includes('RS tables'));
+        assert.ok((await rsCodriverLink.innerText()).includes('RS tables'));
+        assert.equal((await page.locator('.home-rs-note').innerText()).trim(), 'Provisional RS points. RS tables.');
+        assert.doesNotMatch((await page.locator('.leader').allInnerTexts()).join('\n'), /Provisional RS points/,
+          'provisional status is stated once at section level, not repeated below each row');
+        const provisionalTables = published.season_2026.season.rallyesport.scoring.provisionalStandings;
+        const originalRsLeaders = {
+          drivers: JSON.parse(JSON.stringify(provisionalTables.overallDrivers)),
+          codrivers: JSON.parse(JSON.stringify(provisionalTables.overallCodrivers))
+        };
+        provisionalTables.overallDrivers = [
+          { id: 'rs-tie-a', name: 'RS Tie Driver A', points: 42, rank: 1 },
+          { id: 'rs-tie-b', name: 'RS Tie Driver B', points: 42, rank: 1 }
+        ];
+        provisionalTables.overallCodrivers = [{ id: 'rs-codriver-leader', name: 'RS Co-driver Leader', points: 37, rank: 1 }];
+        await visit('#/?leaders=rs&classes=rs&results=rs');
+        const tiedChampText = await page.locator('.champ').innerText();
+        assert.ok(tiedChampText.includes('Provisional RS driver leaders'));
+        assert.ok(tiedChampText.includes('RS Tie Driver A, RS Tie Driver B'));
+        assert.ok(tiedChampText.includes('42 pts'));
+        provisionalTables.overallDrivers = [];
+        provisionalTables.overallCodrivers = [];
+        await visit('#/?leaders=rs&classes=rs&results=rs');
+        const unavailableChampText = await page.locator('.champ').innerText();
+        assert.ok(unavailableChampText.includes('Provisional RS driver leaders unavailable.'));
+        assert.ok(unavailableChampText.includes('Provisional RS co-driver leaders unavailable.'));
+        provisionalTables.overallDrivers = originalRsLeaders.drivers;
+        provisionalTables.overallCodrivers = originalRsLeaders.codrivers;
+        await visit('#/?leaders=rs&classes=rs&results=rs');
+        const rsLeader = rsDriverCard.locator('.leader').first();
+        assert.ok((await rsLeader.innerText()).includes('Alex Test'), 'an RS entrant may also be an NR profile');
+        assert.equal(await rsLeader.locator('a[href*="/person/"]').count(), 0, 'RS points do not link into the NR-only profile');
+        assert.ok((await rsLeader.innerText()).includes('30pts'), 'the public UI consumes projected points across both supported synthetic events');
+        const rsOnlyLeader = rsDriverCard.locator('.leader').filter({ hasText: 'Reviewed RS driver' }).first();
+        assert.ok(await rsOnlyLeader.count(), 'RS-only competitors remain visible in the RS leader list');
+        assert.equal(await rsOnlyLeader.locator('a[href*="/person/"]').count(), 0,
+          'RS-only competitors are not linked to NR-only profiles');
         assert.equal(await page.locator('.hero-stats').innerText(), nrHeroStats, 'NR hero statistics do not change with RS views');
-        await page.getByRole('link', { name: 'Show RS class leaders' }).click();
         await page.getByRole('heading', { name: 'RS class leaders · drivers' }).waitFor();
-        assert.ok((await page.locator('.home-rs-classes').innerText()).includes('Synthetic Driver 1'));
-        await page.getByRole('link', { name: 'Show NR class leaders' }).click();
-        await page.getByRole('heading', { name: 'Class leaders · drivers' }).waitFor();
-        await page.getByRole('link', { name: 'Show NR driver leaders' }).click();
-        await page.getByRole('heading', { name: 'Drivers', exact: true }).waitFor();
-        const resultsToggle = page.getByRole('link', { name: 'Switch to RS results' });
-        await resultsToggle.focus(); await page.keyboard.press('Enter');
-        await page.waitForFunction(() => location.hash.includes('results=rs') &&
-          document.querySelectorAll('.rs-event-card').length === 5);
-        assert.equal(await page.locator('.rs-event-card').count(), 5);
+        assert.ok((await page.locator('.home-rs-classes').innerText()).includes('Reviewed RS driver'));
+        await page.waitForFunction(() => document.querySelectorAll('.rs-event-card').length === 6);
+        assert.equal(await page.locator('.rs-event-card').count(), 6);
         assert.ok((await page.locator('.rs-event-card').first().innerText()).includes('RS R1'));
+        const sharedRsCard = page.locator('.rs-event-card').filter({ hasText: 'Synthetic RS R2' });
+        assert.ok((await sharedRsCard.innerText()).includes('10–11 July 2026'),
+          'a shared RS-only view can display the linked NR event date without assigning it as RS scoring evidence');
         assert.equal(await page.locator('.event-card:not(.rs-event-card)').count(), 0);
-        const nrResultsToggle = page.getByRole('link', { name: 'Switch to NR results' });
-        await nrResultsToggle.focus(); await page.keyboard.press('Enter');
+        await competitionSwitch('results').focus(); await page.keyboard.press('Enter');
         await page.waitForFunction(() => !location.hash.includes('results=rs') &&
+          !location.hash.includes('leaders=rs') && !location.hash.includes('classes=rs') &&
           document.querySelectorAll('.rs-event-card').length === 0);
         assert.equal(await page.locator('.rs-event-card').count(), 0);
-        assert.equal(await page.locator('.event-card:not(.rs-event-card)').count(), 1);
+        assert.equal(await page.locator('.event-card:not(.rs-event-card)').count(), 4);
+        await visit('#/rallyesport/synthetic-rs-r2-results');
+        const dnfRow = page.locator('tbody tr').filter({ has: page.getByText('DNF', { exact: true }) });
+        assert.equal(await dnfRow.count(), 1);
+        const dnfCells = await dnfRow.locator('td').allTextContents();
+        assert.equal(dnfCells[2], '3');
+        assert.equal(dnfCells[dnfCells.length - 2], '0');
+        assert.equal(dnfCells[dnfCells.length - 1], '0');
         await visit('#/rounds');
-        await page.waitForFunction(() => document.querySelectorAll('.competition-badge').length === 5);
-        assert.equal(await page.locator('.event-card').count(), 5, 'explicitly shared RS event is merged into its NR event card');
-        assert.deepEqual(await page.locator('.competition-badge').allTextContents(), ['NR + RS', 'RS', 'RS', 'RS', 'RS']);
-        assert.equal(await page.locator('.rs-event-card').count(), 4, 'only unlinked RS events get separate full-calendar cards');
-        assert.equal(await page.locator('.event-round[href*="/rallyesport/"]').count(), 1);
+        await page.waitForFunction(() => document.querySelectorAll('.competition-badge').length === 7);
+        assert.equal(await page.locator('.event-card').count(), 7, 'three shared and three RS-only events merge into four NR event cards plus three independent RS cards');
+        assert.deepEqual(await page.locator('.competition-badge').allTextContents(), ['NR', 'RS', 'NR + RS', 'NR + RS', 'NR + RS', 'RS', 'RS'],
+          'calendar badge order: ' + JSON.stringify(await page.locator('.event-card h3').allTextContents()));
+        assert.equal(await page.locator('.rs-event-card').count(), 3, 'only unlinked RS events get separate full-calendar cards');
+        assert.equal(await page.locator('.event-round[href*="/rallyesport/"]').count(), 2);
+        const calendarCards = await page.locator('.event-card').allInnerTexts();
+        assert.ok(calendarCards[0].includes('Synthetic Event'), 'the earliest synthetic NR event remains in date order');
+        assert.ok(calendarCards[1].includes('RS R1'), 'the June RS-only event is positioned by its evidence date');
+        assert.ok(calendarCards[2].includes('Synthetic GR Legends Rally'), 'the shared Legends event appears once');
+        assert.ok(calendarCards[3].includes('Synthetic INGCO Ermelo Rally'), 'the shared Ermelo event appears once');
+        assert.ok(calendarCards[4].includes('Synthetic TRAC N4 Rally'), 'the shared TRAC event appears once');
+        assert.ok(calendarCards[5].includes('RS R5'), 'the late-year RS-only event follows the shared NR calendar');
+        assert.ok(calendarCards[6].includes('Synthetic undated RS event') && calendarCards[6].includes('Date to be confirmed'),
+          'undated events remain explicitly undated and sort last');
+        assert.ok(calendarCards.every(text => !text.includes('user confirmed this supplied classification')),
+          'home and calendar avoid repeated finality commentary');
+        await visit('#/rallyesport/synthetic-rs-r2-results');
+        const technicalChecksText = await page.locator('main').innerText();
+        assert.ok(technicalChecksText.includes('RS event points'));
+        assert.ok(technicalChecksText.includes('Subject to post-event technical checks; clearance unverified.'));
+        assert.ok(!technicalChecksText.includes('user-confirmed scoring finality'));
+        assert.ok(!technicalChecksText.includes('Scoring finality is user-confirmed'));
+        assert.ok((await page.locator('main').innerText()).includes('results are final pending post-event technical checks'));
+        await visit('#/rallyesport/synthetic-rs-r1-finality-review');
+        const reviewedFinalityText = await page.locator('main').innerText();
+        assert.ok(reviewedFinalityText.includes('RS event points'));
+        assert.ok(!reviewedFinalityText.includes('user-confirmed scoring finality'));
+        assert.ok(!reviewedFinalityText.includes('Scoring finality is user-confirmed'));
         await noOverflow();
       }
     }
@@ -449,9 +612,13 @@ async function main() {
     await page.getByRole('heading', { name: 'No scored starts yet' }).waitFor();
     assert.ok(await page.getByRole('heading', { name: 'RallyeSport points' }).isVisible(),
       'RS points remain visible when NR has no scored starts');
-    await page.getByRole('link', { name: 'Switch to RS results' }).click();
-    await page.waitForFunction(() => document.querySelectorAll('.rs-event-card').length === 5);
-    assert.equal(await page.locator('.rs-event-card').count(), 5);
+    assert.equal(await page.getByRole('link', { name: 'Full calendar →' }).getAttribute('href'), '#/2026/rounds',
+      'the NR empty standings state retains the NR calendar link');
+    await page.getByRole('switch', { name: 'Show RallyeSport results' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('.rs-event-card').length === 6);
+    assert.equal(await page.locator('.rs-event-card').count(), 6);
+    assert.equal(await page.getByRole('link', { name: 'Full RS calendar & results →' }).getAttribute('href'), '#/2026/rallyesport',
+      'the NR no-scored-starts branch switches its calendar link to RS results');
     delete bundle.season.rallyesport;
     bundle.rounds.R1.entries = entriesBefore;
     legacyEngine = true;
@@ -475,7 +642,8 @@ async function main() {
     await eventCount('3 NR Entries');
     bundle.season.entryLists[0].entries.pop();
     await visit('#/rounds');
-    const upcoming = page.locator('.event-round.upcoming');
+    const upcoming = page.locator('.event-card:not(.rs-event-card)').filter({ hasText: 'Synthetic Event' }).first()
+      .locator('.event-round.upcoming');
     assert.equal(await upcoming.count(), 2);
     for (let i = 0; i < 2; i++) {
       assert.ok((await upcoming.nth(i).innerText()).includes('1 documented round entry (partial day coverage)'));
@@ -527,9 +695,13 @@ async function main() {
     await page.getByRole('heading', { name: 'No results yet' }).waitFor();
     assert.ok(await page.getByRole('heading', { name: 'RallyeSport points' }).isVisible(),
       'RS tables remain accessible when the NR season has no results');
-    await page.getByRole('link', { name: 'Switch to RS results' }).click();
-    await page.waitForFunction(() => document.querySelectorAll('.rs-event-card').length === 5);
-    assert.equal(await page.locator('.rs-event-card').count(), 5);
+    assert.equal(await page.getByRole('link', { name: 'Full calendar →' }).getAttribute('href'), '#/2026/rounds',
+      'the NR no-results branch retains the NR calendar link');
+    await page.getByRole('switch', { name: 'Show RallyeSport results' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('.rs-event-card').length === 6);
+    assert.equal(await page.locator('.rs-event-card').count(), 6);
+    assert.equal(await page.getByRole('link', { name: 'Full RS calendar & results →' }).getAttribute('href'), '#/2026/rallyesport',
+      'the NR no-results branch switches its calendar link to RS results');
     delete bundle.season.rallyesport;
     bundle.rounds = savedRounds;
     // A fictional next season is only a mocked response, never a persisted season.
@@ -594,6 +766,45 @@ async function main() {
     assert.ok((await page.innerText('main')).includes('entries alone do not score'));
     await visit('#/2027/about');
     assert.ok((await page.innerText('main')).includes('Entry evidence'));
+    const savedNextBundle = published.season_2027;
+    const rsOnlyNext = F.copy(next);
+    rsOnlyNext.events = [];
+    rsOnlyNext.rounds = [];
+    rsOnlyNext.entryLists = [];
+    rsOnlyNext.rallyesport = {
+      events: [{ id: 'rs-only-2027-opening', name: 'Synthetic RS-only 2027 opening', dates: 'Synthetic date' }],
+      results: [{ id: 'rs-only-2027-opening-final', eventId: 'rs-only-2027-opening',
+        title: 'Synthetic 2027 RS final classification', status: 'Final classification',
+        source: { file: 'synthetic-2027-rs.pdf', url: 'https://example.com/synthetic-2027-rs.pdf' },
+        notes: [], stages: [{ id: 'ss8', label: 'SS8' }],
+        entries: [{ car: '88', driver: 'Alex Test', codriver: 'Blake Example', class: 'RS2',
+          status: 'classified', pos: 1, classPos: 1, total: '00:01.00', penalty: null,
+          times: ['00:01.00'], stagePos: [1] }] }],
+      nonScoringPeople: []
+    };
+    const projectedRsOnlyNext = AI.projectPublic(rsOnlyNext, people);
+    assert.equal(projectedRsOnlyNext.rallyesport.scoring.status, 'unconfigured',
+      'the synthetic public 2027 season does not infer a future RS ruleset');
+    published.season_2027 = { season: projectedRsOnlyNext, rounds: {} };
+    await visit('#/');
+    assert.equal(await page.locator('#seasonSel').inputValue(), '2027');
+    await page.getByRole('heading', { name: 'No results yet' }).waitFor();
+    assert.ok(await page.getByRole('heading', { name: 'RallyeSport points' }).isVisible(),
+      'the 2027 homepage renders the independent RS season');
+    assert.ok((await page.innerText('main')).includes('No events have been added to the 2027 calendar'),
+      'the standalone RS event does not create an NR calendar event');
+    await visit('#/2027/rallyesport');
+    assert.match(await page.innerText('main'), /RS championship scoring: unconfigured/i);
+    assert.ok(!(await page.innerText('main')).includes('Provisional cumulative points'),
+      'unconfigured 2027 rules do not show provisional or zero RS points');
+    await visit('#/2027/rallyesport/rs-only-2027-opening-final');
+    await page.getByRole('heading', { name: 'Synthetic RS-only 2027 opening' }).waitFor();
+    assert.ok((await page.innerText('main')).includes('Synthetic 2027 RS final classification'));
+    assert.ok((await page.innerText('main')).includes('No championship points are published for this event.'));
+    assert.ok((await page.innerText('main')).includes('00:01.00'));
+    assert.equal(await page.locator('th').filter({ hasText: 'Driver RS points' }).count(), 0,
+      'the 2027 classification displays no inferred RS points');
+    published.season_2027 = savedNextBundle;
     published.site = oldSite; delete published.season_2027;
     const savedSite = published.site;
     delete published.site;

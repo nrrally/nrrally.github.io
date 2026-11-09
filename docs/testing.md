@@ -82,6 +82,15 @@ crew/profile history and the guide's labelled 2026 sources without an edition wa
 guide/loading/error/print/privacy tests remain in that same runner. No 2027 data file,
 live season, real competitor fixture or regulation claim is produced.
 
+The same browser regression also renders a synthetic standalone 2027 RS classification
+with no NR event, round or result, then opens its public RS result route. It asserts the
+homepage remains NR-empty, the classification is visible, and the absent 2027 RS rules
+produce no event points or standings.
+
+RS public copy regressions keep user-review provenance out of the prominent event-points
+summary, retain printed source qualification and technical-check status, and keep
+provisional standings concise while identifying excluded events and their blocking reasons.
+
 These checks verify behavior, not the truth/currency of actual new SSRs or a private
 database backup. The guide unit checks assert maintainer edition metadata, labelled sources
 and absence of a visible edition notice even without
@@ -104,8 +113,39 @@ scoring before `AI.projectPublic`, and verifies that `buildSeason` consumes the 
 snapshot without private membership/invitation inputs. It checks NR as the homepage
 default; keyboard-operable local RS leader/class/results toggles; provisional labels;
 standalone RS event cards; explicit shared-event card composition and NR/RS badges; and
-RS access with NR results absent. These routes run at desktop/mobile widths in light and
-dark themes, with all requests intercepted and no database writes.
+RS access with NR results absent. When RS is selected, the prominent leader card uses
+RS driver/co-driver leaders, preserves ties, and shows an unavailable state when a table
+has no leader rows; NR remains the default. Provisional status is stated at section level,
+not repeated beneath every RS row. It also checks that RS-only leaders do not link to
+NR-only profiles, source technical-check qualifications remain visible, and the full
+calendar orders dated entries while explicitly labelling undated ones. These routes run
+at desktop/mobile widths in light and dark themes, with all requests intercepted and no
+database writes.
+
+The RS engine regressions also cover explicitly reviewed driver/co-driver profile IDs
+for identical printed names, unchanged source-row spellings, private identity-review
+stripping, source finality qualifications that require an explicit user scoring review,
+and public `finalityBasis` disclosure. The admin browser test fills the manual identity
+and finality review controls using synthetic profiles; deselecting finality disables its
+evidence field, and a forced input event cannot recreate the scoring review. The
+shared-stage copy test accepts
+a spelling difference only when stable crew identities have been reviewed, and proves a
+matching car number alone remains unmatched.
+Started DNF regressions distinguish source-evidenced rows (zero points in the private
+calculation and projected public snapshot) from DNFs without row-level start evidence
+(unavailable points even when an event starter count is reviewed), DNS and TEST rows.
+
+The private local preview is generated outside the repository from the actual public
+shell/assets, synthetic NR fixtures, and locally reviewed RS records. It uses a local
+fixture fetch shim plus a restrictive CSP; a browser smoke verifies homepage toggles,
+round ordering, source qualifications, event-point states and local-file evidence with
+no external network requests. Its separate source-classification preview reports the
+production validator's current result and clearly distinguishes structural validity
+from championship readiness. Synthetic evidence is not substituted for unresolved
+starter counts, double-points bulletins or missing future results.
+The private source preview must show actual engine validation status and never hide an
+identity error or fabricate standings. These private review artifacts and source files
+must remain outside Git; do not use or inspect the membership workbook for this work.
 
 The getting-started unit checks cover the season and general event journey, official-source allowlist, unique working
 topic anchors, a spectator-first opening without competition prerequisites, spectator safety,
@@ -261,6 +301,19 @@ and hundredth-second differences without changing NR precision. The public VM re
 checks the working-to-public-to-builder scoring path, ready and blocked states,
 provisional tables with excluded rounds disclosed, unchanged NR graph defaults, a mapped
 dashed RS overlay, separate RS tables and RS-only events absent from NR Home or standings.
+Homepage regressions also cover the three visible, keyboard-operable NR/RS switches
+staying synchronized when any is clicked, legacy partial RS links, browser history and
+back navigation, the compact provisional label, five-row RS leader cards with links to
+full tables, and merged
+NR-only, RS-only and explicitly shared calendar entries ordered by available dates
+without duplicating shared events or guessing undated order. A linked RS-only calendar
+view may display the linked NR event's exact date when RS dates are absent; that
+display-only fallback never writes an RS scoring date.
+Synthetic RS identity regressions exercise private role review through public projection
+and model construction, checking distinct role IDs, unchanged printed names, omitted
+private evidence and unchanged NR results. Started-DNF regressions verify zero points
+only for resolved eligible roles in supported classes; invitations, non-scoring people,
+unknown identities and unsupported classes remain unavailable.
 Mocked admin tests exercise the real selective-copy preview (matched, conflicting,
 missing and RS-only crews), the copy button, no mutation on cancellation/error, file-only
 sources and TEST entry, backup/undo warnings, profile merges and demo projection

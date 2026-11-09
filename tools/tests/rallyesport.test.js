@@ -38,6 +38,9 @@ function fixture() {
 function eventScore(f) {
   return E.calculateRallyeSportScoring(f.data, { year: 2026 }, f.people).results[0];
 }
+function seasonScore(f) {
+  return E.calculateRallyeSportScoring(f.data, { year: 2026 }, f.people);
+}
 test('2026 role-specific scoring applies the SSR class scale and toggle never changes official order', () => {
   const f = fixture();
   let score = eventScore(f);
@@ -121,6 +124,79 @@ test('championship totals require the SSR round-count pattern and use shared cla
   f = seasonFixture(9, []);
   assert.equal(E.calculateRallyeSportScoring(f.data, { year: 2026 }, f.people).status, 'blocked');
 });
+test('standalone 2026 RS R5 projection scores only reviewed single points and preserves NR records/model', () => {
+  const f = fixture(), season = F.season(2026), nrRound = F.payload('results', 2026).rounds[0];
+  const rounds = { [nrRound.id]: nrRound };
+  const nrRawBefore = JSON.stringify({ season, rounds });
+  const withoutRs = E.buildSeason({ season, rounds, people: f.people });
+  const nrSnapshot = model => {
+    const copy = { ...model };
+    delete copy.rallyesport;
+    return JSON.stringify(copy);
+  };
+  const nrModelBefore = nrSnapshot(withoutRs);
+  f.data.events = [];
+  f.data.results = [];
+  for (let n = 1; n <= 5; n++) {
+    const event = { ...f.event, id: 'scenario-rs-r' + n, roundNumber: n,
+      name: n === 5 ? 'Synthetic standalone RS R5' : 'Synthetic completed RS R' + n,
+      dates: 'Synthetic 2026 date', nrEventId: undefined, doublePoints: false };
+    const result = { ...f.result, id: event.id + '-classification', eventId: event.id,
+      title: 'Synthetic final RS R' + n + ' classification', status: 'Final classification',
+      nrRoundId: undefined, entries: f.result.entries.map(entry => ({
+        ...entry, times: entry.times.slice(), stagePos: entry.stagePos.slice()
+      })) };
+    f.data.events.push(event);
+    f.data.results.push(result);
+  }
+  season.rallyesport = f.data;
+  assert.deepEqual(E.validateSeason(season, rounds, f.people), [],
+    'the reviewed standalone R5 source record is valid without an NR event, round or stage');
+  const working = E.buildSeason({ season, rounds, people: f.people });
+  const workingR5 = working.rallyesport.scoring.results.find(row => row.eventId === 'scenario-rs-r5');
+  assert.equal(workingR5.status, 'ready',
+    'R5 points require the supported ruleset, event applicability/championship review, source-final classification and supported starter evidence');
+  assert.equal(workingR5.entries[0].driverPoints, 15,
+    'no double-points bulletin means R5 retains the single-point scale');
+  assert.equal(working.rallyesport.scoring.status, 'incomplete');
+  assert.equal(working.rallyesport.scoring.standings, null);
+  assert.match(working.rallyesport.scoring.reason, /Five rounds require exactly one bulletin-confirmed double-points event/);
+  assert.ok(working.rallyesport.scoring.provisionalStandings,
+    'provisional totals remain distinguishable from unavailable final championship standings');
+  assert.equal(nrSnapshot(working), nrModelBefore,
+    'adding the RS R5 event leaves the complete NR model unchanged');
+  assert.equal(JSON.stringify({ season: { ...season, rallyesport: undefined }, rounds }), nrRawBefore,
+    'working/projection processing leaves the 2026 NR season and raw result record unchanged');
+  assert.equal(f.data.events[4].nrEventId, undefined);
+  assert.equal(f.data.results[4].nrRoundId, undefined);
+
+  const published = AI.projectPublic(season, f.people);
+  const publicR5 = published.rallyesport.scoring.results.find(row => row.eventId === 'scenario-rs-r5');
+  assert.equal(publicR5.status, 'ready');
+  assert.equal(publicR5.entries[0].driverPoints, 15);
+  assert.equal(published.rallyesport.scoring.status, 'incomplete');
+  assert.equal(published.rallyesport.scoring.standings, null);
+  assert.equal(published.rallyesport.events[4].doublePoints, undefined,
+    'private bulletin decision metadata is not exposed as public evidence');
+  assert.equal(published.rallyesport.results[4].status, 'Final classification');
+  assert.equal(published.rallyesport.results[4].entries[0].pos, 1);
+  assert.deepEqual(published.rallyesport.results[4].entries[0].times, ['00:01.01']);
+  assert.equal(published.rallyesport.results[4].nrRoundId, undefined);
+  const publicModel = E.buildSeason({ season: published, rounds, people: f.people, publicProjection: true });
+  assert.equal(publicModel.rallyesport.scoring.status, 'incomplete');
+  assert.deepEqual(publicModel.rallyesport.scoring.results.find(row => row.eventId === 'scenario-rs-r5'), publicR5);
+  assert.equal(nrSnapshot(publicModel), nrModelBefore,
+    'consuming the published RS snapshot also leaves the full NR model unchanged');
+  assert.equal(JSON.stringify({ season: { ...season, rallyesport: undefined }, rounds }), nrRawBefore,
+    'public projection leaves the source 2026 NR records unchanged too');
+
+  const unsupported = JSON.parse(JSON.stringify(season));
+  unsupported.rallyesport.events[4].rulesetConfirmed = false;
+  const unsupportedScore = E.buildSeason({ season: unsupported, rounds, people: f.people }).rallyesport.scoring;
+  assert.equal(unsupportedScore.results.find(row => row.eventId === 'scenario-rs-r5').status, 'blocked',
+    'without positive event applicability review, R5 cannot score');
+  assert.equal(unsupportedScore.results.find(row => row.eventId === 'scenario-rs-r5').entries.length, 0);
+});
 test('equal season totals share a rank without a fabricated season tie-break order', () => {
   const f = fixture();
   for (let round = 1; round <= 6; round++) {
@@ -141,7 +217,7 @@ test('equal season totals share a rank without a fabricated season tie-break ord
   assert.equal(first.rank, second.rank);
   assert.match(score.reason, /season tie-breaks are unresolved/);
 });
-test('DNF earns no points but counts as a starter only with evidence or a reviewed event count', () => {
+test('source-evidenced started DNF publishes zero points and counts as a starter; unproven DNF, DNS and TEST stay distinct', () => {
   const f = fixture();
   f.result.entries[14].status = 'DNS';
   f.result.entries[14].pos = null;
@@ -159,8 +235,8 @@ test('DNF earns no points but counts as a starter only with evidence or a review
   f.result.entries[0].total = null;
   score = eventScore(f);
   assert.equal(score.status, 'ready');
-  assert.equal(score.entries[0].driverPoints, null);
-  assert.equal(score.entries[0].codriverPoints, null);
+  assert.equal(score.entries[0].driverPoints, 0);
+  assert.equal(score.entries[0].codriverPoints, 0);
   assert.equal(score.entries[1].driverPoints, 15);
 
   f.result.entries[0].times = [null];
@@ -176,6 +252,21 @@ test('DNF earns no points but counts as a starter only with evidence or a review
   score = eventScore(f);
   assert.equal(score.status, 'ready');
   assert.equal(score.entries[0].driverPoints, null);
+  assert.equal(score.entries[0].codriverPoints, null);
+  f.result.entries[0].startEvidence = 'Synthetic source-listed start';
+  score = eventScore(f);
+  assert.equal(score.entries[0].driverPoints, 0);
+  assert.equal(score.entries[0].codriverPoints, 0);
+  f.result.entries[0].status = 'DNS';
+  score = eventScore(f);
+  assert.equal(score.entries[0].driverPoints, null);
+  assert.equal(score.entries[0].codriverPoints, null);
+  f.result.entries[0].status = 'TEST';
+  score = eventScore(f);
+  assert.equal(score.entries[0].driverPoints, null);
+  assert.equal(score.entries[0].codriverPoints, null);
+  f.result.entries[0].status = 'DNF';
+  delete f.result.entries[0].startEvidence;
   f.event.starterCount = 14;
   score = eventScore(f);
   assert.equal(score.status, 'blocked');
@@ -197,6 +288,70 @@ test('DNF earns no points but counts as a starter only with evidence or a review
   score = eventScore(f);
   assert.equal(score.status, 'blocked');
   assert.match(score.reason, /tied scoring position remains unresolved/);
+});
+test('started DNF zeroes require an eligible known role in a supported class', () => {
+  const f = fixture();
+  const dnf = f.result.entries[0];
+  dnf.status = 'DNF';
+  dnf.pos = null;
+  dnf.classPos = null;
+  dnf.total = null;
+
+  f.data.nonScoringPeople = ['driver-1'];
+  let score = eventScore(f);
+  const firstResult = seasonScore(f);
+  const firstStandings = firstResult.standings || firstResult.provisionalStandings;
+  assert.ok(firstStandings, score.reason);
+  assert.deepEqual(score.entries[0], { car: '1', driverPoints: null, codriverPoints: 0 });
+  assert.equal(firstStandings.overallDrivers.some(row => row.id === 'driver-1'), false);
+  assert.equal(firstStandings.overallCodrivers.find(row => row.id === 'codriver-1').points, 0);
+
+  f.data.nonScoringPeople = [];
+  dnf.invited = true;
+  score = eventScore(f);
+  const invitedResult = seasonScore(f);
+  const invitedStandings = invitedResult.standings || invitedResult.provisionalStandings;
+  assert.deepEqual(score.entries[0], { car: '1', driverPoints: null, codriverPoints: null });
+  assert.equal(invitedStandings.overallDrivers.some(row => row.id === 'driver-1'), false);
+
+  dnf.invited = false;
+  dnf.driver = 'Unreviewed DNF driver';
+  score = eventScore(f);
+  const unknownResult = seasonScore(f);
+  const unknownStandings = unknownResult.standings || unknownResult.provisionalStandings;
+  assert.deepEqual(score.entries[0], { car: '1', driverPoints: null, codriverPoints: 0 });
+  assert.equal(unknownStandings.overallDrivers.some(row => row.id === E.slug(dnf.driver)), false);
+
+  dnf.driver = 'Driver 1';
+  dnf.class = 'UNCONFIGURED';
+  score = eventScore(f);
+  const unsupportedResult = seasonScore(f);
+  const unsupportedStandings = unsupportedResult.standings || unsupportedResult.provisionalStandings;
+  assert.deepEqual(score.entries[0], { car: '1', driverPoints: null, codriverPoints: null });
+  assert.ok(unsupportedStandings.classDrivers.UNCONFIGURED === undefined);
+});
+test('started DNF zeroes survive the public scoring snapshot while unproven starts remain unavailable', () => {
+  const f = fixture();
+  f.result.entries[0].status = 'DNF';
+  f.result.entries[0].pos = null;
+  f.result.entries[0].classPos = null;
+  f.result.entries[0].total = null;
+  const projected = AI.projectPublic({ ...F.season(2026), rallyesport: f.data }, f.people);
+  const publicScore = projected.rallyesport.scoring.results[0];
+  assert.equal(publicScore.status, 'ready');
+  assert.deepEqual(publicScore.entries[0], { car: '1', driverPoints: 0, codriverPoints: 0 });
+  assert.equal(projected.rallyesport.results[0].entries[0].startEvidence, undefined);
+  const publicModel = E.buildSeason({ season: projected, rounds: {}, people: f.people, publicProjection: true });
+  assert.equal(publicModel.rallyesport.scoring.results[0].entries[0].driverPoints, 0);
+  assert.equal(publicModel.rallyesport.scoring.results[0].entries[0].codriverPoints, 0);
+
+  f.result.entries[0].times = [null];
+  f.result.entries[0].stagePos = [null];
+  f.event.starterCount = 15;
+  f.event.starterCountEvidence = 'Synthetic source-backed event count';
+  const unproven = AI.projectPublic({ ...F.season(2026), rallyesport: f.data }, f.people);
+  assert.equal(unproven.rallyesport.scoring.results[0].entries[0].driverPoints, null);
+  assert.equal(unproven.rallyesport.scoring.results[0].entries[0].codriverPoints, null);
 });
 test('a later DNF stage observation survives an earlier missing stage without filling the gap', () => {
   const f = fixture();
@@ -222,7 +377,7 @@ test('a later DNF stage observation survives an earlier missing stage without fi
   assert.deepEqual(built.results[0].entries[0].times, ['00:01.00', null, '00:03.00']);
   assert.deepEqual(built.results[0].entries[0].stagePos, [1, null, 7]);
   assert.equal(eventScore(f).status, 'ready');
-  assert.equal(eventScore(f).entries[0].driverPoints, null);
+  assert.equal(eventScore(f).entries[0].driverPoints, 0);
 });
 test('unknown/non-scoring classes, invitation status, finality and non-2026 scope fail closed', () => {
   const f = fixture();
@@ -448,6 +603,23 @@ test('reviewed stage reuse is selective, reports conflicts/missing/unmatched row
   assert.equal(preview.entries[0].times[0], '00:01.50');
   assert.throws(() => E.copyReviewedRallyeSportTimes(f.result, { ...nr, id: 'R2' }, f.people), /explicitly linked/);
 });
+test('shared-stage time copy accepts reviewed spelling variants but never matches on car number alone', () => {
+  const f = fixture();
+  f.result.nrRoundId = 'R1';
+  f.result.stages = [{ id: 'ss8', label: 'SS8', nrStage: 'SS8' }];
+  f.result.entries = [{ ...f.result.entries[0], driver: 'NR spelling differs', times: [null], stagePos: [null],
+    identityReview: { driverId: 'driver-1', codriverId: 'codriver-1', evidence: 'Synthetic same-event reviewed crew identity.' } }];
+  const nr = { id: 'R1', stages: ['SS8'], entries: [
+    { car: '1', driver: 'Driver 1', codriver: 'Co-driver 1', status: 'classified', times: ['00:01.00'] }
+  ] };
+  const reviewed = E.copyReviewedRallyeSportTimes(f.result, nr, f.people);
+  assert.deepEqual(reviewed.entries[0].times, ['00:01.00']);
+  assert.equal(reviewed.report.unmatched.length, 0);
+  const unreviewed = { ...f.result, entries: [{ ...f.result.entries[0], identityReview: undefined }] };
+  const notMatched = E.copyReviewedRallyeSportTimes(unreviewed, nr, f.people);
+  assert.deepEqual(notMatched.entries[0].times, [null]);
+  assert.equal(notMatched.report.unmatched.length, 1, 'a matching car number does not establish a crew identity');
+});
 test('stage subsets SS6–9, SS8–12 and SS8–11 align by explicit stage IDs, not array position', () => {
   const nrStages = ['SS6', 'SS7', 'SS8', 'SS9', 'SS10', 'SS11', 'SS12'];
   function overlay(labels) {
@@ -553,6 +725,124 @@ test('published scoring survives projection consumption, with role toggles and e
   const invalidModel = E.buildSeason({ season: malformed, rounds: {}, people: f.people, publicProjection: true });
   assert.equal(invalidModel.rallyesport.scoring.status, 'invalid');
   assert.match(invalidModel.rallyesport.scoring.reason, /malformed or incompatible/);
+});
+test('reviewed RS crew-role identities survive public projection without exposing review evidence or changing NR', () => {
+  const f = fixture();
+  const row = f.result.entries[0];
+  row.driver = 'Synthetic Shared Name';
+  row.codriver = 'Synthetic Shared Name';
+  f.people.people.push(
+    { id: 'synthetic-driver-junior', name: 'Synthetic Driver Junior', aliases: [] },
+    { id: 'synthetic-driver-senior', name: 'Synthetic Driver Senior', aliases: [] }
+  );
+  row.identityReview = {
+    driverId: 'synthetic-driver-junior', codriverId: 'synthetic-driver-senior',
+    evidence: 'Synthetic user-confirmed car 88 assignment: junior driver, senior co-driver.'
+  };
+  assert.deepEqual(E.validateRallyeSport(f.data, F.season(2026), {}, f.people), []);
+  const scoring = eventScore(f);
+  assert.equal(scoring.status, 'ready');
+  const privateModel = E.buildSeason({ season: { ...F.season(2026), rallyesport: f.data }, rounds: {}, people: f.people });
+  assert.equal(privateModel.rallyesport.results[0].entries[0].driverId, 'synthetic-driver-junior');
+  assert.equal(privateModel.rallyesport.results[0].entries[0].codriverId, 'synthetic-driver-senior');
+  const projected = AI.projectPublic({ ...F.season(2026), rallyesport: f.data }, f.people);
+  const publicEntry = projected.rallyesport.results[0].entries[0];
+  assert.equal(publicEntry.driver, 'Synthetic Shared Name');
+  assert.equal(publicEntry.codriver, 'Synthetic Shared Name');
+  assert.equal(projected.rallyesport.results[0].entries[0].identityReview, undefined);
+  assert.deepEqual(publicEntry.publicIdentity, {
+    driverId: 'synthetic-driver-junior', codriverId: 'synthetic-driver-senior'
+  });
+  assert.equal(JSON.stringify(publicEntry).includes('Synthetic user-confirmed'), false,
+    'private role-assignment evidence is not published');
+  const publicModel = E.buildSeason({ season: projected, rounds: {}, people: f.people, publicProjection: true });
+  assert.equal(publicModel.rallyesport.scoring.results[0].status, 'ready');
+  const builtEntry = publicModel.rallyesport.results[0].entries[0];
+  assert.equal(builtEntry.driver, 'Synthetic Shared Name');
+  assert.equal(builtEntry.codriver, 'Synthetic Shared Name');
+  assert.equal(builtEntry.driverId, 'synthetic-driver-junior');
+  assert.equal(builtEntry.codriverId, 'synthetic-driver-senior');
+  assert.ok(publicModel.rallyesport.scoring.provisionalStandings.overallDrivers
+    .some(person => person.id === 'synthetic-driver-junior'));
+  assert.ok(publicModel.rallyesport.scoring.provisionalStandings.overallCodrivers
+    .some(person => person.id === 'synthetic-driver-senior'));
+
+  const nrRound = { id: 'R1', stages: ['SS1'], entries: [
+    { car: '77', driver: 'NR Driver', codriver: '', class: 'OPEN', status: 'classified', pos: 1, times: ['1:00.0'], total: '1:00.0' }
+  ] };
+  f.people.people.push({ id: 'nr-driver', name: 'NR Driver', aliases: [] });
+  const baselineNr = E.buildSeason({ season: F.season(2026), rounds: { R1: nrRound }, people: f.people });
+  const projectedNr = E.buildSeason({ season: projected, rounds: { R1: nrRound }, people: f.people, publicProjection: true });
+  assert.deepEqual(projectedNr.standings, baselineNr.standings);
+  assert.deepEqual(projectedNr.rounds[0].entries, baselineNr.rounds[0].entries);
+
+  const invalid = JSON.parse(JSON.stringify(f.data));
+  invalid.results[0].entries[0].identityReview.codriverId = 'synthetic-driver-junior';
+  assert.ok(E.validateRallyeSport(invalid, F.season(2026), {}, f.people)
+    .some(issue => /reviewed driver and co-driver must be distinct/.test(issue.msg)));
+  invalid.results[0].entries[0].identityReview.codriverId = 'missing-profile';
+  assert.ok(E.validateRallyeSport(invalid, F.season(2026), {}, f.people)
+    .some(issue => /reviewed co-driver refers to an unknown profile/.test(issue.msg)));
+});
+test('a partial identity review maps only its reviewed role and preserves source names', () => {
+  const f = fixture();
+  f.people.people.push({ id: 'canonical-driver', name: 'Canonical Driver', aliases: ['canonical driver'] });
+  const row = f.result.entries[0];
+  row.driver = 'canonical driver';
+  row.codriver = 'Co-driver 1';
+  row.identityReview = {
+    driverId: 'canonical-driver',
+    evidence: 'Synthetic reviewer confirms the driver profile.'
+  };
+  assert.deepEqual(E.validateRallyeSport(f.data, F.season(2026), {}, f.people), []);
+  const privateModel = E.buildSeason({ season: { ...F.season(2026), rallyesport: f.data }, rounds: {}, people: f.people });
+  assert.equal(privateModel.rallyesport.results[0].entries[0].driver, 'canonical driver',
+    'the classification row retains its exact printed source spelling');
+  assert.equal(privateModel.rallyesport.results[0].entries[0].driverId, 'canonical-driver');
+  assert.equal(privateModel.rallyesport.results[0].entries[0].codriverId, 'codriver-1');
+  assert.ok(privateModel.rallyesport.scoring.provisionalStandings.overallDrivers
+    .some(person => person.id === 'canonical-driver' && person.name === 'Canonical Driver'));
+  const projection = AI.projectPublic({ ...F.season(2026), rallyesport: f.data }, f.people);
+  assert.equal(projection.rallyesport.results[0].entries[0].driver, 'canonical driver');
+  assert.deepEqual(projection.rallyesport.results[0].entries[0].publicIdentity, { driverId: 'canonical-driver' });
+  assert.ok(projection.rallyesport.scoring.provisionalStandings.overallDrivers
+    .some(person => person.id === 'canonical-driver' && person.name === 'Canonical Driver'));
+  const publicModel = E.buildSeason({ season: projection, rounds: {}, people: f.people, publicProjection: true });
+  assert.equal(publicModel.rallyesport.results[0].entries[0].driverId, 'canonical-driver');
+  assert.equal(publicModel.rallyesport.results[0].entries[0].codriverId, 'codriver-1',
+    'an unreviewed role can still resolve independently from its printed name');
+});
+test('user-confirmed finality permits RS scoring without rewriting source status or hiding source qualifications', () => {
+  const f = fixture();
+  f.result.status = 'Provisional Official Classification 4/4';
+  f.result.notes = ['Source footer: results are final pending post-event technical checks.'];
+  f.result.finalityReview = {
+    acceptedForScoring: true,
+    evidence: 'Synthetic user confirmation to treat this supplied classification as final for scoring.'
+  };
+  const score = eventScore(f);
+  assert.equal(score.status, 'ready');
+  assert.equal(score.finalityBasis, 'user-confirmed');
+  const projection = AI.projectPublic({ ...F.season(2026), rallyesport: f.data }, f.people);
+  assert.equal(projection.rallyesport.results[0].status, 'Provisional Official Classification 4/4');
+  assert.equal(projection.rallyesport.results[0].finalityReview, undefined);
+  assert.equal(projection.rallyesport.results[0].notes[0], f.result.notes[0]);
+  assert.equal(projection.rallyesport.scoring.results[0].finalityBasis, 'user-confirmed');
+  const publicModel = E.buildSeason({ season: projection, rounds: {}, people: f.people, publicProjection: true });
+  assert.equal(publicModel.rallyesport.scoring.results[0].status, 'ready');
+  const pendingChecks = JSON.parse(JSON.stringify(f.data));
+  pendingChecks.results[0].status = 'Final Official Classification';
+  delete pendingChecks.results[0].finalityReview;
+  assert.equal(E.calculateRallyeSportScoring(pendingChecks, { year: 2026 }, f.people).results[0].status, 'blocked',
+    'a source heading that says final pending checks is not treated as cleared without review');
+  pendingChecks.results[0].finalityReview = JSON.parse(JSON.stringify(f.result.finalityReview));
+  assert.equal(E.calculateRallyeSportScoring(pendingChecks, { year: 2026 }, f.people).results[0].finalityBasis, 'user-confirmed');
+  const unreviewed = JSON.parse(JSON.stringify(f.data));
+  delete unreviewed.results[0].finalityReview;
+  assert.equal(E.calculateRallyeSportScoring(unreviewed, { year: 2026 }, f.people).results[0].status, 'blocked');
+  unreviewed.results[0].finalityReview = { acceptedForScoring: true, evidence: '' };
+  assert.ok(E.validateRallyeSport(unreviewed, F.season(2026), {}, f.people)
+    .some(issue => /finality review evidence is required/.test(issue.msg)));
 });
 test('RS mutations cannot change NR standings, and NR changes cannot change RS official results or points', () => {
   const f = fixture(), season = F.season(2026), people = { people: [

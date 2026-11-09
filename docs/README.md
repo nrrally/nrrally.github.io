@@ -16,7 +16,7 @@ There are two parts:
 - **A public results site** for the MSA Northern Regions Regional Rally Championship, with an independent, secondary RallyeSport scoreboard.
 - **An admin page** where results and competitor details are maintained. Admins sign in with Google.
 
-Results come only from the official classification PDFs, never from live timing. Standings, points and stage graphs are calculated in the visitor's browser from the raw official data each time a page loads. Nothing calculated is stored.
+Results come only from official classification PDFs, never from live timing. NR standings, points and stage graphs are calculated in the visitor's browser from raw NR results each time a page loads; NR does not store derived scoring snapshots. RallyeSport is a separate competition: its validated scoring snapshots are stored with the published RS data and never feed NR standings or statistics.
 
 ## Where everything lives
 
@@ -32,7 +32,7 @@ Results come only from the official classification PDFs, never from live timing.
 
 1. **Official classifications only.** Never use live timing.
 2. **Store what's printed.** Times, penalties and positions are kept exactly as printed. Corrections are made through overrides, never by editing printed values.
-3. **Calculate, don't store.** Points, standings and graphs are worked out from the raw data, so fixing one time fixes everything that depends on it.
+3. **Keep scoring models separate.** NR points, standings and graphs are calculated from raw NR results in the visitor's browser. Published RallyeSport scoring snapshots are stored with RS data; they do not affect NR results, points or statistics.
 4. **Every override explains itself.** Each override carries a reason that is shown on the site. `node tools/report.js <year> <backup.json>` lists all of them.
 5. **Every publication is reviewed and kept.** Each publish records who/when and document before/after. Undo stages earlier versions, not a full project/photograph restore. Admin-list and owner/provider changes are outside this flow.
 

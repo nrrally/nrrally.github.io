@@ -37,6 +37,10 @@ may later break; keep authorized private source files, not downloaded PDFs in Gi
 3. Review points scales, class-only exclusion, class descriptions, minimum starts,
    crew-role credit, aggregation/countback and DNF/DNS policy. Use the capability table,
    not just numeric comparison. Stop results publication if a governing policy is unsupported.
+   The admin's new-season action copies NR settings as placeholders, but does not copy
+   RallyeSport events, classifications, scoring rules or membership decisions. Add new-year
+   RS data only from its own sources; until its applicable RS rules are reviewed and supported,
+   official classifications may be retained/displayed without championship points.
 4. Rehearse with synthetic data or authorized simulation. The simulation requires a
    signed-in allowlisted admin and existing published data; it is not an offline empty
    project bootstrap. Do not publish test seasons into the real database.

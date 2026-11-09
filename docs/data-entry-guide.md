@@ -168,9 +168,10 @@ another event or season. Never map `TEST` into a scoring class.
 
 The only available scoring profile is 2026 Rallysprint SSR V1 (9 July 2026). Select it
 only for an applicable 2026 event, and record event-specific applicability, championship
-round status and the evidence. The user confirmed these SSRs govern the 2026 club results
-at Legends, Ermelo and TRAC, and the independent June Round 1 classification despite the
-July issue date. This does not authorize applying them to other events or years. Set
+round status and the evidence. User confirmation applies to the privately reviewed 2026
+classification set, including a pre-issue independent event; keep event identities and
+source records in the private review archive. This does not authorize applying the SSRs
+to other events or years. Set
 invitational status explicitly for every classified row. Event-level
 invitation exclusion is not the same as the RS-season per-person **Non-Scoring RS Member**
 toggle. That toggle assumes all unchecked people are paid up (not verified), excludes
@@ -193,7 +194,20 @@ provenance; cancellation or error does not mutate the draft. This is a snapshot:
 NR edits do not update it. It does not import NR class, position, DNF/DNS status, penalty
 or points. Review every proposed value against the RS source.
 
-Event points require the finality, 15-starter threshold, applicable ruleset,
+When a printed crew name does not uniquely resolve, choose the reviewed driver and
+co-driver profile IDs in that RS row and record the evidence. This preserves the printed
+names while giving scoring and same-event time-copy matching stable identities. Never
+infer identity or crew role from a car number alone. An NR spelling may guide an uncertain
+spelling only when the exact same-event car and crew match have been reviewed; keep the
+RS printed spelling as source evidence. A separate scoring-finality review is available
+when the user explicitly accepts a supplied source for points. Keep the printed source
+title/status/footer unchanged and record the reason; this decision does not prove that
+external technical checks have cleared. Select the separate finality review before
+entering its evidence; the evidence field is disabled otherwise, and editing it cannot
+activate scoring finality on its own.
+
+Event points require either source-supported finality or an evidence-backed user
+finality review, the 15-starter threshold, applicable ruleset,
 championship-round and invitation inputs. A started DNF earns no points but counts as a
 starter when start evidence is present. A no-time DNF is not proof of a start; otherwise
 record a reviewed non-TEST starter count and its evidence. `TEST` entries remain in the
@@ -202,7 +216,9 @@ reviewed count of at least 15 non-TEST starters establishes the threshold. If fe
 15 non-TEST starters are established and TEST rows could change whether the threshold is
 met, points stay blocked.
 Explicit `Final Results` wording is recognized as final without rewriting the source
-status. A shared overall position across classes is retained. Within each class, printed
+status. A source note that says checks are pending is not independently treated as
+cleared; only an explicit finality review can accept that source for scoring, and the UI
+continues to show the source qualification. A shared overall position across classes is retained. Within each class, printed
 class positions are used only when complete; otherwise official overall positions order
 the whole class consistently. The app does not recompute SSR 7.5's stage-time tie-break,
 so any contradictory or still-tied scoring order blocks points. Season tie-breaks and
@@ -217,7 +233,12 @@ Public RS event tables are linked secondarily from Info/footer. A shared NR roun
 offers an optional dashed **Show RS overlay** only when explicit RS stage mappings exist.
 It is off by default; intermediate comparisons use RS stage values and do not alter
 NR calculations. RS-only events have their own classifications and tables without any
-NR graph or round. Browser/admin scripts use coordinated query version `rallyesport-2`;
+NR graph or round. RS-only leaders are not linked to NR-only profiles that cannot show
+their RS history. The homepage retains NR as its default; local leader/class/result
+controls expose the separate RS views. The full calendar orders dated NR and RS events
+by their known dates, shows undated events explicitly, and merges shared cards only by
+an explicit `nrEventId`. Browser/admin scripts use coordinated query version
+`rallyesport-12`;
 retire older open admin tabs before editing or publishing RS data.
 
 ## Before each season: a 15-minute rehearsal

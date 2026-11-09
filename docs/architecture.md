@@ -85,9 +85,14 @@ ruleset scorer. Invitation flags, member toggles, applicability/bulletin evidenc
 other decision metadata are removed from the public projection. Public RS event points
 and standings are derived on load; no derived RS values are saved into the working
 record. NR's model, homepage statistics, crew histories and default graph never consume
-RS values. An explicitly requested graph overlay uses only RS stage times/status/order
-and its explicit stage-to-NR-axis mappings; it is dashed and off by default. It is a
-presentation comparison, not a car/person identity merge or an NR calculation.
+RS values. RS-only leaders remain plain text until a profile view can represent RS
+history separately from NR statistics. The homepage keeps NR as the default; section-local
+controls switch leaders/classes/results without changing NR statistics. Dated calendar
+cards are ordered by explicit date evidence, undated events remain labelled, and shared
+cards are merged only through `nrEventId`. An explicitly requested graph overlay uses
+only RS stage times/status/order and its explicit stage-to-NR-axis mappings; it is dashed
+and off by default. It is a presentation comparison, not a car/person identity merge or
+an NR calculation.
 
 Calendar-only models display known events/rounds without result statistics or leaders.
 Missing-round cards/pages use strict date-only dates compared with South African UTC+02:00

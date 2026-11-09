@@ -197,12 +197,19 @@ td.fastest { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); 
 /* leaders */
 .leader-card-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; min-width:0; }
 .leader-card-head > div { display:flex; align-items:center; gap:10px; }
-.competition-arrow { display:inline-grid; place-items:center; width:30px; height:30px; border:1px solid var(--line); border-radius:999px; background:var(--surface-2); color:var(--ink); font-weight:850; text-decoration:none; flex:none; }
-.competition-arrow:hover { border-color:var(--accent); color:var(--accent); }
-.competition-switch { display:inline-flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:999px; background:var(--surface); padding:5px 10px; color:var(--ink-2); font-size:12px; font-weight:750; text-decoration:none; white-space:nowrap; }
-.competition-switch span + span { color:var(--accent); }
-.competition-switch:hover { border-color:var(--accent); color:var(--ink); }
+.competition-switch { display:inline-flex; align-items:center; border:0; border-radius:999px; background:transparent; padding:0; cursor:pointer; }
+.competition-switch-track { position:relative; display:grid; grid-template-columns:1fr 1fr; align-items:center; width:78px; height:32px; overflow:hidden; border:1px solid var(--line-2); border-radius:999px; background:linear-gradient(90deg, color-mix(in srgb, var(--nr2) 85%, var(--surface)) 0 50%, color-mix(in srgb, var(--accent) 85%, var(--surface)) 50% 100%); }
+.competition-switch-segment { z-index:1; color:#fff; font-size:10px; font-weight:800; line-height:1; text-align:center; text-shadow:0 1px 2px rgba(0,0,0,.4); }
+.competition-switch-thumb { position:absolute; top:1px; left:1px; width:28px; height:28px; display:grid; place-items:center; border:1px solid var(--line); border-radius:50%; background:var(--surface); box-shadow:0 1px 4px rgba(0,0,0,.25); color:var(--ink); font-size:9px; font-weight:850; transition:left 160ms ease; }
+.competition-switch-thumb::after { content:"NR"; }
+.competition-switch[aria-checked="true"] .competition-switch-thumb { left:calc(100% - 29px); }
+.competition-switch[aria-checked="true"] .competition-switch-thumb::after { content:"RS"; }
+.competition-switch:hover .competition-switch-track { border-color:var(--accent); }
+.competition-switch:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+.competition-switch:focus-visible .competition-switch-track { border-color:var(--accent); }
+.section-head-actions { display:flex; align-items:center; justify-content:flex-end; gap:12px; flex-wrap:wrap; }
 .home-rs-note { margin:8px 0 0; }
+.rs-competitor { font-weight:750; }
 .leader { display: flex; align-items: center; gap: 12px; }
 .leader + .leader { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
 .leader .who { flex: 1; min-width: 0; }
@@ -231,6 +238,7 @@ td.fastest { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); 
 .rnd { font-weight: 850; font-size: 12px; letter-spacing: .06em; background: var(--ink); color: var(--bg); border-radius: 7px; padding: 3px 8px; }
 .event-round .w { font-size: 13.5px; line-height: 1.25; min-width: 0; }
 .event-round .w span { display: block; color: var(--muted); font-size: 12px; }
+.event-round .w .rs-points-qualification { color: var(--bad); font-weight: 750; }
 .go { color: var(--accent); font-weight: 800; font-size: 13px; white-space: nowrap; }
 
 /* round page */
@@ -347,10 +355,12 @@ dl.kv dd { margin: 0; }
 .events-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (max-width: 760px) { .events-grid { grid-template-columns: 1fr; } }
 @media (max-width: 560px) {
-  .rounds-section-head { flex-wrap:wrap; align-items:center; }
-  .rounds-section-head h2 { flex:1 1 100%; }
-  .competition-switch { margin-inline-start:14px; }
+  .home-competition-head,.rounds-section-head { flex-wrap:wrap; align-items:center; }
+  .home-competition-head h2,.rounds-section-head h2 { flex:1 1 100%; }
+  .section-head-actions { width:100%; justify-content:flex-start; margin-inline-start:14px; }
+  .home-competition-head > .competition-switch,.rounds-section-head > .competition-switch { margin-inline-start:14px; }
 }
+@media (prefers-reduced-motion: reduce) { .competition-switch-thumb { transition:none; } }
 .graph-layout { grid-template-columns: 290px minmax(0, 1fr); }
 .graph-layout > * { min-width: 0; }
 @media (max-width: 900px) { .graph-layout { grid-template-columns: minmax(0, 1fr); } }

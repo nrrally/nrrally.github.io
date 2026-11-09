@@ -307,9 +307,10 @@ The rules profile is based on the full official [2026 MSA RallyeSport Associatio
 Club Standing Supplementary Regulations — Rallysprint, Version 1, issued 9 July
 2026](https://www.motorsport.co.za/wp-content/uploads/2026/07/2026-MSA-RallyeSport-Association-SSRs-V1.pdf).
 The printed title and SSR 1.2 set its scope; it is not inferred from the filename. The
-user confirmed applicability to the 2026 club classifications at Legends, Ermelo and
-TRAC, and to the independent June Round 1 classification despite the July issue date.
-This event-specific confirmation does not apply the rules to other events or years.
+user confirmed applicability for the privately reviewed 2026 classification set,
+including a pre-issue independent event. Event identities and supporting source records
+remain in the private review archive; this event-specific confirmation does not apply
+the rules to other events or years.
 The implementation uses the SSR 6.1.1–6.1.3 class points for overall and
 class tables, excludes invitational entries, and applies the 15-starter event minimum.
 By user direction, people are assumed paid up unless individually toggled non-scoring;
@@ -319,15 +320,13 @@ at other round counts are withheld pending clarification. A five-round double-po
 also requires separate ISO event and bulletin dates that pass the SSR's 14-day notice
 check. No future-year or other competition rule profile is added.
 
-Read-only inspection of the supplied June result sheet identified a standalone final
-classification with two stages, separate overall/class positions, a TEST row and DNF
-rows with non-prefix stage observations. No competitor rows or event calendar data were
-copied into this repository, and the sensitive membership workbook was not inspected.
-Synthetic coverage now recognizes the source's `FINAL RESULTS` heading without
-rewriting it, preserves TEST without treating it as DNS/DNF, leaves its scoring and
-starter semantics blocked, uses printed class position to score when overall
-positions tie across classes, withholds still-tied class scoring positions, and retains
-a later DNF observation after a missing earlier stage.
+Review of private source material informed synthetic coverage for independent event
+records, separately printed positions, TEST rows, and non-prefix DNF stage observations.
+No competitor rows or real event-calendar records were copied into this repository, and
+the sensitive membership workbook was not inspected. Synthetic coverage recognizes a
+source's final-results wording without rewriting it, preserves TEST without treating it
+as DNS/DNF, withholds unresolved scoring, uses one consistent position basis within a
+class, and retains later DNF observations after missing earlier stages.
 
 Unresolved limits remain explicit: SSR 7.4 and 7.6 are blank, so DNF points and awards
 are not inferred. SSR 7.5 addresses a round despite its championship-ties heading; the
@@ -382,17 +381,17 @@ reconstruct private eligibility.
 
 Validation uses synthetic records and local/mock browser traffic only; it does not read
 the sensitive membership workbook, publish real RS results, or contact live Firebase or
-analytics. The user-approved private source-result preview remains under session-state
-`files` and outside the repository. No code, real result records or private membership
-data were pushed, deployed, published, or written to Firebase/providers.
+analytics. User-approved source-result previews remain under session-state `files` and
+outside the repository. No code, real result records or private membership data were
+pushed, deployed, published, or written to Firebase/providers.
 
-Verification for this continuation: all 79 synthetic Node tests passed; the mocked
-admin-access and public site-theme browser suites passed with zero external requests or
-database writes. The private local preview rendered five season events and four source
-classifications (71 rows), with no remote assets. It produced provisional points only
-from the two supported final events; R1's source categories/TEST threshold, R2's
-provisional finality, and the unrun R5 remain disclosed and excluded rather than zeroed.
-One repeated-name crew-role conflict is retained as unresolved private identity evidence.
+Earlier continuation verification passed 79 synthetic Node tests and the mocked admin
+and public browser suites. The current private source review remains blocked by an
+unresolved repeated printed crew name; the actual engine reports that validation error,
+withholds scoring for all events, and displays no standings. Source-specific spellings
+that are not safely attributable to reviewed people remain unmerged. Technical-check
+qualifications, starter-count uncertainty, and provisional source status remain visible
+in the private preview. No private result rows are documented here.
 
 ### Local RS homepage/calendar and explicit round-number follow-up (not pushed or published)
 
@@ -405,16 +404,14 @@ cards remain competition-specific, and the home toggle does not alter NR hero st
 standings, graphs, or season data. An RS `roundNumber` is optional, positive, unique and
 independent of NR numbering.
 
-The private preview now carries the user-confirmed R1-only 2WD→RS2 and 4WD→RS4 mapping.
-R1 remains blocked because the documented 14 non-TEST starters are below SSR 7.3's
-threshold and the TEST contribution is unresolved; no R1 points are invented. The
-private preview shows R1–R5 in the user-supplied sequence, the scheduled 28 November
-R5 without results, and a synthetic-only NR + RS badge example. R2–R4 are known shared
-weekends, but this preview contains no NR event IDs, so it displays them separately
-rather than guessing a merge. All actual source-result data and the preview remain under
-session-state `files`, outside Git. The membership workbook was not opened or used.
+The private preview retains user-confirmed classification-scoped category mapping and
+the supplied independent round ordering. Dates are used only where supported; undated
+events remain explicitly undated. The private preview has no real NR result/calendar
+data, and shared cards are not inferred without an explicit NR event association. All
+actual source-result data and previews remain under session-state `files`, outside Git.
+The membership workbook was not opened or used.
 
-The coordinated cache version advances to `rallyesport-2` across public, admin,
+The coordinated cache version advances to `rallyesport-3` across public, admin,
 disclaimer and privacy shells. Retire old admin tabs before editing. The logo integration
 from local commit `3e806da` remains in this branch; original NR SVG/PNG favicon assets are
 preserved. No schema migration is required because RS is an optional season subdocument;
@@ -423,11 +420,291 @@ continues recalculating from private working inputs. No Firebase, History, rules
 settings, external provider, live data, deployment or publication operation occurred.
 This local preparation does not approve any push.
 
-Validation uses synthetic data and mocked/intercepted browser traffic:
-`node --test tools/tests/*.test.js` passes all 81 tests, including RS round-number
-validation; `site-theme-e2e.js` verifies RS snapshot consumption,
-NR-default panels, independent RS cards, explicit combined-card badges and no-NR access at
-mobile/desktop widths in light/dark themes; `admin-access-e2e.js` passes with no writes.
-The private file preview's interactive leader/results toggles were also browser-checked
-from `file://` with zero external requests. No real deployment, Firebase rules, live Auth,
-or public data publication was tested.
+The prior local test run passed all 81 synthetic Node tests and the mocked admin/public
+browser suites. On this resumed continuation, Node.js was not available on the shell
+`PATH`, so the final synthetic browser-test fixture edits could not be rerun. The
+production RS engine was rerun in a local browser against the private working snapshot:
+it reported the retained crew-role validation error, blocked all five event rows, and
+returned neither ready nor provisional standings. The actual-app private preview and
+source preview were rechecked from `file://`: no external hosts, no failed local assets,
+and the validation error remained visible. No real deployment, Firebase rules, live
+Auth, or public data publication was tested.
+
+The final local review also verified the offline actual-app preview after the homepage
+and calendar changes. It shows synthetic NR data with private RS records, keeps NR as
+the default, exposes separate RS result cards, orders dated events by supplied date
+evidence, labels undated events, and displays the unresolved identity validation error
+without inventing standings. Source qualifications and mapping notes are retained. The
+source and actual-app previews remain in session-state `files`; only synthetic
+regressions and generic behavior are documented in Git. The coordinated cache query
+version is `rallyesport-3`. No live server, external traffic, Firebase operation, push,
+deployment, or publication was used. Re-run the Node test suite when Node.js is
+available before treating the final browser-test edits as verified or approving any
+future push.
+
+## Local-only reviewed RS identity and finality follow-up (not released)
+
+This follow-up supersedes the earlier local-only note immediately above about the
+unresolved identical-name row and unavailable Node runtime. It completes the two
+explicitly user-reviewed identity decisions and the user-confirmed scoring finality for
+the supplied R1-R4 classifications. It is a local working change only: no push, PR,
+Firebase read/write, History change, database publication, deployment or external
+provider operation was performed.
+
+The private RS model now records reviewed driver/co-driver profile IDs separately from
+source-printed names, plus evidence-backed finality acceptance separately from the
+classification's title/status/notes. The production validator requires distinct known
+profiles and review evidence; scoring and reviewed same-event time-copy matching use
+the reviewed identities. A matching car number without reviewed crew identities remains
+unmatched. Public projection removes private review evidence and retains only the
+derived `user-confirmed` finality basis for disclosure. A source that says post-event
+checks remain pending is not independently treated as cleared. Homepage cards and
+classification point summaries distinguish the accepted scoring basis from the printed
+source qualification.
+
+The admin now exposes manual controls for row-specific driver/co-driver identity review
+and source-finality acceptance/evidence. These are draft fields subject to the existing
+shared validation and **Review & publish** flow; incomplete evidence blocks normal
+publication. The public homepage/calendar behavior remains NR-default. The coordinated
+asset query advances to `rallyesport-5` across index, admin, disclaimer and privacy.
+Fields are optional under the RS layer; absent RS data and all NR calculations remain
+unchanged. No migration or rules change is included.
+
+The private working dataset's production RS structural validator reports **0 errors**.
+R2, R3 and R4 event scores are available on the explicitly user-confirmed basis. R1
+remains event-points-blocked: 14 non-TEST starters are evidenced and whether the TEST
+entry counts toward the 15-starter requirement is unresolved. R5 has no classification.
+No double-points bulletin is supplied, so final five-round qualification and a champion
+remain blocked. R3/R4 source notes still say post-event technical checks are pending;
+their completion is not independently evidenced. The user-confirmed scoring decision is
+not represented as an updated official source document. The membership workbook was not
+inspected. All real records and previews remain in session-state files, outside Git.
+
+Latest verification on the exact local worktree: `node --test tools\tests\*.test.js`
+passed all 84 synthetic unit tests. `site-theme-e2e.js`, `admin-access-e2e.js` and
+`ai-import-e2e.js` passed with mocked browser traffic and no writes. The production
+validator reports 0 structural errors for the private working dataset; this does not
+make the championship complete or authorize publication. The actual-app preview uses
+a private read-only local copy of current public NR data with the private RS records,
+not a synthetic NR dataset or live connection. Its browser smoke verified four NR home
+cards, three independent section switches, five-row RS leader cards with full-table
+links, a six-card combined calendar (one NR-only, three NR+RS and two RS-only), the
+local source-review link, 320px layout without horizontal overflow, and zero external
+requests, unexpected fetches or page errors. The dated R1 card appears before the later
+NR rounds; shared events are not duplicated. Source qualification remains visible on
+the result detail pages while home/calendar cards stay concise.
+
+The private scoring report remains blocked overall: R1 event points are held because
+14 non-TEST starters are evidenced and TEST starter treatment for the 15-starter rule
+is unresolved; R5 has no classification; no double-points bulletin is available, so
+final five-round qualification and a champion remain unavailable. R2-R4 event scores
+are supported on the user's scoring-finality confirmation, separately from printed
+source statuses; R3/R4 technical-check completion is not evidenced. No official
+document was rewritten.
+
+The release-safety gate is still unmet. Read-only per-document Firestore reads are not
+a consistent point-in-time full-database backup; export/PITR configuration, destination
+storage and required permissions have not been verified, and no production backup is
+claimed. The app-format backup is incomplete for full database recovery (see
+[recovery](recovery.md#precisely-what-the-app-backup-does-and-does-not-do)). The exact
+deployed legacy admin code preserves unknown fields on ordinary writes, but a newly
+loaded old admin can restore a pre-RS whole-season backup and erase RS. Revision
+preconditions protect stale writes, not that restore path; no enforceable writer freeze
+or restore guard has been established. These checks do not test live Auth/rules, an
+official technical-clearance document, or an authorized release.
+
+No push, PR, Firebase write, History mutation, deployment, publication, rules/settings
+change or external-provider write occurred. All real records and previews remain in
+session-state files outside Git; the membership workbook was not inspected.
+
+### Local preview/date and recovery-readiness correction
+
+The RS-only event view now uses an explicitly linked NR event's exact displayed date only
+when the RS event has no date; it does not populate RS event dates or scoring inputs. The
+calendar parser recognizes date ranges such as `10–11 July 2026` for ordering. A reviewed
+same-event crew match supports displaying a canonical NR profile while printed RS source
+names remain unchanged. The actual-app offline
+preview banner no longer links outside the browser's mounted preview root; the source
+review remains a separate local preview.
+
+Focused synthetic RS and season-readiness unit coverage passed (**37 passed, 0 failed**).
+The mocked public theme, admin-access and AI-import browser suites also passed, using the
+existing portable Node/browser modules with command-scoped `NODE_PATH` and no installs.
+No production Google Cloud/Firebase permission check was possible: this worktree
+has no `gcloud`, `firebase` or `gsutil` executable, and no authenticated read-only cloud
+capability was available. No IAM, PITR, bucket or project state was queried. Public
+Firebase documentation was consulted only; it states regular managed Firestore exports
+are not exact point-in-time snapshots, while a PITR export requires PITR and a valid
+whole-minute timestamp. No actual export/backup was started. Recovery scope and restore
+limits are documented in [recovery](recovery.md#point-in-time-firestore-export-and-restore-limits).
+An enforceable writer freeze would require a separately authorized server-side control,
+such as a tested temporary rules write-deny; none was applied.
+
+### Local RS role-identity projection and private preview reconciliation
+
+The public RS projection now carries only the reviewed role-specific person IDs as
+`publicIdentity`, while removing private identity-review evidence and leaving printed
+driver/co-driver source names unchanged. The public RS result model and scoring standings
+therefore resolve an identical-name crew to its separately reviewed driver and co-driver.
+The source-results table remains plain text; no profile links were added. NR results,
+standings and statistics are unchanged. Coordinated asset query versions are `rallyesport-6`.
+
+The local-only identity reconciliation uses the user-confirmed captured NR public
+people/season documents. It maps only unique exact-name/alias matches or qualifying
+same-event crew evidence; unmatched identities remain separate preview-only RS candidates,
+not asserted globally new and not authorized for live insertion. The mapping, reconciled
+working copy and preview data remain outside Git. The actual-app offline preview was
+regenerated from the reconciled public people fixture; automated checks verified all
+published RS scoring identities resolve and the full captured NR model is unchanged.
+
+Focused synthetic RS/season tests passed (37 passed, 0 failed), including private source
+to public projection, role-distinct identities/standings, omitted evidence and NR parity.
+The mocked public theme browser suite passed. No provider, Firebase/Google Cloud,
+production-data or credential access occurred; no commit, push, publication, deployment,
+database write or rule/settings change occurred.
+
+### Local RS source-audit, scoring and homepage-preview follow-up (not released)
+
+This continuation is local-only and does not authorize a push, PR, publication or
+deployment. The RS started-DNF zero-point path now requires a resolved eligible role in
+a supported class; invitation, non-scoring, unresolved-identity and unsupported-class
+cases remain unavailable. NR scoring behavior is unchanged. The three compact homepage
+NR/RS switches now stay synchronized, including keyboard activation, browser history and
+partial legacy RS URLs. NR remains the default; the home provisional label is brief while
+detailed RS pages retain their qualifications. Coordinated asset query versions are
+`rallyesport-7`. No schema/contract migration or live data change is required.
+
+Four supplied classifications were audited against their source PDFs. The private
+off-Git correction ledger records 35 transcription/review corrections and the compared
+field groups; source-backed positions, statuses, classes, times, penalties and totals
+were not otherwise changed. Finality-review evidence hashes are unchanged. The private
+reconciliation maps 55 RS profiles to 48 captured NR identities, retains 19 unresolved
+RS-only candidates with deterministic public IDs, and excludes two non-person/role
+labels from global people records. No ambiguous NR target was guessed. One potential
+within-RS name variation remains flagged; the source profiles remain separate pending
+confirmation. Source records, identity rationale and reconciled working data remain
+outside Git.
+
+The regenerated production-projection snapshot contains 91 people (72 captured NR plus
+19 RS-only candidates); all 98 scoring identity references in ready events resolve, and
+the complete captured NR rounds, standings, calendar, people model and public season
+projection compare unchanged. R2-R4 scoring is ready; R1 remains blocked by the
+unresolved TEST-starter threshold and R5 has no complete classification, so the overall
+RS championship remains blocked and no final champion is asserted. The actual-app
+offline preview shows the verified started-DNF zeroes. It uses only local captured data,
+has a restrictive CSP and fetch shim, and has no live database or external requests.
+
+Validation on this worktree: 39 synthetic RS/season unit tests passed;
+`tools/tests/site-theme-e2e.js` passed; the actual-app preview browser smoke passed at
+320/390/768/1440 px in light and dark themes, including synchronized controls, history,
+legacy deep links, classification point display, zero external requests and no page or
+console errors. JavaScript syntax checks passed. These checks do not certify unresolved
+membership/non-scoring-class semantics, final RS championship eligibility, live Auth or
+rules. No Firebase/Google Cloud access, provider write, commit, push, PR or deployment
+occurred.
+
+### Local RS provenance and homepage/admin safety follow-up (not released)
+
+Private identity and source-audit rationale now distinguishes source/coordinator-reviewed
+matches from the identity and spelling decisions explicitly confirmed by the user.
+Reconciliation and source-audit digests were refreshed.
+
+On the homepage, all three NR/RS controls now also switch the prominent leaders card:
+RS mode shows provisional RS driver/co-driver leaders, retains ties, and states when
+either table has no leader rows. Repeated provisional captions below each RS row were
+removed in favor of the single section note. The admin finality-evidence field is disabled
+unless the separate user finality review is selected, and its input handler cannot create
+that review implicitly. The coordinated current cache token is `rallyesport-8` across all
+HTML shells and recovery/data-entry docs; prior release-history tokens are unchanged.
+
+Validation on this local worktree: synthetic RS/season tests, public homepage/theme E2E,
+admin access E2E including forced evidence editing after deselection, JavaScript syntax
+checks, private artifact digest checks, and offline Edge preview at 320/390/768/1440 px in
+both themes. The preview had no external requests or page/console errors. No Firebase/
+Google Cloud access, provider write, commit, push, PR, publication or deployment occurred.
+
+### Local homepage RS link-routing follow-up (not released)
+
+The synchronized homepage mode now routes **Full standings** to RS tables and **Full
+calendar** to the RS events/classifications view when RS is selected; NR mode retains
+the NR standings and calendar routes. This is consistent in populated, no-scored-starts
+and no-results homepage branches. Browser regressions cover both modes and the empty
+states. The current coordinated shell token is `rallyesport-9`; recovery and data-entry
+guidance were updated, and the private actual-app preview is refreshed from local
+captured fixtures. No schema, scoring, provider, or operational behavior changed.
+
+Validation: `node --test tools/tests/rallyesport.test.js
+tools/tests/season-readiness.test.js` passed (39 tests); `tools/tests/site-theme-e2e.js`
+passed with populated NR/RS and no-results/no-scored-starts link assertions.
+JavaScript syntax and `git diff --check` passed. The refreshed actual-app offline preview
+passed Edge checks at 320/390/768/1440 px in light/dark themes, with no external or
+fixture-blocked traffic and no page errors. This remains local work only: no Firebase/
+Google Cloud access or writes, commit, push, publication, PR or deployment occurred.
+Deployment approval is not in scope, and cache invalidation does not update already-open
+tabs.
+
+### Local RS 2026/2027 scenario rehearsal (not released)
+
+The admin's actual new-season action is exercised in demo mode from a synthetic 2026
+season containing RS events/results. A new 2027 season copies only the existing NR
+settings placeholders; it contains no copied NR event/result or RS event/classification/
+rules/member decisions, and the 2026 archive remains selectable. The admin now says
+explicitly that RS data is not copied.
+
+Shared-engine and public-projection synthetic coverage models a first 2027 RS-only final
+classification with no NR calendar/result. Validation accepts the independent official
+source record and the public projection preserves its classification, while NR standings
+remain empty and 2026 scoring rules are not inferred for 2027; RS championship totals are
+unconfigured. The public browser regression also opens the actual synthetic 2027 homepage
+and RS result route with no NR events/rounds/results, verifying the classification renders
+without inferred RS points or standings. Existing 2026 two-way isolation coverage continues to verify an RS change
+does not alter NR standings/rows and an NR change does not alter RS official results or
+calculated points. No 2027 rule, calendar or production data was created.
+
+Final validation: 41 RS/season unit tests passed; the public theme E2E passed, including
+the 2027 standalone RS public-home/list/result paths, and the admin access E2E passed
+with the synthetic category-markup case. JavaScript syntax checks and `git diff --check`
+passed. Browser network access was intercepted; no admin write was issued. The coordinated
+current token is `rallyesport-12`.
+This remains local-only with no Firebase/Google Cloud access, backup/export, commit, push,
+publication, PR or deployment. Unknown 2027 NR/RS regulations, memberships and
+tie/eligibility policy still require source verification before scoring or official
+season standings.
+
+Full branch review found and the local candidate corrected three tightly related issues:
+HTML-escape printed category text in the admin mapping label; allow independent reviewed
+identity selection per crew role and project only the reviewed role; and replace
+source-like competitor names in synthetic regression rows with fabricated identities.
+The admin browser fixture now includes an HTML-markup category regression. The public RS
+points summary now omits repeated user-review provenance and shortens provisional copy,
+while retaining printed source qualifications and blocked-event reasons.
+
+The user separately delegated an overnight code push and live sanity check covering NR
+and RS. This entry does not claim that release or any live comparison occurred: the
+worktree remains uncommitted and no live site was inspected. The coordinating session
+retains Firebase/GCP ownership and will pin the exact candidate and complete its required
+preflight before any authorized code push; no live data/settings write is part of this
+local work.
+
+### User-authorized RS data-first publication (site release pending)
+
+The user authorized the coordinator to publish the reviewed RS data before the site-code
+release. Before publication, a local backup covered the Firestore documents in scope only;
+it was not a full Firebase backup and does not recover Auth users, storage/photos, rules,
+settings or provider configuration. The RS publication and its site History before/after
+record were applied atomically with the explicit attribution label
+**GitHub Copilot (direct Firebase)** and user attribution. Exact post-write readback was
+used for local validation.
+
+Readback validation matched the independent model across 124 NR and 71 RS result rows,
+10 NR and 6 RS standings tables, and 7 NR stage tables. Responsive checks covered eight
+viewports/states; nine older-site compatibility routes were also exercised. The mock-auth
+admin check was read-only. These checks do not constitute live authentication or deployed
+Firestore-rules testing.
+
+The RS championship remains gated where source/review requirements are unresolved: R1 is
+blocked by its starter-threshold evidence, R5 has no complete classification, and no final
+championship result is asserted from those gaps. 2027 scoring rules and eligibility remain
+unconfigured; no future rules were inferred. The site-code push, Pages build and live-site
+verification are still pending. This data-first publication does not itself authorize or
+claim a code deployment.

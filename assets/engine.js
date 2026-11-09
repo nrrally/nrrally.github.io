@@ -47,6 +47,19 @@
     var mapping = result && result.classMappings || {};
     return normClass(mapping[printedClass] || printedClass);
   }
+  function rallyeSportEntryPerson(idx, entry, role) {
+    var review = entry && (entry.identityReview || entry.publicIdentity);
+    var personId = review && (role === 'driver' ? review.driverId : review.codriverId);
+    if (personId && idx.byId[personId]) {
+      var person = idx.byId[personId];
+      return { id: person.id, name: person.name, known: true };
+    }
+    return idx.resolve(role === 'driver' ? entry && entry.driver : entry && entry.codriver);
+  }
+  function rallyeSportFinalityAccepted(result) {
+    return !!(result && result.finalityReview && result.finalityReview.acceptedForScoring === true &&
+      typeof result.finalityReview.evidence === 'string' && result.finalityReview.evidence.trim());
+  }
   function dateOrdinal(value) {
     if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
     var time = Date.parse(value + 'T00:00:00Z');
@@ -341,9 +354,9 @@
         return Object.assign({}, result, {
           stages: (result.stages || []).map(function (stage) { return Object.assign({}, stage); }),
           entries: (result.entries || []).map(function (entry) {
-            var driver = idx.resolve(entry.driver), codriver = idx.resolve(entry.codriver);
+            var driver = rallyeSportEntryPerson(idx, entry, 'driver'), codriver = rallyeSportEntryPerson(idx, entry, 'codriver');
             return Object.assign({}, entry, {
-              driver: driver.name, codriver: codriver.name,
+              driver: entry.driver || driver.name, codriver: entry.codriver || codriver.name,
               driverId: driver.id, codriverId: codriver.id,
               driverKnown: !!driver.known, codriverKnown: !!codriver.known,
               times: (entry.times || []).slice(), stagePos: (entry.stagePos || []).slice()
@@ -357,13 +370,14 @@
   function compatiblePublishedRallyeSportScoring(data, scoring) {
     if (!scoring || typeof scoring !== 'object' ||
       ['ready', 'blocked', 'incomplete', 'unconfigured', 'invalid'].indexOf(scoring.status) < 0 ||
-      typeof scoring.reason !== 'string' || !Array.isArray(scoring.results)) return false;
+       typeof scoring.reason !== 'string' || !Array.isArray(scoring.results)) return false;
     var events = data.events || [], results = data.results || [], seenEvents = Object.create(null), seenResults = Object.create(null);
     for (var i = 0; i < scoring.results.length; i++) {
       var row = scoring.results[i];
       if (!row || typeof row.eventId !== 'string' || seenEvents[row.eventId] ||
         events.every(function (event) { return event.id !== row.eventId; }) ||
-        ['ready', 'blocked'].indexOf(row.status) < 0 || !Array.isArray(row.entries)) return false;
+        ['ready', 'blocked'].indexOf(row.status) < 0 || !Array.isArray(row.entries) ||
+        row.finalityBasis != null && ['source-final', 'user-confirmed'].indexOf(row.finalityBasis) < 0) return false;
       seenEvents[row.eventId] = true;
       if (row.resultId) {
         var source = results.filter(function (result) { return result.id === row.resultId && result.eventId === row.eventId; })[0];
@@ -420,13 +434,20 @@
       var result = resultByEvent[event.id];
       if (event.countsForChampionship !== true) return;
       if (!result) { scoreRows.push({ eventId: event.id, resultId: '', status: 'blocked', reason: 'No complete official classification is recorded for this confirmed championship event.', entries: [] }); return; }
-      var row = { eventId: event.id, resultId: result.id, status: 'ready', reason: '', entries: [] };
+      var sourceHasPendingChecks = (result.notes || []).some(function (note) {
+        return /results are final pending post[- ]event technical checks/i.test(note);
+      });
+      var sourceFinal = /^\s*final(?:\s+official)?\s+(?:classification|results)(?:\s+\d+\/\d+)?\s*$/i.test(result.status || '') &&
+        !sourceHasPendingChecks;
+      var userFinalityAccepted = rallyeSportFinalityAccepted(result);
+      var row = { eventId: event.id, resultId: result.id, status: 'ready', reason: '', entries: [],
+        finalityBasis: userFinalityAccepted ? 'user-confirmed' : sourceFinal ? 'source-final' : '' };
+      function hasStartEvidence(entry) {
+        return !!(entry.startEvidence && entry.startEvidence.trim()) ||
+          (entry.times || []).some(function (value) { return value != null && value !== ''; }) ||
+          (entry.stagePos || []).some(function (value) { return value != null && value !== ''; });
+      }
       function starterProblem() {
-        function hasStartEvidence(entry) {
-          return !!(entry.startEvidence && entry.startEvidence.trim()) ||
-            (entry.times || []).some(function (value) { return value != null && value !== ''; }) ||
-            (entry.stagePos || []).some(function (value) { return value != null && value !== ''; });
-        }
         var knownStarters = (result.entries || []).filter(function (entry) {
           return entry.status === 'classified' || entry.status === 'DNF' && hasStartEvidence(entry);
         }).length;
@@ -448,7 +469,7 @@
       else if (event.doublePoints && dateOrdinal(event.startDate) - dateOrdinal(event.doublePointsBulletinDate) < 14) row = blocked('SSR 7.2 requires the double-points bulletin at least 14 days before the event.');
       else if (event.countsForChampionship === true && event.doublePoints && counted.length !== 5) row = blocked('SSR 7.2 specifies a double-points round only for a five-round championship; other round counts need clarification.');
       else if (event.countsForChampionship === true && event.doublePoints && doubleEvents.length !== 1) row = blocked('SSR 7.2 requires exactly one double-points round in a five-round championship.');
-      else if (!/^\s*final(?:\s+official)?\s+(?:classification|results)(?:\s+\d+\/\d+)?\s*$/i.test(result.status || '')) row = blocked(/provisional/i.test(result.status || '') ?
+      else if (!sourceFinal && !userFinalityAccepted) row = blocked(/provisional/i.test(result.status || '') ?
         'The source classification is provisional; event points are not calculated.' : 'The source classification finality is unclear; event points are not calculated.');
       else if ((result.entries || []).some(function (entry) { return ['classified', 'DNF', 'DNS', 'TEST'].indexOf(entry.status) < 0; })) row = blocked('A source status has no configured championship semantics; retain the official row and wait for an RS ruling.');
       else if ((result.entries || []).some(function (entry) { return entry.status === 'classified' && ['RS2', 'RS4'].indexOf(rallyeSportScoringClass(result, entry)) < 0; })) row = blocked('An RS category has no configured scoring semantics or explicit event-specific scoring-class mapping.');
@@ -458,11 +479,11 @@
       else if (starterProblem()) row = blocked(starterProblem());
       else if ((result.entries || []).some(function (entry) { return entry.status === 'classified' && typeof entry.invited !== 'boolean'; })) row = blocked('Invitational/non-invitational status is not confirmed for every classified crew.');
       else if ((result.entries || []).some(function (entry) { return entry.status === 'classified' &&
-        (!idx.resolve(entry.driver).known || entry.codriver && !idx.resolve(entry.codriver).known); })) row = blocked('Scoring needs reviewed shared person profiles; names are not merged by car number.');
+        (!rallyeSportEntryPerson(idx, entry, 'driver').known || entry.codriver && !rallyeSportEntryPerson(idx, entry, 'codriver').known); })) row = blocked('Scoring needs reviewed shared person profiles; names are not merged by car number.');
       if (row.status === 'blocked') { row.eventId = event.id; row.resultId = result.id; row.entries = []; scoreRows.push(row); return; }
       var scoringRoles = {
-        driver: (result.entries || []).filter(function (entry) { return entry.status === 'classified' && !entry.invited && !nonScoring[idx.resolve(entry.driver).id]; }),
-        codriver: (result.entries || []).filter(function (entry) { return entry.status === 'classified' && entry.codriver && !entry.invited && !nonScoring[idx.resolve(entry.codriver).id]; })
+        driver: (result.entries || []).filter(function (entry) { return entry.status === 'classified' && !entry.invited && !nonScoring[rallyeSportEntryPerson(idx, entry, 'driver').id]; }),
+        codriver: (result.entries || []).filter(function (entry) { return entry.status === 'classified' && entry.codriver && !entry.invited && !nonScoring[rallyeSportEntryPerson(idx, entry, 'codriver').id]; })
       };
       var classifiedEntries = (result.entries || []).filter(function (entry) { return entry.status === 'classified'; });
       var classEntries = Object.create(null), orderByCar = Object.create(null), orderIssue = '';
@@ -510,8 +531,16 @@
       });
       row.entries = (result.entries || []).map(function (entry) {
         var points = pointsByCar[String(entry.car)] || {};
-        return { car: String(entry.car), driverPoints: points.driver == null ? null : points.driver,
-          codriverPoints: points.codriver == null ? null : points.codriver };
+        var cls = rallyeSportScoringClass(result, entry);
+        var supportedClass = cls === 'RS2' || cls === 'RS4';
+        var driver = rallyeSportEntryPerson(idx, entry, 'driver');
+        var codriver = rallyeSportEntryPerson(idx, entry, 'codriver');
+        var startedDnf = entry.status === 'DNF' && hasStartEvidence(entry) && !entry.invited && supportedClass;
+        var eligibleDriverDnf = startedDnf && driver.known && !nonScoring[driver.id];
+        var eligibleCodriverDnf = startedDnf && codriver.known && !nonScoring[codriver.id];
+        return { car: String(entry.car),
+          driverPoints: eligibleDriverDnf ? 0 : points.driver == null ? null : points.driver,
+          codriverPoints: !entry.codriver ? null : eligibleCodriverDnf ? 0 : points.codriver == null ? null : points.codriver };
       });
       scoreRows.push(row);
     });
@@ -531,7 +560,7 @@
         (row.entries || []).forEach(function (score) {
           var entry = result.entries.filter(function (item) { return String(item.car) === score.car; })[0];
           if (!entry) return;
-          var driver = idx.resolve(entry.driver), codriver = idx.resolve(entry.codriver), cls = rallyeSportScoringClass(result, entry);
+          var driver = rallyeSportEntryPerson(idx, entry, 'driver'), codriver = rallyeSportEntryPerson(idx, entry, 'codriver'), cls = rallyeSportScoringClass(result, entry);
           if (score.driverPoints != null) {
             add(tables.overallDrivers, driver.id, driver.name, score.driverPoints);
             add(tables.classDrivers[cls], driver.id, driver.name, score.driverPoints);
@@ -590,9 +619,17 @@
       return event;
     });
     projected.results = (projected.results || []).map(function (result) {
+      delete result.finalityReview;
       result.entries = (result.entries || []).map(function (entry) {
+        var review = entry.identityReview;
+        if (review && (review.driverId || review.codriverId)) {
+          entry.publicIdentity = {};
+          if (review.driverId) entry.publicIdentity.driverId = review.driverId;
+          if (review.codriverId) entry.publicIdentity.codriverId = review.codriverId;
+        }
         delete entry.invited;
         delete entry.startEvidence;
+        delete entry.identityReview;
         return entry;
       });
       return result;
@@ -685,7 +722,7 @@
         entry.timeEvidence && (!Array.isArray(entry.timeEvidence) || entry.timeEvidence.length !== stages.length)) {
         throw new Error('RS stage times and provenance must align with the explicit RS stage list before copying.');
       }
-      var driver = idx.resolve(entry.driver), codriver = idx.resolve(entry.codriver);
+      var driver = rallyeSportEntryPerson(idx, entry, 'driver'), codriver = rallyeSportEntryPerson(idx, entry, 'codriver');
       if (!driver.known || entry.codriver && !codriver.known) {
         report.unmatched.push({ car: String(entry.car), reason: 'RS crew identity is unresolved.' });
         return Object.assign({}, entry, { times: entry.times.slice(), timeEvidence: (entry.timeEvidence || []).slice() });
@@ -806,7 +843,7 @@
     });
     (data.results || []).forEach(function (result, i) {
       var label = 'result ' + (i + 1);
-      if (!object(result, label, ['id', 'eventId', 'title', 'status', 'nrRoundId', 'stages', 'source', 'notes', 'entries', 'classMappings', 'classMappingEvidence'])) return;
+      if (!object(result, label, ['id', 'eventId', 'title', 'status', 'nrRoundId', 'stages', 'source', 'notes', 'entries', 'classMappings', 'classMappingEvidence', 'finalityReview'])) return;
       id(result.id, label); id(result.eventId, label + ' eventId');
       if (knownResults[result.id]) error(label + ' duplicates result ID ' + result.id + '.');
       knownResults[result.id] = true;
@@ -816,6 +853,10 @@
       if (!event) error(label + ' refers to an unknown RallyeSport event.');
       text(result.title, label + ' title', true);
       text(result.status, label + ' printed status', true);
+      if (result.finalityReview != null && object(result.finalityReview, label + ' finality review', ['acceptedForScoring', 'evidence'])) {
+        if (result.finalityReview.acceptedForScoring !== true) error(label + ' finality review must explicitly accept the source for scoring.');
+        text(result.finalityReview.evidence, label + ' finality review evidence', true, 1000);
+      }
       if (result.nrRoundId != null && result.nrRoundId !== '') {
         if (!nrRounds[result.nrRoundId]) error(label + ' links to an unknown NR round.');
         else if (event && event.nrEventId && event.nrEventId !== nrRounds[result.nrRoundId].eventId) error(label + ' NR round does not belong to its explicitly linked NR event.');
@@ -872,13 +913,29 @@
       var cars = Object.create(null), idx = peopleIndex(people);
       result.entries.forEach(function (entry, n) {
         var row = label + ' row ' + (n + 1);
-        if (!object(entry, row, ['car', 'driver', 'codriver', 'class', 'status', 'pos', 'classPos', 'times', 'stagePos', 'penalty', 'total', 'timeEvidence', 'notes', 'invited', 'startEvidence'])) return;
+        if (!object(entry, row, ['car', 'driver', 'codriver', 'class', 'status', 'pos', 'classPos', 'times', 'stagePos', 'penalty', 'total', 'timeEvidence', 'notes', 'invited', 'startEvidence', 'identityReview'])) return;
         text(entry.car, row + ' car', true, 40);
         if (cars[entry.car]) error(row + ' duplicates car ' + entry.car + '.');
         cars[entry.car] = true;
         text(entry.driver, row + ' driver', true); text(entry.codriver == null ? '' : entry.codriver, row + ' co-driver', false);
         text(entry.startEvidence == null ? '' : entry.startEvidence, row + ' start evidence', false, 1000);
         var driver = idx.resolve(entry.driver), codriver = idx.resolve(entry.codriver);
+        if (entry.identityReview != null) {
+          if (object(entry.identityReview, row + ' identity review', ['driverId', 'codriverId', 'evidence'])) {
+            if (entry.identityReview.driverId != null) {
+              id(entry.identityReview.driverId, row + ' reviewed driver');
+              if (!idx.byId[entry.identityReview.driverId]) error(row + ' reviewed driver refers to an unknown profile.');
+            }
+            if (entry.identityReview.codriverId != null) {
+              id(entry.identityReview.codriverId, row + ' reviewed co-driver');
+              if (!idx.byId[entry.identityReview.codriverId]) error(row + ' reviewed co-driver refers to an unknown profile.');
+            }
+            text(entry.identityReview.evidence, row + ' identity review evidence', true, 1000);
+            if (entry.identityReview.driverId && entry.identityReview.driverId === entry.identityReview.codriverId) error(row + ' reviewed driver and co-driver must be distinct profiles.');
+            driver = idx.byId[entry.identityReview.driverId] ? { id: entry.identityReview.driverId } : driver;
+            codriver = idx.byId[entry.identityReview.codriverId] ? { id: entry.identityReview.codriverId } : codriver;
+          }
+        }
         if (driver.id && codriver.id && driver.id === codriver.id) error(row + ' assigns the same person to both crew seats.');
         text(entry['class'], row + ' printed RS category', true, 80);
         text(entry.status, row + ' printed status', true, 80);

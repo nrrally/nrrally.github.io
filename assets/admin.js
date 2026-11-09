@@ -790,7 +790,7 @@
   }
   function newSeasonCard() {
     var ys = years(), next = (ys[0] || new Date().getFullYear()) + 1, st = A.newSeason || (A.newSeason = { year: next, from: ys[0], current: false });
-    return '<div class="card"><p style="margin-top:0">Creates an empty calendar for a new year and copies the classes, points scales and minimum starts from an earlier season. Results, events and documents start empty. Earlier seasons stay on the site; visitors switch with the season picker.</p><p><strong>Copied settings are placeholders, not approved new-year rules.</strong> Verify classes, points, minimum starts and supported scoring policies against the new official SSRs before publishing. Do not invent missing calendar details or entry lists. The bundled Getting started guide has its own reference edition and needs a separate annual review.</p><div class="form-grid">' +
+    return '<div class="card"><p style="margin-top:0">Creates an empty calendar for a new year and copies the classes, points scales and minimum starts from an earlier season. NR results, events and documents start empty. RS events, classifications and rules are not copied. Earlier seasons stay on the site; visitors switch with the season picker.</p><p><strong>Copied settings are placeholders, not approved new-year rules.</strong> Verify classes, points, minimum starts and supported scoring policies against the new official SSRs before publishing. Do not invent missing calendar details or entry lists. The bundled Getting started guide has its own reference edition and needs a separate annual review.</p><div class="form-grid">' +
       fld('Year', input(function (v) { st.year = numOrNull(v); }, st.year, 'inputmode="numeric" id="nsYear"')) +
       fld('Copy settings from', select(function (v) { st.from = +v; }, st.from, ys.map(function (y) { return [y, y]; }))) +
       '<div class="fld">' + check(function (v) { st.current = v; }, st.current, 'Make it the season the public site opens on') + '</div></div>' +
@@ -1436,7 +1436,7 @@
           if (!on && i >= 0) data.nonScoringPeople.splice(i, 1);
         }, (data.nonScoringPeople || []).indexOf(person.id) >= 0, esc(person.name) + ' — Non-Scoring RS Member', 'data-rerender');
       }).join('') + '</div>' : '<p class="small">Add reviewed shared identities in Competitors before scoring results.</p>') + '</div>';
-    html += '<div class="card"><h3>Championship scoring state</h3><p><b>' + esc(scoring.status) + '</b> — ' + esc(scoring.reason || '') + '</p><p class="small muted">Official RS event classifications remain displayable even when championship scoring is blocked or unresolved. Event points require 15 source-backed starters overall, confirmed event applicability, explicit invitation status, final source classification and reviewed competitor identities. A started DNF earns no points but counts as a starter; a no-time DNF needs explicit start evidence or a reviewed event starter count.</p></div>';
+    html += '<div class="card"><h3>Championship scoring state</h3><p><b>' + esc(scoring.status) + '</b> — ' + esc(scoring.reason || '') + '</p><p class="small muted">Official RS event classifications remain displayable even when championship scoring is blocked or unresolved. Event points require 15 source-backed starters overall, confirmed event applicability, explicit invitation status, reviewed competitor identities, and either source-confirmed finality or an evidence-backed user finality review. A user review never changes printed source wording or proves a technical check was completed. A started DNF earns no points but counts as a starter; a no-time DNF needs explicit start evidence or a reviewed event starter count.</p></div>';
     html += '<div class="section"><div class="section-head"><h2>Independent RS events</h2>' + btn(function () {
       s.rallyesport = data;
       var id = uniqueId('rs-event-' + A.year, Object.fromEntries(data.events.map(function (e) { return [e.id, true]; })));
@@ -1483,12 +1483,24 @@
         (result ? '<hr><h4>Official RS classification</h4><div class="form-grid">' +
           fld('Classification title', input(function (v) { result.title = v; }, result.title || '', 'maxlength="200"')) +
           fld('Printed finality/status', input(function (v) { result.status = v; }, result.status || '', 'maxlength="200"'), 'Enter the source wording; do not infer finality.') +
+          fld('Separate scoring-finality review', select(function (v) {
+            if (v === 'user-confirmed') result.finalityReview = result.finalityReview || { acceptedForScoring: true, evidence: '' };
+            else delete result.finalityReview;
+          }, result.finalityReview && result.finalityReview.acceptedForScoring ? 'user-confirmed' : '',
+            [['', 'No separate user finality review'], ['user-confirmed', 'User confirms supplied classification may be scored']], 'data-rerender'),
+            'Use only for an explicit human decision. This does not revise the printed source status or establish external technical clearance.') +
+          fld('Finality-review evidence', area(function (v) {
+            if (!result.finalityReview || !result.finalityReview.acceptedForScoring) return;
+            result.finalityReview.evidence = v;
+          }, result.finalityReview && result.finalityReview.evidence || '',
+            'rows="2"' + (result.finalityReview && result.finalityReview.acceptedForScoring ? '' : ' disabled')),
+            'Required whenever a user-confirmed scoring-finality review is selected.', 'span2') +
           fld('Source file/title', input(function (v) { result.source.file = v; }, result.source.file || '', 'maxlength="200"')) +
           fld('Source description', input(function (v) { result.source.description = v; }, result.source.description || '', 'maxlength="1000"'), 'For an attached/private source without a public URL, identify the document without entering a local path.') +
           fld('Official source URL', input(function (v) { result.source.url = v; }, result.source.url || '', 'type="url" maxlength="2000"'), 'HTTPS source for this exact classification.', 'span2') +
           '<div class="form-grid">' +
           (Object.keys(sourceCategories).length ? Object.keys(sourceCategories).map(function (category) {
-            return fld('Scoring class for printed ' + sourceCategories[category], select(function (v) {
+            return fld('Scoring class for printed ' + esc(sourceCategories[category]), select(function (v) {
               result.classMappings = result.classMappings || {};
               if (v) result.classMappings[category] = v;
               else delete result.classMappings[category];
@@ -1543,9 +1555,28 @@
           }, '+ Add classification row', 'tiny') + '</div>' +
           (result.entries || []).map(function (entry, rowIndex) {
             function field(label, key, value, attrs) { return fld(label, input(function (v) { entry[key] = v; }, value == null ? '' : value, attrs || '')); }
+            function setIdentity(role, value) {
+              entry.identityReview = entry.identityReview || { evidence: '' };
+              if (value) entry.identityReview[role === 'driver' ? 'driverId' : 'codriverId'] = value;
+              else delete entry.identityReview[role === 'driver' ? 'driverId' : 'codriverId'];
+              if (!entry.identityReview.driverId && !entry.identityReview.codriverId && !entry.identityReview.evidence) delete entry.identityReview;
+            }
+            var identityChoices = [['', 'Unreviewed / source name only']].concat(peopleDoc().people.slice()
+              .sort(function (a, b) { return a.name.localeCompare(b.name); })
+              .map(function (person) { return [person.id, person.name]; }));
             return '<div class="card subcard"><div class="section-head"><b>Classification row ' + (rowIndex + 1) + '</b>' + btn(function () { result.entries.splice(rowIndex, 1); render(); }, 'Remove row', 'tiny ghost') + '</div>' +
               '<div class="form-grid tight">' + field('Car', 'car', entry.car, 'maxlength="40"') + field('Driver profile name', 'driver', entry.driver) +
               field('Co-driver profile name', 'codriver', entry.codriver || '') +
+              fld('Reviewed driver identity (optional)', select(function (v) { setIdentity('driver', v); },
+                entry.identityReview && entry.identityReview.driverId || '', identityChoices, 'data-rerender')) +
+              fld('Reviewed co-driver identity (optional)', select(function (v) { setIdentity('codriver', v); },
+                entry.identityReview && entry.identityReview.codriverId || '', identityChoices, 'data-rerender')) +
+              fld('Identity-review evidence', area(function (v) {
+                entry.identityReview = entry.identityReview || {};
+                entry.identityReview.evidence = v;
+                if (!entry.identityReview.driverId && !entry.identityReview.codriverId && !v) delete entry.identityReview;
+              }, entry.identityReview && entry.identityReview.evidence || '', 'rows="2"'),
+                'Required when either reviewed identity is selected. Keep printed source names above unchanged; never identify a person or role from car number alone. Use an NR main spelling only for a reviewed same-event car-and-crew match.', 'span2') +
               field('Printed RS category', 'class', entry['class'], 'maxlength="80"') +
               field('Printed RS status', 'status', entry.status, 'maxlength="80" data-rerender') +
               field('Start evidence (when a DNF has no stage observation)', 'startEvidence', entry.startEvidence || '', 'maxlength="1000"') +

@@ -157,7 +157,7 @@ The supplied Northern Regions logo is used in the public, admin and static-docum
 headers at its source dimensions; the light rectangle is retained in dark mode. It is
 not a favicon. All HTML shells continue to use the original `brand.svg` and `favicon.png`
 NR icons. The logo file is a user-provided asset, not a change to the site's original
-favicon/identity artwork. Cache query versions are coordinated as `rallyesport-2` for
+favicon/identity artwork. Cache query versions are coordinated as `rallyesport-12` for
 the RS feature and logo integration. These favicon hints do not guarantee indexing,
 ranking, site-name selection or display; recrawling can take days or weeks.
 
@@ -238,9 +238,10 @@ and RS graph precision does not change NR calculations. The homepage retains NR 
 and round cards by default; local section controls expose separate RS tables/results, and
 the full calendar includes both using only explicit `nrEventId` links for shared cards.
 RS round numbers are independent and RS-only events need no NR calendar entry. The
-2026 Rallysprint SSR V1 profile is event-confirmed for the four specified 2026 classifications (June Round 1
-despite the July issue date and the Legends, Ermelo and TRAC club classifications). This
-is not a general retroactive rule or a future-season confirmation. Other categories are
+2026 Rallysprint SSR V1 profile is user-confirmed only for a privately reviewed 2026
+classification set, including a pre-issue independent event. The event identities and
+source records remain outside this public repository. This is not a general retroactive
+rule or a future-season confirmation. Other categories are
 preserved in event results but block that event's scoring. The user-confirmed DNF rule is
 zero RS championship points for a starter who does not finish, while counting that
 starter for the 15-starter requirement only with source-backed start evidence or reviewed
@@ -252,8 +253,11 @@ rules during restore or a future annual copy. See the
 [RS scoring boundaries](scoring-rules.md#rallyesport-separate-ruleset-and-records).
 
 The RS member toggle and event invitation/applicability/bulletin inputs are in the private
-season document and its History/backup. The public projection contains only source-backed
-RS results plus derived public points/tables; never restore a hand-edited public projection.
+season document and its History/backup. Reviewed row identity/finality evidence is also
+private working data: the public projection strips those review records but retains
+derived points and the `user-confirmed` finality basis needed to explain scoring. The
+public projection contains only source-backed RS results plus derived public points/tables;
+never restore a hand-edited public projection.
 The public scoring snapshot is not trusted by private/admin calculations, and demo mode
 cannot reconstruct its private eligibility inputs. Normal app backup restore and undo
 replace the season as a whole; an RS-specific loss/replacement warning precedes mutation
@@ -331,7 +335,7 @@ the categories, not real file paths, people, account emails, tokens or access ch
 | Component | Why the public repository/app backup is insufficient |
 |---|---|
 | App backup with timestamp/hash and published-vs-draft label | Contains sports docs and referenced photos, not full project state |
-| Consistent full database snapshot/export or privately validated equivalent | Needed for private History, config, all photos/orphans, unknown docs and reliable versions |
+| PITR-timestamp Firestore document export or privately validated equivalent | Needed for a point-in-time Firestore document set; export does not include Auth, Storage object bytes, rules/config or provider state |
 | Original official PDFs/calendar/SSRs/bulletins/MSA points | URLs can disappear; printed data and overrides require actual source artifacts |
 | Private decision/provenance notes | Explain identity/credit/class/extra-start/exception choices and consent |
 | Access register/recovery procedures | GitHub/org, domain registrar/DNS, Firebase/GCP owners, allowlisted admins and GA custodians |
@@ -366,6 +370,39 @@ selected group's before versions against today's working copy, and a later publi
 a new audit group. Undo of an older group can erase later edits to those same documents.
 It is not a reverse transaction guarded against the selected historical after state.
 Undo can remove a newly referenced photo but cannot resurrect its old bytes without a backup.
+
+### Point-in-time Firestore export and restore limits
+
+The regular managed Firestore export is **not** an exact snapshot at export start; it may
+include document changes made while it runs. A point-in-time export requires PITR to be
+enabled and an explicit whole-minute timestamp within the retained PITR window (currently
+up to seven days, not earlier than `earliestVersionTime`). Verify the selected timestamp,
+database, project, completed operation metadata and exported object set before treating it
+as a recovery point. See Google's [Firestore export/import guide](https://firebase.google.com/docs/firestore/manage-data/export-import).
+
+Managed export/import requires Firestore `datastore.databases.export` / `datastore.databases.import`
+permissions and Cloud Storage access for the operator and Firestore service agent; the
+documented managed roles are Cloud Datastore Import Export Admin (or broader Owner) and
+Storage Admin for the bucket. A project owner or authorized operator must verify the live
+IAM bindings, PITR state, billing, database location and bucket policy before an export.
+The repository does not establish those permissions or prove that a suitable bucket exists.
+
+A Firestore export covers Firestore documents, not a complete Firebase project. It does
+not capture Authentication users, Firebase Storage object bytes, Firestore rules/index
+definitions, project/IAM ownership, app configuration, DNS, Pages or Analytics settings.
+Keep separate protected recovery artifacts for those services and verify photo bytes,
+History, allowlist, revision and public-document scope. A managed import overwrites
+documents with matching IDs but leaves unaffected documents in place; it is not an exact
+delete-and-replace restore. Use a reviewed isolated restore target or a separately planned
+controlled recovery, and preserve target state and History before any production restore.
+
+For a release involving legacy clients, merely asking admins to close tabs is not an
+enforceable freeze. A practical server-side freeze is a separately authorized temporary
+Firestore rules change denying all writes to the affected site collections, verified
+against old and new clients, followed by a controlled release and a reviewed rule rollback.
+That changes production rules and is **not** part of this local-only preparation; without
+an authorized, verified server-side freeze or equivalent guard, do not claim writers are
+stopped.
 
 ## 6. Safe restoration and rollback
 

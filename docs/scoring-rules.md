@@ -81,10 +81,10 @@ them to the 2026 calendar year; embedded PDF metadata is not the scope evidence.
 SSR 6.1.1–6.1.3 supports class points of 15, 12, 10, 8, 7, 6, 5, 4, 3, 2, then
 1 from 11th onward. Those class points are also used for the overall Clubman’s
 Challenge; this is **not** NR overall-plus-class scoring. Only RS2 and RS4 are
-configured. These SSRs are confirmed by the user for the 2026 club classifications
-at Legends, Ermelo and TRAC, and for the independent June Round 1 classification despite
-the July issue date. That confirmation is specific to those events; the rule profile is
-not a default for other events or future years.
+configured. The user confirmed the SSRs for the privately reviewed 2026 classification set,
+including a pre-issue independent event. That confirmation is event-specific; keep its
+source records in the private review archive. The rule profile is not a default for
+other events or future years.
 
 The implementation applies the documented scoring scope conservatively:
 
@@ -94,17 +94,28 @@ The implementation applies the documented scoring scope conservatively:
   Started DNF rows earn no points but count as starters only when start evidence exists.
   A no-time DNF is not proof of a start. Reviewed `starterCount` evidence records a
   non-TEST starter count, so it can establish at least 15 without deciding whether TEST
-  entries count. If fewer than 15 non-TEST starters are established and TEST entries
+  entries count. A started DNF's zero points are emitted per role only when that person
+  is resolved, has a supported scoring class, and is neither invited nor non-scoring;
+  unresolved identities, unsupported classes, invitations and the non-scoring toggle
+  remain unavailable rather than receiving zero. If fewer than 15 non-TEST starters are
+  established and TEST entries
   could change the threshold, the event remains blocked.
 - Invitational entries do not score, but remain in the official classification.
   Their exclusion is distinct from the user-directed per-person “Non-Scoring RS Member”
   toggle. Absent that season-scoped toggle, everyone is assumed paid up for RS scoring;
   that assumption is not verified. Each role's eligible finishing order is recalculated
   independently, so a toggled driver/co-driver does not suppress their partner's points.
-- Event points require a source classification explicitly marked final. A started DNF
-  scores no points and counts as a starter under the user's explicit 2026 clarification;
-  DNS is not a starter. Official rows remain published unchanged. SSR 7.4's finisher
-  wording is blank, so no additional finisher rule or awards logic is inferred.
+- Event points require either a source classification explicitly marked final or an
+  evidence-backed, private `finalityReview` explicitly accepting the supplied source
+  classification for scoring. A user-confirmed scoring decision does not rewrite the
+  source heading, status, footer or notes and does not establish that technical checks
+  were independently completed; UI summaries distinguish this basis and retain source
+  qualifications. A source-evidenced started DNF is published with zero event points
+  and counts as a starter under the user's explicit 2026 clarification. A DNF with no
+  row-level start evidence has unavailable (`null`) points, even when a separate event
+  count establishes the minimum; DNS and TEST points remain unavailable and neither
+  becomes a started DNF. Official rows remain published unchanged. SSR 7.4's finisher wording is blank, so no additional finisher
+  rule or awards logic is inferred.
 - Official `TEST` rows and their printed order/status remain in event results, are
   excluded from championship points, and do not create a TEST championship table, as
   SSR 6.1(a) specifies. Whether TEST entries count toward SSR 7.3's 15 starters remains
@@ -164,9 +175,11 @@ result match from car number, change NR series, or add RS to NR statistics. RS-o
 events and result tables work without NR graph data.
 
 On the homepage the NR overall/class leader panels and NR round cards remain the
-default. Small section-local controls can show RS overall/class points or RS result
-cards; provisional RS points are labelled as such and blocked rounds are disclosed.
-The full rounds calendar always includes both competitions. An NR + RS event badge and
+default. The three compact NR/RS controls remain visible and synchronized: changing
+any one switches all three home sections together, including keyboard use and browser
+history. Partial legacy RS deep links also activate all three. The homepage uses a short
+provisional-points label; detailed RS views retain scoring qualifications and blocked
+round disclosures. The full rounds calendar always includes both competitions. An NR + RS event badge and
 shared card are shown only for an explicit `nrEventId` association; event names, dates,
 or array order are never used to merge competitions. RS round numbers are independent.
 

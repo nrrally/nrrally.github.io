@@ -187,6 +187,10 @@ display does not relax strict round schedule/status validation.
     "eventId": "rs-event-id",
     "title": "Official classification",
     "status": "Final classification",
+    "finalityReview": {
+      "acceptedForScoring": true,
+      "evidence": "Explicit reviewer confirmation; source wording remains unchanged"
+    },
     "nrRoundId": "optional-explicit-NR-round-id",
     "source": { "file": "official-file.pdf", "url": "https://example.com/official-file.pdf" },
     "notes": [],
@@ -197,7 +201,12 @@ display does not relax strict round schedule/status validation.
       "car": "1", "driver": "Stable-name-or-alias", "codriver": "Stable-name-or-alias",
       "class": "RS2", "status": "classified", "pos": 1, "classPos": 1,
       "times": ["01:23.4"], "stagePos": [1], "penalty": null, "total": "01:23.4",
-      "timeEvidence": [null], "notes": [], "invited": false, "startEvidence": null
+      "timeEvidence": [null], "notes": [], "invited": false, "startEvidence": null,
+      "identityReview": {
+        "driverId": "reviewed-driver-profile-id",
+        "codriverId": "reviewed-codriver-profile-id",
+        "evidence": "Explicit reviewed assignment of the printed crew roles"
+      }
     }]
   }],
   "nonScoringPeople": ["stable-person-id"]
@@ -205,10 +214,11 @@ display does not relax strict round schedule/status validation.
 ```
 
 Only the exact reviewed 2026 SSR V1 ruleset profile is currently recognized, and only
-for 2026. Event-specific applicability is separately recorded; the user confirmed it
-for the 2026 club classifications at Legends, Ermelo and TRAC, and for the independent
-June Round 1 classification despite the July issue date; this does not establish
-applicability to future seasons or other competitions. No real event/results are
+for 2026. Event-specific applicability is separately recorded; user confirmation
+covers the privately reviewed 2026 classification set, including a pre-issue independent
+event. Keep the event identities and supporting source records in the private review
+archive; this does not establish applicability to future seasons or other competitions.
+No real event/results are
 preloaded. `nrEventId`, `nrRoundId` and
 each `stages[].nrStage` are optional independent associations; stage arrays are explicit
 subsets and are never aligned by date or position.
@@ -235,6 +245,26 @@ normalized printed categories and values are supported scoring classes (`RS2` or
 `classMappingEvidence` is required when a mapping is supplied. The entry's printed
 `class` remains unchanged for event results; mappings are never inferred or copied to
 another event/season, and `TEST` is never mapped into a championship class.
+
+`identityReview` is optional, private evidence for a specific row whose printed crew
+names cannot uniquely resolve one or both roles. Each supplied role ID must identify a
+known profile; when both are supplied they must be distinct. An evidence note is required,
+and printed names remain unchanged in the classification. The scorer and reviewed time-copy
+matching use a reviewed role ID while resolving any unreviewed role independently from its
+printed name. The public projection removes the evidence but carries only the reviewed
+role-specific profile IDs as `publicIdentity`, so public result models and standings resolve
+to the same people while printed source names remain unchanged. Do not assign identities
+from a car number alone.
+
+`finalityReview` is optional private reviewer evidence that accepts a supplied source
+classification for scoring without changing its printed `status`, title or notes. It
+requires explicit acceptance and evidence. The derived score row records whether points
+rest on the source's final heading or a user-confirmed finality decision; the source
+qualification remains visible and no technical clearance is implied. Review metadata is
+removed from the public projection while the score basis remains available for truthful
+disclosure. A source heading that looks final but its own notes say technical checks are
+pending is not treated as independently cleared; it needs this explicit review before
+event scoring.
 
 The 2026 profile gives a started DNF no championship points while counting it as a
 starter. A DNF counts as a proven start only with stage/start evidence or a reviewed

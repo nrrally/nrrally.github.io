@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const E = require('../../assets/engine.js');
+const AI = require('../../assets/ai-import.js');
 const F = require('./ai-fixtures.js');
 const root = path.resolve(__dirname, '..', '..');
 const code = fs.readFileSync(path.join(root, 'assets', 'site.js'), 'utf8');
@@ -105,10 +106,10 @@ test('public RallyeSport pages show provisional cumulative tables and disclose u
   assert.equal(model.rallyesport.scoring.status, 'blocked');
   assert.ok(model.rallyesport.scoring.provisionalStandings.overallDrivers.length);
   const page = api.viewRallyeSport().html;
-  assert.ok(page.includes('Provisional cumulative points — supported completed events only'));
+  assert.ok(page.includes('Provisional cumulative points'));
+  assert.ok(page.includes('Ready events only; blocked events are excluded, not scored as zero.'));
   assert.ok(page.includes('Ready RS round'));
-  assert.ok(page.includes('Blocked RS round — The source classification is provisional'));
-  assert.ok(page.includes('no unknown points are treated as zero'));
+  assert.ok(page.includes('Not scored: Blocked RS round — The source classification is provisional'));
 });
 function entryList(entries, complete = true) {
   return { eventId: 'test-event', roundIds: ['R1'], complete,
@@ -135,6 +136,53 @@ test('calendar-only and wholly empty seasons show only known calendar facts, not
   assert.ok(api.viewHome().html.includes('No events have been added to the 2027 calendar'));
   assert.ok(!api.viewHome().html.includes('Events listed'));
   assert.ok(api.viewInfo().html.includes('No documents have been added for 2027'));
+});
+test('a first 2027 RS-only classification survives public projection without an NR result or unverified RS points', () => {
+  const api = harness(), season = emptySeason();
+  season.events = [];
+  season.rounds = [];
+  const people = { people: [
+    { id: 'alex-test', name: 'Alex Test', aliases: [] },
+    { id: 'blake-example', name: 'Blake Example', aliases: [] }
+  ] };
+  season.rallyesport = {
+    events: [{ id: 'rs-only-2027-opening', name: 'Synthetic RS-only opening event', dates: 'Synthetic date' }],
+    results: [{ id: 'rs-only-2027-opening-final', eventId: 'rs-only-2027-opening',
+      title: 'Synthetic official RS classification', status: 'Final classification',
+      source: { file: 'synthetic-2027-rs.pdf', url: 'https://example.com/synthetic-2027-rs.pdf' },
+      notes: [], stages: [{ id: 'ss8', label: 'SS8' }],
+      entries: [{ car: '88', driver: 'Alex Test', codriver: 'Blake Example', class: 'RS2',
+        status: 'classified', pos: 1, classPos: 1, total: '00:01.00', penalty: null,
+        times: ['00:01.00'], stagePos: [1] }] }],
+    nonScoringPeople: []
+  };
+  assert.deepEqual(E.validateSeason(season, {}, people), [],
+    'a source-backed standalone RS result does not require an NR event, round or stage');
+  const projection = AI.projectPublic(season, people);
+  assert.equal(projection.rallyesport.events.length, 1);
+  assert.equal(projection.rallyesport.results[0].title, 'Synthetic official RS classification');
+  assert.equal(projection.rallyesport.scoring.status, 'unconfigured',
+    '2026 SSR scoring is not inferred for 2027');
+  const model = E.buildSeason({ season: projection, rounds: {}, people, publicProjection: true });
+  assert.deepEqual(model.calendar, []);
+  assert.deepEqual(model.rounds, []);
+  assert.deepEqual(model.standings.drivers, []);
+  assert.deepEqual(model.standings.codrivers, []);
+  assert.equal(model.rallyesport.results[0].entries[0].status, 'classified');
+  assert.equal(model.rallyesport.scoring.status, 'unconfigured');
+  assert.deepEqual(model.rallyesport.scoring.results, []);
+  api.ST.people = people;
+  api.ST.peopleIndex = E.peopleIndex(people);
+  api.ST.profiles = { 'alex-test': people.people[0], 'blake-example': people.people[1] };
+  api.ST.models[2027] = model;
+  api.useSeason(model);
+  const rsHtml = api.viewRallyeSport().html;
+  assert.ok(rsHtml.includes('Synthetic RS-only opening event'));
+  assert.ok(rsHtml.includes('Synthetic official RS classification'));
+  assert.ok(rsHtml.includes('Championship totals are not available.'));
+  assert.ok(!rsHtml.includes('<th>Points</th>'));
+  assert.ok(api.viewHome().html.includes('No results yet'),
+    'an RS-only 2027 classification does not create an NR result or NR standings');
 });
 test('calendar days use South Africa midnight, strict dates, leap years and timezone-independent formatting', () => {
   for (const now of ['2027-02-28T21:59:59Z', '2027-02-28T22:00:00Z', '2027-03-01T22:00:00Z']) {

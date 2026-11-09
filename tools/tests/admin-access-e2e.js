@@ -41,7 +41,7 @@ workingSeason.rallyesport = {
     entries: [
       { car: '1', driver: 'Alex Test', codriver: 'Blake Example', class: 'RS2', status: 'classified', pos: 1, classPos: 1,
         total: '02:30.0', penalty: null, times: ['01:11.0', null], stagePos: [1, null], invited: false },
-      { car: '3', driver: 'Casey Match', codriver: 'Drew Match', class: '2WD', status: 'classified', pos: 2, classPos: 2,
+      { car: '3', driver: 'Casey Match', codriver: 'Drew Match', class: '2WD<SVG ONLOAD="WINDOW.RSXSS=1">', status: 'classified', pos: 2, classPos: 2,
         total: '05:00.0', penalty: null, times: [null, null], stagePos: [null, null], invited: false },
       { car: '99', driver: 'Test Entrant', codriver: '', class: 'TEST', status: 'TEST', pos: null, classPos: null,
         total: null, penalty: null, times: [null, null], stagePos: [null, null], invited: false }
@@ -168,9 +168,11 @@ async function main() {
     assert.equal(await page.getByLabel('Source description').inputValue(), 'Synthetic official final classification');
     assert.equal(await page.getByLabel('Printed RS category').nth(2).inputValue(), 'TEST');
     assert.equal(await page.getByLabel('Printed RS status').nth(2).inputValue(), 'TEST');
-    await page.getByLabel('Scoring class for printed 2WD').selectOption('RS2');
+    const unsafeCategoryLabel = 'Scoring class for printed 2WD<SVG ONLOAD="WINDOW.RSXSS=1">';
+    await page.getByLabel(unsafeCategoryLabel).selectOption('RS2');
+    assert.equal(await page.locator('svg[onload]').count(), 0, 'printed categories render as text, not executable markup');
     await page.getByLabel('Scoring-class mapping evidence').fill('Synthetic event-specific mapping evidence');
-    assert.equal(await page.getByLabel('Printed RS category').nth(1).inputValue(), '2WD');
+    assert.equal(await page.getByLabel('Printed RS category').nth(1).inputValue(), '2WD<SVG ONLOAD="WINDOW.RSXSS=1">');
     const stageTimes = page.locator('input[placeholder^="e.g. 01:23.45"]');
     await stageTimes.nth(0).fill('01:11.0');
     await page.getByRole('button', { name: 'Review and copy mapped NR stage times' }).click();
@@ -240,6 +242,22 @@ async function main() {
     await page.getByText(/Demo data is a public projection/).waitFor();
     await page.evaluate(() => location.hash = '#/publish');
     await page.getByText('Nothing to publish').waitFor();
+    await page.evaluate(() => location.hash = '#/');
+    await page.locator('#nsYear').fill('2027');
+    await page.getByLabel('Copy settings from').selectOption('2026');
+    await page.getByRole('button', { name: 'Create season' }).click();
+    await page.locator('#yearSel').waitFor();
+    assert.equal(await page.locator('#yearSel').inputValue(), '2027');
+    await page.evaluate(() => location.hash = '#/season');
+    await page.getByRole('button', { name: 'Open the public site on 2027' }).waitFor();
+    await page.evaluate(() => location.hash = '#/rallyesport');
+    await page.getByText('No scoring rules are configured for 2027. Do not copy the 2026 profile into another year without applicable regulations.').waitFor();
+    await page.getByText('No RS events are recorded for this season. Adding an RS event does not require adding an NR event.').waitFor();
+    assert.equal(await page.getByText('Synthetic RS event', { exact: true }).count(), 0,
+      'the real admin rollover does not copy prior-year RS events or classifications');
+    await page.locator('#yearSel').selectOption('2026');
+    await page.getByText('Synthetic RS event', { exact: true }).waitFor();
+    assert.equal(writes.length, 0, 'the rollover rehearsal remains an unpublished demo');
     await page.evaluate(() => location.hash = '#/site'); await page.locator('#activeRallyEnabled').waitFor();
     assert.equal(await page.locator('#addAdminBtn').count(), 0);
     assert.ok(await page.isChecked('#analyticsEnabled'));
@@ -269,6 +287,32 @@ async function main() {
     assert.ok(await newRsEvent.getByLabel('Printed RS category').count());
     assert.ok(await newRsEvent.getByLabel('Printed RS status').count());
     assert.ok(await newRsEvent.locator('.fld').filter({ hasText: 'Printed RS status' }).count());
+    assert.ok(await newRsEvent.getByLabel('Separate scoring-finality review').count());
+    const finalityReview = newRsEvent.getByLabel('Separate scoring-finality review');
+    const finalityEvidence = newRsEvent.getByLabel('Finality-review evidence');
+    assert.equal(await finalityEvidence.isDisabled(), true,
+      'finality evidence cannot be edited unless the separate review is selected');
+    await finalityReview.selectOption('user-confirmed');
+    assert.equal(await finalityEvidence.isDisabled(), false);
+    await finalityEvidence.fill('Synthetic user-confirmed classification finality.');
+    await finalityReview.selectOption('');
+    assert.equal(await finalityEvidence.isDisabled(), true,
+      'deselecting the review disables its evidence field');
+    await finalityEvidence.evaluate(el => {
+      el.disabled = false;
+      el.value = 'Synthetic text must not reactivate finality.';
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.evaluate(() => location.hash = '#/publish');
+    await page.locator('#pubGo').waitFor();
+    await page.evaluate(() => location.hash = '#/rallyesport');
+    await newRsEvent.getByLabel('Finality-review evidence').waitFor();
+    assert.equal(await finalityReview.inputValue(), '',
+      'editing evidence after deselection does not recreate a scoring-finality review');
+    assert.equal(await finalityEvidence.isDisabled(), true);
+    await newRsEvent.getByLabel('Reviewed driver identity (optional)').selectOption('alex-test');
+    await newRsEvent.getByLabel('Reviewed co-driver identity (optional)').selectOption('blake-example');
+    await newRsEvent.getByLabel('Identity-review evidence').fill('Synthetic reviewed driver and co-driver roles; printed names remain unchanged.');
     assert.ok(await page.getByText(/Non-Scoring RS Member/).count());
     assert.ok(await page.locator('.fld').filter({ hasText: 'Invitation status' }).count());
     await page.click('#leaveDemoBtn'); await page.locator('.demo-bar').waitFor({ state: 'detached' }); await admin();
