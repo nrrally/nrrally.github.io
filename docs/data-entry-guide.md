@@ -149,6 +149,63 @@ These are decisions a person makes. They are recorded in the data as overrides w
 
 When the sheet and the official standings disagree, follow the standings and record the reason. Ask the event organisers if it's unclear.
 
+## RallyeSport results (independent from NR)
+
+Use **RallyeSport** in the admin for RS seasons. It is intentionally a separate event
+and classification editor, not another NR class. Creating an RS event does not require
+an NR calendar event or round. Record the official event name/dates, exact classification
+source, printed classification status/order, RS2/RS4 class, stage selection, individual
+stage times, penalty and official total. Keep missing values blank; do not calculate
+official positions or status from stage sums. Preserve a printed `TEST` status as `TEST`;
+it is not DNS or DNF, and points remain blocked until its scoring/starter treatment is
+confirmed. Retain each stage observation independently, including a later-stage time
+after a missing earlier stage. An unconfigured category is a publication blocker until
+RallyeSport confirms its name and semantics.
+
+The only available scoring profile is 2026 Rallysprint SSR V1 (9 July 2026). Select it
+only for an applicable 2026 event, and record event-specific applicability, championship
+round status and the evidence. The user confirmed these SSRs govern the 2026 club results
+at Legends, Ermelo and TRAC, and the independent June Round 1 classification despite the
+July issue date. This does not authorize applying them to other events or years. Set
+invitational status explicitly for every classified row. Event-level
+invitation exclusion is not the same as the RS-season per-person **Non-Scoring RS Member**
+toggle. That toggle assumes all unchecked people are paid up (not verified), excludes
+only that person from RS scoring, and recalculates the driver and co-driver orders
+separately. It never changes the event sheet or NR.
+
+For SSR 7.2's five-round double-points exception, record the event's start date and the
+official bulletin issue date separately as ISO dates, plus the bulletin evidence. The
+engine requires the bulletin to be at least 14 days before the event; unclear or late
+dates block points. Do not mark other round counts double-points without clarification.
+
+Before entering times separately, check whether an RS event uses the same physical
+stages as an NR result. If it does, associate the exact NR event/round as applicable,
+select the exact RS stage subset and explicitly map each shared RS stage to its NR stage.
+The **Review and copy mapped NR stage times** action requires exact matching car and
+reviewed driver/co-driver profiles. It asks for confirmation and copies only printed
+time strings into the RS record with provenance. This is a snapshot: future NR edits
+do not update it. It does not import NR class, position, DNF/DNS status, penalty or
+points. Review copied values against the RS source; if they differ, correct the RS
+observation explicitly without changing NR.
+
+Event points remain withheld until the finality, 15-starter total, applicable ruleset,
+championship-round and invitation inputs are supported. Any DNF blocks event scoring
+because the 2026 SSR finisher clause is blank; the official event table still shows the
+source classification. Explicit `Final Results` wording is recognized as final without
+rewriting the source status. A shared overall position across classes is retained; scoring
+uses the printed class position when available, otherwise overall order within class.
+The app does not recompute SSR 7.5's stage-time tie-break, so any still-tied scoring
+position blocks points. Season tie-breaks and future-year policies are not implemented.
+Event tables can be published independently of complete
+championship standings, but never publish unknown classes by silently dropping rows.
+
+Public RS event tables are linked secondarily from Info/footer. A shared NR round graph
+offers an optional dashed **Show RS overlay** only when explicit RS stage mappings exist.
+It is off by default; intermediate comparisons use RS stage values and do not alter
+NR calculations. RS-only events have their own classifications and tables without any
+NR graph or round. Browser/admin scripts use coordinated query version `rallyesport-1`;
+retire older open admin tabs before editing or publishing RS data.
+
 ## Before each season: a 15-minute rehearsal
 
 Start with [the complete season/event lifecycle](season-lifecycle.md). A calendar-only

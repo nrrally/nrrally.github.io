@@ -18,7 +18,9 @@ For small search-metadata/icon changes, run `node --test tools\tests\seo.test.js
 plus `node tools\tests\site-theme-e2e.js` and `node tools\tests\admin-access-e2e.js`.
 The SEO checks cover unique static canonicals, evergreen titles/descriptions, CSP-safe
 homepage WebSite microdata, only real canonical sitemap URLs, crawlable admin noindex,
-and PNG signature/exact square dimensions with SVG retained in every shell.
+and PNG signature/exact square dimensions with the original NR SVG retained in every
+shell. Browser checks also verify the supplied header logo loads unchanged in public,
+admin and static headers, including narrow admin layouts.
 The public browser runner asserts the canonical/microdata/icon remain present and
 no public noindex appears across responsive hash navigation and failure states.
 Browser requests remain synthetic/intercepted. These are implementation regressions,
@@ -227,6 +229,27 @@ Concise homepage, rounds, standings and Crews introductions and profile entry su
 against their displayed wording. Round source/discrepancy notes stay collapsed behind "Source & notes"
 on all three tabs; browser checks verify keyboard expansion/collapse, preserved source/PDF links and
 escaped round/crew evidence, visible status badges, tab navigation, and both themes at 320/1440 px.
+
+## RallyeSport regressions (synthetic only)
+
+Run:
+
+```
+node --test tools/tests/rallyesport.test.js tools/tests/season-readiness.test.js
+```
+
+Fixtures are synthetic. Engine coverage asserts the 2026 class scale, the distinct
+event-invitation exclusion and per-person season toggle, asymmetric driver/co-driver
+re-ranking and toggle reversal, 15 starters overall, blocked DNF/round-tie cases,
+unconfigured years/classes, standalone RS-only validation, private-field projection,
+one-time explicit NR stage-time snapshots and two-way NR/RS isolation. Synthetic cases
+also cover a user-confirmed pre-issue 2026 event, preserving a `Final Results` heading
+and TEST row without rewriting their source status or awarding unsupported points,
+separate printed class positions under tied overall order, unresolved within-class ties
+and a later DNF stage time after an earlier missing observation. The public VM
+regression checks that the NR graph remains unchanged by default, a mapped dashed RS
+overlay is opt-in, RS tables are separate and RS events do not appear in NR Home or
+standings. It does not certify unresolved SSR clauses or a live dataset.
 
 ## Manual check after a publish
 

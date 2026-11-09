@@ -337,9 +337,10 @@
     });
     return issues;
   }
-  function projectPublic(value) {
+  function projectPublic(value, people) {
     var result = clone(value);
     if (value._aiImport && Array.isArray(value.entries)) result.finalityUnclear = needsFinalityReview(value.status) && !/provisional/i.test(value.status);
+    if (value.rallyesport && typeof E.projectRallyeSport === 'function') result.rallyesport = E.projectRallyeSport(value.rallyesport, value, people || { people: [] });
     delete result._aiImport;
     return result;
   }

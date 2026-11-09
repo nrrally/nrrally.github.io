@@ -78,7 +78,8 @@ The deployment tree itself is the static site. Node is a developer/test dependen
 | `assets/analytics.js` | Validated published settings, global-default startup suppression, sanitized manual views, persistent opt-out |
 | `assets/firebase-config.js` | Public project connection identifiers; preserve installed config, never substitute another project by guess |
 | `assets/styles.css`, `admin.css`, `rally-notice.css` | Responsive light/dark/print styling, original identity and yellow event notice |
-| `assets/brand.svg`, `track-motif.svg`, `favicon.png` | Original static brand assets, not competitor photos |
+| `assets/official-logo.jpg` | User-supplied Northern Regions header logo; does not replace the site's NR SVG or PNG favicons |
+| `assets/brand.svg`, `track-motif.svg`, `favicon.png` | Original static identity/artwork and NR favicon assets, not competitor photos |
 | `CNAME`, `.nojekyll`, `.gitignore` | Custom domain, unbuilt Pages serving and private-data exclusion conventions |
 | `robots.txt`, `sitemap.xml` | Crawl discovery for the canonical root/privacy/disclaimer only; admin remains crawlable so its HTML `noindex` can be read |
 | `tools/load.js`, `validate.js`, `report.js` | Read a privately held app backup; validate dataset and enumerate overrides/notes |
@@ -152,12 +153,13 @@ Firestore documents, fabricated `lastmod` dates or unverified events to the site
 Hash-route results/profiles/guide topics are not reliably separate Google landing pages;
 fixing that needs a separately approved routing/hosting approach, not sitemap entries.
 
-All four HTML shells retain `assets/brand.svg` as the browser favicon and advertise
-`assets/favicon.png`, a 192x192 raster rendering of that same original NR monogram,
-as a stable Google-compatible fallback. The earlier unused PNG was a different motif.
-Preserve the square size/brand and crawlable stable URL. No shared runtime/CSS changed,
-so cache query version stays `season-1`. These hints do not guarantee indexing, ranking,
-site-name selection or favicon display; recrawling can take days or weeks.
+The supplied Northern Regions logo is used in the public, admin and static-document
+headers at its source dimensions; the light rectangle is retained in dark mode. It is
+not a favicon. All HTML shells continue to use the original `brand.svg` and `favicon.png`
+NR icons. The logo file is a user-provided asset, not a change to the site's original
+favicon/identity artwork. Cache query versions are coordinated as `rallyesport-1` for
+the RS feature and logo integration. These favicon hints do not guarantee indexing,
+ranking, site-name selection or display; recrawling can take days or weeks.
 
 The small user-authorized SEO code release was verified on Pages at
 `0bc94e2eb8a8eab372b33142c3c0dd29b8ff8d59`: 20 served runtime/crawl/brand files
@@ -177,8 +179,12 @@ Use [data-model.md](data-model.md) for every field. The main path mappings are:
 - `data/people.json` -> `docs/people`; published people whitelist id/name/aliases/bio/photo/links.
 - `data/seasons/<year>/season.json` -> `docs/season_<year>`.
 - `data/seasons/<year>/rounds/<id>.json` -> `docs/round_<year>_<id>`.
+- Optional `season.rallyesport` stays inside the same season document; there is no
+  separate RS collection, publication path or migration.
 - `public/season_<year>` is `{season, rounds}` built from enabled round files;
-  `AI.projectPublic` removes `_aiImport` and adds classification finality evidence when needed.
+  `AI.projectPublic` removes `_aiImport`, adds classification finality evidence when needed,
+  and removes RS member toggles, invitation flags and applicability/bulletin evidence while
+  deriving RS scoring from the private working season and people document.
 - `photos/<id>` contains JPEG `b64`/type, publicly readable, not a private draft collection.
 - `config/admins` is the verified-email allowlist, separate from Firebase/GitHub owners.
   `config/revision` contains the publication counter/version.
@@ -196,6 +202,8 @@ Manual new-season creation clears entry evidence, calendars, documents, notes, c
 MSA confirmations and AI approval, but copies class/points/minimum-start values. They
 must be reviewed against actual SSRs; no annual manual approval flag proves verification.
 The AI signature/evidence gate is additional and applies only to AI-reviewed metadata.
+RS events/results/rules are not copied into a new season. An absent RS field remains a
+valid older-season shape and does not change NR scoring or output.
 
 ### Sports semantics that must survive recovery
 
@@ -220,6 +228,27 @@ supported. The exact list is in [scoring-rules.md](scoring-rules.md). Unknown po
 an implemented engine change and fixtures; approving an AI checkbox cannot implement it.
 Stage cumulative positions stop at the first missing time; printed penalties enter only
 at classification Final, not at a guessed stage. Final is an endpoint, not source finality.
+
+RallyeSport is a separate optional season subdocument. Keep RS event/result IDs, classes,
+stage selection, official order/status, penalties and derived scores isolated from NR.
+Reviewed shared-stage reuse stores a time-value snapshot plus explicit provenance; it is
+not a live pointer and never imports NR status, class, position, penalty or points. Public
+graph overlays are optional presentation only. The 2026 Rallysprint SSR V1 profile is event-confirmed for the three 2026 club
+classifications named in the current request and the independent June Round 1
+classification despite the July issue date. This is not a general retroactive rule or a
+future-season confirmation. Unknown classes fail closed. The unspecified non-scoring
+class, blank SSR finisher clause, unsupported TEST-row scoring semantics and season
+tie-break remain limitations; the app does not recompute the SSR 7.5 stage-time tie-break
+if a scoring position remains tied. Do not broaden these rules during restore or a future
+annual copy. See the
+[RS scoring boundaries](scoring-rules.md#rallyesport-separate-ruleset-and-records).
+
+The RS member toggle and event invitation/applicability/bulletin inputs are in the private
+season document and its History/backup. The public projection contains only source-backed
+RS results plus derived public points/tables; never restore a hand-edited public projection.
+Normal app backup restore and undo replace the season as a whole; validate the RS fields
+and recheck event/source evidence in the ordinary review flow. The isolated local feature
+work has made no Firebase, History, rules or provider changes.
 
 ## 4. Auth, rules and administrative audit boundaries
 

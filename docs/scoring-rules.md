@@ -65,6 +65,93 @@ Driver and co-driver standings are kept separately. Both crew members score the 
 
 `season.msa.confirmedRounds` lists the rounds whose points have been checked against the published MSA standings. The site marks those rounds "Points match MSA". All other rounds show "Points calculated" and are treated as provisional.
 
+## RallyeSport (separate ruleset and records)
+
+RallyeSport scoring is implemented in separate `buildRallyeSport` /
+`calculateRallyeSportScoring` functions and reads only `season.rallyesport` plus
+reviewed shared person identities. No NR points scale, minimum starts, status,
+class, penalties, event/round assignment, standings or totals enter RS calculations.
+RS event tables preserve the official order/status even when scoring is blocked.
+
+The only supported profile is the actual **2026 MSA RallyeSport Association Club
+Standing Supplementary Regulations — Rallysprint, Version 1, issued 9 July 2026**,
+available from [Motorsport South Africa](https://www.motorsport.co.za/wp-content/uploads/2026/07/2026-MSA-RallyeSport-Association-SSRs-V1.pdf).
+The document's printed heading and SSR 1.2 identify the Rallysprint rules and limit
+them to the 2026 calendar year; embedded PDF metadata is not the scope evidence.
+SSR 6.1.1–6.1.3 supports class points of 15, 12, 10, 8, 7, 6, 5, 4, 3, 2, then
+1 from 11th onward. Those class points are also used for the overall Clubman’s
+Challenge; this is **not** NR overall-plus-class scoring. Only RS2 and RS4 are
+configured. These SSRs are confirmed by the user for the 2026 club classifications
+at Legends, Ermelo and TRAC, and for the independent June Round 1 classification despite
+the July issue date. That confirmation is specific to those events; the rule profile is
+not a default for other events or future years.
+
+The implementation applies the documented scoring scope conservatively:
+
+- The event must be explicitly confirmed for the selected SSRs and as a championship
+  round; double-points status must be explicit, with bulletin evidence when enabled.
+- SSR 7.3's minimum is 15 starters total at the event, not per competitor or class.
+- Invitational entries do not score, but remain in the official classification.
+  Their exclusion is distinct from the user-directed per-person “Non-Scoring RS Member”
+  toggle. Absent that season-scoped toggle, everyone is assumed paid up for RS scoring;
+  that assumption is not verified. Each role's eligible finishing order is recalculated
+  independently, so a toggled driver/co-driver does not suppress their partner's points.
+- Points and standings require a source classification explicitly marked final. Any DNF
+  blocks that event's points because SSR 7.4's finisher provision is blank. DNS is not
+  treated as a starter. Official rows remain published unchanged.
+- Official `TEST` rows are retained as `TEST`; they are not rewritten as DNS or DNF.
+  Their scoring/starter treatment is not configured, so an event containing one remains
+  blocked for points. Stage observations are recorded independently: a later-stage time
+  after an earlier missing value remains visible in the source row and is never filled or
+  treated as a gapless prefix.
+- Class points use the printed class position when present, otherwise the official overall
+  position to order entries within that class. A shared overall position across different
+  classes is not an unresolved within-class tie. If a class scoring position is still tied,
+  points are withheld; the app does not recompute the SSR 7.5 stage-time tie-break. Source
+  overall/class positions remain unchanged.
+- SSR 7.5 is headed championship ties, but its wording addresses a round and specifies
+  quickest stage time, then counts of second-fastest stage times and so on. This app does
+  not recompute that official tie-break; a still-tied scoring position is withheld for
+  review. Equal season totals share the same displayed rank, with no season-level
+  tie-break or winner claimed.
+- SSR 7.2 requires at least six and no more than eight rounds, or five with exactly one
+  double-points event announced by bulletin 14 days beforehand. The implementation
+  applies double points only in that explicit five-round case; a double-points
+  declaration with any other round count blocks that event and the season pending
+  clarification. For the five-round exception, both the event start date and bulletin
+  issue date are required as real ISO calendar dates, and the engine checks the 14-day
+  notice interval. Season totals remain unavailable until the round-count requirement
+  and all scored event rows are supported.
+
+SSR 6.1(a)/(b) eligibility wording has been clarified by the user for implementation:
+assume paid-up status, provide the independent person toggle, and defer actual
+membership verification. The toggle is not evidence that a person paid dues. Event
+invitation exclusion remains a separate input. The unspecified non-scoring class is not
+configured; an unknown category blocks publication rather than being dropped or ranked.
+
+No class-minimum-start rule, DNF finisher definition, championship tie-break, future
+year rules or non-scoring-class semantics are inferred. SSR 7.4 and 7.6 are blank.
+When those clauses or application to another competition/year matter, obtain written
+rule clarification before enabling the affected calculation. A scoreboard explains
+unconfigured/blocked scoring while preserving official result tables.
+
+### RS graph overlay and source reuse
+
+The NR graph remains unchanged and RS overlays are off by default. When explicitly
+enabled, dashed RS series use only the selected RS classification's times, official
+final RS position/status/total, and its explicit `nrStage` mapping to place observations
+on the NR x-axis. Intermediate stage ranks/gaps are RS time comparisons, not official
+NR calculations. The overlay does not infer a person or result match from car number,
+change NR series, or add RS to NR statistics.
+
+For shared physical stages, the admin offers a human-confirmed, one-time copy of RS
+stage-time values from an explicitly linked NR round, requiring the exact stage mapping
+and matching car plus reviewed stable crew identities. The copied strings and provenance
+are stored in RS; later NR corrections/status changes do not propagate. Only time values
+are copied—never NR DNF/DNS status, class, order, penalty or points. RS-only stages remain
+manually/source entered. This minimizes duplicate time entry without creating live
+cross-competition coupling.
+
 ## AI Import capabilities and limits
 
 The versioned capability profile in `assets/ai-import.js` describes the algorithms above, not all possible future championship rules. Point scales, class IDs/descriptions, class-only exclusions, minimum starts and calendars are configurable. An empty overall scale can express class-only scoring. Co-driver class maps affect the displayed class, not separate co-driver points.

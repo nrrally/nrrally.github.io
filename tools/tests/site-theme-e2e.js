@@ -68,6 +68,8 @@ async function main() {
       assert.equal(await page.locator('[itemscope][itemtype="https://schema.org/WebSite"]').count(), 1);
       assert.equal(await page.locator('meta[itemprop="name"]').getAttribute('content'), 'Northern Regions Rally');
       assert.equal(await page.locator('link[rel="icon"][type="image/png"]').getAttribute('href'), 'assets/favicon.png');
+      assert.deepEqual(await page.locator('.brand-mark').evaluate(async img => { await img.decode(); return [img.getAttribute('src'), img.naturalWidth, img.naturalHeight]; }),
+        ['assets/official-logo.jpg', 270, 143]);
       assert.equal(await page.locator('.site-disclosure').count(), 1);
       assert.equal(await page.locator('.site-disclosure a[href="disclaimer.html"]').count(), 1);
       assert.equal(await page.locator('.footer a[href="disclaimer.html"]').count(), 1);
@@ -238,6 +240,29 @@ async function main() {
       await visit('#/rounds');
       assert.equal(await page.locator('main table .badge').innerText(), expected);
     }
+    bundle.season.rallyesport = {
+      ruleset: { code: 'clubman-sprint-2026-v1', year: 2026 },
+      events: [{ id: 'synthetic-rs', name: 'Synthetic RS-only event', dates: 'Synthetic date' }],
+      results: [{ id: 'synthetic-rs-result', eventId: 'synthetic-rs', title: 'Synthetic final result',
+        status: 'Final classification', source: { file: 'synthetic.pdf', url: 'https://example.com/synthetic.pdf' },
+        notes: [], stages: [{ id: 'stage1', label: 'Stage 1' }, { id: 'stage2', label: 'Stage 2' }, { id: 'stage3', label: 'Stage 3' }],
+        entries: [{ car: '88', driver: 'Alex Test', codriver: 'Blake Example', class: 'TEST', status: 'TEST',
+          pos: null, classPos: 3, times: ['00:01.0', null, '00:03.0'], stagePos: [null, null, 7], penalty: null, total: null }] }]
+    };
+    await visit('#/rallyesport/synthetic-rs-result');
+    assert.equal(await page.locator('main h1').innerText(), 'Synthetic RS-only event');
+    assert.deepEqual(await page.locator('main table thead th').allTextContents(),
+      ['Official position', 'Official class position', 'Car', 'Driver', 'Co-driver', 'Class', 'Official status',
+        'Stage 1', 'Stage 2', 'Stage 3', 'Penalty', 'Official total']);
+    const rsCells = page.locator('main table tbody tr').first().locator('td');
+    assert.equal(await rsCells.nth(0).innerText(), 'TEST');
+    assert.equal(await rsCells.nth(1).innerText(), '3');
+    assert.equal(await rsCells.nth(6).innerText(), 'TEST');
+    assert.equal(await rsCells.nth(7).innerText(), '00:01.0');
+    assert.equal(await rsCells.nth(8).innerText(), '—');
+    assert.equal(await rsCells.nth(9).innerText(), '00:03.0');
+    assert.ok(!(await page.locator('main table tbody').innerText()).includes('DNS'));
+    delete bundle.season.rallyesport;
     await page.emulateMedia({ media: 'print' });
     assert.ok(await page.locator('.site-disclosure').isVisible());
     await page.emulateMedia({ media: 'screen' });
@@ -480,8 +505,12 @@ async function main() {
       assert.equal(await staticPage.locator('link[rel="icon"][type="image/png"]').getAttribute('sizes'), '192x192');
     }
     await staticPage.goto(base + '/privacy.html');
+    assert.deepEqual(await staticPage.locator('.brand-mark').evaluate(async img => { await img.decode(); return [img.getAttribute('src'), img.naturalWidth, img.naturalHeight]; }),
+      ['assets/official-logo.jpg', 270, 143]);
     assert.ok(await staticPage.getByRole('heading', { name: 'Privacy & analytics', exact: true }).isVisible());
     await staticPage.goto(base + '/disclaimer.html');
+    assert.deepEqual(await staticPage.locator('.brand-mark').evaluate(async img => { await img.decode(); return [img.getAttribute('src'), img.naturalWidth, img.naturalHeight]; }),
+      ['assets/official-logo.jpg', 270, 143]);
     assert.ok(await staticPage.getByRole('heading', { name: 'Independent by design.' }).isVisible());
     await staticPage.goto(base + '/index.html');
     assert.ok(await staticPage.locator('.site-disclosure a[href="disclaimer.html"]').isVisible());

@@ -99,6 +99,14 @@ async function main() {
     await page.getByRole('button', { name: 'Use a different Google account' }).click(); await absent();
     await page.evaluate(() => window.testAuth.select('admin@example.com'));
     await page.click('#signInBtn'); await admin();
+    for (const width of [320, 390, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      assert.deepEqual(await page.locator('.brand-mark').evaluate(async img => { await img.decode(); return [img.getAttribute('src'), img.naturalWidth, img.naturalHeight]; }),
+        ['../assets/official-logo.jpg', 270, 143]);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      if (width <= 390) assert.equal(await page.locator('.adm-top .brand').evaluate(el =>
+        el.getBoundingClientRect().bottom <= el.parentElement.querySelector('.chg').getBoundingClientRect().top + 1), true);
+    }
     assert.ok(await page.locator('#demoBtn').isVisible());
     await page.click('#demoBtn'); await page.locator('.demo-bar').waitFor();
     assert.match(await page.locator('.demo-bar').innerText(), /Simulation.*nothing is ever saved/);
@@ -114,6 +122,18 @@ async function main() {
     await page.click('#pubGo'); await page.getByText(/Demo:.*would have been saved/).waitFor();
     assert.equal(writes.length, 0);
     assert.equal(JSON.parse(docs.get('public/site').fields.json.stringValue).analytics.enabled, true);
+    await page.evaluate(() => location.hash = '#/rallyesport');
+    await page.getByText('Ruleset evidence').waitFor();
+    await page.getByRole('button', { name: 'Use verified 2026 SSR V1' }).click();
+    await page.getByRole('button', { name: '+ Add RS event' }).click();
+    await page.getByLabel('RS event name').waitFor();
+    assert.ok(await page.getByText('No NR event association', { exact: true }).count());
+    await page.getByRole('button', { name: '+ Add classification' }).click();
+    await page.getByRole('button', { name: '+ Add classification row' }).waitFor();
+    await page.getByRole('button', { name: '+ Add classification row' }).click();
+    assert.ok(await page.locator('.fld').filter({ hasText: 'Printed RS status' }).count());
+    assert.ok(await page.getByText(/Non-Scoring RS Member/).count());
+    assert.ok(await page.locator('.fld').filter({ hasText: 'Invitation status' }).count());
     await page.click('#leaveDemoBtn'); await admin();
     assert.equal(await page.locator('.demo-bar').count(), 0);
     await page.evaluate(() => location.hash = '#/site'); await page.locator('#activeRallyEnabled').waitFor();

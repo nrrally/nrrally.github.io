@@ -135,6 +135,7 @@ only on refresh. Visitors' `nr-analytics-choice` (`on`/`off`) is browser-local, 
 | `events` | `[{id, name, short, dates, venue, surface, links:{results, entryList, srs, noticeboard, spectatorGuide}}]` |
 | `rounds` | `[{id, eventId, day, date, results}]` in calendar order. A round's number is its position in this list. `results: true` means a round file exists; the site only loads rounds with this flag. |
 | `notes` | Season-level data notes, shown on the site's "Sources & data notes" page |
+| `rallyesport` | Optional, independent RS events/classifications and RS-only decision inputs; absent means no RS data. See below. |
 
 Round `date` is strict date-only `YYYY-MM-DD` for calendar display; invalid/blank dates
 remain unconfirmed, not normalized to another day. Event `dates` is supplied display
@@ -151,6 +152,95 @@ free-form edition/date text. Info formats valid ISO dates and otherwise preserve
 escaped supplied text verbatim, including malformed ISO text rather than normalizing
 it or claiming a scheduled date. Missing dates have no "Dated" prefix. This source
 display does not relax strict round schedule/status validation.
+
+## Optional RallyeSport season layer
+
+`season.rallyesport` is an optional object in the same versioned season document:
+
+```json
+{
+  "ruleset": {
+    "code": "clubman-sprint-2026-v1",
+    "year": 2026,
+    "title": "2026 MSA RallyeSport Association Club Standing Supplementary Regulations — Rallysprint",
+    "version": 1,
+    "issueDate": "2026-07-09",
+    "sourceUrl": "https://www.motorsport.co.za/wp-content/uploads/2026/07/2026-MSA-RallyeSport-Association-SSRs-V1.pdf"
+  },
+  "events": [{
+    "id": "rs-event-id",
+    "name": "Printed RS event name",
+    "dates": "Source-backed display text",
+    "nrEventId": "optional-explicit-NR-event-id",
+    "rulesetConfirmed": true,
+    "rulesetEvidence": "Event-specific applicability evidence",
+    "countsForChampionship": true,
+    "championshipEvidence": "Event-specific championship evidence",
+    "doublePoints": false,
+    "doublePointsEvidence": "Required only when doublePoints is true"
+  }],
+  "results": [{
+    "id": "rs-result-id",
+    "eventId": "rs-event-id",
+    "title": "Official classification",
+    "status": "Final classification",
+    "nrRoundId": "optional-explicit-NR-round-id",
+    "source": { "file": "official-file.pdf", "url": "https://example.com/official-file.pdf" },
+    "notes": [],
+    "stages": [{ "id": "ss8", "label": "SS8", "nrStage": "optional-exact-NR-stage-id" }],
+    "entries": [{
+      "car": "1", "driver": "Stable-name-or-alias", "codriver": "Stable-name-or-alias",
+      "class": "RS2", "status": "classified", "pos": 1, "classPos": 1,
+      "times": ["01:23.4"], "stagePos": [1], "penalty": null, "total": "01:23.4",
+      "timeEvidence": [null], "notes": [], "invited": false
+    }]
+  }],
+  "nonScoringPeople": ["stable-person-id"]
+}
+```
+
+Only the exact reviewed 2026 SSR V1 ruleset profile is currently recognized, and only
+for 2026. Event-specific applicability is separately recorded; the user confirmed it
+for the 2026 club classifications at Legends, Ermelo and TRAC, and for the independent
+June Round 1 classification despite the July issue date; this does not establish
+applicability to future seasons or other competitions. No real event/results are
+preloaded. `nrEventId`, `nrRoundId` and
+each `stages[].nrStage` are optional independent associations; stage arrays are explicit
+subsets and are never aligned by date or position.
+
+For SSR 7.2's five-round double-points exception, `startDate` and
+`doublePointsBulletinDate` are strict ISO dates. The engine requires an evidence note
+and checks that the bulletin date is at least 14 days before the event; the bulletin
+date and evidence remain private in the public projection. These dates are required
+only when an event is marked double-points.
+
+RS rows preserve printed RS position/status, class, each separately recorded stage
+value, penalty and total. Missing values are null/empty, not zero; RS final status and
+position are never inferred from sums. Unknown RS categories block publication until
+their class/rules are confirmed; RS2 and RS4 are the only configured categories.
+`TEST` is a preserved source status, not an alias for DNS or DNF; its scoring/starter
+semantics are unsupported and block event points. Class scoring order uses printed
+`classPos` when present, otherwise `pos` within class; a still-tied scoring position
+blocks points. Later-stage times remain independent observations even after an earlier
+missing value.
+`timeEvidence` is stage-aligned. For `reviewed-nr-copy`, it records the NR round, car,
+exact stage ID and copied value as a snapshot; it never becomes a live pointer.
+
+`nonScoringPeople` is private, season-scoped stable IDs. An absent toggle means the
+user-directed assumption that the person is paid up for RS scoring; it is not a
+membership verification claim. A checked person is excluded only from that role's RS
+scoring order; the crew partner can still score. The separate per-entry `invited`
+boolean is required for every classified row before points can be calculated. These
+decision inputs and event applicability/bulletin evidence are stripped from the public
+projection. The projection retains source links, official result rows, derived event
+points and derived RS standings only.
+
+The public tables and scorer are rebuilt from this optional layer on load. The public
+bundle contains RS data inside `public/season_<year>`; there is no separate collection
+or publication path. App backups and whole-document History include the working RS
+field; public projection excludes the private decision inputs. Existing generic restore,
+undo and revision/rebase validators therefore retain and validate the RS layer as part
+of the same season document. See [recovery.md](recovery.md).
 
 ## Documented entry participation (stored on the season)
 

@@ -32,6 +32,7 @@ body.adm-body { background: var(--bg); }
   .adm-nav a.ext { margin-top: 0; }
   .adm-main { padding: 16px 14px 70px; }
   .who small { display: none; }
+  .adm-top .brand { flex-basis: 100%; }
 }
 .card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; margin-block-end: 10px; }
 .card h3 { margin-block-end: 2px; }

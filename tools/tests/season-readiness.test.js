@@ -18,7 +18,7 @@ function harness(now = '2027-03-01T10:00:00Z') {
   };
   const instrumented = code.slice(0, code.indexOf('  /* ------------------------------------------------------------------ boot */')) +
     `window.testSite = { ST, useSeason, fmtDate, calendarStatus, viewHome, viewStandings,
-      viewRounds, viewRound, viewCrews, viewAbout, viewInfo, viewPerson, header };
+      viewRounds, viewRound, viewCrews, viewAbout, viewInfo, viewPerson, header, viewRallyeSport };
     })();`;
   vm.runInNewContext(instrumented, context);
   const api = window.testSite;
@@ -44,6 +44,33 @@ function select(api, season, rounds = {}) {
   api.useSeason(model);
   return model;
 }
+test('RS tables are separate and optional mapped overlays do not change NR graph defaults', () => {
+  const api = harness(), s = emptySeason();
+  s.rallyesport = {
+    events: [{ id: 'rs-only', name: 'Synthetic RS-only Event', dates: '2027-03-01' }],
+    results: [{ id: 'rs-only-results', eventId: 'rs-only', title: 'Final RS classification', status: 'Final classification',
+      nrRoundId: 'R1', source: { file: 'synthetic.pdf', url: 'https://example.com/rs.pdf' }, notes: [],
+      stages: [{ id: 'ss8', label: 'SS8', nrStage: 'SS8' }, { id: 'ss9', label: 'SS9', nrStage: 'SS9' }],
+      entries: [{ car: '1', driver: 'Alex Test', codriver: 'Blake Example', class: 'RS2', status: 'classified', pos: 1,
+        classPos: 1, total: '2:00.0', penalty: null, times: ['1:00.0', '1:00.0'], stagePos: [1, 1] }] }],
+    nonScoringPeople: []
+  };
+  const raw = { id: 'R1', stages: ['SS8', 'SS9'], entries: [
+    { car: '1', driver: 'Alex Test', codriver: 'Blake Example', class: 'OPEN', status: 'classified', pos: 1, total: '2:00.0', times: ['1:00.0', '1:00.0'] }
+  ] };
+  select(api, s, { R1: raw });
+  const defaultGraph = api.viewRound('R1', 'graph', { cars: '1', m: 'pos' }).html;
+  assert.ok(defaultGraph.includes('Show RS overlay'));
+  assert.ok(!defaultGraph.includes('data-key="RS:rs-only-results:1"'));
+  const overlay = api.viewRound('R1', 'graph', { cars: '1', m: 'pos', rs: '1' }).html;
+  assert.ok(overlay.includes('data-key="RS:rs-only-results:1"'));
+  assert.ok(overlay.includes('Dashed RS series'));
+  const rsPage = api.viewRallyeSport().html;
+  assert.ok(rsPage.includes('Synthetic RS-only Event'));
+  assert.ok(rsPage.includes('Final RS classification'));
+  assert.ok(!api.viewHome().html.includes('Synthetic RS-only Event'));
+  assert.ok(!api.viewStandings('driver', {}).html.includes('Synthetic RS-only Event'));
+});
 function entryList(entries, complete = true) {
   return { eventId: 'test-event', roundIds: ['R1'], complete,
     source: { file: 'synthetic-entries.pdf', url: 'https://example.com/entries', date: '', locator: 'Synthetic only' },

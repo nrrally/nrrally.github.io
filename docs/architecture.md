@@ -28,8 +28,8 @@ Hosting and data use two providers, with optional public analytics and no applic
 
 | Part | Files | What it does |
 |---|---|---|
-| Engine | `assets/engine.js` | Pure functions shared by the site, admin and Node tools: time parsing, name matching and look-alike detection, the season model (points, classes, standings, stage progressions, crew histories), checks, and the importers for pasted PDF text (known layouts only) and spreadsheets. No browser or network code. See [data-entry-guide.md](data-entry-guide.md). |
-| Public site | `index.html`, `assets/site.js`, `assets/styles.css` | A single-page app. Reads `public/site`, `public/people` and `public/season_<year>` through the Firestore REST API, then calls `NREngine.buildSeason`. |
+| Engine | `assets/engine.js` | Pure functions shared by the site, admin and Node tools: NR and independent RS models/scoring, reviewed stage-time snapshot copying, explicit-stage RS graph overlays, checks, and existing importers. No browser or network code. See [data-entry-guide.md](data-entry-guide.md). |
+| Public site | `index.html`, `assets/site.js`, `assets/styles.css` | A single-page app. Reads `public/site`, `public/people` and `public/season_<year>` through the Firestore REST API, then calls `NREngine.buildSeason`. RallyeSport has a secondary route and optional separate graph overlay. |
 | Getting started | `assets/getting-started.js` | Bundled original guide, independent of results/database state. Maintainer edition metadata and dated sources support annual review separately from season cutover; no edition badge is rendered. |
 | Active-rally notice | `assets/rally-notice.js`, `assets/rally-notice.css`, `disclaimer.html` | Reads only `public/site`; shares that initial promise with the results app. Native full-page yellow modal, followed by a sticky compact reminder after bypass. Not loaded by the admin. |
 | Optional analytics & privacy | `assets/analytics.js`, `privacy.html` | Shares the public site settings promise, validates GA4 settings and sends manual sanitized pageviews after rendering. Dedicated static privacy notice and persistent browser opt-out; never loaded by admin. |
@@ -50,6 +50,7 @@ Hosting and data use two providers, with optional public analytics and no applic
 | `#/<year>/standings`, `#/<year>/standings/codrivers` | Standings. Optional `?class=NR1&pts=split`. |
 | `#/<year>/rounds` | Calendar and the round winners |
 | `#/<year>/round/<id>/graph`, `…/classification`, `…/stages` | One round. The graph takes `?cars=200,201&m=gap`, where `m` is one of `pos`, `gap`, `cpos`, `cgap`, `loss`, `spos`. |
+| `#/<year>/rallyesport`, `#/<year>/rallyesport/<resultId>` | Separate RS championship tables and source-backed event classifications. RS-only events need no NR round. |
 | `#/<year>/crews` | Everyone in the season |
 | `#/person/<id>` | One person across all seasons |
 | `#/getting-started`, `#/getting-started/<topic>` | Shared newcomer guide, not a season-specific rules page |
@@ -62,6 +63,31 @@ Data loading works like this:
 - **The code holds no results data.** The site reads only the published copy from the database (`public/` documents, no sign-in needed).
 - **If the database is unreachable, or nothing has been published,** visitors see a short message ("Results coming soon" or "temporarily unavailable"). The site never shows old or built-in data.
 - **The guide remains available** with missing, unconfigured or unavailable results. It is reference content, not a results fallback.
+
+### Independent RallyeSport data and graph overlays
+
+Optional `season.rallyesport` lives inside that season document so existing staged edits,
+whole-document backups/restores, revision preconditions, History/undo, rebase validation
+and atomic public projection apply without a second write path or collection. Older
+seasons with no RS field keep their NR behavior and are not rewritten by viewing the
+public site. New-season creation does not copy an old RS ruleset, event or result.
+
+NR and RS event IDs, result rows, official order/status, classes, penalties, points,
+eligibility, season totals and stage selections remain independent. RS-only events do
+not need an NR event/round/stage. A shared event or result can have explicit optional NR
+associations. Reviewed stage-time reuse is a one-time copy into RS `times` with provenance;
+it requires exact mapped stage IDs and matching car plus reviewed stable crew identities.
+It does not copy NR status/class/order/penalty/points, and subsequent NR changes cannot
+change the RS snapshot. A discrepancy remains a human review decision.
+
+The public RS tables are driven by source-backed RS classifications and a separate
+ruleset scorer. Invitation flags, member toggles, applicability/bulletin evidence and
+other decision metadata are removed from the public projection. Public RS event points
+and standings are derived on load; no derived RS values are saved into the working
+record. NR's model, homepage statistics, crew histories and default graph never consume
+RS values. An explicitly requested graph overlay uses only RS stage times/status/order
+and its explicit stage-to-NR-axis mappings; it is dashed and off by default. It is a
+presentation comparison, not a car/person identity merge or an NR calculation.
 
 Calendar-only models display known events/rounds without result statistics or leaders.
 Missing-round cards/pages use strict date-only dates compared with South African UTC+02:00

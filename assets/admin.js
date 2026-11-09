@@ -101,6 +101,9 @@
     if (!E || E.analyticsContractVersion !== 1 || typeof E.validateAnalytics !== 'function') {
       return 'Analytics scripts are missing or out of date. Refresh this page with Ctrl+Shift+R before restoring or publishing; nothing has been published.';
     }
+    if (E.rallyeSportContractVersion !== 1 || typeof E.validateRallyeSport !== 'function' || typeof E.projectRallyeSport !== 'function') {
+      return 'RallyeSport scripts are missing or out of date. Refresh this page with Ctrl+Shift+R before restoring or publishing; nothing has been published.';
+    }
     if (!E || E.rallyNoticeContractVersion !== 1 || typeof E.validateActiveRally !== 'function' || typeof E.nrcDestination !== 'function') {
       return 'Rally-notice scripts are missing or out of date. Refresh this page with Ctrl+Shift+R before restoring or publishing; nothing has been published.';
     }
@@ -419,7 +422,7 @@
     years().forEach(function (y) {
       var se = season(y); if (!se) return;
       var rounds = {}; (se.rounds || []).forEach(function (r) { var raw = r.results && rawRound(r.id, y); if (raw) rounds[r.id] = AI.projectPublic(raw); });
-      out.push({ id: 'season_' + y, json: JSON.stringify({ season: AI.projectPublic(se), rounds: rounds }) });
+      out.push({ id: 'season_' + y, json: JSON.stringify({ season: AI.projectPublic(se, peopleDoc()), rounds: rounds }) });
     });
     return out;
   }
@@ -595,7 +598,7 @@
   }
 
   /* ------------------------------------------------------------------ shell */
-  var NAV = [['dashboard', 'Dashboard'], ['ai-import', 'AI Import'], ['results', 'Results'], ['events', 'Events & calendar'], ['competitors', 'Competitors'], ['season', 'Season settings'], ['site', 'Site & info'], ['history', 'History'], ['publish', 'Review & publish']];
+  var NAV = [['dashboard', 'Dashboard'], ['ai-import', 'AI Import'], ['results', 'Results'], ['events', 'Events & calendar'], ['rallyesport', 'RallyeSport'], ['competitors', 'Competitors'], ['season', 'Season settings'], ['site', 'Site & info'], ['history', 'History'], ['publish', 'Review & publish']];
   function render() {
     binds = {}; acts = {}; liveRefresh = null;
     var keepY = window.scrollY;
@@ -609,6 +612,7 @@
         case 'ai-import': html = viewAIImport(); break;
         case 'results': html = viewResults(r.a); break;
         case 'events': html = viewEvents(); break;
+        case 'rallyesport': html = viewRallyeSport(); break;
         case 'competitors': html = viewCompetitors(); break;
         case 'competitor': html = viewCompetitor(r.a); break;
         case 'season': html = viewSeason(); break;
@@ -624,7 +628,7 @@
       '<span class="who demo"><span><b>Demo mode</b><small>Nothing is saved</small></span></span>';
     ROOT.innerHTML = (A.mode === 'demo' ? '<div class="demo-bar">Simulation — practise freely with a copy of the published data; nothing is ever saved. ' + btn(leaveDemo, 'Return to live admin', 'tiny', 'id="leaveDemoBtn"') + '</div>' : '') +
       '<header class="adm-top"><div class="checker" aria-hidden="true"></div><div class="adm-top-in">' +
-      '<a class="brand" href="#/"><img class="brand-mark" src="../assets/brand.svg" alt="" width="40" height="40">' +
+      '<a class="brand" href="#/"><img class="brand-mark" src="../assets/official-logo.jpg" alt="" width="270" height="143">' +
       '<span class="brand-text"><strong>' + esc((site() && site().siteName) || 'Rally results') + '</strong><span>Admin</span></span></a>' +
       (ys.length ? '<label class="season-sel"><span class="sr-only">Season</span>' + select(function (v) { A.year = +v; A.imp = null; A.open = {}; render(); }, A.year, ys.map(function (y) { return [y, y + ' season']; }), 'id="yearSel"') + '</label>' : '') +
       '<span id="chg" class="chg"></span>' +
@@ -1324,6 +1328,168 @@
     return arr.map(function (item, i) {
       return '<div class="form-grid tight bordered">' + fields.map(function (f) { return f(item, i); }).join('') + '<div class="fld">' + btn(function () { arr.splice(i, 1); render(); }, 'Remove', 'tiny ghost') + '</div></div>';
     }).join('') + '<div class="actions">' + btn(function () { arr.push(blank()); render(); }, addLabel) + '</div>';
+  }
+  function rallyeSportData(s) {
+    var data = s.rallyesport || { events: [], results: [] };
+    if (!Array.isArray(data.events) || !Array.isArray(data.results) ||
+      data.nonScoringPeople != null && !Array.isArray(data.nonScoringPeople)) {
+      throw new Error('RallyeSport data is malformed. Review the saved season document before editing; unsupported fields are not normalized automatically.');
+    }
+    return data;
+  }
+  function copyReviewedRsTimes(data, result, y) {
+    if (!result.nrRoundId) throw new Error('Choose an explicitly linked NR round first.');
+    var nr = rawRound(result.nrRoundId, y);
+    if (!nr) throw new Error('The linked NR round has no source-backed results.');
+    if (!(result.entries || []).length) throw new Error('Add RS classification rows before copying times.');
+    if (!window.confirm('Copy only explicitly mapped stage-time values from the linked NR source into this independent RS snapshot? RS status, class, order, penalties and points will not be copied; later NR edits will not change this copy.')) return;
+    s.rallyesport = data;
+    var snapshot = E.copyReviewedRallyeSportTimes(result, nr, peopleDoc());
+    result.entries = snapshot.entries;
+  }
+  function viewRallyeSport() {
+    var s = season(), data = rallyeSportData(s), built = model(A.year), scoring = built.rallyesport.scoring;
+    var html = pageHead(A.year + ' · independent competition', 'RallyeSport', 'Separate RS events, classifications and scoring. RS-only events need no NR calendar entry; shared stages are reused only by reviewed, independent snapshots.');
+    html += '<div class="callout warn"><div><b>Membership assumption and unresolved rule boundaries</b><p>Unless an individual is marked below, the system assumes that person is paid up for RS scoring; this is not verified membership data. The “Non-Scoring RS Member” toggle applies to that person across this RS season only. NR data and NR calculations are unchanged. SSR 7.5 specifies stage-time round tie-breaks, but this app does not recompute tied official positions. Finisher qualification and season tie-break order remain unresolved.</p></div></div>';
+    html += '<div class="card"><h3>Ruleset evidence</h3>';
+    if (A.year === 2026) {
+      html += '<p class="small">The supported profile is the 2026 MSA RallyeSport Association Club Standing Supplementary Regulations — Rallysprint, Version 1, issued 9 July 2026. SSR 1.2 limits it to calendar year 2026. It is not a default for other RS events or seasons.</p>' +
+        '<p><a href="https://www.motorsport.co.za/wp-content/uploads/2026/07/2026-MSA-RallyeSport-Association-SSRs-V1.pdf" target="_blank" rel="noopener">Open official SSR PDF ↗</a></p>' +
+        btn(function () {
+          s.rallyesport = data;
+          data.ruleset = { code: 'clubman-sprint-2026-v1', year: 2026, title: '2026 MSA RallyeSport Association Club Standing Supplementary Regulations — Rallysprint',
+            version: 1, issueDate: '2026-07-09', sourceUrl: 'https://www.motorsport.co.za/wp-content/uploads/2026/07/2026-MSA-RallyeSport-Association-SSRs-V1.pdf' };
+          render();
+        }, data.ruleset ? 'Re-select verified 2026 SSR V1' : 'Use verified 2026 SSR V1', 'tiny');
+    } else html += '<p class="small">No scoring rules are configured for ' + A.year + '. Do not copy the 2026 profile into another year without applicable regulations.</p>';
+    html += '</div>';
+    html += '<div class="card"><h3>Non-scoring RS members</h3><p class="small muted">Check an individual to exclude only that person from RS class/overall points in this season. Their crew partner remains eligible and the role-specific scoring order recalculates. This does not change official event results or any NR record.</p>' +
+      (peopleDoc().people.length ? '<div class="chk-row">' + peopleDoc().people.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (person) {
+        return check(function (on) {
+          s.rallyesport = data;
+          data.nonScoringPeople = data.nonScoringPeople || [];
+          var i = data.nonScoringPeople.indexOf(person.id);
+          if (on && i < 0) data.nonScoringPeople.push(person.id);
+          if (!on && i >= 0) data.nonScoringPeople.splice(i, 1);
+        }, (data.nonScoringPeople || []).indexOf(person.id) >= 0, esc(person.name) + ' — Non-Scoring RS Member', 'data-rerender');
+      }).join('') + '</div>' : '<p class="small">Add reviewed shared identities in Competitors before scoring results.</p>') + '</div>';
+    html += '<div class="card"><h3>Championship scoring state</h3><p><b>' + esc(scoring.status) + '</b> — ' + esc(scoring.reason || '') + '</p><p class="small muted">Official RS event classifications remain displayable even when championship scoring is blocked or unresolved. Event points require 15 starters overall, confirmed event applicability, explicit invitation status, final source classification and reviewed competitor identities.</p></div>';
+    html += '<div class="section"><div class="section-head"><h2>Independent RS events</h2>' + btn(function () {
+      s.rallyesport = data;
+      var id = uniqueId('rs-event-' + A.year, Object.fromEntries(data.events.map(function (e) { return [e.id, true]; })));
+      data.events.push({ id: id, name: 'New RallyeSport event', dates: '' });
+      render();
+    }, '+ Add RS event') + '</div>';
+    if (!data.events.length) html += '<div class="card empty">No RS events are recorded for this season. Adding an RS event does not require adding an NR event.</div>';
+    html += data.events.map(function (event, eventIndex) {
+      var result = data.results.filter(function (r) { return r.eventId === event.id; })[0];
+      var nrRoundChoices = [['', 'Standalone RS event (no NR round)']].concat((s.rounds || []).map(function (round) { return [round.id, round.id + ' · ' + ((eventById(round.eventId, A.year) || {}).name || round.eventId)]; }));
+      var stages = result ? result.stages || [] : [];
+      var nrRaw = result && result.nrRoundId ? rawRound(result.nrRoundId, A.year) : null;
+      var scoreRow = result && (scoring.results || []).filter(function (row) { return row.resultId === result.id; })[0];
+      return '<article class="card"><div class="section-head"><h3>' + esc(event.name || event.id) + '</h3>' + btn(function () {
+        if (!window.confirm('Remove this RS event and its independent classification?')) return;
+        s.rallyesport = data;
+        data.events.splice(eventIndex, 1);
+        data.results = data.results.filter(function (r) { return r.eventId !== event.id; });
+        render();
+      }, 'Remove event', 'tiny ghost') + '</div><div class="form-grid">' +
+        fld('RS event name', input(function (v) { event.name = v; }, event.name, 'maxlength="200"')) +
+        fld('Dates as printed', input(function (v) { event.dates = v; }, event.dates || '', 'maxlength="200"')) +
+        fld('Event start date (SSR 7.2 check)', input(function (v) { event.startDate = v || undefined; }, event.startDate || '', 'type="date"'), 'Required only for a double-points event.') +
+        fld('Optional associated NR event', select(function (v) { if (v) event.nrEventId = v; else delete event.nrEventId; }, event.nrEventId || '',
+          [['', 'No NR event association']].concat((s.events || []).map(function (ev) { return [ev.id, ev.name || ev.id]; })))) +
+        fld('SSR applicability for this event', select(function (v) { event.rulesetConfirmed = v === '' ? undefined : v === 'true'; }, event.rulesetConfirmed == null ? '' : String(event.rulesetConfirmed),
+          [['', 'Unconfirmed'], ['true', 'Confirmed for selected SSRs'], ['false', 'Not governed by selected SSRs']], 'data-rerender')) +
+        fld('Applicability evidence', input(function (v) { event.rulesetEvidence = v; }, event.rulesetEvidence || '', 'maxlength="1000"'), 'For example, the event-specific confirmation and document locator.', 'span2') +
+        fld('Championship status', select(function (v) { event.countsForChampionship = v === '' ? undefined : v === 'true'; }, event.countsForChampionship == null ? '' : String(event.countsForChampionship),
+          [['', 'Unconfirmed'], ['true', 'Counts toward championship'], ['false', 'Event only; not a championship round']], 'data-rerender')) +
+        fld('Championship evidence', input(function (v) { event.championshipEvidence = v; }, event.championshipEvidence || '', 'maxlength="1000"'), '', 'span2') +
+        fld('Double points', select(function (v) { event.doublePoints = v === '' ? undefined : v === 'true'; }, event.doublePoints == null ? '' : String(event.doublePoints),
+          [['', 'Unconfirmed'], ['false', 'No bulletin-confirmed double points'], ['true', 'Bulletin confirms double points']], 'data-rerender')) +
+        fld('Double-points bulletin evidence', input(function (v) { event.doublePointsEvidence = v; }, event.doublePointsEvidence || '', 'maxlength="1000"'), '', 'span2') +
+        fld('Bulletin issue date (SSR 7.2 check)', input(function (v) { event.doublePointsBulletinDate = v || undefined; }, event.doublePointsBulletinDate || '', 'type="date"'), 'The bulletin must precede the event by at least 14 days.') + '</div>' +
+        (result ? '<hr><h4>Official RS classification</h4><div class="form-grid">' +
+          fld('Classification title', input(function (v) { result.title = v; }, result.title || '', 'maxlength="200"')) +
+          fld('Printed finality/status', input(function (v) { result.status = v; }, result.status || '', 'maxlength="200"'), 'Enter the source wording; do not infer finality.') +
+          fld('Source file/title', input(function (v) { result.source.file = v; }, result.source.file || '', 'maxlength="200"')) +
+          fld('Official source URL', input(function (v) { result.source.url = v; }, result.source.url || '', 'type="url" maxlength="2000"'), 'HTTPS source for this exact classification.', 'span2') +
+          fld('Optional linked NR round', select(function (v) {
+            var oldRound = result.nrRoundId;
+            if (v) result.nrRoundId = v; else delete result.nrRoundId;
+            if (oldRound !== result.nrRoundId) (result.entries || []).forEach(function (entry) {
+              (entry.timeEvidence || []).forEach(function (evidence, i) {
+                if (evidence) { entry.timeEvidence[i] = null; entry.times[i] = null; }
+              });
+            });
+            render();
+          }, result.nrRoundId || '', nrRoundChoices, 'data-rerender')) +
+          fld('Classification notes', area(function (v) { result.notes = lines(v); }, (result.notes || []).join('\n'), 'rows="2"'), '', 'span3') + '</div>' +
+          '<div class="section-head"><h4>Explicit RS stage selection and optional NR stage mapping</h4>' + btn(function () {
+            var n = stages.length + 1, label = 'SS' + n;
+            stages.push({ id: uniqueId(label.toLowerCase(), Object.fromEntries(stages.map(function (x) { return [x.id, true]; }))), label: label });
+            (result.entries || []).forEach(function (entry) { entry.times = (entry.times || []).concat([null]); entry.stagePos = (entry.stagePos || []).concat([null]); if (entry.timeEvidence) entry.timeEvidence.push(null); });
+            render();
+          }, '+ Add selected RS stage', 'tiny') + '</div>' +
+          (stages.length ? stages.map(function (stage, stageIndex) {
+            var stageOptions = [['', 'RS-only / no NR mapping']].concat((nrRaw && nrRaw.stages || []).map(function (nrStage) { return [nrStage, nrStage]; }));
+            return '<div class="form-grid tight bordered">' + fld('Stable stage ID', input(function (v) { stage.id = v; }, stage.id, 'maxlength="40"')) +
+              fld('Official stage name', input(function (v) { stage.label = v; }, stage.label, 'maxlength="40"')) +
+              fld('Explicit NR stage mapping', select(function (v) {
+                if (v) stage.nrStage = v; else delete stage.nrStage;
+                (result.entries || []).forEach(function (entry) {
+                  if (entry.timeEvidence && entry.timeEvidence[stageIndex]) {
+                    entry.timeEvidence[stageIndex] = null; entry.times[stageIndex] = null;
+                  }
+                });
+              }, stage.nrStage || '', stageOptions, 'data-rerender')) +
+              '<div class="fld">' + btn(function () {
+                if (!window.confirm('Remove this RS stage and its corresponding times?')) return;
+                stages.splice(stageIndex, 1);
+                (result.entries || []).forEach(function (entry) { entry.times.splice(stageIndex, 1); if (entry.stagePos) entry.stagePos.splice(stageIndex, 1); if (entry.timeEvidence) entry.timeEvidence.splice(stageIndex, 1); });
+                render();
+              }, 'Remove stage', 'tiny ghost') + '</div></div>';
+          }).join('') : '<p class="small muted">No stages selected. Add only stages supported by this RS classification.</p>') +
+          '<div class="section-head"><h4>Official classification rows</h4>' + btn(function () {
+            result.entries.push({ car: '', driver: '', codriver: '', class: 'RS2', status: 'unreviewed', pos: null, classPos: null,
+              times: stages.map(function () { return null; }), stagePos: stages.map(function () { return null; }), penalty: null, total: null, invited: null });
+            render();
+          }, '+ Add classification row', 'tiny') + '</div>' +
+          (result.entries || []).map(function (entry, rowIndex) {
+            function field(label, key, value, attrs) { return fld(label, input(function (v) { entry[key] = v; }, value == null ? '' : value, attrs || '')); }
+            return '<div class="card subcard"><div class="section-head"><b>Classification row ' + (rowIndex + 1) + '</b>' + btn(function () { result.entries.splice(rowIndex, 1); render(); }, 'Remove row', 'tiny ghost') + '</div>' +
+              '<div class="form-grid tight">' + field('Car', 'car', entry.car, 'maxlength="40"') + field('Driver profile name', 'driver', entry.driver) +
+              field('Co-driver profile name', 'codriver', entry.codriver || '') +
+              fld('RS class', select(function (v) { entry['class'] = v; }, entry['class'] || '', [['', 'Unconfigured'], ['RS2', 'RS2'], ['RS4', 'RS4']])) +
+              field('Printed RS status', 'status', entry.status, 'maxlength="80" data-rerender') +
+              fld('Official overall position', input(function (v) { entry.pos = numOrNull(v); }, entry.pos, 'inputmode="numeric" data-rerender')) +
+              fld('Official class position', input(function (v) { entry.classPos = numOrNull(v); }, entry.classPos, 'inputmode="numeric"')) +
+              field('Official total', 'total', entry.total || '') + field('Separate penalty', 'penalty', entry.penalty || '') +
+              fld('Invitation status', select(function (v) { entry.invited = v === '' ? undefined : v === 'true'; }, entry.invited == null ? '' : String(entry.invited),
+                [['', 'Unreviewed'], ['false', 'Not invitational'], ['true', 'Invitational — no championship points']], 'data-rerender')) +
+              fld('Stage times in selected-stage order', input(function (v) {
+                entry.times = v.split(',').map(function (x) { x = x.trim(); return x || null; });
+                if (entry.timeEvidence) entry.timeEvidence = entry.timeEvidence.map(function (evidence, i) { return evidence && evidence.value === entry.times[i] ? evidence : null; });
+              }, (entry.times || []).map(function (v) { return v == null ? '' : v; }).join(', '), 'placeholder="e.g. 01:23.45, 02:10.00"'), 'Comma-separated; blanks stay missing, never zero.', 'span2') +
+              fld('Official stage positions (optional)', input(function (v) { entry.stagePos = v.split(',').map(function (x) { return x.trim() ? numOrNull(x) : null; }); },
+                (entry.stagePos || []).map(function (v) { return v == null ? '' : v; }).join(', '), 'placeholder="e.g. 2, 1"'), 'Comma-separated in selected-stage order.', 'span2') +
+              fld('Row notes', area(function (v) { entry.notes = lines(v); }, (entry.notes || []).join('\n'), 'rows="2"'), '', 'span2') + '</div></div>';
+          }).join('') +
+          '<p class="small muted">NR time reuse is a one-time, human-confirmed copy of values only. It requires the exact linked round, explicit stage mappings, matching car and reviewed driver/co-driver profiles. It never copies NR status, class, order, penalty or points; later NR edits do not update this RS record.</p>' +
+          btn(function () { copyReviewedRsTimes(data, result, A.year); render(); }, 'Review and copy mapped NR stage times', 'tiny') +
+          (scoreRow ? '<div class="card subcard"><h4>Current RS event-points preview</h4><p><b>' + esc(scoreRow.status) + '</b> — ' + esc(scoreRow.reason || 'Points are calculated independently for each eligible crew role.') + '</p>' +
+            (scoreRow.status === 'ready' ? '<div class="table-wrap"><table class="data"><thead><tr><th>Car</th><th>Driver</th><th>Driver points</th><th>Co-driver</th><th>Co-driver points</th></tr></thead><tbody>' +
+              (result.entries || []).map(function (entry) {
+                var p = (scoreRow.entries || []).filter(function (row) { return row.car === String(entry.car); })[0] || {};
+                return '<tr><td>' + esc(entry.car) + '</td><td>' + esc(entry.driver) + '</td><td class="num">' + (p.driverPoints == null ? '—' : p.driverPoints) + '</td><td>' + esc(entry.codriver || '—') + '</td><td class="num">' + (p.codriverPoints == null ? '—' : p.codriverPoints) + '</td></tr>';
+              }).join('') + '</tbody></table></div>' : '<p class="small muted">No points are shown while the supported rule inputs are incomplete.</p>') + '</div>' : '') +
+          '</div>' : btn(function () {
+            var id = uniqueId(event.id + '-classification', Object.fromEntries(data.results.map(function (r) { return [r.id, true]; })));
+            data.results.push({ id: id, eventId: event.id, title: 'Official RS classification', status: 'unreviewed', stages: [], source: { file: '', url: '' }, notes: [], entries: [] });
+            render();
+          }, '+ Add classification') + '</article>');
+    }).join('') + '</div>';
+    return html;
   }
   function viewSeason() {
     var s = season(), st = site(); s.classes = s.classes || []; s.documents = s.documents || []; s.pointsScale = s.pointsScale || { overall: [], cls: [] };

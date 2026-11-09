@@ -281,3 +281,73 @@ A separately authorized event-metadata update added official entry-list, noticeb
 and spectator-guide links for four 2026 events without scoring changes. The actual
 published/working season documents and private History/source register are authoritative;
 do not reproduce private revision/account identifiers as timeless repository configuration.
+
+## 2026-11-09: local RallyeSport foundation and header logo preparation
+
+This is an isolated local implementation only. The user expressly prohibited pushing,
+opening a PR, deployment, live-data publication, Firebase/settings/rules changes and
+external-provider writes. No permission to release this code is implied. The worktree
+branch is `mimullan-microsoft-rallyesport-foundation`, based on `f050312`; no live
+season event or result records were added.
+
+The optional `season.rallyesport` model now supports independent RS events and official
+classifications, RS2/RS4 event points and season tables, the 2026 Rallysprint SSR
+profile, a season-scoped person-level “Non-Scoring RS Member” toggle, separate event
+invitation exclusion, a manual admin editor using the normal staging/review/publish
+path, public RS tables/routes, and optional explicitly mapped overlays on NR graphs.
+RS-only events need no NR calendar entry. Shared stage times can be copied only after
+explicit round/stage/car/crew review; stored times are snapshots with provenance and do
+not follow later NR edits. The overlay uses only RS rows and never feeds NR statistics.
+No NR results, statuses, classes, penalties, points, eligibility or totals are imported
+into RS by default. Existing seasons without the optional field remain valid; there is
+no migration. Contract version is 1 and coordinated asset query strings are
+`rallyesport-1`.
+
+The rules profile is based on the full official [2026 MSA RallyeSport Association
+Club Standing Supplementary Regulations — Rallysprint, Version 1, issued 9 July
+2026](https://www.motorsport.co.za/wp-content/uploads/2026/07/2026-MSA-RallyeSport-Association-SSRs-V1.pdf).
+The printed title and SSR 1.2 set its scope; it is not inferred from the filename. The
+user confirmed applicability to the 2026 club classifications at Legends, Ermelo and
+TRAC, and to the independent June Round 1 classification despite the July issue date.
+This event-specific confirmation does not apply the rules to other events or years.
+The implementation uses the SSR 6.1.1–6.1.3 class points for overall and
+class tables, excludes invitational entries, and applies the 15-starter event minimum.
+By user direction, people are assumed paid up unless individually toggled non-scoring;
+this is an assumption, not verified membership. SSR 7.2's five-round double-pointer
+exception is supported only with one bulletin-backed event; double-points declarations
+at other round counts are withheld pending clarification. A five-round double-pointer
+also requires separate ISO event and bulletin dates that pass the SSR's 14-day notice
+check. No future-year or other competition rule profile is added.
+
+Read-only inspection of the supplied June result sheet identified a standalone final
+classification with two stages, separate overall/class positions, a TEST row and DNF
+rows with non-prefix stage observations. No competitor rows or event calendar data were
+copied into this repository, and the sensitive membership workbook was not inspected.
+Synthetic coverage now recognizes the source's `FINAL RESULTS` heading without
+rewriting it, preserves TEST without treating it as DNS/DNF, leaves its scoring and
+starter semantics blocked, uses printed class position to score when overall
+positions tie across classes, withholds still-tied class scoring positions, and retains
+a later DNF observation after a missing earlier stage.
+
+Unresolved limits remain explicit: SSR 7.4 and 7.6 are blank, so DNF points and awards
+are not inferred. SSR 7.5 addresses a round despite its championship-ties heading; the
+app does not recompute its stage-time tie-break. A still-tied scoring position is
+withheld and equal season totals share a displayed rank without a season winner/tie-break.
+Unspecified categories and round qualification are not guessed. No November or other
+real event data was added.
+
+The user-approved supplied Northern Regions logo is included in the public, admin and
+static headers. The original NR `brand.svg` and `favicon.png` remain the favicons; no
+official logo favicon or replacement NR artwork is used. Recovery/testing docs and
+browser checks are updated, and the asset is source-controlled without modifying
+`firebase-config.js`.
+
+Validation: `node --test tools\tests\*.test.js` passed all 71 synthetic unit tests;
+targeted RS, season-readiness and original-favicon tests passed; JavaScript
+syntax checks passed. `site-theme-e2e.js` and `admin-access-e2e.js` passed with local
+browser fixtures and intercepted requests, including RS editor simulation with zero
+writes, an RS-only public table preserving TEST/class position/non-prefix times, and
+responsive header checks. Browser runners do not contact real Firebase,
+Google Analytics or other external providers. No private result fixtures, live sign-in,
+deployed rules, real data migration or actual publication was tested. This entry records
+local preparation, not release approval or deployment evidence.

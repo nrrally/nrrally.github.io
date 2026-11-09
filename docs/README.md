@@ -13,7 +13,7 @@ Public Git cannot recover private Firestore/Auth/config/History/source data by i
 
 There are two parts:
 
-- **A public results site** for the MSA Northern Regions Regional Rally Championship.
+- **A public results site** for the MSA Northern Regions Regional Rally Championship, with an independent, secondary RallyeSport scoreboard.
 - **An admin page** where results and competitor details are maintained. Admins sign in with Google.
 
 Results come only from the official classification PDFs, never from live timing. Standings, points and stage graphs are calculated in the visitor's browser from the raw official data each time a page loads. Nothing calculated is stored.
@@ -46,6 +46,7 @@ Results come only from the official classification PDFs, never from live timing.
 - [firestore.rules](firestore.rules): the database's access rules, to paste into the Firebase console.
 - [data-model.md](data-model.md): every data file and field.
 - [scoring-rules.md](scoring-rules.md): how points, classes, eligibility, ties and stage graphs are calculated.
+- RallyeSport event/results/scoring boundaries are described in [scoring-rules.md](scoring-rules.md) and [data-model.md](data-model.md); its calculations never feed NR standings or statistics.
 - [decisions.md](decisions.md): why it's built this way, and its known limitations.
 - [runbook.md](runbook.md): routine tasks, incidents, backups and handing over.
 - [testing.md](testing.md): how to check a change before it goes live.
