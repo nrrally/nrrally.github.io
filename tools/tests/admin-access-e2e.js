@@ -4,8 +4,49 @@ const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const E = require('../../assets/engine.js');
+const AI = require('../../assets/ai-import.js');
 const fixtures = require('./ai-fixtures.js').docs();
 fixtures['data/site.json'].analytics = { enabled: true, measurementId: 'G-' + 'A'.repeat(10) };
+const workingSeason = fixtures['data/seasons/2026/season.json'];
+const workingPeople = fixtures['data/people.json'];
+workingSeason.rounds[0].results = true;
+workingPeople.people.push(
+  { id: 'blake-example', name: 'Blake Example', aliases: [], bio: '', photo: '', links: {} },
+  { id: 'blake-duplicate', name: 'Blake Duplicated', aliases: [], bio: '', photo: '', links: {} },
+  { id: 'casey-match', name: 'Casey Match', aliases: [], bio: '', photo: '', links: {} },
+  { id: 'drew-match', name: 'Drew Match', aliases: [], bio: '', photo: '', links: {} },
+  { id: 'row-test', name: 'Test Entrant', aliases: [], bio: '', photo: '', links: {} }
+);
+const nrRound = { id: 'R1', title: 'Synthetic NR classification', status: 'Final Official Classification',
+  stages: ['SS1', 'SS2'], source: { file: 'nr.pdf', url: 'https://example.com/nr.pdf' }, notes: [], entries: [
+    { car: '1', driver: 'Alex Test', codriver: 'Blake Example', class: 'OPEN', status: 'classified', pos: 1,
+      times: ['01:10.0', null], total: '02:30.0', pen: null },
+    { car: '3', driver: 'Casey Match', codriver: 'Drew Match', class: 'OPEN', status: 'classified', pos: 2,
+      times: ['02:00.0', '03:00.0'], total: '05:00.0', pen: null }
+  ] };
+workingSeason.rallyesport = {
+  ruleset: { code: 'clubman-sprint-2026-v1', year: 2026,
+    title: '2026 MSA RallyeSport Association Club Standing Supplementary Regulations — Rallysprint',
+    version: 1, issueDate: '2026-07-09',
+    sourceUrl: 'https://www.motorsport.co.za/wp-content/uploads/2026/07/2026-MSA-RallyeSport-Association-SSRs-V1.pdf' },
+  events: [{ id: 'synthetic-rs-event', name: 'Synthetic RS event', dates: 'Synthetic date',
+    rulesetConfirmed: true, rulesetEvidence: 'Synthetic event applicability', countsForChampionship: true,
+    championshipEvidence: 'Synthetic championship status', doublePoints: false }],
+  nonScoringPeople: ['blake-duplicate'],
+  results: [{ id: 'synthetic-rs-result', eventId: 'synthetic-rs-event', title: 'Synthetic official classification',
+    status: 'Final classification', nrRoundId: 'R1',
+    source: { file: 'Synthetic attached source title', description: 'Synthetic official final classification' },
+    notes: [], stages: [{ id: 'ss1', label: 'SS1', nrStage: 'SS1' }, { id: 'ss2', label: 'SS2', nrStage: 'SS2' }],
+    entries: [
+      { car: '1', driver: 'Alex Test', codriver: 'Blake Example', class: 'RS2', status: 'classified', pos: 1, classPos: 1,
+        total: '02:30.0', penalty: null, times: ['01:11.0', null], stagePos: [1, null], invited: false },
+      { car: '3', driver: 'Casey Match', codriver: 'Drew Match', class: 'RS2', status: 'classified', pos: 2, classPos: 2,
+        total: '05:00.0', penalty: null, times: [null, null], stagePos: [null, null], invited: false },
+      { car: '99', driver: 'Test Entrant', codriver: '', class: 'TEST', status: 'TEST', pos: null, classPos: null,
+        total: null, penalty: null, times: [null, null], stagePos: [null, null], invited: false }
+    ] }]
+};
 const repo = path.resolve(__dirname, '..', '..');
 const prefix = 'projects/nr-synthetic/databases/(default)/documents/';
 const docs = new Map(), writes = [], external = [], errors = [];
@@ -14,9 +55,16 @@ function put(key, fields) { docs.set(key, { name: prefix + key, fields, updateTi
 put('docs/site', { json: field(fixtures['data/site.json']) });
 put('docs/people', { json: field(fixtures['data/people.json']) });
 put('docs/season_2026', { json: field(fixtures['data/seasons/2026/season.json']) });
+put('docs/round_2026_R1', { json: field(nrRound) });
 put('public/site', { json: field(fixtures['data/site.json']) });
 put('public/people', { json: field(fixtures['data/people.json']) });
-put('public/season_2026', { json: field({ season: fixtures['data/seasons/2026/season.json'], rounds: {} }) });
+put('public/season_2026', { json: field({ season: AI.projectPublic(workingSeason, workingPeople), rounds: { R1: nrRound } }) });
+const historicalSeason = JSON.parse(JSON.stringify(workingSeason));
+delete historicalSeason.rallyesport;
+put('history/rs-overwrite-1', { group: { stringValue: 'rs-overwrite-1' }, at: { stringValue: '2026-12-01T00:00:00Z' },
+  by: { stringValue: 'Synthetic User' }, message: { stringValue: 'Older NR season update' },
+  path: { stringValue: 'data/seasons/2026/season.json' }, kind: { stringValue: 'update' },
+  before: { stringValue: JSON.stringify(historicalSeason) }, after: { stringValue: JSON.stringify(workingSeason) } });
 put('config/admins', { emails: { arrayValue: { values: [{ stringValue: 'admin@example.com' }] } } });
 put('config/revision', { n: { integerValue: '1' } });
 
@@ -30,7 +78,7 @@ async function main() {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = 'http://127.0.0.1:' + server.address().port;
   const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH });
-  let release, waiting, block = false, denyAdmins = false, removeAdmin = false;
+  let release, waiting, block = false, denyAdmins = false, removeAdmin = false, rejectRsWarning = false;
   try {
     const ctx = await browser.newContext();
     await ctx.addInitScript(() => {
@@ -75,11 +123,17 @@ async function main() {
       }
       await route.fulfill({ status, headers, contentType: 'application/json', body: JSON.stringify(body) });
     });
-    const page = await ctx.newPage();
+    const page = await ctx.newPage(), dialogs = [], dialogWaiters = [];
     page.on('pageerror', e => errors.push(e.message));
-    page.on('dialog', d => d.accept());
+    page.on('dialog', async d => {
+      dialogs.push(d.message());
+      if (dialogWaiters.length) dialogWaiters.shift()(d.message());
+      if (rejectRsWarning && /RallyeSport data/.test(d.message())) await d.dismiss();
+      else await d.accept();
+    });
     const signin = () => page.locator('#signInBtn').waitFor();
     const admin = () => page.locator('.adm-main').waitFor();
+    const nextDialogMessage = () => new Promise(resolve => dialogWaiters.push(resolve));
     const absent = async () => {
       await signin();
       assert.equal(await page.locator('meta[name="robots"]').getAttribute('content'), 'noindex, nofollow');
@@ -107,9 +161,82 @@ async function main() {
       if (width <= 390) assert.equal(await page.locator('.adm-top .brand').evaluate(el =>
         el.getBoundingClientRect().bottom <= el.parentElement.querySelector('.chg').getBoundingClientRect().top + 1), true);
     }
+    await page.evaluate(() => location.hash = '#/rallyesport');
+    await page.getByText('Ruleset evidence').waitFor();
+    assert.equal(await page.getByLabel('Source file/title').inputValue(), 'Synthetic attached source title');
+    assert.equal(await page.getByLabel('Official source URL').inputValue(), '');
+    assert.equal(await page.getByLabel('Source description').inputValue(), 'Synthetic official final classification');
+    assert.equal(await page.getByLabel('Printed RS category').nth(2).inputValue(), 'TEST');
+    assert.equal(await page.getByLabel('Printed RS status').nth(2).inputValue(), 'TEST');
+    const stageTimes = page.locator('input[placeholder^="e.g. 01:23.45"]');
+    await stageTimes.nth(0).fill('01:11.0');
+    await page.getByRole('button', { name: 'Review and copy mapped NR stage times' }).click();
+    await page.getByText(/stage times and provenance must align/).waitFor();
+    assert.equal(await stageTimes.nth(0).inputValue(), '01:11.0');
+    await stageTimes.nth(0).fill('01:11.0, ');
+    await page.getByRole('button', { name: 'Review and copy mapped NR stage times' }).click();
+    await page.getByText(/Copied 2 reviewed blank RS stage value/).waitFor();
+    const review = dialogs[dialogs.length - 1];
+    assert.match(review, /New blank RS times to copy: 2/);
+    assert.match(review, /Conflicting existing RS times \(left unchanged\): 1/);
+    assert.match(review, /Missing mapped NR observations \(left unchanged\): 1/);
+    assert.match(review, /Unmatched RS-only\/unresolved crews \(preserved\): 1/);
+    assert.match(await stageTimes.nth(0).inputValue(), /^01:11\.0, $/);
+    assert.equal(await stageTimes.nth(1).inputValue(), '02:00.0, 03:00.0');
+    assert.equal(await stageTimes.nth(2).inputValue(), ', ');
+    await page.evaluate(() => location.hash = '#/competitor/blake-example');
+    await page.getByLabel('Duplicate profile').selectOption('blake-duplicate');
+    await page.getByRole('button', { name: 'Merge', exact: true }).click();
+    assert.match(dialogs[dialogs.length - 1], /Merge Blake Duplicated into Blake Example/);
+    await page.evaluate(() => location.hash = '#/rallyesport');
+    assert.equal(await page.getByRole('checkbox', { name: /Blake Example — Non-Scoring RS Member/ }).isChecked(), true);
+    assert.equal(await page.getByRole('checkbox', { name: /Blake Duplicated — Non-Scoring RS Member/ }).count(), 0);
+
+    const backupWithoutRs = JSON.parse(JSON.stringify(workingSeason));
+    delete backupWithoutRs.rallyesport;
+    const oldBackup = { format: 'nr-rally-backup', version: 1, exportedAt: '2026-01-01T00:00:00Z',
+      docs: { 'data/site.json': fixtures['data/site.json'], 'data/people.json': workingPeople,
+        'data/seasons/2026/season.json': backupWithoutRs }, photos: {} };
+    const backupWithoutSeason = { format: 'nr-rally-backup', version: 1, exportedAt: '2025-01-01T00:00:00Z',
+      docs: { 'data/site.json': fixtures['data/site.json'], 'data/people.json': workingPeople }, photos: {} };
+    await page.evaluate(() => location.hash = '#/');
+    await page.getByText('Backups', { exact: true }).waitFor();
+    rejectRsWarning = true;
+    const oldBackupPrompt = nextDialogMessage(), oldBackupRsWarning = nextDialogMessage();
+    await page.locator('label.file-btn').filter({ hasText: 'Restore from a backup' }).locator('input[type=file]')
+      .setInputFiles({ name: 'synthetic-pre-rs-backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(oldBackup)) });
+    assert.match(await oldBackupPrompt, /Replace the working copy with the backup/);
+    assert.match(await oldBackupRsWarning, /source and stage-time evidence.*Non-Scoring RS Member decisions/);
+    await page.evaluate(() => location.hash = '#/rallyesport');
+    assert.equal(await page.getByRole('checkbox', { name: /Blake Example — Non-Scoring RS Member/ }).isChecked(), true);
+    assert.equal(await stageTimes.nth(0).inputValue(), '01:11.0, ');
+    await page.evaluate(() => location.hash = '#/');
+    await page.getByText('Backups', { exact: true }).waitFor();
+    const deleteSeasonPrompt = nextDialogMessage(), deleteSeasonRsWarning = nextDialogMessage();
+    await page.locator('label.file-btn').filter({ hasText: 'Restore from a backup' }).locator('input[type=file]')
+      .setInputFiles({ name: 'synthetic-season-deletion-backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backupWithoutSeason)) });
+    assert.match(await deleteSeasonPrompt, /Replace the working copy with the backup/);
+    assert.match(await deleteSeasonRsWarning, /delete RallyeSport data/);
+    rejectRsWarning = false;
+    await page.evaluate(() => location.hash = '#/history');
+    await page.getByText('Older NR season update').waitFor();
+    rejectRsWarning = true;
+    const undoUnpublishedPrompt = nextDialogMessage(), undoRsWarning = nextDialogMessage();
+    await page.getByRole('button', { name: 'Undo' }).click();
+    assert.match(await undoUnpublishedPrompt, /unpublished changes.*Undoing this change/);
+    assert.match(await undoRsWarning, /History undo will replace or delete RallyeSport data/);
+    rejectRsWarning = false;
+    await page.evaluate(() => location.hash = '#/rallyesport');
+    await page.getByText('Ruleset evidence').waitFor();
+    assert.equal(await page.getByRole('checkbox', { name: /Blake Example — Non-Scoring RS Member/ }).isChecked(), true);
+    await page.reload(); await admin();
     assert.ok(await page.locator('#demoBtn').isVisible());
     await page.click('#demoBtn'); await page.locator('.demo-bar').waitFor();
     assert.match(await page.locator('.demo-bar').innerText(), /Simulation.*nothing is ever saved/);
+    await page.evaluate(() => location.hash = '#/rallyesport');
+    await page.getByText(/Demo data is a public projection/).waitFor();
+    await page.evaluate(() => location.hash = '#/publish');
+    await page.getByText('Nothing to publish').waitFor();
     await page.evaluate(() => location.hash = '#/site'); await page.locator('#activeRallyEnabled').waitFor();
     assert.equal(await page.locator('#addAdminBtn').count(), 0);
     assert.ok(await page.isChecked('#analyticsEnabled'));
@@ -124,17 +251,24 @@ async function main() {
     assert.equal(JSON.parse(docs.get('public/site').fields.json.stringValue).analytics.enabled, true);
     await page.evaluate(() => location.hash = '#/rallyesport');
     await page.getByText('Ruleset evidence').waitFor();
-    await page.getByRole('button', { name: 'Use verified 2026 SSR V1' }).click();
+    await page.getByRole('button', { name: /verified 2026 SSR V1/ }).click();
     await page.getByRole('button', { name: '+ Add RS event' }).click();
-    await page.getByLabel('RS event name').waitFor();
+    const newRsEvent = page.locator('article').filter({ hasText: 'New RallyeSport event' });
+    await newRsEvent.getByLabel('RS event name').waitFor();
     assert.ok(await page.getByText('No NR event association', { exact: true }).count());
-    await page.getByRole('button', { name: '+ Add classification' }).click();
-    await page.getByRole('button', { name: '+ Add classification row' }).waitFor();
-    await page.getByRole('button', { name: '+ Add classification row' }).click();
-    assert.ok(await page.locator('.fld').filter({ hasText: 'Printed RS status' }).count());
+    await newRsEvent.getByLabel('Reviewed non-TEST starter count (optional)').waitFor();
+    await newRsEvent.getByRole('button', { name: '+ Add classification' }).click();
+    await newRsEvent.getByRole('button', { name: '+ Add selected RS stage' }).click();
+    await newRsEvent.getByRole('button', { name: '+ Add classification row' }).waitFor();
+    await newRsEvent.getByRole('button', { name: '+ Add classification row' }).click();
+    await newRsEvent.getByLabel('Source file/title').waitFor();
+    assert.ok(await newRsEvent.getByLabel('Source description').count());
+    assert.ok(await newRsEvent.getByLabel('Printed RS category').count());
+    assert.ok(await newRsEvent.getByLabel('Printed RS status').count());
+    assert.ok(await newRsEvent.locator('.fld').filter({ hasText: 'Printed RS status' }).count());
     assert.ok(await page.getByText(/Non-Scoring RS Member/).count());
     assert.ok(await page.locator('.fld').filter({ hasText: 'Invitation status' }).count());
-    await page.click('#leaveDemoBtn'); await admin();
+    await page.click('#leaveDemoBtn'); await page.locator('.demo-bar').waitFor({ state: 'detached' }); await admin();
     assert.equal(await page.locator('.demo-bar').count(), 0);
     await page.evaluate(() => location.hash = '#/site'); await page.locator('#activeRallyEnabled').waitFor();
     assert.notEqual(await page.getByText('Tagline', { exact: true }).locator('..').locator('input').inputValue(), 'Synthetic practice change');

@@ -262,6 +262,23 @@ async function main() {
     assert.equal(await rsCells.nth(8).innerText(), '—');
     assert.equal(await rsCells.nth(9).innerText(), '00:03.0');
     assert.ok(!(await page.locator('main table tbody').innerText()).includes('DNS'));
+    const graphResult = bundle.season.rallyesport.results[0];
+    graphResult.nrRoundId = 'R1';
+    graphResult.stages = [{ id: 'ss1', label: 'SS1', nrStage: 'SS1' }, { id: 'ss3', label: 'SS3', nrStage: 'SS3' }];
+    graphResult.entries = [
+      { car: '88', driver: 'Alex Test', codriver: '', class: 'RS2', status: 'classified', pos: 1, classPos: 1,
+        total: '1:00.01', times: ['1:00.01', '00:01.00'], stagePos: [1, 1] },
+      { car: '89', driver: 'Blake Example', codriver: '', class: 'RS2', status: 'classified', pos: 2, classPos: 2,
+        total: '1:00.04', times: ['1:00.04', '00:01.00'], stagePos: [2, 1] }
+    ];
+    await visit('#/2026/round/R1/graph?cars=1&m=loss&rs=1');
+    assert.ok((await page.locator('.chart-title').innerText()).includes('Time lost'));
+    assert.ok((await page.locator('main').innerText()).includes('separate source fields'));
+    assert.ok((await page.locator('.axis text').allTextContents()).includes('+0.01s'));
+    await page.locator('.hit[data-i="0"]').hover();
+    const graphTip = page.locator('.tip');
+    await graphTip.waitFor({ state: 'visible' });
+    assert.ok((await graphTip.innerText()).includes('+0.03s'));
     delete bundle.season.rallyesport;
     await page.emulateMedia({ media: 'print' });
     assert.ok(await page.locator('.site-disclosure').isVisible());

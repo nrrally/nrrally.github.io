@@ -154,13 +154,14 @@ When the sheet and the official standings disagree, follow the standings and rec
 Use **RallyeSport** in the admin for RS seasons. It is intentionally a separate event
 and classification editor, not another NR class. Creating an RS event does not require
 an NR calendar event or round. Record the official event name/dates, exact classification
-source, printed classification status/order, RS2/RS4 class, stage selection, individual
-stage times, penalty and official total. Keep missing values blank; do not calculate
-official positions or status from stage sums. Preserve a printed `TEST` status as `TEST`;
-it is not DNS or DNF, and points remain blocked until its scoring/starter treatment is
-confirmed. Retain each stage observation independently, including a later-stage time
-after a missing earlier stage. An unconfigured category is a publication blocker until
-RallyeSport confirms its name and semantics.
+source (HTTPS URL, source file name or description), printed classification status/order,
+printed category, stage selection, individual stage times, penalty and official total.
+Keep missing values blank; do not calculate official positions or status from stage sums.
+Preserve a printed `TEST` status as `TEST`, with its source order; it is neither DNS nor
+DNF, earns no championship points and has no championship class table. Retain each stage
+observation independently, including a later-stage time after a missing earlier stage.
+An unsupported category remains visible in event results but blocks that event's scoring;
+do not omit or map it to RS2/RS4.
 
 The only available scoring profile is 2026 Rallysprint SSR V1 (9 July 2026). Select it
 only for an applicable 2026 event, and record event-specific applicability, championship
@@ -182,22 +183,32 @@ Before entering times separately, check whether an RS event uses the same physic
 stages as an NR result. If it does, associate the exact NR event/round as applicable,
 select the exact RS stage subset and explicitly map each shared RS stage to its NR stage.
 The **Review and copy mapped NR stage times** action requires exact matching car and
-reviewed driver/co-driver profiles. It asks for confirmation and copies only printed
-time strings into the RS record with provenance. This is a snapshot: future NR edits
-do not update it. It does not import NR class, position, DNF/DNS status, penalty or
-points. Review copied values against the RS source; if they differ, correct the RS
-observation explicitly without changing NR.
+reviewed driver/co-driver profiles. It previews new values for blank RS cells, flags
+conflicting existing values, and preserves missing/unmatched RS-only crews. On
+confirmation it copies only reviewed printed time strings into the RS record with
+provenance; cancellation or error does not mutate the draft. This is a snapshot: future
+NR edits do not update it. It does not import NR class, position, DNF/DNS status, penalty
+or points. Review every proposed value against the RS source.
 
-Event points remain withheld until the finality, 15-starter total, applicable ruleset,
-championship-round and invitation inputs are supported. Any DNF blocks event scoring
-because the 2026 SSR finisher clause is blank; the official event table still shows the
-source classification. Explicit `Final Results` wording is recognized as final without
-rewriting the source status. A shared overall position across classes is retained; scoring
-uses the printed class position when available, otherwise overall order within class.
-The app does not recompute SSR 7.5's stage-time tie-break, so any still-tied scoring
-position blocks points. Season tie-breaks and future-year policies are not implemented.
-Event tables can be published independently of complete
-championship standings, but never publish unknown classes by silently dropping rows.
+Event points require the finality, 15-starter threshold, applicable ruleset,
+championship-round and invitation inputs. A started DNF earns no points but counts as a
+starter when start evidence is present. A no-time DNF is not proof of a start; otherwise
+record a reviewed non-TEST starter count and its evidence. `TEST` entries remain in the
+event results and do not score; whether they count toward the minimum is unresolved. A
+reviewed count of at least 15 non-TEST starters establishes the threshold. If fewer than
+15 non-TEST starters are established and TEST rows could change whether the threshold is
+met, points stay blocked.
+Explicit `Final Results` wording is recognized as final without rewriting the source
+status. A shared overall position across classes is retained. Within each class, printed
+class positions are used only when complete; otherwise official overall positions order
+the whole class consistently. The app does not recompute SSR 7.5's stage-time tie-break,
+so any contradictory or still-tied scoring order blocks points. Season tie-breaks and
+future-year policies are not implemented.
+
+Supported completed events can contribute to clearly labelled provisional cumulative
+tables while a scheduled event or season rule remains blocked; the table identifies
+included and excluded events and why. These are not final eligibility or champion
+declarations. RS event tables remain available when scoring is unconfigured.
 
 Public RS event tables are linked secondarily from Info/footer. A shared NR round graph
 offers an optional dashed **Show RS overlay** only when explicit RS stage mappings exist.

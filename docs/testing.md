@@ -240,16 +240,23 @@ node --test tools/tests/rallyesport.test.js tools/tests/season-readiness.test.js
 
 Fixtures are synthetic. Engine coverage asserts the 2026 class scale, the distinct
 event-invitation exclusion and per-person season toggle, asymmetric driver/co-driver
-re-ranking and toggle reversal, 15 starters overall, blocked DNF/round-tie cases,
+re-ranking and toggle reversal, 15 starters overall, started-DNF no-points/starter
+semantics, unresolved no-time DNF and TEST starter boundaries, and blocked round-tie cases,
 unconfigured years/classes, standalone RS-only validation, private-field projection,
 one-time explicit NR stage-time snapshots and two-way NR/RS isolation. Synthetic cases
 also cover a user-confirmed pre-issue 2026 event, preserving a `Final Results` heading
-and TEST row without rewriting their source status or awarding unsupported points,
-separate printed class positions under tied overall order, unresolved within-class ties
-and a later DNF stage time after an earlier missing observation. The public VM
-regression checks that the NR graph remains unchanged by default, a mapped dashed RS
-overlay is opt-in, RS tables are separate and RS events do not appear in NR Home or
-standings. It does not certify unresolved SSR clauses or a live dataset.
+and TEST row without rewriting their source status or awarding championship points,
+consistent per-class ordering when class positions are partial, separate printed class
+positions under tied overall order, unresolved within-class ties and a later DNF stage
+time after an earlier missing observation. RS graph tests cover non-prefix stage values
+and hundredth-second differences without changing NR precision. The public VM regression
+checks the working-to-public-to-builder scoring path, ready and blocked states,
+provisional tables with excluded rounds disclosed, unchanged NR graph defaults, a mapped
+dashed RS overlay, separate RS tables and RS-only events absent from NR Home or standings.
+Mocked admin tests exercise the real selective-copy preview (matched, conflicting,
+missing and RS-only crews), the copy button, no mutation on cancellation/error, file-only
+sources and TEST entry, backup/undo warnings, profile merges and demo projection
+boundaries. These tests do not certify unresolved SSR clauses or a live dataset.
 
 ## Manual check after a publish
 

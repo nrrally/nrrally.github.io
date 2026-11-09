@@ -51,7 +51,7 @@ every photo record or recreate external accounts. See [recovery.md](recovery.md#
 
 - **Times** are strings exactly as printed: `"m:ss.s"` for stage times (e.g. `"12:36.3"`), and `"h:mm:ss.s"` or `"m:ss.s"` for totals and penalties.
   - `null` or `""` means no time.
-  - The engine converts times to seconds, rounded to 0.1 s (`parseTime`).
+  - NR calculations retain their existing 0.1 s `parseTime` behavior. RS graph observations use a separate parser that preserves the supplied decimal precision, including hundredths, for stage ordering, differences and labels.
 - **Classes** are stored upper-case with no spaces (`"NR1"`). `normClass` removes spaces and upper-cases, so `"NR 1"` becomes `"NR1"`.
 - **People** are matched by name, ignoring case, accents and repeated spaces.
   - `"Jan van der Merwe"` and `"Jan Van Der Merwe"` match the same profile.
@@ -177,7 +177,9 @@ display does not relax strict round schedule/status validation.
     "countsForChampionship": true,
     "championshipEvidence": "Event-specific championship evidence",
     "doublePoints": false,
-    "doublePointsEvidence": "Required only when doublePoints is true"
+    "doublePointsEvidence": "Required only when doublePoints is true",
+    "starterCount": null,
+    "starterCountEvidence": null
   }],
   "results": [{
     "id": "rs-result-id",
@@ -192,7 +194,7 @@ display does not relax strict round schedule/status validation.
       "car": "1", "driver": "Stable-name-or-alias", "codriver": "Stable-name-or-alias",
       "class": "RS2", "status": "classified", "pos": 1, "classPos": 1,
       "times": ["01:23.4"], "stagePos": [1], "penalty": null, "total": "01:23.4",
-      "timeEvidence": [null], "notes": [], "invited": false
+      "timeEvidence": [null], "notes": [], "invited": false, "startEvidence": null
     }]
   }],
   "nonScoringPeople": ["stable-person-id"]
@@ -216,13 +218,27 @@ only when an event is marked double-points.
 
 RS rows preserve printed RS position/status, class, each separately recorded stage
 value, penalty and total. Missing values are null/empty, not zero; RS final status and
-position are never inferred from sums. Unknown RS categories block publication until
-their class/rules are confirmed; RS2 and RS4 are the only configured categories.
-`TEST` is a preserved source status, not an alias for DNS or DNF; its scoring/starter
-semantics are unsupported and block event points. Class scoring order uses printed
-`classPos` when present, otherwise `pos` within class; a still-tied scoring position
-blocks points. Later-stage times remain independent observations even after an earlier
-missing value.
+position are never inferred from sums. A source may be identified by HTTPS URL, source
+file name or description; a local-only source need not be assigned an invented URL.
+RS2 and RS4 are the only configured championship classes. Other printed categories and
+their rows remain in event results but block that event's scoring until supported;
+they are never dropped or silently mapped to a championship class. `TEST` is preserved
+as its own printed status, appears in event results, and never receives championship
+points or a TEST championship table. It is not an alias for DNS or DNF.
+
+The 2026 profile gives a started DNF no championship points while counting it as a
+starter. A DNF counts as a proven start only with stage/start evidence or a reviewed
+event starter count. `starterCount` means a reviewed count of non-TEST starters, with
+source evidence in `starterCountEvidence`; this can establish the 15-starter minimum
+without deciding whether TEST entries count. If fewer than 15 non-TEST starters are
+established and TEST entries could change the result, the event remains blocked because
+their contribution to SSR 7.3 is unresolved.
+
+Class scoring order uses printed `classPos` only if every classified entrant in that
+class has one. Otherwise, all entries in that class use printed overall `pos` as one
+consistent ordering basis. A tied or conflicting scoring order blocks points; original
+overall and class positions remain unchanged. Later-stage times remain independent
+observations even after an earlier missing value.
 `timeEvidence` is stage-aligned. For `reviewed-nr-copy`, it records the NR round, car,
 exact stage ID and copied value as a snapshot; it never becomes a live pointer.
 
@@ -235,12 +251,22 @@ decision inputs and event applicability/bulletin evidence are stripped from the 
 projection. The projection retains source links, official result rows, derived event
 points and derived RS standings only.
 
-The public tables and scorer are rebuilt from this optional layer on load. The public
-bundle contains RS data inside `public/season_<year>`; there is no separate collection
-or publication path. App backups and whole-document History include the working RS
-field; public projection excludes the private decision inputs. Existing generic restore,
-undo and revision/rebase validators therefore retain and validate the RS layer as part
-of the same season document. See [recovery.md](recovery.md).
+The working/admin scorer recalculates from private inputs. The public projection strips
+membership toggles, invitations, starter evidence/counts, and event applicability or
+bulletin evidence, while carrying validated derived scoring for the public builder; it
+does not trust public scoring snapshots in private/admin builds. Malformed or
+incompatible public scoring is surfaced as unavailable rather than replaced with
+success-shaped empty standings. Provisional cumulative tables may include supported
+completed rounds while explicitly listing blocked/unavailable rounds and the missing
+season rule evidence; they are not final eligibility or a champion declaration.
+
+The public bundle contains RS data inside `public/season_<year>`; there is no separate
+collection or publication path. App backups and whole-document History include the
+working RS field; public projection excludes the private decision inputs. Restore and
+undo warn before replacing or dropping RS records, evidence, and non-scoring settings.
+Profile merges carry the RS non-scoring decision with the stable identity. Revision/
+rebase validators retain and validate the RS layer as part of the same season document.
+See [recovery.md](recovery.md).
 
 ## Documented entry participation (stored on the season)
 

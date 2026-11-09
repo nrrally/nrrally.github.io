@@ -14,13 +14,35 @@
     });
   }
   var r1 = E.r1, fmtTime = E.fmtTime, ord = E.ord, slug = E.slug;
-  function fmtShort(sec) { // axis labels
+  function fmtShort(sec, precision) { // axis labels
+    if (precision > 1) {
+      if (sec < 60) return sec.toFixed(precision) + 's';
+      var minutes = Math.floor(sec / 60), seconds = (sec - minutes * 60).toFixed(precision);
+      if (Number(seconds) >= 60) { minutes++; seconds = (0).toFixed(precision); }
+      if (minutes >= 60) {
+        var hours = Math.floor(minutes / 60); minutes -= hours * 60;
+        return hours + ':' + (minutes < 10 ? '0' : '') + minutes + ':' + (Number(seconds) < 10 ? '0' : '') + seconds;
+      }
+      return minutes + ':' + (Number(seconds) < 10 ? '0' : '') + seconds;
+    }
     if (sec < 60) return Math.round(sec) + 's';
     var m = Math.floor(sec / 60), s = Math.round(sec - m * 60);
     if (m >= 60) { var h = Math.floor(m / 60); m = m - h * 60; return h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s; }
     return m + ':' + (s < 10 ? '0' : '') + s;
   }
   function fmtDiff(sec) { sec = Math.abs(sec); return sec < 60 ? sec.toFixed(1) + 's' : fmtTime(sec); }
+  function fmtGraphTime(sec, precision) {
+    if (precision == null) return fmtTime(sec);
+    var neg = sec < 0, value = Math.abs(sec), hours = Math.floor(value / 3600);
+    value -= hours * 3600;
+    var minutes = Math.floor(value / 60);
+    value -= minutes * 60;
+    var seconds = value.toFixed(precision);
+    if (Number(seconds) < 10) seconds = '0' + seconds;
+    var text = hours ? hours + ':' + (minutes < 10 ? '0' : '') + minutes + ':' + seconds :
+      minutes ? minutes + ':' + seconds : Number(value).toFixed(precision) + 's';
+    return (neg ? '-' : '') + text;
+  }
   function surname(n) { var p = String(n).split(' '); return p.length > 1 ? p.slice(1).join(' ') : n; }
   function fmtDate(iso) {
     if (!iso) return '';
@@ -99,7 +121,7 @@
     if (ST.pending[year]) return ST.pending[year];
     ST.pending[year] = getPublic('season_' + year).then(function (b) {
       if (!b) throw loadError('empty', 'The ' + year + ' season hasn\'t been published yet.');
-      var model = E.buildSeason({ season: b.season, rounds: b.rounds || {}, people: ST.people });
+      var model = E.buildSeason({ season: b.season, rounds: b.rounds || {}, people: ST.people, publicProjection: true });
       model.entryLists = model.entryLists || [];
       model.people.forEach(function (p) { p.entries = p.entries || []; });
       model.year = +year; model.raw = b.season;
@@ -462,7 +484,9 @@
       }).join('');
       var html = '<div class="page-head"><div><p class="eyebrow">' + YEAR + ' · RallyeSport event classification</p><h1>' + esc(event.name) + '</h1><p>' + esc(event.dates || '') + '</p></div><a class="btn" href="' + sh('/rallyesport') + '">All RS tables</a></div>';
       html += '<div class="card"><p><b>' + esc(result.title) + '</b> · ' + esc(result.status) + '</p>' +
-        (result.source && safeUrl(result.source.url) ? '<p><a href="' + esc(safeUrl(result.source.url)) + '" target="_blank" rel="noopener">Official source classification ↗</a></p>' : '') +
+        (result.source && safeUrl(result.source.url) ? '<p><a href="' + esc(safeUrl(result.source.url)) + '" target="_blank" rel="noopener">Official source classification ↗</a></p>' :
+          result.source && (result.source.file || result.source.description) ? '<p><b>Source evidence:</b> ' + esc(result.source.file || result.source.description) +
+            (result.source.file && result.source.description ? ' · ' + esc(result.source.description) : '') + '</p>' : '') +
         ((result.notes || []).length ? '<p>' + result.notes.map(esc).join('<br>') + '</p>' : '') +
         '<p class="small muted">This table preserves the official RS order and statuses. Times, penalties and totals are source fields; missing values are not zero and no finish status is inferred from stage sums.</p></div>';
       if (score) html += '<div class="callout ' + (score.status === 'ready' ? '' : 'warn') + '"><div><b>' + (score.status === 'ready' ? 'RS event points' : 'RS event points not calculated') + '</b><p>' + esc(score.reason || (score.status === 'ready' ? 'Class points are also used for the overall Clubman’s Challenge.' : '')) + '</p></div></div>';
@@ -477,12 +501,27 @@
     htmlList += '<div class="card"><h2>RS championship scoring: ' + esc(scoring.status) + '</h2><p>' + esc(scoring.reason || '') + '</p>';
     if (rs.ruleset && safeUrl(rs.ruleset.sourceUrl)) htmlList += '<p><a href="' + esc(safeUrl(rs.ruleset.sourceUrl)) + '" target="_blank" rel="noopener">2026 Rallysprint SSR V1 — issued 9 July 2026 ↗</a></p>';
     htmlList += '<p class="small muted">The 2026 SSRs are applied only to confirmed 2026 events. No NR points or status are reused. Round tie countback, finisher qualification and season tie-break ordering remain unresolved; affected scoring is withheld rather than guessed.</p></div>';
-    if (scoring.status === 'ready' && scoring.standings) {
-      htmlList += rsStandingsTable('Overall drivers', scoring.standings.overallDrivers) +
-        rsStandingsTable('Overall co-drivers', scoring.standings.overallCodrivers);
+    var standings = scoring.status === 'ready' ? scoring.standings : scoring.provisionalStandings;
+    if (standings) {
+      if (scoring.status !== 'ready') {
+        var included = (scoring.includedProvisionalEvents || []).map(function (id) {
+          var event = rs.events.filter(function (row) { return row.id === id; })[0];
+          return event ? event.name : id;
+        });
+        htmlList += '<div class="callout warn"><div><b>Provisional cumulative points — supported completed events only</b><p>These totals include only event rows currently scored as ready. They are not final season eligibility or final standings, and no unknown points are treated as zero.</p>' +
+          '<p class="small">Included: ' + esc(included.join(', ') || 'none') + '</p>' +
+          ((scoring.excludedProvisionalEvents || []).length ? '<p class="small">Blocked/unscored events are excluded, not assigned zero: ' +
+            scoring.excludedProvisionalEvents.map(function (row) {
+              var event = rs.events.filter(function (item) { return item.id === row.eventId; })[0];
+              return esc((event && event.name) || row.eventId) + ' — ' + esc(row.reason);
+            }).join('; ') + '</p>' : '') + '</div></div>';
+      }
+      var labelPrefix = scoring.status === 'ready' ? '' : 'Provisional · ';
+      htmlList += rsStandingsTable(labelPrefix + 'Overall drivers', standings.overallDrivers) +
+        rsStandingsTable(labelPrefix + 'Overall co-drivers', standings.overallCodrivers);
       ['RS2', 'RS4'].forEach(function (cls) {
-        htmlList += rsStandingsTable(cls + ' drivers', scoring.standings.classDrivers[cls]) +
-          rsStandingsTable(cls + ' co-drivers', scoring.standings.classCodrivers[cls]);
+        htmlList += rsStandingsTable(labelPrefix + cls + ' drivers', standings.classDrivers[cls]) +
+          rsStandingsTable(labelPrefix + cls + ' co-drivers', standings.classCodrivers[cls]);
       });
     } else htmlList += '<div class="card empty"><b>Championship totals are not available.</b><p>' + esc(scoring.reason || 'Scoring rules are unconfigured.') + ' Event classifications remain available below.</p></div>';
     htmlList += '<div class="section"><div class="section-head"><h2>RS event classifications</h2></div>';
@@ -618,7 +657,7 @@
     }).join('') + '</div>' : '';
     var html = '<div class="graph-layout">' + picker + '<div>' + mbar + '<div class="card chart-card"><div class="chart-title"><h3>' + esc(metric.label) + '</h3><p>' + esc(metric.help) + '</p></div>' + legend + chartHtml + '</div>';
     if (cars.length === 2) html += headToHead(r, cars[0], cars[1]);
-    if (rsOn && rsResults.length) html += '<p class="small muted">Dashed RS series are built only from the RS classification and its explicit stage mappings. Intermediate rank/gap displays are stage-time comparisons; the final RS order/status remains the official source record. No NR status or identity is inferred.</p>';
+    if (rsOn && rsResults.length) html += '<p class="small muted">Dashed RS series use only the RS classification and explicit stage mappings. NR and RS positions, class positions and gaps are computed within their separate source fields; an overlaid line does not put both competitions on a shared leaderboard. Final RS order/status remains the official RS source record.</p>';
     if (cars.length) html += selectedStageTable(r, cars);
     html += '</div></div>';
     mounts.push(function () { mountGraphControls(r, cars); });
@@ -680,8 +719,15 @@
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(function () { Object.keys(charts).forEach(fitChart); }, 120);
   });
-  function niceStep(span, maxTicks) {
+  function niceStep(span, maxTicks, precision) {
     var steps = [1, 2, 5, 10, 15, 20, 30, 60, 120, 300, 600, 900, 1200, 1800, 3600, 7200];
+    if (precision > 1) {
+      var fractional = [];
+      for (var exp = -precision; exp < 0; exp++) [1, 2, 5].forEach(function (base) {
+        fractional.push(base * Math.pow(10, exp));
+      });
+      steps = fractional.concat(steps);
+    }
     for (var i = 0; i < steps.length; i++) if (span / steps[i] <= maxTicks) return steps[i];
     return steps[steps.length - 1];
   }
@@ -705,10 +751,12 @@
         fmt = function (v) { return 'P' + v; };
       } else {
         var mx = Math.max.apply(null, vals); if (mx <= 0) mx = 10;
-        var step = niceStep(mx, small ? 4 : 6); var top = Math.ceil(mx / step) * step;
+        var timePrecision = cfg.metric && ['gap', 'cgap', 'loss'].indexOf(cfg.metric.id) >= 0 ?
+          cfg.series.reduce(function (max, series) { return Math.max(max, series.timePrecision || 1); }, 1) : 1;
+        var step = niceStep(mx, small ? 4 : 6, timePrecision); var top = Math.ceil(mx / step) * step;
         y = function (v) { return m.t + (v / top) * ih; };
         for (var tt = 0; tt <= top + 1e-6; tt += step) ticks.push(tt);
-        fmt = function (v) { return v === 0 ? '0' : '+' + fmtShort(v); };
+        fmt = function (v) { return v === 0 ? '0' : '+' + fmtShort(v, timePrecision); };
       }
       geo.x = x; geo.W = W;
       var rad = small ? 3.5 : 4.5;
@@ -750,7 +798,8 @@
       var label = cfg.labels[i] === 'Final' ? 'Final (official, incl. penalties)' : 'After ' + cfg.labels[i];
       if (metric.id === 'loss' || metric.id === 'spos') label = cfg.labels[i];
       tip.innerHTML = '<h4>' + esc(label) + '</h4>' + (rows.length ? rows.map(function (o) {
-        var val = metric.kind === 'rank' ? 'P' + o.v : (o.v < 0.05 ? (metric.id === 'loss' ? 'fastest' : 'leader') : '+' + fmtTime(o.v));
+        var val = metric.kind === 'rank' ? 'P' + o.v : (Math.abs(o.v) < 1e-9 ? (metric.id === 'loss' ? 'fastest' : 'leader') :
+          '+' + fmtGraphTime(o.v, o.se.timePrecision));
         return '<div class="row"><i style="background:' + o.se.color + '"></i><span>' + esc(o.se.label) + '</span><b>' + val + '</b></div>';
       }).join('') : '<div class="muted">No times</div>');
       var rect = svg.getBoundingClientRect(), scale = rect.width / geo.W, px = geo.x(i) * scale;

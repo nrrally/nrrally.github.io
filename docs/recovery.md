@@ -233,22 +233,31 @@ RallyeSport is a separate optional season subdocument. Keep RS event/result IDs,
 stage selection, official order/status, penalties and derived scores isolated from NR.
 Reviewed shared-stage reuse stores a time-value snapshot plus explicit provenance; it is
 not a live pointer and never imports NR status, class, position, penalty or points. Public
-graph overlays are optional presentation only. The 2026 Rallysprint SSR V1 profile is event-confirmed for the three 2026 club
-classifications named in the current request and the independent June Round 1
-classification despite the July issue date. This is not a general retroactive rule or a
-future-season confirmation. Unknown classes fail closed. The unspecified non-scoring
-class, blank SSR finisher clause, unsupported TEST-row scoring semantics and season
-tie-break remain limitations; the app does not recompute the SSR 7.5 stage-time tie-break
-if a scoring position remains tied. Do not broaden these rules during restore or a future
-annual copy. See the
+graph overlays are optional presentation only; RS stage ranks/gaps are not NR ranks/gaps,
+and RS graph precision does not change NR calculations. The 2026 Rallysprint SSR V1
+profile is event-confirmed for the four specified 2026 classifications (June Round 1
+despite the July issue date and the Legends, Ermelo and TRAC club classifications). This
+is not a general retroactive rule or a future-season confirmation. Other categories are
+preserved in event results but block that event's scoring. The user-confirmed DNF rule is
+zero RS championship points for a starter who does not finish, while counting that
+starter for the 15-starter requirement only with source-backed start evidence or reviewed
+non-TEST event count. TEST entries are retained and never score; whether they count toward
+the 15-starter minimum remains unresolved when fewer than 15 non-TEST starters are
+established. The unspecified non-scoring class, blank SSR 7.4/7.6 details, season
+tie-break and SSR 7.5 tie-break implementation remain limitations. Do not broaden these
+rules during restore or a future annual copy. See the
 [RS scoring boundaries](scoring-rules.md#rallyesport-separate-ruleset-and-records).
 
 The RS member toggle and event invitation/applicability/bulletin inputs are in the private
 season document and its History/backup. The public projection contains only source-backed
 RS results plus derived public points/tables; never restore a hand-edited public projection.
-Normal app backup restore and undo replace the season as a whole; validate the RS fields
-and recheck event/source evidence in the ordinary review flow. The isolated local feature
-work has made no Firebase, History, rules or provider changes.
+The public scoring snapshot is not trusted by private/admin calculations, and demo mode
+cannot reconstruct its private eligibility inputs. Normal app backup restore and undo
+replace the season as a whole; an RS-specific loss/replacement warning precedes mutation
+and cancellation leaves the draft unchanged. Check RS evidence after restore in ordinary
+review. Profile merges carry a non-scoring decision across verified profile IDs in every
+season without changing NR results. The isolated local feature work has made no Firebase,
+History, rules or provider changes.
 
 ## 4. Auth, rules and administrative audit boundaries
 

@@ -38,8 +38,8 @@ function emptySeason() {
   s.msa = { confirmedRounds: [] }; s.notes = [];
   return s;
 }
-function select(api, season, rounds = {}) {
-  const model = E.buildSeason({ season, rounds, people: api.ST.people });
+function select(api, season, rounds = {}, publicProjection = false) {
+  const model = E.buildSeason({ season, rounds, people: api.ST.people, publicProjection });
   api.ST.models[season.year] = model;
   api.useSeason(model);
   return model;
@@ -65,11 +65,50 @@ test('RS tables are separate and optional mapped overlays do not change NR graph
   const overlay = api.viewRound('R1', 'graph', { cars: '1', m: 'pos', rs: '1' }).html;
   assert.ok(overlay.includes('data-key="RS:rs-only-results:1"'));
   assert.ok(overlay.includes('Dashed RS series'));
+  assert.ok(overlay.includes('separate source fields'));
   const rsPage = api.viewRallyeSport().html;
   assert.ok(rsPage.includes('Synthetic RS-only Event'));
   assert.ok(rsPage.includes('Final RS classification'));
   assert.ok(!api.viewHome().html.includes('Synthetic RS-only Event'));
   assert.ok(!api.viewStandings('driver', {}).html.includes('Synthetic RS-only Event'));
+});
+test('public RallyeSport pages show provisional cumulative tables and disclose unscored events', () => {
+  const api = harness(), season = emptySeason(), people = { people: [] }, entries = [];
+  for (let n = 1; n <= 15; n++) {
+    people.people.push({ id: 'rs-driver-' + n, name: 'RS Driver ' + n, aliases: [] });
+    people.people.push({ id: 'rs-co-' + n, name: 'RS Co-driver ' + n, aliases: [] });
+    entries.push({ car: String(n), driver: 'RS Driver ' + n, codriver: 'RS Co-driver ' + n,
+      class: 'RS2', status: 'classified', pos: n, classPos: n, total: '00:01.0',
+      times: ['00:01.0'], stagePos: [n], invited: false });
+  }
+  const event = id => ({ id, name: id === 'ready-rs' ? 'Ready RS round' : 'Blocked RS round',
+    dates: 'Synthetic', rulesetConfirmed: true, rulesetEvidence: 'Synthetic confirmation',
+    countsForChampionship: true, championshipEvidence: 'Synthetic round status', doublePoints: false });
+  const result = (id, status) => ({ id: id + '-results', eventId: id, title: 'Synthetic classification',
+    status, source: { file: 'synthetic.pdf', url: 'https://example.com/synthetic.pdf' }, notes: [],
+    stages: [{ id: 'stage1', label: 'Stage 1' }],
+    entries: entries.map(entry => ({ ...entry, times: entry.times.slice(), stagePos: entry.stagePos.slice() })) });
+  season.year = 2026;
+  const raw = { ruleset: {
+    code: 'clubman-sprint-2026-v1', year: 2026,
+    title: '2026 MSA RallyeSport Association Club Standing Supplementary Regulations — Rallysprint',
+    version: 1, issueDate: '2026-07-09',
+    sourceUrl: 'https://www.motorsport.co.za/wp-content/uploads/2026/07/2026-MSA-RallyeSport-Association-SSRs-V1.pdf'
+  }, events: [event('ready-rs'), event('blocked-rs')], results: [
+    result('ready-rs', 'Final classification'), result('blocked-rs', 'Provisional classification')
+  ], nonScoringPeople: [] };
+  season.rallyesport = E.projectRallyeSport(raw, season, people);
+  api.ST.people = people;
+  const model = E.buildSeason({ season, rounds: {}, people, publicProjection: true });
+  api.ST.models[season.year] = model;
+  api.useSeason(model);
+  assert.equal(model.rallyesport.scoring.status, 'blocked');
+  assert.ok(model.rallyesport.scoring.provisionalStandings.overallDrivers.length);
+  const page = api.viewRallyeSport().html;
+  assert.ok(page.includes('Provisional cumulative points — supported completed events only'));
+  assert.ok(page.includes('Ready RS round'));
+  assert.ok(page.includes('Blocked RS round — The source classification is provisional'));
+  assert.ok(page.includes('no unknown points are treated as zero'));
 });
 function entryList(entries, complete = true) {
   return { eventId: 'test-event', roundIds: ['R1'], complete,

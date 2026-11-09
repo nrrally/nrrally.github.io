@@ -351,3 +351,45 @@ responsive header checks. Browser runners do not contact real Firebase,
 Google Analytics or other external providers. No private result fixtures, live sign-in,
 deployed rules, real data migration or actual publication was tested. This entry records
 local preparation, not release approval or deployment evidence.
+
+### Local RS follow-up corrections (not pushed or published)
+
+The local continuation corrects the implementation boundaries above; it does not
+authorize a release. A started DNF earns no RS championship points but counts as a
+starter when source evidence or a reviewed non-TEST starter count establishes it. A
+no-time DNF is not assumed to have started. TEST rows remain in event results, never
+score and do not get a championship class table; if fewer than 15 non-TEST starters are
+established and TEST entries could change the SSR 7.3 threshold, scoring stays blocked.
+This follows the user-confirmed DNF rule and preserves the unresolved TEST-starter
+question. The prior paragraph's statement that any DNF blocks scoring and that TEST
+starter treatment is wholly unsupported is superseded by this clarification.
+
+Class scoring now uses one consistent position basis per class: printed class positions
+only when complete, otherwise overall positions for every entry in that class. Conflicting
+or still-tied order blocks points. The RS graph preserves hundredths for stage metrics and
+tooltips, retains independent later-stage observations after gaps, and explicitly treats
+RS and NR positions/gaps as separate comparisons; NR calculations are unchanged.
+
+Published scoring snapshots are consumed only at the public boundary; private/admin
+calculation recomputes from private eligibility inputs. Provisional in-season tables show
+supported completed events and disclose excluded/blocked events, without asserting final
+qualification or a champion. Reviewed NR-time reuse previews matched, conflicting,
+missing and unmatched rows; it fills blank RS cells only after confirmation, preserving
+conflicts and RS-only crews. File-only source evidence is supported without an invented
+URL. Backup restore and undo warn about RS data loss/replacement before mutation, profile
+merges retain season-scoped RS non-scoring decisions, and demo mode does not imply it can
+reconstruct private eligibility.
+
+Validation uses synthetic records and local/mock browser traffic only; it does not read
+the sensitive membership workbook, publish real RS results, or contact live Firebase or
+analytics. The user-approved private source-result preview remains under session-state
+`files` and outside the repository. No code, real result records or private membership
+data were pushed, deployed, published, or written to Firebase/providers.
+
+Verification for this continuation: all 79 synthetic Node tests passed; the mocked
+admin-access and public site-theme browser suites passed with zero external requests or
+database writes. The private local preview rendered five season events and four source
+classifications (71 rows), with no remote assets. It produced provisional points only
+from the two supported final events; R1's source categories/TEST threshold, R2's
+provisional finality, and the unrun R5 remain disclosed and excluded rather than zeroed.
+One repeated-name crew-role conflict is retained as unresolved private identity evidence.

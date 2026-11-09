@@ -91,24 +91,32 @@ The implementation applies the documented scoring scope conservatively:
 - The event must be explicitly confirmed for the selected SSRs and as a championship
   round; double-points status must be explicit, with bulletin evidence when enabled.
 - SSR 7.3's minimum is 15 starters total at the event, not per competitor or class.
+  Started DNF rows earn no points but count as starters only when start evidence exists.
+  A no-time DNF is not proof of a start. Reviewed `starterCount` evidence records a
+  non-TEST starter count, so it can establish at least 15 without deciding whether TEST
+  entries count. If fewer than 15 non-TEST starters are established and TEST entries
+  could change the threshold, the event remains blocked.
 - Invitational entries do not score, but remain in the official classification.
   Their exclusion is distinct from the user-directed per-person “Non-Scoring RS Member”
   toggle. Absent that season-scoped toggle, everyone is assumed paid up for RS scoring;
   that assumption is not verified. Each role's eligible finishing order is recalculated
   independently, so a toggled driver/co-driver does not suppress their partner's points.
-- Points and standings require a source classification explicitly marked final. Any DNF
-  blocks that event's points because SSR 7.4's finisher provision is blank. DNS is not
-  treated as a starter. Official rows remain published unchanged.
-- Official `TEST` rows are retained as `TEST`; they are not rewritten as DNS or DNF.
-  Their scoring/starter treatment is not configured, so an event containing one remains
-  blocked for points. Stage observations are recorded independently: a later-stage time
-  after an earlier missing value remains visible in the source row and is never filled or
+- Event points require a source classification explicitly marked final. A started DNF
+  scores no points and counts as a starter under the user's explicit 2026 clarification;
+  DNS is not a starter. Official rows remain published unchanged. SSR 7.4's finisher
+  wording is blank, so no additional finisher rule or awards logic is inferred.
+- Official `TEST` rows and their printed order/status remain in event results, are
+  excluded from championship points, and do not create a TEST championship table, as
+  SSR 6.1(a) specifies. Whether TEST entries count toward SSR 7.3's 15 starters remains
+  unresolved. Stage observations are recorded independently: a later-stage time after
+  an earlier missing value remains visible in the source row and is never filled or
   treated as a gapless prefix.
 - Class points use the printed class position when present, otherwise the official overall
-  position to order entries within that class. A shared overall position across different
-  classes is not an unresolved within-class tie. If a class scoring position is still tied,
-  points are withheld; the app does not recompute the SSR 7.5 stage-time tie-break. Source
-  overall/class positions remain unchanged.
+  position for every entry in that class if any class position is missing. This avoids
+  comparing unlike position fields. A shared overall position across different classes is
+  not an unresolved within-class tie. Contradictory or still-tied scoring order blocks
+  points; the app does not recompute the SSR 7.5 stage-time tie-break. Source positions
+  remain unchanged.
 - SSR 7.5 is headed championship ties, but its wording addresses a round and specifies
   quickest stage time, then counts of second-fastest stage times and so on. This app does
   not recompute that official tie-break; a still-tied scoring position is withheld for
@@ -120,8 +128,11 @@ The implementation applies the documented scoring scope conservatively:
   declaration with any other round count blocks that event and the season pending
   clarification. For the five-round exception, both the event start date and bulletin
   issue date are required as real ISO calendar dates, and the engine checks the 14-day
-  notice interval. Season totals remain unavailable until the round-count requirement
-  and all scored event rows are supported.
+  notice interval. The current five-round season has no supplied bulletin; the engine
+  does not select a double-points event. If otherwise-supported completed events have
+  points while another event or season rule is unresolved, clearly labelled provisional
+  cumulative tables are available with excluded rounds and their reasons. Final
+  championship eligibility and a final champion remain gated.
 
 SSR 6.1(a)/(b) eligibility wording has been clarified by the user for implementation:
 assume paid-up status, provide the independent person toggle, and defer actual
@@ -140,17 +151,24 @@ unconfigured/blocked scoring while preserving official result tables.
 The NR graph remains unchanged and RS overlays are off by default. When explicitly
 enabled, dashed RS series use only the selected RS classification's times, official
 final RS position/status/total, and its explicit `nrStage` mapping to place observations
-on the NR x-axis. Intermediate stage ranks/gaps are RS time comparisons, not official
-NR calculations. The overlay does not infer a person or result match from car number,
-change NR series, or add RS to NR statistics.
+on the NR x-axis. RS per-stage positions and gaps are compared within RS; NR positions
+and gaps are compared within NR, so the two fields are not a shared leaderboard.
+Each valid later RS stage observation is retained for per-stage metrics when an earlier
+stage is missing; cumulative values remain discontinuous. RS graph parsing preserves
+source precision, including hundredths, for ranking, differences and labels; NR parsing
+and calculations retain existing precision. The overlay does not infer a person or
+result match from car number, change NR series, or add RS to NR statistics. RS-only
+events and result tables work without NR graph data.
 
 For shared physical stages, the admin offers a human-confirmed, one-time copy of RS
 stage-time values from an explicitly linked NR round, requiring the exact stage mapping
 and matching car plus reviewed stable crew identities. The copied strings and provenance
 are stored in RS; later NR corrections/status changes do not propagate. Only time values
 are copied—never NR DNF/DNS status, class, order, penalty or points. RS-only stages remain
-manually/source entered. This minimizes duplicate time entry without creating live
-cross-competition coupling.
+manually/source entered. The review preview copies only into blank RS time cells, flags
+different existing values for human review, and preserves missing/unmatched RS-only crews.
+The user must confirm before applying; on cancellation or error no RS data is changed.
+This minimizes duplicate time entry without creating live cross-competition coupling.
 
 ## AI Import capabilities and limits
 

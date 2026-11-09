@@ -346,7 +346,11 @@
     var staged = await readPublished();
     checkSession(version, user);
     A = newState(); A.mode = 'demo'; A.user = user;
-    Object.keys(staged.docs).forEach(function (p) { var obj = staged.docs[p]; A.docs[p] = { orig: norm(obj), obj: obj, deleted: false }; });
+    Object.keys(staged.docs).forEach(function (p) {
+      var obj = clone(staged.docs[p]);
+      if (/^data\/seasons\/\d+\/season\.json$/.test(p) && obj.rallyesport) delete obj.rallyesport.scoring;
+      A.docs[p] = { orig: norm(obj), obj: obj, deleted: false };
+    });
     afterLoad();
   }
   async function readPublished() {   // the published copy (public/ documents), which anyone can read
@@ -371,11 +375,13 @@
      removed; nothing is saved until you publish. Photos from a backup are staged too. */
   async function stageAll(set) {
     requireEntryContract();
+    var rsLoss = rallyeSportReplacementLoss(set.docs);
     var entryLoss = Object.keys(A.docs).some(function (p) {
       var before = A.docs[p].obj, after = set.docs[p];
       return !A.docs[p].deleted && before && E.entryEvidenceLoss(before, after, peopleDoc(), set.docs[PEOPLE]);
     });
     if (entryLoss && !window.confirm('This backup removes saved entry-list evidence or replaces crew/source details or day scope. Review the differences. Restore anyway? History records the replacement only when you publish.')) throw new Error('Backup restore cancelled; entry evidence retained.');
+    if (rsLoss.length && !window.confirm(rallyeSportLossMessage(rsLoss, 'backup restore'))) throw new Error('Backup restore cancelled; RallyeSport data retained.');
     Object.keys(A.docs).forEach(function (p) { if (!set.docs[p]) A.docs[p].deleted = true; });
     Object.keys(set.docs).forEach(function (p) {
       var obj = clone(set.docs[p]);
@@ -387,6 +393,21 @@
       if (b64) { A.bins[photoPath(p.id)] = { b64: b64, deleted: false }; p.photo = 'db:' + p.id; }
     }
     afterLoad();
+  }
+  function rallyeSportReplacementLoss(setDocs) {
+    var affected = [];
+    Object.keys(A.docs).forEach(function (p) {
+      var match = p.match(/^data\/seasons\/(\d+)\/season\.json$/), before = A.docs[p].obj, after = setDocs[p];
+      if (!match || !before) return;
+      var currentRs = A.docs[p].deleted ? null : before.rallyesport, nextRs = after && after.rallyesport;
+      if ((currentRs || nextRs) && norm(currentRs) !== norm(nextRs)) affected.push(match[1]);
+    });
+    return affected;
+  }
+  function rallyeSportLossMessage(yearsAffected, operation) {
+    return 'This ' + operation + ' will replace or delete RallyeSport data for season ' + yearsAffected.join(', ') +
+      ', including independent events, official classifications/results, source and stage-time evidence, and season-scoped Non-Scoring RS Member decisions. ' +
+      'Cancel leaves the working copy unchanged. Continue?';
   }
   function readBackup(text) {
     var b; try { b = JSON.parse(text); } catch (e) { throw new Error('That file isn\'t a backup (it isn\'t valid JSON).'); }
@@ -518,6 +539,16 @@
     return order.map(function (g) { return groups[g]; });
   }
   function stageUndo(g) {
+    var rsLoss = [];
+    g.items.forEach(function (it) {
+      var match = it.path.match(/^data\/seasons\/(\d+)\/season\.json$/), doc = A.docs[it.path];
+      if (!match || !doc) return;
+      var current = doc.deleted ? null : doc.obj;
+      var beforeObj = it.before == null ? null : JSON.parse(it.before);
+      var currentRs = current && current.rallyesport, beforeRs = beforeObj && beforeObj.rallyesport;
+      if ((currentRs || beforeRs) && norm(currentRs) !== norm(beforeRs)) rsLoss.push(match[1]);
+    });
+    if (rsLoss.length && !window.confirm(rallyeSportLossMessage(rsLoss, 'History undo'))) return false;
     var before = clone(peopleDoc().people);
     g.items.forEach(function (it) {
       if (photoIdOf(it.path)) return;                   // photos aren't kept in the history
@@ -527,6 +558,7 @@
     var keep = {}; peopleDoc().people.forEach(function (p) { if (/^db:/.test(p.photo || '')) keep[p.photo] = 1; });
     before.forEach(function (p) { if (/^db:/.test(p.photo || '') && !keep[p.photo]) A.bins[photoPath(p.photo.slice(3))] = { deleted: true }; });
     afterLoad();
+    return true;
   }
   async function saveAdmins(list) {   // takes effect immediately (it isn't part of a publish)
     var r = await fs('POST', ':commit', { writes: [{ update: { name: NAME + 'config/admins', fields: fsFields({ emails: list }) }, currentDocument: { updateTime: A.admins.updateTime } }] }, { commit: true });
@@ -1315,7 +1347,21 @@
         [o.name].concat(o.aliases || []).forEach(function (n) { if (n !== p.name && p.aliases.indexOf(n) < 0) p.aliases.push(n); });
         if (!p.bio && o.bio) p.bio = o.bio; if (!p.photo && o.photo) p.photo = o.photo;
         Object.keys(o.links || {}).forEach(function (k) { if (!p.links[k]) p.links[k] = o.links[k]; });
-        years().forEach(function (y) { var se = season(y); if (!se || !se.classMap) return; ['drivers', 'codrivers'].forEach(function (k) { var cm = se.classMap[k] || {}; if (cm[o.id] && !cm[id]) cm[id] = cm[o.id]; delete cm[o.id]; }); });
+        years().forEach(function (y) {
+          var se = season(y); if (!se) return;
+          if (se.classMap) ['drivers', 'codrivers'].forEach(function (k) {
+            var cm = se.classMap[k] || {};
+            if (cm[o.id] && !cm[id]) cm[id] = cm[o.id];
+            delete cm[o.id];
+          });
+          if (se.rallyesport && Array.isArray(se.rallyesport.nonScoringPeople)) {
+            var people = se.rallyesport.nonScoringPeople, oldIndex = people.indexOf(o.id);
+            if (oldIndex >= 0) {
+              if (people.indexOf(id) < 0) people.push(id);
+              se.rallyesport.nonScoringPeople = people.filter(function (personId) { return personId !== o.id; });
+            }
+          }
+        });
         doc.people.splice(doc.people.indexOf(o), 1); A.merge = null; toast('Merged. Publish to make it live.', 'good'); render();
       }, 'Merge') + '</div></div></div>';
     html += '<div class="card danger"><h3>Delete profile</h3><p class="small">' + (apps.length ? 'This person appears in results, so their profile would simply be re-created from the sheets. Merge instead if it\'s a duplicate.' : 'Removes the profile.') + '</p>' +
@@ -1337,20 +1383,37 @@
     }
     return data;
   }
-  function copyReviewedRsTimes(data, result, y) {
+  function copyReviewedRsTimes(result, y) {
     if (!result.nrRoundId) throw new Error('Choose an explicitly linked NR round first.');
     var nr = rawRound(result.nrRoundId, y);
     if (!nr) throw new Error('The linked NR round has no source-backed results.');
     if (!(result.entries || []).length) throw new Error('Add RS classification rows before copying times.');
-    if (!window.confirm('Copy only explicitly mapped stage-time values from the linked NR source into this independent RS snapshot? RS status, class, order, penalties and points will not be copied; later NR edits will not change this copy.')) return;
-    s.rallyesport = data;
-    var snapshot = E.copyReviewedRallyeSportTimes(result, nr, peopleDoc());
-    result.entries = snapshot.entries;
+    var preview = E.copyReviewedRallyeSportTimes(result, nr, peopleDoc()), report = preview.report;
+    function examples(items, render) { return items.slice(0, 5).map(render).join('; ') + (items.length > 5 ? '; and ' + (items.length - 5) + ' more' : ''); }
+    var message = 'Review mapped NR times before applying this independent RS snapshot.\n\n' +
+      'New blank RS times to copy: ' + report.copied.filter(function (item) { return !item.unchanged; }).length +
+      '\nAlready identical: ' + report.copied.filter(function (item) { return item.unchanged; }).length +
+      '\nConflicting existing RS times (left unchanged): ' + report.conflicts.length +
+      '\nMissing mapped NR observations (left unchanged): ' + report.missing.length +
+      '\nUnmatched RS-only/unresolved crews (preserved): ' + report.unmatched.length +
+      '\nNR DNS rows skipped: ' + report.skippedDns.length;
+    if (report.conflicts.length) message += '\n\nConflicts: ' + examples(report.conflicts, function (item) {
+      return 'car ' + item.car + ' ' + item.stage + ' RS=' + item.rsValue + ', NR=' + item.nrValue;
+    });
+    if (report.missing.length) message += '\n\nMissing: ' + examples(report.missing, function (item) { return 'car ' + item.car + ' ' + item.stage; });
+    if (report.unmatched.length) message += '\n\nUnmatched: ' + examples(report.unmatched, function (item) { return 'car ' + item.car + ' (' + item.reason + ')'; });
+    message += '\n\nApply only new values into blank RS cells? Existing RS evidence and all RS status/class/order/penalty/points remain unchanged.';
+    if (!window.confirm(message)) return;
+    result.entries = preview.entries;
+    var added = report.copied.filter(function (item) { return !item.unchanged; }).length;
+    toast(added ? 'Copied ' + added + ' reviewed blank RS stage value(s); existing conflicts were preserved.' :
+      'No RS times changed; conflicts, missing values and unmatched rows were preserved.', added ? 'good' : 'warn');
   }
   function viewRallyeSport() {
     var s = season(), data = rallyeSportData(s), built = model(A.year), scoring = built.rallyesport.scoring;
     var html = pageHead(A.year + ' · independent competition', 'RallyeSport', 'Separate RS events, classifications and scoring. RS-only events need no NR calendar entry; shared stages are reused only by reviewed, independent snapshots.');
-    html += '<div class="callout warn"><div><b>Membership assumption and unresolved rule boundaries</b><p>Unless an individual is marked below, the system assumes that person is paid up for RS scoring; this is not verified membership data. The “Non-Scoring RS Member” toggle applies to that person across this RS season only. NR data and NR calculations are unchanged. SSR 7.5 specifies stage-time round tie-breaks, but this app does not recompute tied official positions. Finisher qualification and season tie-break order remain unresolved.</p></div></div>';
+    html += '<div class="callout warn"><div><b>Membership assumption and unresolved rule boundaries</b><p>Unless an individual is marked below, the system assumes that person is paid up for RS scoring; this is not verified membership data. The “Non-Scoring RS Member” toggle applies to that person across this RS season only. NR data and NR calculations are unchanged. SSR 7.5 specifies stage-time round tie-breaks, but this app does not recompute tied official positions. Finisher qualification and season tie-break order remain unresolved.</p>' +
+      (A.mode === 'demo' ? '<p>Demo data is a public projection: its published scoring snapshot is removed before private validation. Member, invitation and starter-count inputs are not public, so this demo cannot reconstruct eligibility or reproduce the published scoring calculation.</p>' : '') + '</div></div>';
     html += '<div class="card"><h3>Ruleset evidence</h3>';
     if (A.year === 2026) {
       html += '<p class="small">The supported profile is the 2026 MSA RallyeSport Association Club Standing Supplementary Regulations — Rallysprint, Version 1, issued 9 July 2026. SSR 1.2 limits it to calendar year 2026. It is not a default for other RS events or seasons.</p>' +
@@ -1373,7 +1436,7 @@
           if (!on && i >= 0) data.nonScoringPeople.splice(i, 1);
         }, (data.nonScoringPeople || []).indexOf(person.id) >= 0, esc(person.name) + ' — Non-Scoring RS Member', 'data-rerender');
       }).join('') + '</div>' : '<p class="small">Add reviewed shared identities in Competitors before scoring results.</p>') + '</div>';
-    html += '<div class="card"><h3>Championship scoring state</h3><p><b>' + esc(scoring.status) + '</b> — ' + esc(scoring.reason || '') + '</p><p class="small muted">Official RS event classifications remain displayable even when championship scoring is blocked or unresolved. Event points require 15 starters overall, confirmed event applicability, explicit invitation status, final source classification and reviewed competitor identities.</p></div>';
+    html += '<div class="card"><h3>Championship scoring state</h3><p><b>' + esc(scoring.status) + '</b> — ' + esc(scoring.reason || '') + '</p><p class="small muted">Official RS event classifications remain displayable even when championship scoring is blocked or unresolved. Event points require 15 source-backed starters overall, confirmed event applicability, explicit invitation status, final source classification and reviewed competitor identities. A started DNF earns no points but counts as a starter; a no-time DNF needs explicit start evidence or a reviewed event starter count.</p></div>';
     html += '<div class="section"><div class="section-head"><h2>Independent RS events</h2>' + btn(function () {
       s.rallyesport = data;
       var id = uniqueId('rs-event-' + A.year, Object.fromEntries(data.events.map(function (e) { return [e.id, true]; })));
@@ -1405,6 +1468,8 @@
         fld('Championship status', select(function (v) { event.countsForChampionship = v === '' ? undefined : v === 'true'; }, event.countsForChampionship == null ? '' : String(event.countsForChampionship),
           [['', 'Unconfirmed'], ['true', 'Counts toward championship'], ['false', 'Event only; not a championship round']], 'data-rerender')) +
         fld('Championship evidence', input(function (v) { event.championshipEvidence = v; }, event.championshipEvidence || '', 'maxlength="1000"'), '', 'span2') +
+        fld('Reviewed non-TEST starter count (optional)', input(function (v) { event.starterCount = numOrNull(v); }, event.starterCount, 'inputmode="numeric" min="0"'), 'Count source-confirmed starters with a non-TEST classification. If TEST entries could affect whether the 15-starter threshold is met, scoring stays unresolved.', 'span2') +
+        fld('Non-TEST starter-count evidence', input(function (v) { event.starterCountEvidence = v; }, event.starterCountEvidence || '', 'maxlength="1000"'), 'Record the source and locator for the reviewed count.', 'span2') +
         fld('Double points', select(function (v) { event.doublePoints = v === '' ? undefined : v === 'true'; }, event.doublePoints == null ? '' : String(event.doublePoints),
           [['', 'Unconfirmed'], ['false', 'No bulletin-confirmed double points'], ['true', 'Bulletin confirms double points']], 'data-rerender')) +
         fld('Double-points bulletin evidence', input(function (v) { event.doublePointsEvidence = v; }, event.doublePointsEvidence || '', 'maxlength="1000"'), '', 'span2') +
@@ -1413,6 +1478,7 @@
           fld('Classification title', input(function (v) { result.title = v; }, result.title || '', 'maxlength="200"')) +
           fld('Printed finality/status', input(function (v) { result.status = v; }, result.status || '', 'maxlength="200"'), 'Enter the source wording; do not infer finality.') +
           fld('Source file/title', input(function (v) { result.source.file = v; }, result.source.file || '', 'maxlength="200"')) +
+          fld('Source description', input(function (v) { result.source.description = v; }, result.source.description || '', 'maxlength="1000"'), 'For an attached/private source without a public URL, identify the document without entering a local path.') +
           fld('Official source URL', input(function (v) { result.source.url = v; }, result.source.url || '', 'type="url" maxlength="2000"'), 'HTTPS source for this exact classification.', 'span2') +
           fld('Optional linked NR round', select(function (v) {
             var oldRound = result.nrRoundId;
@@ -1460,8 +1526,9 @@
             return '<div class="card subcard"><div class="section-head"><b>Classification row ' + (rowIndex + 1) + '</b>' + btn(function () { result.entries.splice(rowIndex, 1); render(); }, 'Remove row', 'tiny ghost') + '</div>' +
               '<div class="form-grid tight">' + field('Car', 'car', entry.car, 'maxlength="40"') + field('Driver profile name', 'driver', entry.driver) +
               field('Co-driver profile name', 'codriver', entry.codriver || '') +
-              fld('RS class', select(function (v) { entry['class'] = v; }, entry['class'] || '', [['', 'Unconfigured'], ['RS2', 'RS2'], ['RS4', 'RS4']])) +
+              field('Printed RS category', 'class', entry['class'], 'maxlength="80"') +
               field('Printed RS status', 'status', entry.status, 'maxlength="80" data-rerender') +
+              field('Start evidence (when a DNF has no stage observation)', 'startEvidence', entry.startEvidence || '', 'maxlength="1000"') +
               fld('Official overall position', input(function (v) { entry.pos = numOrNull(v); }, entry.pos, 'inputmode="numeric" data-rerender')) +
               fld('Official class position', input(function (v) { entry.classPos = numOrNull(v); }, entry.classPos, 'inputmode="numeric"')) +
               field('Official total', 'total', entry.total || '') + field('Separate penalty', 'penalty', entry.penalty || '') +
@@ -1475,8 +1542,8 @@
                 (entry.stagePos || []).map(function (v) { return v == null ? '' : v; }).join(', '), 'placeholder="e.g. 2, 1"'), 'Comma-separated in selected-stage order.', 'span2') +
               fld('Row notes', area(function (v) { entry.notes = lines(v); }, (entry.notes || []).join('\n'), 'rows="2"'), '', 'span2') + '</div></div>';
           }).join('') +
-          '<p class="small muted">NR time reuse is a one-time, human-confirmed copy of values only. It requires the exact linked round, explicit stage mappings, matching car and reviewed driver/co-driver profiles. It never copies NR status, class, order, penalty or points; later NR edits do not update this RS record.</p>' +
-          btn(function () { copyReviewedRsTimes(data, result, A.year); render(); }, 'Review and copy mapped NR stage times', 'tiny') +
+          '<p class="small muted">NR time reuse is a one-time, human-confirmed copy of new values into blank RS cells only. Existing RS values are never overwritten; conflicts and missing observations are reported, and unmatched RS-only rows are preserved. It never copies NR status, class, order, penalty or points; later NR edits do not update this snapshot.</p>' +
+          btn(function () { copyReviewedRsTimes(result, A.year); render(); }, 'Review and copy mapped NR stage times', 'tiny') +
           (scoreRow ? '<div class="card subcard"><h4>Current RS event-points preview</h4><p><b>' + esc(scoreRow.status) + '</b> — ' + esc(scoreRow.reason || 'Points are calculated independently for each eligible crew role.') + '</p>' +
             (scoreRow.status === 'ready' ? '<div class="table-wrap"><table class="data"><thead><tr><th>Car</th><th>Driver</th><th>Driver points</th><th>Co-driver</th><th>Co-driver points</th></tr></thead><tbody>' +
               (result.entries || []).map(function (entry) {
@@ -1523,8 +1590,11 @@
     ], '+ Add document', function () { return { title: '', kind: 'SSR', date: '', url: '' }; }) + '</div>';
     var hasResults = (s.rounds || []).some(function (r) { return r.results; });
     html += '<div class="section"><div class="section-head"><h2>Start the next season</h2></div>' + newSeasonCard() + '</div>';
-    if (!hasResults && years().length > 1) html += '<div class="card danger"><h3>Delete the ' + A.year + ' season</h3><p class="small">Only possible while it has no results.</p>' + btn(function () {
-      if (!window.confirm('Delete the ' + A.year + ' season?')) return;
+    if (!hasResults && years().length > 1) html += '<div class="card danger"><h3>Delete the ' + A.year + ' season</h3><p class="small">Only possible while it has no NR results.</p>' + btn(function () {
+      var hasRs = !!s.rallyesport;
+      var warning = 'Delete the ' + A.year + ' season?' + (hasRs ?
+        ' This also removes all RallyeSport events, official classifications/results, source and stage-time evidence, and season-scoped Non-Scoring RS Member decisions.' : '');
+      if (!window.confirm(warning)) return;
       dropDoc(seasonPath(A.year)); A.dropPublic.push('season_' + A.year); st.seasons = st.seasons.filter(function (x) { return +x.year !== A.year; });
       if (+st.currentSeason === A.year) st.currentSeason = years()[0];
       A.year = years()[0]; go('#/');
@@ -1631,7 +1701,8 @@
       return '<tr><td class="nowrap">' + esc(when(g.at)) + '</td><td>' + esc(g.message) + '</td><td class="small">' + esc(g.by) + '</td><td class="small">' + esc(g.items.map(function (it) { return label(it.path); }).join(', ')) + '</td><td>' +
         (first ? '<span class="small muted">First load</span>' : btn(function () {
           if (changes().length && !window.confirm('You have unpublished changes. Undoing this change adds to them. Continue?')) return;
-          stageUndo(g); A.undoMsg = 'Undo: ' + g.message; toast('Undo staged for “' + g.message + '”. Review it, then publish.', 'good'); go('#/publish');
+          if (!stageUndo(g)) return;
+          A.undoMsg = 'Undo: ' + g.message; toast('Undo staged for “' + g.message + '”. Review it, then publish.', 'good'); go('#/publish');
         }, 'Undo', 'tiny')) + '</td></tr>';
     }).join('') + '</tbody></table></div><p class="small muted">Undoing an older change also reverts any later edits to the same items. Check the review screen before publishing. Photos aren\'t kept in the history, so an undo can remove a photo but not bring one back.</p>';
   }
