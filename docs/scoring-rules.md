@@ -138,7 +138,10 @@ SSR 6.1(a)/(b) eligibility wording has been clarified by the user for implementa
 assume paid-up status, provide the independent person toggle, and defer actual
 membership verification. The toggle is not evidence that a person paid dues. Event
 invitation exclusion remains a separate input. The unspecified non-scoring class is not
-configured; an unknown category blocks publication rather than being dropped or ranked.
+configured. A non-standard printed category blocks its scoring unless an explicit,
+classification-scoped mapping to RS2/RS4 is recorded with evidence; the printed category
+remains in event results, mappings are not inferred or reused across events, and TEST is
+never mapped into championship scoring.
 
 No class-minimum-start rule, DNF finisher definition, championship tie-break, future
 year rules or non-scoring-class semantics are inferred. SSR 7.4 and 7.6 are blank.
@@ -159,6 +162,13 @@ source precision, including hundredths, for ranking, differences and labels; NR 
 and calculations retain existing precision. The overlay does not infer a person or
 result match from car number, change NR series, or add RS to NR statistics. RS-only
 events and result tables work without NR graph data.
+
+On the homepage the NR overall/class leader panels and NR round cards remain the
+default. Small section-local controls can show RS overall/class points or RS result
+cards; provisional RS points are labelled as such and blocked rounds are disclosed.
+The full rounds calendar always includes both competitions. An NR + RS event badge and
+shared card are shown only for an explicit `nrEventId` association; event names, dates,
+or array order are never used to merge competitions. RS round numbers are independent.
 
 For shared physical stages, the admin offers a human-confirmed, one-time copy of RS
 stage-time values from an explicitly linked NR round, requiring the exact stage mapping

@@ -99,6 +99,14 @@ and that simulation analytics edits cannot change published settings.
 
 The public theme test uses synthetic published documents and read-only mocked requests. It checks public routes at 320, 390, 768 and 1440 pixels (home, driver/co-driver standings and filters, rounds, all three round tabs, crews, profiles, info, season-specific sources and missing-page/round/profile states), saved light/dark preferences, primary-button WCAG AA contrast, final/provisional/unclear headings (including legacy page-count headings), consistent source badges, printed disclosure, loading/empty/unconfigured/database-failure links and JavaScript-free disclaimer access. The AI Import E2E also checks the persistent disclaimer link on dashboard, backup import, AI Import, results editing, calendar, competitors/profile editing, season settings, site info, history and review/publish. The link is static outside both apps' render roots, so route changes and sign-in/error rendering cannot remove it. These checks do not certify all WCAG criteria or replace visual review.
 
+The public browser fixture also creates a synthetic 2026 RS season, derives its private
+scoring before `AI.projectPublic`, and verifies that `buildSeason` consumes the published
+snapshot without private membership/invitation inputs. It checks NR as the homepage
+default; keyboard-operable local RS leader/class/results toggles; provisional labels;
+standalone RS event cards; explicit shared-event card composition and NR/RS badges; and
+RS access with NR results absent. These routes run at desktop/mobile widths in light and
+dark themes, with all requests intercepted and no database writes.
+
 The getting-started unit checks cover the season and general event journey, official-source allowlist, unique working
 topic anchors, a spectator-first opening without competition prerequisites, spectator safety,
 no rally-raid or named event examples, no unverified TC target calculation, no quoted prices or hard-coded

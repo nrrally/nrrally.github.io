@@ -373,10 +373,44 @@ test('partially printed class positions use one consistent official order and wi
   assert.equal(score.status, 'blocked');
   assert.match(score.reason, /overall and class positions conflict/);
 });
+test('explicit scoring-class mappings are classification-scoped and preserve the printed category', () => {
+  const f = fixture();
+  f.result.entries.forEach(entry => { entry.class = '2WD'; });
+  f.result.classMappings = { '2WD': 'RS4' };
+  f.result.classMappingEvidence = 'Synthetic reviewer-confirmed, event-specific mapping';
+  assert.deepEqual(E.validateRallyeSport(f.data, F.season(2026), {}, f.people), []);
+  let score = eventScore(f);
+  assert.equal(score.status, 'ready');
+  assert.equal(score.entries[0].driverPoints, 15);
+  assert.equal(f.result.entries[0].class, '2WD');
+
+  const otherEvent = { ...f.event, id: 'other-event', name: 'Other synthetic event' };
+  const otherResult = { ...f.result, id: 'other-result', eventId: otherEvent.id,
+    entries: f.result.entries.map(entry => ({ ...entry, times: entry.times.slice(), stagePos: entry.stagePos.slice() })) };
+  delete otherResult.classMappings;
+  delete otherResult.classMappingEvidence;
+  f.data.events.push(otherEvent);
+  f.data.results.push(otherResult);
+  score = E.calculateRallyeSportScoring(f.data, { year: 2026 }, f.people);
+  assert.equal(score.results.find(row => row.eventId === f.event.id).status, 'ready');
+  assert.match(score.results.find(row => row.eventId === otherEvent.id).reason, /explicit event-specific scoring-class mapping/);
+});
 test('standalone RS event validates without any NR event, round or stage association', () => {
   const f = fixture();
   const issues = E.validateRallyeSport(f.data, F.season(2026), {}, f.people);
   assert.deepEqual(issues, []);
+});
+test('optional RS round numbers are explicit, positive and unique without requiring NR rounds', () => {
+  const f = fixture();
+  f.event.roundNumber = 2;
+  f.data.events.push({ id: 'standalone-r1', name: 'Synthetic standalone', roundNumber: 1 });
+  assert.deepEqual(E.validateRallyeSport(f.data, { events: [], rounds: [] }, {}, f.people), []);
+  f.data.events[1].roundNumber = 2;
+  assert.ok(E.validateRallyeSport(f.data, { events: [], rounds: [] }, {}, f.people)
+    .some(issue => issue.msg.includes('duplicates RS round number 2')));
+  f.data.events[1].roundNumber = 0;
+  assert.ok(E.validateRallyeSport(f.data, { events: [], rounds: [] }, {}, f.people)
+    .some(issue => issue.msg.includes('positive integer')));
 });
 test('reviewed stage reuse is selective, reports conflicts/missing/unmatched rows and never mutates its input', () => {
   const f = fixture();

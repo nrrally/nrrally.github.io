@@ -42,6 +42,11 @@
   function normName(n) { return String(n || '').replace(/[_\s]+/g, ' ').trim(); }
   function keyName(n) { return normName(n).normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
   function normClass(c) { return String(c || '').replace(/\s+/g, '').toUpperCase(); }
+  function rallyeSportScoringClass(result, entry) {
+    var printedClass = normClass(entry && entry['class']);
+    var mapping = result && result.classMappings || {};
+    return normClass(mapping[printedClass] || printedClass);
+  }
   function dateOrdinal(value) {
     if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
     var time = Date.parse(value + 'T00:00:00Z');
@@ -446,7 +451,7 @@
       else if (!/^\s*final(?:\s+official)?\s+(?:classification|results)(?:\s+\d+\/\d+)?\s*$/i.test(result.status || '')) row = blocked(/provisional/i.test(result.status || '') ?
         'The source classification is provisional; event points are not calculated.' : 'The source classification finality is unclear; event points are not calculated.');
       else if ((result.entries || []).some(function (entry) { return ['classified', 'DNF', 'DNS', 'TEST'].indexOf(entry.status) < 0; })) row = blocked('A source status has no configured championship semantics; retain the official row and wait for an RS ruling.');
-      else if ((result.entries || []).some(function (entry) { return entry.status === 'classified' && ['RS2', 'RS4'].indexOf(normClass(entry['class'])) < 0; })) row = blocked('An RS category has no configured scoring semantics.');
+      else if ((result.entries || []).some(function (entry) { return entry.status === 'classified' && ['RS2', 'RS4'].indexOf(rallyeSportScoringClass(result, entry)) < 0; })) row = blocked('An RS category has no configured scoring semantics or explicit event-specific scoring-class mapping.');
       else if ((result.entries || []).some(function (entry) { return entry.status === 'classified' &&
         (!Number.isInteger(entry.pos) || entry.pos < 1 || entry.total == null || entry.total === ''); })) row = blocked('A classified RS row is missing its official position or total.');
       else if ((result.entries || []).some(function (entry, i) { return (result.entries || []).slice(0, i).some(function (other) { return String(other.car) === String(entry.car); }); })) row = blocked('Duplicate car numbers need RS source review before points can be assigned.');
@@ -462,7 +467,7 @@
       var classifiedEntries = (result.entries || []).filter(function (entry) { return entry.status === 'classified'; });
       var classEntries = Object.create(null), orderByCar = Object.create(null), orderIssue = '';
       classifiedEntries.forEach(function (entry) {
-        var cls = normClass(entry['class']);
+        var cls = rallyeSportScoringClass(result, entry);
         (classEntries[cls] || (classEntries[cls] = [])).push(entry);
       });
       Object.keys(classEntries).forEach(function (cls) {
@@ -492,10 +497,10 @@
       Object.keys(scoringRoles).forEach(function (role) {
         var classRanks = Object.create(null);
         scoringRoles[role].slice().sort(function (a, b) {
-          var cls = normClass(a['class']), otherClass = normClass(b['class']);
+          var cls = rallyeSportScoringClass(result, a), otherClass = rallyeSportScoringClass(result, b);
           return cls === otherClass ? orderByCar[String(a.car)] - orderByCar[String(b.car)] : cls < otherClass ? -1 : 1;
         }).forEach(function (entry) {
-          var cls = normClass(entry['class']), rank = classRanks[cls] || 0;
+          var cls = rallyeSportScoringClass(result, entry), rank = classRanks[cls] || 0;
           classRanks[cls] = rank + 1;
           var points = rank < pointScale.length ? pointScale[rank] : 1;
           if (event.doublePoints) points *= 2;
@@ -526,7 +531,7 @@
         (row.entries || []).forEach(function (score) {
           var entry = result.entries.filter(function (item) { return String(item.car) === score.car; })[0];
           if (!entry) return;
-          var driver = idx.resolve(entry.driver), codriver = idx.resolve(entry.codriver), cls = normClass(entry['class']);
+          var driver = idx.resolve(entry.driver), codriver = idx.resolve(entry.codriver), cls = rallyeSportScoringClass(result, entry);
           if (score.driverPoints != null) {
             add(tables.overallDrivers, driver.id, driver.name, score.driverPoints);
             add(tables.classDrivers[cls], driver.id, driver.name, score.driverPoints);
@@ -621,7 +626,9 @@
       var metric = [];
       for (var k = 0; k < stages.length; k++) {
         var value = row.cumulative[k], pool = data.filter(function (other) { return other.cumulative[k] != null; });
-        var classPool = pool.filter(function (other) { return other.entry['class'] === row.entry['class']; });
+        var classPool = pool.filter(function (other) {
+          return rallyeSportScoringClass(result, other.entry) === rallyeSportScoringClass(result, row.entry);
+        });
         var best = pool.length ? Math.min.apply(null, pool.map(function (other) { return other.cumulative[k]; })) : null;
         var classBest = classPool.length ? Math.min.apply(null, classPool.map(function (other) { return other.cumulative[k]; })) : null;
         var stageTime = parseRallyeSportTime((row.entry.times || [])[k]);
@@ -639,7 +646,9 @@
         var isClassified = row.entry.status === 'classified', classified = data.filter(function (other) {
           return other.entry.status === 'classified' && other.total != null && !isNaN(other.total);
         });
-        var sameClass = classified.filter(function (other) { return other.entry['class'] === row.entry['class']; });
+        var sameClass = classified.filter(function (other) {
+          return rallyeSportScoringClass(result, other.entry) === rallyeSportScoringClass(result, row.entry);
+        });
         var finalValue = row.total;
         var finalBest = classified.length ? Math.min.apply(null, classified.map(function (other) { return other.total; })) : null;
         var classBest = sameClass.length ? Math.min.apply(null, sameClass.map(function (other) { return other.total; })) : null;
@@ -719,7 +728,7 @@
   }
   function validateRallyeSport(data, season, rounds, people) {
     if (data === undefined) return [];
-    var issues = [], knownEvents = Object.create(null), knownResults = Object.create(null), resultEvents = Object.create(null), nrEvents = Object.create(null), nrRounds = Object.create(null);
+    var issues = [], knownEvents = Object.create(null), knownRoundNumbers = Object.create(null), knownResults = Object.create(null), resultEvents = Object.create(null), nrEvents = Object.create(null), nrRounds = Object.create(null);
     function error(message) { issues.push({ level: 'error', msg: 'RallyeSport: ' + message }); }
     function object(value, label, keys) {
       if (!value || typeof value !== 'object' || Array.isArray(value)) { error(label + ' must be an object.'); return false; }
@@ -766,8 +775,13 @@
     (season.rounds || []).forEach(function (round) { nrRounds[round.id] = round; });
     data.events.forEach(function (event, i) {
       var label = 'event ' + (i + 1);
-      if (!object(event, label, ['id', 'name', 'dates', 'startDate', 'nrEventId', 'rulesetConfirmed', 'rulesetEvidence', 'countsForChampionship', 'championshipEvidence', 'doublePoints', 'doublePointsEvidence', 'doublePointsBulletinDate', 'starterCount', 'starterCountEvidence'])) return;
+      if (!object(event, label, ['id', 'name', 'dates', 'startDate', 'nrEventId', 'roundNumber', 'rulesetConfirmed', 'rulesetEvidence', 'countsForChampionship', 'championshipEvidence', 'doublePoints', 'doublePointsEvidence', 'doublePointsBulletinDate', 'starterCount', 'starterCountEvidence'])) return;
       id(event.id, label); text(event.name, label + ' name', true, 200); text(event.dates == null ? '' : event.dates, label + ' dates', false);
+      if (event.roundNumber != null && (!Number.isInteger(event.roundNumber) || event.roundNumber < 1)) error(label + ' RS round number must be a positive integer or empty.');
+      if (event.roundNumber != null) {
+        if (knownRoundNumbers[event.roundNumber]) error(label + ' duplicates RS round number ' + event.roundNumber + '.');
+        knownRoundNumbers[event.roundNumber] = true;
+      }
       if (event.startDate != null && dateOrdinal(event.startDate) == null) error(label + ' startDate must be a real ISO calendar date.');
       if (knownEvents[event.id]) error(label + ' duplicates event ID ' + event.id + '.');
       knownEvents[event.id] = true;
@@ -792,7 +806,7 @@
     });
     (data.results || []).forEach(function (result, i) {
       var label = 'result ' + (i + 1);
-      if (!object(result, label, ['id', 'eventId', 'title', 'status', 'nrRoundId', 'stages', 'source', 'notes', 'entries'])) return;
+      if (!object(result, label, ['id', 'eventId', 'title', 'status', 'nrRoundId', 'stages', 'source', 'notes', 'entries', 'classMappings', 'classMappingEvidence'])) return;
       id(result.id, label); id(result.eventId, label + ' eventId');
       if (knownResults[result.id]) error(label + ' duplicates result ID ' + result.id + '.');
       knownResults[result.id] = true;
@@ -818,6 +832,24 @@
       } else if (!(result.source.file || '').trim() && !(result.source.description || '').trim()) {
         error(label + ' needs an HTTPS source URL or a source file/title or description.');
       }
+      text(result.classMappingEvidence == null ? '' : result.classMappingEvidence, label + ' scoring-class mapping evidence', false, 1000);
+      if (result.classMappings != null) {
+        if (!object(result.classMappings, label + ' class mappings', Object.keys(result.classMappings || {}))) return;
+        var mappingKeys = Object.keys(result.classMappings), normalizedMappings = Object.create(null);
+        mappingKeys.forEach(function (category) {
+          var normalizedCategory = normClass(category), target = normClass(result.classMappings[category]);
+          if (!category || normalizedCategory !== category) error(label + ' mapping keys must be normalized printed categories.');
+          if (normalizedMappings[normalizedCategory]) error(label + ' has duplicate normalized class mappings for ' + normalizedCategory + '.');
+          normalizedMappings[normalizedCategory] = true;
+          if (['RS2', 'RS4'].indexOf(target) < 0) error(label + ' maps ' + category + ' to an unsupported scoring class.');
+          if (['RS2', 'RS4', 'TEST'].indexOf(normalizedCategory) >= 0 && target !== normalizedCategory) error(label + ' cannot remap a configured RS class or TEST category.');
+          if (Array.isArray(result.entries) && !result.entries.some(function (entry) { return normClass(entry['class']) === normalizedCategory; })) {
+            error(label + ' has an unused scoring-class mapping for ' + category + '.');
+          }
+        });
+        if (mappingKeys.length && !result.classMappingEvidence) error(label + ' scoring-class mappings need explicit evidence.');
+        if (!mappingKeys.length && result.classMappingEvidence) error(label + ' scoring-class mapping evidence has no mapping.');
+      } else if (result.classMappingEvidence) error(label + ' scoring-class mapping evidence has no mapping.');
       if (!Array.isArray(result.notes) || result.notes.some(function (note) { return typeof note !== 'string' || note.length > 1000; })) error(label + ' notes must be a list of text.');
       if (!Array.isArray(result.stages) || !result.stages.length) { error(label + ' needs its explicit stage list.'); return; }
         var stageIds = Object.create(null), mappedStages = Object.create(null);

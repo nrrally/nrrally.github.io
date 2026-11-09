@@ -172,6 +172,7 @@ display does not relax strict round schedule/status validation.
     "name": "Printed RS event name",
     "dates": "Source-backed display text",
     "nrEventId": "optional-explicit-NR-event-id",
+    "roundNumber": 1,
     "rulesetConfirmed": true,
     "rulesetEvidence": "Event-specific applicability evidence",
     "countsForChampionship": true,
@@ -190,6 +191,8 @@ display does not relax strict round schedule/status validation.
     "source": { "file": "official-file.pdf", "url": "https://example.com/official-file.pdf" },
     "notes": [],
     "stages": [{ "id": "ss8", "label": "SS8", "nrStage": "optional-exact-NR-stage-id" }],
+    "classMappings": { "printed-category-a": "RS2" },
+    "classMappingEvidence": "Event-specific reviewed mapping evidence",
     "entries": [{
       "car": "1", "driver": "Stable-name-or-alias", "codriver": "Stable-name-or-alias",
       "class": "RS2", "status": "classified", "pos": 1, "classPos": 1,
@@ -209,6 +212,8 @@ applicability to future seasons or other competitions. No real event/results are
 preloaded. `nrEventId`, `nrRoundId` and
 each `stages[].nrStage` are optional independent associations; stage arrays are explicit
 subsets and are never aligned by date or position.
+`roundNumber` is an optional positive integer, unique within the RS season, for explicit
+RS championship numbering; it is never derived from NR rounds or event-array position.
 
 For SSR 7.2's five-round double-points exception, `startDate` and
 `doublePointsBulletinDate` are strict ISO dates. The engine requires an evidence note
@@ -225,6 +230,11 @@ their rows remain in event results but block that event's scoring until supporte
 they are never dropped or silently mapped to a championship class. `TEST` is preserved
 as its own printed status, appears in event results, and never receives championship
 points or a TEST championship table. It is not an alias for DNS or DNF.
+An explicit `classMappings` map is scoped to its containing classification; keys are
+normalized printed categories and values are supported scoring classes (`RS2` or `RS4`).
+`classMappingEvidence` is required when a mapping is supplied. The entry's printed
+`class` remains unchanged for event results; mappings are never inferred or copied to
+another event/season, and `TEST` is never mapped into a championship class.
 
 The 2026 profile gives a started DNF no championship points while counting it as a
 starter. A DNF counts as a proven start only with stage/start evidence or a reviewed
@@ -248,8 +258,8 @@ membership verification claim. A checked person is excluded only from that role'
 scoring order; the crew partner can still score. The separate per-entry `invited`
 boolean is required for every classified row before points can be calculated. These
 decision inputs and event applicability/bulletin evidence are stripped from the public
-projection. The projection retains source links, official result rows, derived event
-points and derived RS standings only.
+projection. The projection retains source links, reviewed classification-scoped class
+mappings, official result rows, derived event points and derived RS standings only.
 
 The working/admin scorer recalculates from private inputs. The public projection strips
 membership toggles, invitations, starter evidence/counts, and event applicability or

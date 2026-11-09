@@ -157,7 +157,7 @@ The supplied Northern Regions logo is used in the public, admin and static-docum
 headers at its source dimensions; the light rectangle is retained in dark mode. It is
 not a favicon. All HTML shells continue to use the original `brand.svg` and `favicon.png`
 NR icons. The logo file is a user-provided asset, not a change to the site's original
-favicon/identity artwork. Cache query versions are coordinated as `rallyesport-1` for
+favicon/identity artwork. Cache query versions are coordinated as `rallyesport-2` for
 the RS feature and logo integration. These favicon hints do not guarantee indexing,
 ranking, site-name selection or display; recrawling can take days or weeks.
 
@@ -234,8 +234,11 @@ stage selection, official order/status, penalties and derived scores isolated fr
 Reviewed shared-stage reuse stores a time-value snapshot plus explicit provenance; it is
 not a live pointer and never imports NR status, class, position, penalty or points. Public
 graph overlays are optional presentation only; RS stage ranks/gaps are not NR ranks/gaps,
-and RS graph precision does not change NR calculations. The 2026 Rallysprint SSR V1
-profile is event-confirmed for the four specified 2026 classifications (June Round 1
+and RS graph precision does not change NR calculations. The homepage retains NR leaders
+and round cards by default; local section controls expose separate RS tables/results, and
+the full calendar includes both using only explicit `nrEventId` links for shared cards.
+RS round numbers are independent and RS-only events need no NR calendar entry. The
+2026 Rallysprint SSR V1 profile is event-confirmed for the four specified 2026 classifications (June Round 1
 despite the July issue date and the Legends, Ermelo and TRAC club classifications). This
 is not a general retroactive rule or a future-season confirmation. Other categories are
 preserved in event results but block that event's scoring. The user-confirmed DNF rule is

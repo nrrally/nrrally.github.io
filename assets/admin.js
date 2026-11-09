@@ -1450,6 +1450,11 @@
       var stages = result ? result.stages || [] : [];
       var nrRaw = result && result.nrRoundId ? rawRound(result.nrRoundId, A.year) : null;
       var scoreRow = result && (scoring.results || []).filter(function (row) { return row.resultId === result.id; })[0];
+      var sourceCategories = Object.create(null);
+      (result && result.entries || []).forEach(function (entry) {
+        var category = String(entry['class'] || '').replace(/\s+/g, '').toUpperCase();
+        if (entry.status === 'classified' && category && ['RS2', 'RS4'].indexOf(category) < 0) sourceCategories[category] = entry['class'];
+      });
       return '<article class="card"><div class="section-head"><h3>' + esc(event.name || event.id) + '</h3>' + btn(function () {
         if (!window.confirm('Remove this RS event and its independent classification?')) return;
         s.rallyesport = data;
@@ -1459,6 +1464,7 @@
       }, 'Remove event', 'tiny ghost') + '</div><div class="form-grid">' +
         fld('RS event name', input(function (v) { event.name = v; }, event.name, 'maxlength="200"')) +
         fld('Dates as printed', input(function (v) { event.dates = v; }, event.dates || '', 'maxlength="200"')) +
+        fld('RS round number (optional)', input(function (v) { event.roundNumber = numOrNull(v); }, event.roundNumber, 'inputmode="numeric" min="1"'), 'Independent RS numbering; never derived from an NR round.') +
         fld('Event start date (SSR 7.2 check)', input(function (v) { event.startDate = v || undefined; }, event.startDate || '', 'type="date"'), 'Required only for a double-points event.') +
         fld('Optional associated NR event', select(function (v) { if (v) event.nrEventId = v; else delete event.nrEventId; }, event.nrEventId || '',
           [['', 'No NR event association']].concat((s.events || []).map(function (ev) { return [ev.id, ev.name || ev.id]; })))) +
@@ -1480,6 +1486,20 @@
           fld('Source file/title', input(function (v) { result.source.file = v; }, result.source.file || '', 'maxlength="200"')) +
           fld('Source description', input(function (v) { result.source.description = v; }, result.source.description || '', 'maxlength="1000"'), 'For an attached/private source without a public URL, identify the document without entering a local path.') +
           fld('Official source URL', input(function (v) { result.source.url = v; }, result.source.url || '', 'type="url" maxlength="2000"'), 'HTTPS source for this exact classification.', 'span2') +
+          '<div class="form-grid">' +
+          (Object.keys(sourceCategories).length ? Object.keys(sourceCategories).map(function (category) {
+            return fld('Scoring class for printed ' + sourceCategories[category], select(function (v) {
+              result.classMappings = result.classMappings || {};
+              if (v) result.classMappings[category] = v;
+              else delete result.classMappings[category];
+              if (!Object.keys(result.classMappings).length) {
+                delete result.classMappings;
+                delete result.classMappingEvidence;
+              }
+            }, (result.classMappings || {})[category] || '', [['', 'Unmapped'], ['RS2', 'RS2'], ['RS4', 'RS4']], 'data-rerender'));
+          }).join('') : '<p class="small muted">No non-standard classified category needs an explicit scoring-class mapping.</p>') +
+          fld('Scoring-class mapping evidence', input(function (v) { result.classMappingEvidence = v; }, result.classMappingEvidence || '', 'maxlength="1000"'),
+            'Required when a printed category is mapped. This evidence is included with the public classification.', 'span2') + '</div>' +
           fld('Optional linked NR round', select(function (v) {
             var oldRound = result.nrRoundId;
             if (v) result.nrRoundId = v; else delete result.nrRoundId;

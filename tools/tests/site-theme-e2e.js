@@ -5,14 +5,49 @@ const path = require('node:path');
 const http = require('node:http');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const F = require('./ai-fixtures.js');
+const E = require('../../assets/engine.js');
+const AI = require('../../assets/ai-import.js');
 const repo = path.resolve(__dirname, '..', '..');
 const docs = F.docs(), source = F.payload('results', 2026).rounds[0];
-const bundle = { season: docs['data/seasons/2026/season.json'], rounds: { R1: {
-  ...source, entries: source.entries.map(e => ({ ...e, driver: 'Alex Test', codriver: 'Blake Example' }))
+const season = JSON.parse(JSON.stringify(docs['data/seasons/2026/season.json']));
+const nrEventId = season.events[0].id;
+const people = F.copy(docs['data/people.json']);
+people.people.push({ id: 'blake-example', name: 'Blake Example', aliases: [], bio: '', photo: '', links: {} });
+for (let i = 1; i <= 15; i++) {
+  people.people.push({ id: 'rs-driver-' + i, name: 'Synthetic Driver ' + i, aliases: [], bio: '', photo: '', links: {} });
+  people.people.push({ id: 'rs-codriver-' + i, name: 'Synthetic Co-driver ' + i, aliases: [], bio: '', photo: '', links: {} });
+}
+const rsEvents = [1, 2, 3, 4, 5].map(roundNumber => ({
+  id: 'synthetic-rs-r' + roundNumber, roundNumber, name: 'Synthetic RS R' + roundNumber,
+  dates: '2026-0' + roundNumber + '-01', rulesetConfirmed: true, rulesetEvidence: 'Synthetic SSR applicability',
+  countsForChampionship: true, championshipEvidence: 'Synthetic round evidence', doublePoints: false,
+  nrEventId: roundNumber === 2 ? nrEventId : undefined
+}));
+const rsResult = {
+  id: 'synthetic-rs-r2-results', eventId: rsEvents[1].id, title: 'Synthetic RS final classification',
+  status: 'Final classification', nrRoundId: 'R1', source: { file: 'synthetic-rs.pdf', url: 'https://example.com/synthetic-rs.pdf' },
+  notes: [], stages: [{ id: 'ss1', label: 'SS1', nrStage: 'SS1' }],
+  entries: Array.from({ length: 15 }, (_, i) => ({
+    car: String(i + 1), driver: 'Alex Test', codriver: 'Blake Example', class: 'RS2', status: 'classified',
+    pos: i + 1, classPos: i + 1, times: ['00:01.' + String(i + 1).padStart(2, '0')],
+    stagePos: [i + 1], penalty: null, total: '00:01.' + String(i + 1).padStart(2, '0'), invited: false
+  }))
+};
+season.rallyesport = { ruleset: { code: 'clubman-sprint-2026-v1', year: 2026, title: '2026 MSA RallyeSport Association Club Standing Supplementary Regulations — Rallysprint',
+  version: 1, issueDate: '2026-07-09', sourceUrl: 'https://example.com/synthetic-rs-ssr.pdf' },
+events: rsEvents, results: [rsResult], nonScoringPeople: [] };
+rsResult.entries.forEach((entry, i) => {
+entry.driver = 'Synthetic Driver ' + (i + 1);
+entry.codriver = 'Synthetic Co-driver ' + (i + 1);
+});
+const initialRsProjection = AI.projectPublic(season, people);
+const initialRsData = F.copy(initialRsProjection.rallyesport);
+const bundle = { season: initialRsProjection, rounds: { R1: {
+...source, entries: source.entries.map(e => ({ ...e, driver: 'Alex Test', codriver: 'Blake Example' }))
 } } };
 const published = {
-  site: { ...docs['data/site.json'], siteName: 'Northern Regions Rally', tagline: 'Synthetic preview data only.' },
-  people: docs['data/people.json'], season_2026: bundle
+site: { ...docs['data/site.json'], siteName: 'Northern Regions Rally', tagline: 'Synthetic preview data only.' },
+people, season_2026: bundle
 };
 const errors = [], unexpected = [];
 let databaseDown = false;
@@ -111,6 +146,67 @@ async function main() {
           'Choose a round for graphs, classifications and stage times.');
         if (hash === '#/crews') assert.equal(await page.locator('.page-head p').last().innerText(),
           'Drivers and co-drivers in 2026 Northern Regions classifications and entry lists.');
+      }
+    }
+    const projectedScoring = initialRsProjection.rallyesport.scoring;
+    assert.equal(projectedScoring.results.find(row => row.eventId === rsEvents[1].id).status, 'ready');
+    assert.ok(projectedScoring.provisionalStandings, 'unresolved rounds leave supported RS points available provisionally');
+    assert.equal(initialRsProjection.rallyesport.nonScoringPeople, undefined);
+    assert.equal(initialRsProjection.rallyesport.results[0].entries[0].invited, undefined);
+    assert.equal(initialRsProjection.rallyesport.events[0].rulesetConfirmed, undefined);
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(t => localStorage.setItem('nr-theme', t), theme);
+      for (const width of [1440, 390, 320]) {
+        await page.setViewportSize({ width, height: 1000 });
+        await visit('#/');
+        const nrHeroStats = await page.locator('.hero-stats').innerText();
+        assert.equal(await page.getByRole('heading', { name: 'Class leaders · drivers' }).count(), 1);
+        assert.equal(await page.getByRole('link', { name: 'Show RS driver leaders' }).count(), 1);
+        assert.equal(await page.getByRole('link', { name: 'Show RS co-driver leaders' }).count(), 1);
+        assert.equal(await page.getByRole('link', { name: 'Show RS class leaders' }).count(), 1);
+        assert.equal(await page.getByRole('link', { name: 'Switch to RS results' }).count(), 1);
+        assert.equal(await page.locator('.rs-event-card').count(), 0, 'standalone RS events stay out of default NR result cards');
+        await page.getByRole('link', { name: 'Show RS class leaders' }).click();
+        await page.getByRole('heading', { name: 'RS class leaders · drivers' }).waitFor();
+        assert.ok((await page.locator('.home-rs-note').innerText()).includes('Provisional RS points'));
+        assert.ok((await page.locator('.home-rs-classes').innerText()).includes('Provisional RS points'));
+        await page.getByRole('link', { name: 'Show NR class leaders' }).click();
+        const driverToggle = page.getByRole('link', { name: 'Show RS driver leaders' });
+        await driverToggle.focus(); await page.keyboard.press('Enter');
+        await page.getByRole('heading', { name: 'RS drivers', exact: true }).waitFor();
+        assert.ok((await page.locator('.leader-card-head').allTextContents()).some(text => text.includes('RS co-drivers')));
+        assert.ok((await page.locator('.home-rs-note').innerText()).includes('Provisional RS points'));
+        const rsLeader = page.locator('.leader-card-head').filter({ hasText: 'RS drivers' }).locator('xpath=..').locator('.leader').first();
+        assert.ok((await rsLeader.innerText()).includes('Synthetic Driver 1'));
+        assert.ok((await rsLeader.innerText()).includes('15pts'), 'the public UI consumes the projected event points');
+        assert.equal(await page.locator('.hero-stats').innerText(), nrHeroStats, 'NR hero statistics do not change with RS views');
+        await page.getByRole('link', { name: 'Show RS class leaders' }).click();
+        await page.getByRole('heading', { name: 'RS class leaders · drivers' }).waitFor();
+        assert.ok((await page.locator('.home-rs-classes').innerText()).includes('Synthetic Driver 1'));
+        await page.getByRole('link', { name: 'Show NR class leaders' }).click();
+        await page.getByRole('heading', { name: 'Class leaders · drivers' }).waitFor();
+        await page.getByRole('link', { name: 'Show NR driver leaders' }).click();
+        await page.getByRole('heading', { name: 'Drivers', exact: true }).waitFor();
+        const resultsToggle = page.getByRole('link', { name: 'Switch to RS results' });
+        await resultsToggle.focus(); await page.keyboard.press('Enter');
+        await page.waitForFunction(() => location.hash.includes('results=rs') &&
+          document.querySelectorAll('.rs-event-card').length === 5);
+        assert.equal(await page.locator('.rs-event-card').count(), 5);
+        assert.ok((await page.locator('.rs-event-card').first().innerText()).includes('RS R1'));
+        assert.equal(await page.locator('.event-card:not(.rs-event-card)').count(), 0);
+        const nrResultsToggle = page.getByRole('link', { name: 'Switch to NR results' });
+        await nrResultsToggle.focus(); await page.keyboard.press('Enter');
+        await page.waitForFunction(() => !location.hash.includes('results=rs') &&
+          document.querySelectorAll('.rs-event-card').length === 0);
+        assert.equal(await page.locator('.rs-event-card').count(), 0);
+        assert.equal(await page.locator('.event-card:not(.rs-event-card)').count(), 1);
+        await visit('#/rounds');
+        await page.waitForFunction(() => document.querySelectorAll('.competition-badge').length === 5);
+        assert.equal(await page.locator('.event-card').count(), 5, 'explicitly shared RS event is merged into its NR event card');
+        assert.deepEqual(await page.locator('.competition-badge').allTextContents(), ['NR + RS', 'RS', 'RS', 'RS', 'RS']);
+        assert.equal(await page.locator('.rs-event-card').count(), 4, 'only unlinked RS events get separate full-calendar cards');
+        assert.equal(await page.locator('.event-round[href*="/rallyesport/"]').count(), 1);
+        await noOverflow();
       }
     }
     // A bundled guide is readable without results; topic navigation works by keyboard.
@@ -271,6 +367,12 @@ async function main() {
       { car: '89', driver: 'Blake Example', codriver: '', class: 'RS2', status: 'classified', pos: 2, classPos: 2,
         total: '1:00.04', times: ['1:00.04', '00:01.00'], stagePos: [2, 1] }
     ];
+    graphResult.entries.forEach(entry => { entry.class = '2WD'; });
+    graphResult.classMappings = { '2WD': 'RS2' };
+    graphResult.classMappingEvidence = 'Synthetic event-specific category review';
+    await visit('#/rallyesport/synthetic-rs-result');
+    assert.ok((await page.locator('main').innerText()).includes('Reviewed scoring-class mapping: 2WD → RS2'));
+    assert.equal(await page.locator('main table tbody tr').first().locator('td').nth(5).innerText(), '2WD');
     await visit('#/2026/round/R1/graph?cars=1&m=loss&rs=1');
     assert.ok((await page.locator('.chart-title').innerText()).includes('Time lost'));
     assert.ok((await page.locator('main').innerText()).includes('separate source fields'));
@@ -340,10 +442,17 @@ async function main() {
     const dns = { ...entriesBefore[0], status: 'DNS', pos: null, total: null, stages: 0,
       times: [null, null], stagePos: [null, null] };
     bundle.rounds.R1.entries = [dns];
+    bundle.season.rallyesport = F.copy(initialRsData);
     await visit('#/person/alex-test');
     assert.equal(await page.locator('.kpi').filter({ hasText: 'Starts' }).locator('b').innerText(), '0');
     await visit('#/');
     await page.getByRole('heading', { name: 'No scored starts yet' }).waitFor();
+    assert.ok(await page.getByRole('heading', { name: 'RallyeSport points' }).isVisible(),
+      'RS points remain visible when NR has no scored starts');
+    await page.getByRole('link', { name: 'Switch to RS results' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('.rs-event-card').length === 5);
+    assert.equal(await page.locator('.rs-event-card').count(), 5);
+    delete bundle.season.rallyesport;
     bundle.rounds.R1.entries = entriesBefore;
     legacyEngine = true;
     for (const hash of ['#/', '#/rounds', '#/round/R1/classification', '#/crews', '#/person/alex-test']) {
@@ -413,8 +522,15 @@ async function main() {
     seasonDelay = 0;
     const savedRounds = bundle.rounds;
     bundle.rounds = {};
+    bundle.season.rallyesport = F.copy(initialRsData);
     await visit('#/');
     await page.getByRole('heading', { name: 'No results yet' }).waitFor();
+    assert.ok(await page.getByRole('heading', { name: 'RallyeSport points' }).isVisible(),
+      'RS tables remain accessible when the NR season has no results');
+    await page.getByRole('link', { name: 'Switch to RS results' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('.rs-event-card').length === 5);
+    assert.equal(await page.locator('.rs-event-card').count(), 5);
+    delete bundle.season.rallyesport;
     bundle.rounds = savedRounds;
     // A fictional next season is only a mocked response, never a persisted season.
     const oldSite = published.site;
@@ -535,7 +651,7 @@ async function main() {
     assert.equal(await staticPage.locator('meta[name="robots"]').getAttribute('content'), 'noindex, nofollow');
     assert.ok(await staticPage.locator('.site-disclosure a[href="../disclaimer.html"]').isVisible());
     assert.deepEqual(errors, []); assert.deepEqual(unexpected, []);
-    console.log('PASS public theme: responsive routes and NR guide, keyboard topics/details, saved themes, AA button contrast, classification sources, print, database-independent guide and no-JS disclosures.');
+    console.log('PASS public theme: NR defaults; RS leader/class/results toggles, independent rounds and explicit shared-event calendar badges; responsive keyboard/theme states; NR guide, source evidence, print and disclosures.');
   } finally {
     await browser.close(); await new Promise(resolve => server.close(resolve));
   }

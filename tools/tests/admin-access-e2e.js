@@ -41,7 +41,7 @@ workingSeason.rallyesport = {
     entries: [
       { car: '1', driver: 'Alex Test', codriver: 'Blake Example', class: 'RS2', status: 'classified', pos: 1, classPos: 1,
         total: '02:30.0', penalty: null, times: ['01:11.0', null], stagePos: [1, null], invited: false },
-      { car: '3', driver: 'Casey Match', codriver: 'Drew Match', class: 'RS2', status: 'classified', pos: 2, classPos: 2,
+      { car: '3', driver: 'Casey Match', codriver: 'Drew Match', class: '2WD', status: 'classified', pos: 2, classPos: 2,
         total: '05:00.0', penalty: null, times: [null, null], stagePos: [null, null], invited: false },
       { car: '99', driver: 'Test Entrant', codriver: '', class: 'TEST', status: 'TEST', pos: null, classPos: null,
         total: null, penalty: null, times: [null, null], stagePos: [null, null], invited: false }
@@ -168,6 +168,9 @@ async function main() {
     assert.equal(await page.getByLabel('Source description').inputValue(), 'Synthetic official final classification');
     assert.equal(await page.getByLabel('Printed RS category').nth(2).inputValue(), 'TEST');
     assert.equal(await page.getByLabel('Printed RS status').nth(2).inputValue(), 'TEST');
+    await page.getByLabel('Scoring class for printed 2WD').selectOption('RS2');
+    await page.getByLabel('Scoring-class mapping evidence').fill('Synthetic event-specific mapping evidence');
+    assert.equal(await page.getByLabel('Printed RS category').nth(1).inputValue(), '2WD');
     const stageTimes = page.locator('input[placeholder^="e.g. 01:23.45"]');
     await stageTimes.nth(0).fill('01:11.0');
     await page.getByRole('button', { name: 'Review and copy mapped NR stage times' }).click();

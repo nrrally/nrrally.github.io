@@ -154,14 +154,17 @@ When the sheet and the official standings disagree, follow the standings and rec
 Use **RallyeSport** in the admin for RS seasons. It is intentionally a separate event
 and classification editor, not another NR class. Creating an RS event does not require
 an NR calendar event or round. Record the official event name/dates, exact classification
-source (HTTPS URL, source file name or description), printed classification status/order,
+source (HTTPS URL, source file name or description), explicit RS championship round number
+when known, printed classification status/order,
 printed category, stage selection, individual stage times, penalty and official total.
 Keep missing values blank; do not calculate official positions or status from stage sums.
 Preserve a printed `TEST` status as `TEST`, with its source order; it is neither DNS nor
 DNF, earns no championship points and has no championship class table. Retain each stage
 observation independently, including a later-stage time after a missing earlier stage.
-An unsupported category remains visible in event results but blocks that event's scoring;
-do not omit or map it to RS2/RS4.
+An unsupported category remains visible in event results and blocks that event's scoring
+unless an explicit, classification-scoped mapping to RS2/RS4 is confirmed and its
+evidence recorded. The source category stays unchanged, and the mapping does not carry to
+another event or season. Never map `TEST` into a scoring class.
 
 The only available scoring profile is 2026 Rallysprint SSR V1 (9 July 2026). Select it
 only for an applicable 2026 event, and record event-specific applicability, championship
@@ -214,7 +217,7 @@ Public RS event tables are linked secondarily from Info/footer. A shared NR roun
 offers an optional dashed **Show RS overlay** only when explicit RS stage mappings exist.
 It is off by default; intermediate comparisons use RS stage values and do not alter
 NR calculations. RS-only events have their own classifications and tables without any
-NR graph or round. Browser/admin scripts use coordinated query version `rallyesport-1`;
+NR graph or round. Browser/admin scripts use coordinated query version `rallyesport-2`;
 retire older open admin tabs before editing or publishing RS data.
 
 ## Before each season: a 15-minute rehearsal

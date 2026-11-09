@@ -393,3 +393,41 @@ classifications (71 rows), with no remote assets. It produced provisional points
 from the two supported final events; R1's source categories/TEST threshold, R2's
 provisional finality, and the unrun R5 remain disclosed and excluded rather than zeroed.
 One repeated-name crew-role conflict is retained as unresolved private identity evidence.
+
+### Local RS homepage/calendar and explicit round-number follow-up (not pushed or published)
+
+The local continuation keeps NR as the homepage default and adds section-local keyboard
+controls for the driver/co-driver leader cards, driver class leaders, and the home result
+cards. RS panels use only RS-derived points and clearly label provisional totals and
+blocked events. The full calendar includes RS-only events; a shared NR/RS card is created
+only by an explicit `nrEventId`, never by matching names, dates, or array order. Results
+cards remain competition-specific, and the home toggle does not alter NR hero statistics,
+standings, graphs, or season data. An RS `roundNumber` is optional, positive, unique and
+independent of NR numbering.
+
+The private preview now carries the user-confirmed R1-only 2WD→RS2 and 4WD→RS4 mapping.
+R1 remains blocked because the documented 14 non-TEST starters are below SSR 7.3's
+threshold and the TEST contribution is unresolved; no R1 points are invented. The
+private preview shows R1–R5 in the user-supplied sequence, the scheduled 28 November
+R5 without results, and a synthetic-only NR + RS badge example. R2–R4 are known shared
+weekends, but this preview contains no NR event IDs, so it displays them separately
+rather than guessing a merge. All actual source-result data and the preview remain under
+session-state `files`, outside Git. The membership workbook was not opened or used.
+
+The coordinated cache version advances to `rallyesport-2` across public, admin,
+disclaimer and privacy shells. Retire old admin tabs before editing. The logo integration
+from local commit `3e806da` remains in this branch; original NR SVG/PNG favicon assets are
+preserved. No schema migration is required because RS is an optional season subdocument;
+the homepage projection reads the existing published RS scoring snapshot while admin
+continues recalculating from private working inputs. No Firebase, History, rules,
+settings, external provider, live data, deployment or publication operation occurred.
+This local preparation does not approve any push.
+
+Validation uses synthetic data and mocked/intercepted browser traffic:
+`node --test tools/tests/*.test.js` passes all 81 tests, including RS round-number
+validation; `site-theme-e2e.js` verifies RS snapshot consumption,
+NR-default panels, independent RS cards, explicit combined-card badges and no-NR access at
+mobile/desktop widths in light/dark themes; `admin-access-e2e.js` passes with no writes.
+The private file preview's interactive leader/results toggles were also browser-checked
+from `file://` with zero external requests. No real deployment, Firebase rules, live Auth,
+or public data publication was tested.
