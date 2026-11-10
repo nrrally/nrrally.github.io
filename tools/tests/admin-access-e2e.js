@@ -199,6 +199,7 @@ async function main() {
     assert.equal(await page.getByLabel('Source description').inputValue(), 'Synthetic official final classification');
     assert.equal(await page.getByLabel('Printed RS category').nth(2).inputValue(), 'TEST');
     assert.equal(await page.getByLabel('Printed RS status').nth(2).inputValue(), 'TEST');
+    await page.getByLabel('Printed vehicle/model (optional)').first().fill('Synthetic RS source model');
     const unsafeCategoryLabel = 'Scoring class for printed 2WD<SVG ONLOAD="WINDOW.RSXSS=1">';
     await page.getByLabel(unsafeCategoryLabel).selectOption('RS2');
     assert.equal(await page.locator('svg[onload]').count(), 0, 'printed categories render as text, not executable markup');
@@ -220,6 +221,7 @@ async function main() {
     assert.match(await stageTimes.nth(0).inputValue(), /^01:11\.0, $/);
     assert.equal(await stageTimes.nth(1).inputValue(), '02:00.0, 03:00.0');
     assert.equal(await stageTimes.nth(2).inputValue(), ', ');
+    assert.equal(await page.getByLabel('Printed vehicle/model (optional)').first().inputValue(), 'Synthetic RS source model');
     await page.evaluate(() => location.hash = '#/competitor/blake-example');
     await page.getByLabel('Duplicate profile').selectOption('blake-duplicate');
     await page.getByRole('button', { name: 'Merge', exact: true }).click();

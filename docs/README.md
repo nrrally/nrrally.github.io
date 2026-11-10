@@ -33,7 +33,7 @@ Results come only from official classification PDFs, never from live timing. NR 
 1. **Official classifications only.** Never use live timing.
 2. **Store what's printed.** Times, penalties and positions are kept exactly as printed. Corrections are made through overrides, never by editing printed values.
 3. **Keep scoring models separate.** NR points, standings and graphs are calculated from raw NR results in the visitor's browser. Published RallyeSport scoring snapshots are stored with RS data; they do not affect NR results, points or statistics.
-4. **Every override explains itself.** Each override carries a reason that is shown on the site. `node tools/report.js <year> <backup.json>` lists all of them.
+4. **Every override explains itself.** Each override carries a reason. Detailed RS review provenance stays in admin records; public views use concise scoring labels and source notes, not repeated reviewer commentary. `node tools/report.js <year> <backup.json>` lists the recorded decisions.
 5. **Every publication is reviewed and kept.** Each publish records who/when and document before/after. Undo stages earlier versions, not a full project/photograph restore. Admin-list and owner/provider changes are outside this flow.
 
 ## Documents

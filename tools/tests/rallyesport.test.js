@@ -45,6 +45,25 @@ function eventScore(f) {
 function seasonScore(f) {
   return E.calculateRallyeSportScoring(f.data, { year: 2026 }, f.people);
 }
+test('optional RS source vehicles validate and project without affecting scoring or NR', () => {
+  const f = fixture(), season = F.season(2026), before = seasonScore(f);
+  f.result.entries[0].vehicle = 'Synthetic RS hatchback';
+  assert.deepEqual(E.validateRallyeSport(f.data, season, {}, f.people), []);
+  assert.deepEqual(seasonScore(f), before);
+  const projected = AI.projectPublic({ ...season, rallyesport: f.data }, f.people);
+  assert.equal(projected.rallyesport.results[0].entries[0].vehicle, 'Synthetic RS hatchback');
+  assert.equal(projected.rallyesport.results[0].entries[1].vehicle, undefined);
+  const nrBefore = E.buildSeason({ season, rounds: {}, people: f.people });
+  const nrAfter = E.buildSeason({ season: { ...season, rallyesport: f.data }, rounds: {}, people: f.people });
+  delete nrBefore.rallyesport; delete nrAfter.rallyesport;
+  assert.deepEqual(nrAfter, nrBefore);
+  f.result.entries[0].vehicle = { model: 'Invalid shape' };
+  assert.ok(E.validateRallyeSport(f.data, season, {}, f.people).some(issue => /source vehicle/.test(issue.msg)));
+  f.result.entries[0].vehicle = 'x'.repeat(201);
+  assert.ok(E.validateRallyeSport(f.data, season, {}, f.people).some(issue => /source vehicle/.test(issue.msg)));
+  delete f.result.entries[0].vehicle;
+  assert.deepEqual(seasonScore(f), before);
+});
 test('2026 role-specific scoring applies the SSR class scale and toggle never changes official order', () => {
   const f = fixture();
   let score = eventScore(f);

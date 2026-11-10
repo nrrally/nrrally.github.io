@@ -234,7 +234,7 @@ partner's scoring position or the source classification.
 Public Crews uses a separate Championship status column; an excluded person is shown
 as "RS0 · Non-Scoring", not as a confirmed non-member. Eligible roles show their RS2/RS4
 championship class. Private review reasons remain distinct; they are not public statuses.
-Results identify championship status directly beneath each individual crew member,
+Results identify championship status beside each individual crew member (below on mobile),
 including an eligible partner alongside a Non-Scoring person. Official RS2/RS4 class,
 classified finish and positions remain source results. Classified describes the official
 event finish; RS0 describes championship scoring only. A later reviewed eligibility
@@ -243,6 +243,14 @@ Overall championship tables derive each person's scoring class from their role-s
 class standings, not the vehicle class of an excluded source appearance. A person scoring
 in both supported classes is explicitly labelled "RS2 + RS4"; a class-filtered table
 shows only that class. Results labels the preserved source finish as "Official finish".
+Public results lead with the classification; source notes and the derived scoring order
+are expandable below it. Do not put membership-workbook handling or reviewer narratives
+in public-facing headings/captions. Keep necessary official qualifications as source notes;
+a pending technical-check qualification also retains its compact visible badge.
+Optional RS vehicle/model text may be entered only from the RS source. An established
+person or matching car number is not evidence that an NR vehicle applies to an RS row.
+Profiles show source car numbers and "Not recorded" for an absent vehicle, retain charts
+for RS0 people, and link directly to the appearance's selected-car graph.
 Record R1-R4 as championship events only with their existing event-specific evidence.
 Scoring those four events does not satisfy the separate season round-count rule or make
 the championship final.

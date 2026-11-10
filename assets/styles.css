@@ -222,6 +222,33 @@ td.fastest { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); 
 .section-head-actions { display:flex; align-items:center; justify-content:flex-end; gap:12px; flex-wrap:wrap; }
 .home-rs-note { margin:8px 0 0; }
 .rs-competitor { font-weight:750; }
+.rs-classification .crew { min-width: 220px; gap: 7px; }
+.rs-crew-role { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.rs-crew-role + .rs-crew-role > span:first-child { font-size: 12.5px; color: var(--muted); }
+.rs-role-status { white-space: nowrap; color: var(--muted); }
+.rs-role-status .note-mark { margin: 0; font-size: 11px; }
+.rs-class-position, .rs-penalty, .rs-result-points > span { display: block; white-space: nowrap; }
+.rs-result-total { white-space: nowrap; }
+.rs-result-points > span { font-size: 12px; color: var(--muted); }
+.rs-result-points b { color: var(--ink); font-size: 14px; margin-inline-start: 5px; }
+.rs-classification + p, .rs-eligibility-note { margin: 8px 0; }
+.rs-scoring-order .table-wrap { margin-top: 12px; }
+@media (max-width: 640px) {
+  .rs-classification table, .rs-classification tbody { display: block; }
+  .rs-classification thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .rs-classification tbody tr { display: grid; grid-template-columns: 38px 38px minmax(0, 1fr); padding: 12px 10px; gap: 8px; border-bottom: 1px solid var(--line); }
+  .rs-classification tbody tr:last-child { border-bottom: 0; }
+  .rs-classification tbody td { display: block; border: 0; padding: 0; text-align: start; min-width: 0; }
+  .rs-classification .rs-result-crew { grid-column: 3; }
+  .rs-classification .crew { min-width: 0; gap: 8px; }
+  .rs-classification .rs-crew-role { display: flex; flex-direction: column; gap: 2px; }
+  .rs-classification .rs-role-status { white-space: normal; font-size: 11px; }
+  .rs-classification .rs-result-class, .rs-classification .rs-result-total { grid-column: 1 / 3; }
+  .rs-classification .rs-result-finish, .rs-classification .rs-result-points { grid-column: 3; }
+  .rs-classification [data-label]::before { content: attr(data-label); display: block; font-family: var(--font); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 3px; }
+  .rs-classification .rs-class-position, .rs-classification .rs-penalty { font-size: 10px; white-space: normal; }
+  .rs-classification .rs-result-points > span { display: inline-block; margin-inline-end: 14px; }
+}
 .leader { display: flex; align-items: center; gap: 12px; }
 .leader + .leader { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
 .leader .who { flex: 1; min-width: 0; }

@@ -20,6 +20,10 @@ const sharedNrEvents = [
 ];
 season.events.push(...sharedNrEvents);
 const people = F.copy(docs['data/people.json']);
+Object.assign(people.people.find(person => person.id === 'alex-test'), {
+  bio: 'Synthetic competitor biography.', photo: 'assets/brand.svg',
+  links: { website: 'https://example.com/synthetic-profile' }
+});
 people.people.push({ id: 'blake-example', name: 'Blake Example', aliases: [], bio: '', photo: '', links: {} });
 people.people.push({ id: 'reviewed-rs-driver', name: 'Reviewed RS driver', aliases: [] });
 people.people.push({ id: 'reviewed-rs-codriver', name: 'Reviewed RS co-driver', aliases: [] });
@@ -69,6 +73,7 @@ entry.codriver = 'Synthetic Co-driver ' + (i + 1);
 rsResult.entries[0].driver = 'Alex Test';
 rsResult.entries[0].codriver = 'Blake Example';
 rsResult.entries[5].class = 'RS4';
+rsResult.entries[3].vehicle = 'Synthetic RS hatchback';
 rsResult.entries[1].driver = 'Same source name';
 rsResult.entries[1].codriver = 'Same source name';
 rsResult.entries[1].identityReview = {
@@ -166,6 +171,25 @@ async function main() {
         return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
       }), false, 'branding and display controls must not overlap');
     };
+    if (process.env.RS_PRESENTATION_SCREENSHOT_DIR) {
+      fs.mkdirSync(process.env.RS_PRESENTATION_SCREENSHOT_DIR, { recursive: true });
+      for (const width of [1440, 390]) {
+        await page.setViewportSize({ width, height: 1000 });
+        for (const [name, hash] of [
+          ['nr-home', '#/?competition=nr'], ['nr-classification', '#/round/R1/classification?competition=nr'],
+          ['rs-home', '#/?competition=rs'], ['rs-classification', '#/rallyesport/synthetic-rs-r2-results/classification'],
+          ['nr-profile', '#/person/alex-test?competition=nr'], ['rs-profile', '#/person/alex-test?competition=rs']
+        ]) {
+          await visit(hash); await noOverflow();
+          await page.screenshot({ path: path.join(process.env.RS_PRESENTATION_SCREENSHOT_DIR, name + '-' + width + '.png'), fullPage: true });
+        }
+      }
+      if (process.env.RS_PRESENTATION_CAPTURE_ONLY === '1') {
+        assert.deepEqual(errors, []); assert.deepEqual(unexpected, []);
+        console.log('PASS synthetic NR/RS desktop/mobile presentation captures; no unexpected requests or page errors.');
+        return;
+      }
+    }
     const eventCount = async expected => {
       for (const hash of ['#/', '#/rounds']) {
         await visit(hash);
@@ -301,7 +325,11 @@ async function main() {
         assert.ok((await rsDriverLink.innerText()).includes('RS tables'));
         assert.ok((await rsCodriverLink.innerText()).includes('RS tables'));
         assert.match((await page.locator('.home-rs-note').innerText()).trim(),
-          /^Provisional RS points\. 2026 RS event minimum: 6 source-backed starters, including TEST and invitational entries; DNS does not count\. This is a user-reported review\. Published SSR V1 states 15; no written amendment is recorded\. RS tables\.$/);
+          /^Provisional RS points\. Standings & scoring notes\.$/);
+        assert.equal(await page.locator('.home-rs-classes .card').count(), 2,
+          'non-scoring people are not presented as class leaders');
+        assert.ok(!(await page.locator('main').innerText()).includes('RS0 Non-Scoring SSR 6.1'),
+          'the homepage does not repeat the scoring footnote');
         assert.doesNotMatch((await page.locator('.leader').allInnerTexts()).join('\n'), /Provisional RS points/,
           'provisional status is stated once at section level, not repeated below each row');
         const provisionalTables = published.season_2026.season.rallyesport.scoring.provisionalStandings;
@@ -338,7 +366,8 @@ async function main() {
         const rsOnlyLeader = rsDriverCard.locator('.leader').filter({ hasText: 'Reviewed RS driver' }).first();
         assert.ok(await rsOnlyLeader.count(), 'RS-only competitors remain visible in the RS leader list');
         assert.equal(await rsOnlyLeader.locator('a[href*="/person/"][href*="competition=rs"]').count(), 1);
-        assert.equal(await page.locator('.hero-stats').count(), 0, 'RS home never shows NR hero statistics');
+        assert.deepEqual(await page.locator('.hero-stat b').allTextContents(), ['2 / 6', '6', '13', '2'],
+          'RS home retains the NR statistics layout using only RS data');
         await page.getByRole('heading', { name: 'RS class leaders · drivers' }).waitFor();
         assert.ok((await page.locator('.home-rs-classes').innerText()).includes('Reviewed RS driver'));
         await page.waitForFunction(() => document.querySelectorAll('.rs-event-card').length === 6);
@@ -367,14 +396,40 @@ async function main() {
         assert.equal(await unverifiedCrew.locator('td').first().innerText(), 'Synthetic Driver 6');
         assert.equal(await unverifiedCrew.locator('td').last().innerText(), 'RS0 · Non-Scoring*');
         assert.ok((await page.locator('#crewTable thead').textContent()).includes('Championship status'));
-        assert.ok((await page.locator('main').innerText()).includes(
-          'Classified describes the official event finish. RS0 describes championship scoring only.'));
+        assert.ok(!(await page.locator('main').innerText()).includes('RS0 roles receive'));
         await page.getByRole('link', { name: 'Alex Test', exact: true }).click();
-        await page.getByText('RallyeSport profile · RS history only', { exact: true }).waitFor();
+        await page.locator('.profile-head h1').filter({ hasText: 'Alex Test' }).waitFor();
+        assert.equal(await page.locator('.profile-head .bio').innerText(), 'Synthetic competitor biography.');
+        assert.equal(await page.locator('.profile-head img').getAttribute('src'), 'assets/brand.svg');
+        assert.equal(await page.locator('.profile-head a[href="https://example.com/synthetic-profile"]').count(), 1);
+        assert.equal(await page.locator('.rs-profile-points svg[aria-label="Points by round"]').count(), 1,
+          'RS0 people retain the season graph');
+        assert.ok((await page.locator('.rs-profile-points').innerText()).includes('0'));
+        assert.ok(!(await page.innerText('main')).includes('NR statistics are not included'));
+        assert.ok((await page.innerText('main')).includes('Not recorded'), 'a missing RS vehicle is not copied from NR');
+        assert.ok(await page.locator('a[href*="/graph?cars=1"][href*="competition=rs"]').count());
         assert.ok(!(await page.innerText('main')).includes('Starts'));
         assert.equal(await page.locator('a[href*="/round/"]').count(), 0);
+        const sharedProfileHeader = await page.locator('.profile-head').innerText();
+        await competitionSwitch().click();
+        await page.waitForURL(url => url.hash.includes('/person/alex-test?competition=nr'));
+        assert.equal(await page.locator('.profile-head').innerText(), sharedProfileHeader,
+          'switching keeps the canonical person, shared biography and selected season');
+        assert.ok(await page.locator('.chart-card svg[aria-label="Points by round"]').count(),
+          'NR keeps its existing points chart');
+        await competitionSwitch().click();
+        await page.getByRole('dialog').getByRole('button', { name: 'Continue', exact: true }).click();
+        await page.waitForURL(url => url.hash.includes('/person/alex-test?competition=rs'));
+        assert.equal(await page.locator('.profile-head').innerText(), sharedProfileHeader);
+        assert.equal(await page.locator('.rs-profile-points svg').count(), 1);
+        await page.locator('a[href*="/graph?cars=1"][href*="competition=rs"]').first().click();
+        await page.locator('.chart-card svg').waitFor();
+        assert.equal(await page.locator('.car-btn[aria-pressed="true"]').count(), 1);
+        assert.equal(await page.locator('.car-btn[data-car="1"]').getAttribute('aria-pressed'), 'true',
+          'RS0 profile graphs open with that person’s car selected');
+        await visit('#/person/alex-test?competition=rs');
         await page.reload();
-        await page.getByText('RallyeSport profile · RS history only', { exact: true }).waitFor();
+        await page.locator('.profile-head h1').filter({ hasText: 'Alex Test' }).waitFor();
         assert.equal(await page.getByRole('dialog').count(), 0);
         await nav('Getting started').click();
         await page.locator('.getting-started').waitFor();
@@ -407,12 +462,11 @@ async function main() {
         assert.ok(page.url().includes('competition=rs'));
         assert.equal(await page.getByRole('dialog').count(), 0);
         await visit('#/rallyesport/synthetic-rs-r2-results/classification');
-        const dnfRow = page.locator('tbody tr').filter({ has: page.getByText('DNF', { exact: true }) });
+        const dnfRow = page.locator('.rs-classification tbody tr[data-car="3"]');
         assert.equal(await dnfRow.count(), 1);
-        const dnfCells = await dnfRow.locator('td').allTextContents();
-        assert.equal(dnfCells[2], '3');
-        assert.equal(dnfCells[dnfCells.length - 2], '0');
-        assert.equal(dnfCells[dnfCells.length - 1], '0');
+        assert.equal(await dnfRow.locator('.rs-result-car').innerText(), '3');
+        assert.equal(await dnfRow.locator('.rs-result-finish').innerText(), 'DNF');
+        assert.deepEqual(await dnfRow.locator('.rs-result-points b').allTextContents(), ['0', '0']);
         await visit('#/rounds');
         assert.equal(await page.locator('.event-card').count(), 4, 'NR calendar includes NR events only');
         assert.deepEqual(await page.locator('.competition-badge').allTextContents(), ['NR', 'NR', 'NR', 'NR']);
@@ -427,45 +481,71 @@ async function main() {
           'home and calendar avoid repeated finality commentary');
         await visit('#/rallyesport/synthetic-rs-r2-results/classification');
         const technicalChecksText = await page.locator('main').innerText();
-        assert.ok(technicalChecksText.includes('RS event points'));
-        assert.ok(technicalChecksText.includes('2026 RS event minimum: 6 source-backed starters'));
-        assert.ok(technicalChecksText.includes('Published SSR V1 states 15; no written amendment is recorded.'));
-        assert.ok(technicalChecksText.includes('Subject to post-event technical checks; clearance unverified.'));
+        const layout = await page.evaluate(() => {
+          const tabs = document.querySelector('.tabs').getBoundingClientRect();
+          const table = document.querySelector('.rs-classification').getBoundingClientRect();
+          const crew = document.querySelector('.rs-result-crew').getBoundingClientRect();
+          return { gap: table.top - tabs.bottom, crewLeft: crew.left, crewRight: crew.right, width: innerWidth };
+        });
+        assert.ok(layout.gap >= 0 && layout.gap <= 24, 'classification follows the tabs without a commentary wall');
+        if (width <= 640) {
+          assert.ok(layout.crewLeft >= 0 && layout.crewRight <= width, 'mobile crew and role scoring are visible without sideways scrolling');
+          assert.equal(await page.locator('.rs-classification').evaluate(el => el.scrollWidth <= el.clientWidth), true);
+        }
+        assert.equal(await page.locator('.rs-result-points').count(), 15);
+        assert.ok(!technicalChecksText.includes('2026 RS event minimum'));
+        assert.ok(!technicalChecksText.includes('results are final pending'));
+        assert.ok(technicalChecksText.includes('Technical checks pending'));
+        assert.equal(await page.locator('.rs-source-notes').getAttribute('open'), null);
+        assert.equal(await page.locator('.rs-scoring-order').getAttribute('open'), null);
         assert.ok(technicalChecksText.includes('RS0 · Non-Scoring*'));
-        assert.ok((await page.locator('main').textContent()).includes('Championship scoring'));
+        assert.ok((await page.locator('main').textContent()).includes('championship scoring'));
         const unverifiedSource = page.locator('table.data').first().locator('tbody tr').filter({ hasText: 'Synthetic Driver 6' });
-        const unverifiedCells = await unverifiedSource.locator('td').allTextContents();
-        assert.deepEqual(unverifiedCells.slice(0, 3), ['6', '6', '6']);
-        assert.equal(unverifiedCells[3], 'Synthetic Driver 6Championship: RS0 · Non-Scoring*');
-        assert.equal(unverifiedCells[4], 'Synthetic Co-driver 6Championship: RS4');
-        assert.deepEqual(unverifiedCells.slice(5, 7), ['RS4', 'classified']);
+        assert.equal(await unverifiedSource.locator('.rs-result-pos').innerText(), '6');
+        assert.equal(await unverifiedSource.locator('.rs-result-car').innerText(), '6');
+        assert.equal(await unverifiedSource.locator('[aria-label="Driver"]').textContent(), 'Synthetic Driver 6RS0 · Non-Scoring*');
+        assert.equal(await unverifiedSource.locator('[aria-label="Co-driver"]').textContent(), 'Synthetic Co-driver 6RS4');
+        assert.equal(await unverifiedSource.locator('.rs-result-class .cls').innerText(), 'RS4');
+        assert.equal(await unverifiedSource.locator('.rs-class-position').innerText(), 'Class pos: 6');
+        assert.equal(await unverifiedSource.locator('.rs-result-finish').innerText(), 'classified');
         assert.ok((await unverifiedSource.innerText()).includes('RS0 · Non-Scoring*'));
         assert.ok(!technicalChecksText.includes('eligibility unverified'));
         assert.ok(!technicalChecksText.includes('membership eligibility is unverified'));
-        assert.ok(technicalChecksText.includes(
-          'Classified describes the official event finish. RS0 describes championship scoring only.'));
+        assert.ok(technicalChecksText.includes('Official finish is separate from each person’s championship scoring.'));
         assert.ok(await page.locator('.note-mark[title*="does not establish non-membership"]').count(),
           'the RS0 marker does not imply non-membership');
         assert.ok(technicalChecksText.includes('RS0 Non-Scoring SSR 6.1'));
         const sourceRow = page.locator('table.data tbody tr').filter({ hasText: 'Alex Test' }).first();
-        const mixedCells = await sourceRow.locator('td').allTextContents();
-        assert.deepEqual(mixedCells.slice(0, 3), ['1', '1', '1']);
-        assert.equal(mixedCells[3], 'Alex TestChampionship: RS0 · Non-Scoring*');
-        assert.equal(mixedCells[4], 'Blake ExampleChampionship: RS2');
-        assert.deepEqual(mixedCells.slice(5, 7), ['RS2', 'classified']);
-        assert.deepEqual(mixedCells.slice(-2), ['0', '15']);
+        assert.equal(await sourceRow.locator('.rs-result-pos').innerText(), '1');
+        assert.equal(await sourceRow.locator('.rs-result-car').innerText(), '1');
+        assert.equal(await sourceRow.locator('[aria-label="Driver"]').textContent(), 'Alex TestRS0 · Non-Scoring*');
+        assert.equal(await sourceRow.locator('[aria-label="Co-driver"]').textContent(), 'Blake ExampleRS2');
+        assert.equal(await sourceRow.locator('.rs-result-class .cls').innerText(), 'RS2');
+        assert.equal(await sourceRow.locator('.rs-result-finish').innerText(), 'classified');
+        assert.deepEqual(await sourceRow.locator('.rs-result-points b').allTextContents(), ['0', '15']);
         assert.ok(!technicalChecksText.includes('user-confirmed scoring finality'));
         assert.ok(!technicalChecksText.includes('Scoring finality is user-confirmed'));
-        assert.ok((await page.locator('main').innerText()).includes('results are final pending post-event technical checks'));
+        await page.locator('.rs-source-notes summary').focus();
+        await page.keyboard.press('Enter');
+        const sourceNotesText = await page.locator('.rs-source-notes').innerText();
+        assert.ok(sourceNotesText.includes('results are final pending post-event technical checks'));
+        assert.ok(sourceNotesText.includes('2026 RS event minimum: 6 source-backed starters'));
+        assert.ok(sourceNotesText.includes('Published SSR V1 states 15; no written amendment is recorded.'));
+        await page.locator('.rs-scoring-order summary').click();
+        assert.ok(await page.locator('.rs-scoring-order table').isVisible());
+        await noOverflow();
         await visit('#/rallyesport/synthetic-rs-r1-finality-review/classification');
-        const reviewedFinalityText = await page.locator('main').innerText();
-        assert.ok(reviewedFinalityText.includes('RS event points'));
+        assert.equal(await page.locator('.rs-result-points').count(), 15);
         await visit('#/rallyesport');
+        assert.ok(!(await page.locator('main').innerText()).includes('2026 RS event minimum'));
+        await page.locator('.rs-scoring-notes summary').click();
         assert.ok((await page.locator('main').innerText()).includes('2026 RS event minimum: 6 source-backed starters'));
         await visit('#/person/rs-driver-3?competition=rs');
-        assert.ok((await page.locator('main').innerText()).includes('Published SSR V1 states 15; no written amendment is recorded.'));
-        assert.ok(!reviewedFinalityText.includes('user-confirmed scoring finality'));
-        assert.ok(!reviewedFinalityText.includes('Scoring finality is user-confirmed'));
+        assert.ok(!(await page.locator('main').innerText()).includes('Published SSR V1'));
+        assert.equal(await page.locator('.rs-profile-points svg').count(), 1);
+        await visit('#/person/rs-driver-4?competition=rs');
+        assert.ok((await page.locator('main').innerText()).includes('Synthetic RS hatchback'));
+        assert.ok(!(await page.locator('main').innerText()).includes('NR statistics are not included'));
         await noOverflow();
       }
     }
@@ -497,7 +577,7 @@ async function main() {
           await page.locator('[data-metric="loss"]').click();
           await page.waitForFunction(() => document.querySelector('[data-metric="loss"]').getAttribute('aria-pressed') === 'true');
           await page.locator('.tabs').getByRole('link', { name: 'Classification', exact: true }).click();
-          await page.getByText('Official position', { exact: true }).waitFor();
+          await page.locator('.rs-classification').waitFor();
           await page.locator('.tabs').getByRole('link', { name: 'Stage times', exact: true }).click();
           await page.waitForURL(url => url.hash.includes('/' + id + '/stages?'));
           await page.getByText('Highlighted: fastest RS time on the stage.', { exact: false }).waitFor();
@@ -695,16 +775,20 @@ async function main() {
     await visit('#/rallyesport/synthetic-rs-result/classification');
     assert.equal(await page.locator('main h1').innerText(), 'Synthetic RS-only event');
     assert.deepEqual(await page.locator('main table thead th').allTextContents(),
-      ['Official position', 'Official class position', 'Car', 'Driver', 'Co-driver', 'Class', 'Official status',
-        'Stage 1', 'Stage 2', 'Stage 3', 'Penalty', 'Official total']);
+      ['Pos', 'No.', 'Crew / championship scoring', 'Source class', 'Official finish', 'Official total']);
     const rsCells = page.locator('main table tbody tr').first().locator('td');
     assert.equal(await rsCells.nth(0).innerText(), 'TEST');
-    assert.equal(await rsCells.nth(1).innerText(), '3');
-    assert.equal(await rsCells.nth(6).innerText(), 'TEST');
-    assert.equal(await rsCells.nth(7).innerText(), '00:01.0');
-    assert.equal(await rsCells.nth(8).innerText(), '—');
-    assert.equal(await rsCells.nth(9).innerText(), '00:03.0');
+    assert.equal(await rsCells.nth(1).innerText(), '88');
+    assert.equal(await rsCells.nth(3).locator('.rs-class-position').innerText(), 'Class pos: 3');
+    assert.equal(await rsCells.nth(4).innerText(), 'TEST');
+    assert.equal(await rsCells.nth(5).locator('b').innerText(), '—');
     assert.ok(!(await page.locator('main table tbody').innerText()).includes('DNS'));
+    await page.locator('.tabs').getByRole('link', { name: 'Stage times', exact: true }).click();
+    await page.getByText('Highlighted: fastest RS time on the stage.', { exact: false }).waitFor();
+    const stageCells = page.locator('main table tbody tr').first().locator('td');
+    assert.equal(await stageCells.nth(1).innerText(), '1.0s');
+    assert.equal(await stageCells.nth(2).innerText(), '—');
+    assert.equal(await stageCells.nth(3).innerText(), '3.0s\nP7');
     await visit('#/rallyesport/synthetic-rs-result/graph?cars=88&m=spos');
     assert.equal(await page.locator('.series circle').count(), 1, 'a later printed stage position survives a missing earlier time');
     assert.deepEqual(await page.locator('.axis .lbl').allTextContents(), ['Stage 1', 'Stage 2', 'Stage 3']);
@@ -726,8 +810,12 @@ async function main() {
     graphResult.classMappings = { '2WD': 'RS2' };
     graphResult.classMappingEvidence = 'Synthetic event-specific category review';
     await visit('#/rallyesport/synthetic-rs-result/classification');
-    assert.ok((await page.locator('main').innerText()).includes('Reviewed scoring-class mapping: 2WD → RS2'));
-    assert.equal(await page.locator('main table tbody tr').first().locator('td').nth(5).innerText(), '2WD');
+    assert.ok(!(await page.locator('main').innerText()).includes('Championship class mapping'));
+    await page.locator('.rs-source-notes summary').click();
+    assert.ok((await page.locator('main').innerText()).includes('Championship class mapping: 2WD → RS2'));
+    assert.ok(!(await page.locator('main').textContent()).includes('Synthetic event-specific category review'),
+      'private review evidence is not rendered as public commentary');
+    assert.equal(await page.locator('.rs-result-class .cls').first().innerText(), '2WD');
     await visit('#/2026/round/R1/graph?cars=1&m=loss&rs=1');
     assert.ok((await page.locator('.chart-title').innerText()).includes('Time lost'));
     assert.equal(await page.locator('.series[data-key^="RS:"]').count(), 0, 'legacy overlay queries cannot mix competitions');
@@ -738,7 +826,7 @@ async function main() {
     assert.equal(await page.locator('[data-quick="RS2"]').count(), 1);
     assert.equal(await page.getByRole('heading', { name: 'Stage by stage', exact: true }).count(), 1);
     assert.deepEqual(await page.locator('.chart-card .axis .lbl').allTextContents(), ['SS1', 'SS3']);
-    assert.ok((await page.locator('main').innerText()).includes('RS-only stages'));
+    assert.equal(await page.locator('nav[aria-label="RS result views"]').count(), 1);
     assert.equal(await page.locator('.series:not([data-key^="RS:"])').count(), 0);
     assert.ok((await page.locator('.axis text').allTextContents()).includes('+0.01s'));
     await page.locator('.hit[data-i="0"]').hover();
@@ -1050,13 +1138,13 @@ async function main() {
     assert.ok((await page.innerText('main')).includes('No events have been added to the 2027 calendar'),
       'the standalone RS event does not create an NR calendar event');
     await visit('#/2027/rallyesport');
-    assert.match(await page.innerText('main'), /RS championship scoring: unconfigured/i);
+    assert.match(await page.innerText('main'), /RS points unavailable/i);
     assert.ok(!(await page.innerText('main')).includes('Provisional cumulative points'),
       'unconfigured 2027 rules do not show provisional or zero RS points');
     await visit('#/2027/rallyesport/rs-only-2027-opening-final/classification');
     await page.getByRole('heading', { name: 'Synthetic RS-only 2027 opening' }).waitFor();
-    assert.ok((await page.innerText('main')).includes('Synthetic 2027 RS final classification'));
-    assert.ok((await page.innerText('main')).includes('No championship points are published for this event.'));
+    assert.ok((await page.textContent('main')).includes('Synthetic 2027 RS final classification'));
+    assert.ok((await page.innerText('main')).includes('RS event points unavailable.'));
     assert.ok((await page.innerText('main')).includes('00:01.00'));
     assert.equal(await page.locator('th').filter({ hasText: 'Driver RS points' }).count(), 0,
       'the 2027 classification displays no inferred RS points');

@@ -145,6 +145,17 @@ tabs before new entry/settings data. Contract versions are checked by new admin 
 entry-aware engine/import 2, rally notice 1, analytics 1; AI envelope/backup version 1.
 Older already-loaded editors do not gain these guards retrospectively.
 
+The user-authorized RS presentation/profile-parity release uses coordinated `competition-4`
+asset queries. Its reviewed parent is `4d9ba9e3e20b862aca6e68fcd3d4090c2bd5653f`;
+verify the resulting main/Pages SHA and static bytes rather than assuming deployment.
+It reads existing
+published role-scoring data without a migration or republish. An optional source-only
+RS entry `vehicle` field is now understood by the engine/admin; do not enter or
+publish it from an older admin validator. Retire old tabs before any separately approved
+data edit. Approval covers code/documentation deployment only, not provider operations.
+No database/admin writes or Firebase/GCP/workbook access accompany this release;
+the existing coordinated scoring/data rollback requirements remain unchanged.
+
 ## 3. Runtime and data reconstruction
 
 Public startup reads `public/site` and `public/people`, then `public/season_<year>`.

@@ -31,6 +31,61 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## 2026-11-10: authorized RS presentation and information-parity release
+
+- Based on clean HEAD and freshly fetched `origin/main`
+  `4d9ba9e3e20b862aca6e68fcd3d4090c2bd5653f`. The user requested NR-style RS
+  information density, less repeated commentary and feature parity, especially profiles.
+  Following synthetic/visual review, the user explicitly approved "Push to live."
+  This authorizes a normal non-force code/documentation push to `origin/main` and Pages
+  verification only; no database/admin writes, workbook or Firebase/GCP access.
+  Release preflight re-fetched the exact reviewed base with no drift and confirmed only
+  the reviewed 19 paths changed. The approved existing keyring account was verified with
+  push permission through a temporary non-secret, process-scoped GH context; no tokens
+  were extracted and no global authentication settings changed.
+- RS classification now follows the tabs immediately, using compact crew/position/car
+  cells, separate source class/official finish, total/penalty and independent role scores.
+  Narrow screens show labelled crew cards. Stage timings remain in Stage times.
+  Source notes and the secondary scoring order are closed, keyboard-accessible disclosures.
+  Official qualifications remain accessible; pending technical checks keep a visible badge.
+  Reviewer evidence is not rendered as result-header commentary.
+- Removed the homepage's repeated RS0 essay/non-scoring leader card. Kept a short
+  provisional note and added RS-only hero statistics/latest-graph action and leader bars.
+  Other RS tables/profiles use a short SSR 6.1 footnote, not a declaration of non-membership.
+  Detailed scoring limitations remain available in scoring notes.
+- RS reuses NR's profile header and season-points SVG renderer, with separate RS role
+  values and gaps for unavailable points. Profiles retain source car numbers, partners,
+  source vehicle when recorded, official results, recorded stage wins, standings links and
+  selected-car graphs even for RS0. Crews has corresponding class/standing/appearance
+  details; championship tables show per-event points. Canonical person/season context
+  survives switching. No NR results, times, points or vehicle values are copied into RS.
+- Optional RS entry `vehicle` is validated source-only text (maximum 200 characters),
+  carried through the public projection and editable in admin. Existing data needs no
+  migration or publication. Missing vehicle displays "Not recorded"; missing timing/points
+  are not fabricated. Older admin validators do not accept newly populated vehicle fields,
+  so retire old tabs before such a separately approved data edit.
+- Cache queries advance together to `competition-4` across public, admin, privacy
+  and disclaimer shells. Scoring policy/calculations, source classifications, memberships,
+  NR behavior, guide reference edition (2026), analytics, Auth and provider configuration
+  are unchanged. Existing compatible scoring/data rollback requirements still apply.
+- Validation: `node --test --test-reporter=spec` passed all 102 tests (zero failures).
+  `node tools\tests\site-theme-e2e.js` passed at 320/390/768/1440 px, including light/dark,
+  keyboard disclosures, mixed-role source preservation and canonical profile switching.
+  `node tools\tests\admin-access-e2e.js` passed, including optional source vehicle editing.
+  These used the supplied external Node/Playwright and installed Edge with process-only
+  environment variables; no installs or global settings changed. `git diff --check` passed.
+  Desktop/mobile before/after captures remain outside Git. All fixtures/requests were
+  synthetic/intercepted; none certify a real competitor's record or provider state.
+- Release checks repeated the Node and public/admin browser commands above successfully:
+  102/102 Node tests and both browser suites passed again; `git diff --check` passed
+  with exactly the reviewed 19 modified paths and no untracked files. Staged
+  whitespace/scope review is required before committing.
+  The commit uses the previously selected ID-based noreply
+  author/committer and required Copilot coauthor trailer. Immediately before pushing,
+  require remote main still to equal the reviewed base above; stop on drift or failure.
+  After pushing, verify the exact Pages build SHA and canonical live static bytes.
+  Deployment results are reported separately after verification, not assumed here.
+
 ## 2026-11-10: authorized RS release preparation (push gate pending)
 
 The user approved the reviewed preview with "ok push to live and i'll test more."

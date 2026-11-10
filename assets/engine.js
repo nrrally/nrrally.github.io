@@ -1079,11 +1079,12 @@
       var cars = Object.create(null), idx = peopleIndex(people);
       result.entries.forEach(function (entry, n) {
         var row = label + ' row ' + (n + 1);
-        if (!object(entry, row, ['car', 'driver', 'codriver', 'class', 'status', 'pos', 'classPos', 'times', 'stagePos', 'penalty', 'total', 'timeEvidence', 'notes', 'invited', 'startEvidence', 'identityReview'])) return;
+        if (!object(entry, row, ['car', 'driver', 'codriver', 'class', 'vehicle', 'status', 'pos', 'classPos', 'times', 'stagePos', 'penalty', 'total', 'timeEvidence', 'notes', 'invited', 'startEvidence', 'identityReview'])) return;
         text(entry.car, row + ' car', true, 40);
         if (cars[entry.car]) error(row + ' duplicates car ' + entry.car + '.');
         cars[entry.car] = true;
         text(entry.driver, row + ' driver', true); text(entry.codriver == null ? '' : entry.codriver, row + ' co-driver', false);
+        if (entry.vehicle !== undefined) text(entry.vehicle, row + ' source vehicle', false, 200);
         text(entry.startEvidence == null ? '' : entry.startEvidence, row + ' start evidence', false, 1000);
         var driver = idx.resolve(entry.driver), codriver = idx.resolve(entry.codriver);
         if (entry.identityReview != null) {

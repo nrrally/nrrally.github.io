@@ -139,6 +139,24 @@ an RS0 person with an eligible partner and verify individual labels directly in 
 unchanged official classified status/classes/positions, and independent zero/nonzero
 points. Crews has a separate Championship status column; the shared SSR 6.1 explanation
 does not assert non-membership merely because a role is Non-Scoring.
+RS presentation checks now require the classification directly below its tabs, with no
+introductory commentary wall; source/scoring notes and the secondary scoring-order table
+start closed and remain keyboard-operable. Official classes, finish order, class positions,
+totals/penalties and mixed-role points remain intact. Stage values are checked in Stage
+times rather than repeated as classification columns. At mobile widths the classification
+becomes labelled crew cards, with both names/statuses visible without horizontal scrolling.
+Homepage tests keep the short provisional label, RS-only hero statistics and leader graph,
+but exclude the repeated RS0 essay and non-scoring "class leaders".
+
+The shared-profile regression switches a canonical synthetic person NR -> RS -> NR
+without losing season/person context, photo, bio, social link or points chart. RS0 retains
+its chart, zero points and selected-car graph; unsupported points are not rendered as zero.
+An additional synthetic R2/R4-only appearance scenario preserves car numbers with no RS
+vehicle and proves the NR vehicle is never borrowed. Optional source vehicles are validated,
+projected and edited in the synthetic admin regression without changing scores.
+`RS_PRESENTATION_SCREENSHOT_DIR` saves NR/RS Home, Classification and Profile captures
+at 1440/390 px outside Git. Set `RS_PRESENTATION_CAPTURE_ONLY=1` for captures only; that is
+not a full-suite result. These use the same local server and intercepted synthetic requests.
 The same graph UI is exercised for all six metrics, car selection, Top 5/All/Clear/class
 filters, legend focus/highlighting, tooltips, head-to-head and stage tables. Tests assert
 no NR/RS series mixing, independent standalone RS stage axes, official Final semantics,

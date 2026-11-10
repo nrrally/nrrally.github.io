@@ -104,6 +104,24 @@ reviewed stable identities and RS-only history across offered seasons. Unresolve
 names remain visible without fabricated person links or name-based identity merging.
 Profiles describe source/classified appearances, not inferred championship starts.
 
+RS presentation follows the NR information hierarchy: classification immediately after
+the result tabs, compact two-person crew cells, position/car/class badges and aligned
+totals/role points. On narrow screens the same RS source rows become labelled crew cards;
+names and individual championship status do not require sideways scrolling. Stage times
+remain in their existing tab. Source notes and the secondary role-specific scoring-order
+table are closed native disclosures below the classification. Detailed review rationale
+is not rendered in the public result header. A short RS0 footnote is used only where
+non-scoring people are displayed, not on the homepage's ranked/class leaders.
+
+Both competitions reuse the profile header (photo, biography and social links) and
+responsive season-points SVG renderer. RS supplies its own event/role points, including
+explicit zeros for RS0; unavailable points remain gaps, not zeros. RS profiles retain
+source car numbers, optional source vehicle, partners, official results, recorded stage
+wins, standings summaries and graph links selecting that appearance's car. Crews and
+standings retain the corresponding role/class and per-event detail. Competition switches
+keep a canonical person and selected season; they never transfer NR results or vehicle
+details into an RS appearance. An absent RS vehicle is shown as "Not recorded".
+
 The shared graph UI provides the same six metrics, car/class quick filters, legend
 highlighting, tooltips, head-to-head bars/table and stage table in both modes. An RS
 display adapter uses each classification's own stage IDs/labels and the existing pure

@@ -1712,6 +1712,7 @@
               }, entry.identityReview && entry.identityReview.evidence || '', 'rows="2"'),
                 'Required when either reviewed identity is selected. Keep printed source names above unchanged; never identify a person or role from car number alone. Use an NR main spelling only for a reviewed same-event car-and-crew match.', 'span2') +
               field('Printed RS category', 'class', entry['class'], 'maxlength="80"') +
+              field('Printed vehicle/model (optional)', 'vehicle', entry.vehicle || '', 'maxlength="200"') +
               field('Printed RS status', 'status', entry.status, 'maxlength="80" data-rerender') +
               field('Start evidence (when a DNF has no stage observation)', 'startEvidence', entry.startEvidence || '', 'maxlength="1000"') +
               fld('Official overall position', input(function (v) { entry.pos = numOrNull(v); }, entry.pos, 'inputmode="numeric" data-rerender')) +
