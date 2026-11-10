@@ -65,6 +65,13 @@ with matching deployed assets and synthetic browser smoke; the documentation-onl
 follow-up and limitations are recorded in [releases.md](releases.md). This does not
 verify live private data, authentication, rules or future regulations.
 
+The unified NR/RS display release was verified built at
+`6c2c736a37483bd7b33ff637ddd2d50bb9f69261`, with matching committed/deployed
+runtime bytes and intercepted synthetic browser checks on the canonical site.
+Its actual deployment record and documentation-only verification follow-up are in
+[releases.md](releases.md). No database migration or provider change accompanied it;
+this is not verification of live source data, authentication or rules.
+
 ## 2. Technical inventory and reading map
 
 There is no package manifest, bundler, application server or compiled output to recover.

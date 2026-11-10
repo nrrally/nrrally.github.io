@@ -119,6 +119,36 @@ must be addressed; there is no automation that can infer approvals or certify pr
   persistence across plain static-document links still depends on browser storage.
   Any subsequent unrelated release needs fresh explicit approval, main comparison and deployment checks.
 
+### Actual deployment verification
+
+- The authorized non-force push advanced the reviewed November 9 parent to
+  `6c2c736a37483bd7b33ff637ddd2d50bb9f69261`, containing implementation
+  `d98304104d88d8ebafa1f06fbad401733cf038e8` and the documentation-only credential
+  recovery follow-up. Remote main and the successful Pages build matched that exact SHA.
+  Canonical HTTPS returned 200; HTTP redirected to `https://nrrally.co.za/`.
+  Pages remains legacy `main` at `/`, with the expected CNAME and HTTPS enforcement.
+- Deployed index/admin/privacy/disclaimer HTML and display-context/site/engine/styles
+  assets match their committed Git blobs byte for byte. Compare Git blobs rather than
+  Windows checkout bytes, which may have CRLF conversions.
+- Browser smoke against the actual deployed static assets passed at 1440px and 390px,
+  light/dark: initial delayed-script loader, repeated welcome, persistent context,
+  standalone/linked graph-first RS journeys, six metrics, car selection/head-to-head,
+  all three tabs with visible fastest-time highlighting, legacy graph links, static legal
+  pages and signed-out admin. NR standings, classification, stage table and graph
+  observations exactly match the pre-release deployed baseline with identical synthetic
+  inputs. Screenshots were visually reviewed. No page errors, warnings or unexpected
+  external requests remained. The first smoke's incomplete local connection fixture
+  omitted admin's sign-in prerequisites; correcting only that synthetic fixture and
+  providing signed-out fake Auth resolved the check, with no production workaround.
+- All provider requests were intercepted with synthetic data/Auth; the browser issued
+  no writes or real collection. These checks verify deployed code, not actual Firebase
+  data, live authentication, provider configuration, rules, source truth or missing source
+  timing. No Firebase/GCP/data/rules/admin or earlier database-rollout changes occurred.
+- This verification-record follow-up is documentation only, covered by the same release
+  handoff. Runtime assets, scoring/data contracts, cache versions and recovery procedure
+  are unchanged. Existing synthetic suites and deployed-code results apply; fresh remote
+  comparison, diff/privacy checks and final Pages SHA verification are still required.
+
 ## 2026-11-08: authorized season-wide getting-started guide release
 
 - Local work based on `b818767` integrates final SEO main `c06c390` locally, preserving
