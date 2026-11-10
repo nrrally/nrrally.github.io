@@ -72,6 +72,26 @@ Its actual deployment record and documentation-only verification follow-up are i
 [releases.md](releases.md). No database migration or provider change accompanied it;
 this is not verification of live source data, authentication or rules.
 
+The subsequent 2026 RS starter/role-eligibility release was verified built at
+`1a089ad6ba5b880b94627d2c398d46ee73c27986`, with all 20 live assets matching its Git
+blobs in the coordinator's checks. The coordinator also verified a protected 43-document
+backup followed by one version-guarded atomic RS-only publication at
+`2026-11-10T15:56:39.640614Z`: four intended writes, including one user-attributed History
+entry labelled **GitHub Copilot (direct Firebase)**. Full readback verified 44 documents
+and unchanged NR data. The documentation agent did not access Firebase/GCP; private
+backup contents, account identities and History IDs are not reproduced here.
+
+Coordinator live browser checks covered the approved RS results/standings and NR's 124
+result rows, seven classification/stage tables and ten standings tables, without writes
+or unexpected requests. R5 is still unclassified and standings provisional; this is not
+a championship-finality or future-regulations determination. See [releases.md](releases.md)
+for the code/data sequencing and same-release documentation-only follow-up. Runtime,
+cache version (`competition-3`), guide reference edition (2026) and provider behavior are
+unchanged by that follow-up. Preserve the compatible pre-change data backup and audited
+before/after record: rolling back to an older runtime now requires a coordinated compatible
+data snapshot, not code alone. Any data restoration still needs its own authorization,
+version preconditions and atomic attributed History. Recheck live/main state at handover.
+
 ## 2. Technical inventory and reading map
 
 There is no package manifest, bundler, application server or compiled output to recover.

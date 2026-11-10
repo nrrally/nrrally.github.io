@@ -63,6 +63,44 @@ with synthetic fixtures. Diff whitespace checks passed; no untracked files were 
 These checks do not certify actual source truth, live authentication, deployed rules or
 the coordinator's separate private candidate/publication.
 
+### Actual deployment and audited publication verification
+
+- The authorized normal, non-force push advanced the reviewed parent to
+  `1a089ad6ba5b880b94627d2c398d46ee73c27986`. GitHub Pages built that exact SHA
+  successfully. The coordinator verified all 20 live assets against its Git blobs.
+  The first push attempt was rejected under an account without repository permission;
+  the successful push used the existing authorized keyring credential through the
+  standard `gh auth git-credential` helper with a temporary isolated configuration.
+  No token was extracted or global authentication setting changed; the temporary
+  configuration was removed.
+- The coordinator reports that the final protected Firestore backup contained 43
+  documents. At `2026-11-10T15:56:39.640614Z`, one version-guarded atomic RS-only
+  transaction performed the four intended writes, including one History entry
+  attributed to the user and labelled **GitHub Copilot (direct Firebase)**.
+  Full post-publication readback verified 44 documents and unchanged NR data.
+  Private History IDs, account identities, workbook/reconciliation data and backup
+  contents remain outside Git. These publication facts are supplied by the coordinator;
+  this worktree's agent did not access Firebase/GCP.
+- Coordinator live browser checks verified the approved RS results/standings and NR's
+  124 result rows, seven classification/stage tables and ten standings tables, without
+  writes or unexpected requests. R5 remains unclassified and championship standings
+  remain provisional. These checks do not resolve unverified finality, double-points,
+  tie-break or future-year regulations.
+- Recovery now requires the compatible reviewed data snapshot as well as code:
+  restoring an older runtime alone can misinterpret the revised eligibility policy.
+  Preserve the protected pre-change backup and audited before/after record; any data
+  rollback needs separate authorization, version preconditions and atomic History.
+  Old admin tabs were closed and edits paused before the coordinated rollout; that
+  user-confirmed pause is not a permanent server-side write freeze.
+- This documentation-only verification follow-up is within the same user-authorized
+  release. Only `docs/releases.md` and `docs/recovery.md` change. Runtime assets, scoring,
+  data contracts, `competition-3` cache queries, the guide's 2026 reference edition,
+  Auth, analytics and provider configuration are unchanged. No further database
+  operation is authorized or performed here. Before its normal non-force push, verify
+  main still equals `1a089ad6ba5b880b94627d2c398d46ee73c27986`; stop on drift.
+  Review the docs-only diff and whitespace, then verify the resulting Pages build SHA
+  separately. Existing code tests apply; no runtime behavior changes in this follow-up.
+
 ## 2026-11-10: local 2026 RS starter-threshold implementation (not released)
 
 - Based on fetched `origin/main` `75c906a3cd3085fd457dd9f2a16e1bf9ad68835b`, which
