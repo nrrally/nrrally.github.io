@@ -10,7 +10,7 @@ const prefix = 'projects/nr-synthetic/databases/(default)/documents/';
 const store = new Map(), unexpected = [], errors = [], warnings = [], hits = [], tags = [];
 const measurementId = 'G-' + 'A'.repeat(10), secondId = 'G-' + 'B'.repeat(10);
 const config = () => ({ enabled: true, measurementId });
-let clock = 0, commits = 0, tagFailure = false, tagDelay = 0, siteFailure = false, seasonFailure = false, legacyEngine = false;
+let clock = 0, commits = 0, tagFailure = false, tagGate = null, siteFailure = false, seasonFailure = false, legacyEngine = false;
 function set(key, fields) {
   store.set(key, { name: prefix + key, fields, updateTime: new Date(Date.UTC(2027, 0, 1, 0, 0, ++clock)).toISOString() });
 }
@@ -104,7 +104,7 @@ async function main() {
         if (url.startsWith(base + '/')) return route.continue();
         if (url.startsWith('https://www.googletagmanager.com/gtag/js?')) {
           tags.push(url);
-          if (tagDelay) await new Promise(resolve => setTimeout(resolve, tagDelay));
+          if (tagGate) await tagGate;
           if (tagFailure) return route.abort();
           return route.fulfill({ contentType: 'text/javascript', body: mockTag });
         }
@@ -249,21 +249,25 @@ async function main() {
     await visit('/privacy.html'); assert.ok((await page.innerText('#analyticsStatus')).includes('unavailable')); tagFailure = false;
     delete active.activeRally; put('public/site', active);
     // Opt-out while the external tag is pending prevents any config/pageview after its arrival.
-    tagDelay = 500;
+    let releaseTag;
+    tagGate = new Promise(resolve => { releaseTag = resolve; });
     await page.goto(base + '/privacy.html', { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.querySelector('script[src^="https://www.googletagmanager.com"]'));
     const raceHits = hits.length;
-    await page.getByRole('button', { name: 'Turn off analytics' }).click(); await page.waitForTimeout(650);
-    assert.equal(hits.length, raceHits); tagDelay = 0;
+    await page.getByRole('button', { name: 'Turn off analytics' }).click();
+    releaseTag(); tagGate = null;
+    await page.waitForTimeout(150);
+    assert.equal(hits.length, raceHits);
     await page.evaluate(() => localStorage.removeItem('nr-analytics-choice'));
-    tagDelay = 500;
+    tagGate = new Promise(resolve => { releaseTag = resolve; });
     const pendingHits = hits.length;
     await page.goto(base + '/index.html#/info', { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.querySelector('script[src^="https://www.googletagmanager.com"]'));
     await page.evaluate(() => location.hash = '#/admin');
-    await page.waitForTimeout(600); assert.equal(hits.length, pendingHits);
+    await page.getByRole('heading', { name: 'Page not found' }).waitFor();
+    releaseTag(); tagGate = null;
+    await page.waitForTimeout(150); assert.equal(hits.length, pendingHits);
     await page.evaluate(() => location.hash = '#/info'); await waitHits(pendingHits + 1);
-    tagDelay = 0;
     // Storage denial fails closed and remains a visible warning, including failed preference writes.
     const denied = await context(); await denied.addInitScript(`Storage.prototype.getItem = Storage.prototype.setItem = () => { throw new Error('Synthetic storage denied'); };`);
     const deniedPage = await denied.newPage(), deniedTags = tags.length;

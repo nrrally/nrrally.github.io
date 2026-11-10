@@ -111,16 +111,39 @@ The public theme test uses synthetic published documents and read-only mocked re
 The public browser fixture also creates a synthetic 2026 RS season, derives its private
 scoring before `AI.projectPublic`, and verifies that `buildSeason` consumes the published
 snapshot without private membership/invitation inputs. It checks NR as the homepage
-default; keyboard-operable local RS leader/class/results toggles; provisional labels;
-standalone RS event cards; explicit shared-event card composition and NR/RS badges; and
+default; the keyboard-operable global NR/RS control; provisional labels;
+standalone RS event cards; explicitly associated RS event badges without mixed results; and
 RS access with NR results absent. When RS is selected, the prominent leader card uses
 RS driver/co-driver leaders, preserves ties, and shows an unavailable state when a table
 has no leader rows; NR remains the default. Provisional status is stated at section level,
-not repeated beneath every RS row. It also checks that RS-only leaders do not link to
-NR-only profiles, source technical-check qualifications remain visible, and the full
-calendar orders dated entries while explicitly labelling undated ones. These routes run
+not repeated beneath every RS row. It also checks RS-only profile history,
+source technical-check qualifications remain visible, and each competition's
+calendar retains its event/round order while explicitly labelling undated entries. These routes run
 at desktop/mobile widths in light and dark themes, with all requests intercepted and no
-database writes.
+database writes. Additional regressions cover persistent mode through all navigation,
+reload/back/forward, season selection, legacy links and denied browser storage within
+the app; verified/missing result associations; empty RS seasons; resolved versus
+unresolved crew identities; RS-only standings, sources and cross-season profiles.
+The same graph UI is exercised for all six metrics, car selection, Top 5/All/Clear/class
+filters, legend focus/highlighting, tooltips, head-to-head and stage tables. Tests assert
+no NR/RS series mixing, independent standalone RS stage axes, official Final semantics,
+hundredths precision and missing timing/ranks without interpolation or inferred totals.
+Welcome tests cover repeated deliberate entry, no reopening on refresh/navigation,
+label/description, Tab/Shift-Tab, Escape, Info and focus restoration. Palette invariants,
+responsive brand/control separation and privacy-page mode continuity are covered.
+Initial HTML loading is tested before a delayed script; delayed season loads and
+unavailable data must replace loading with content or explicit errors.
+
+Graph-discovery regressions click actual NR and RS homepage/calendar cards, rather
+than proving only a directly entered `/graph` URL. At desktop/mobile widths both
+standalone and explicitly linked RS events must open a rendered graph with all six
+metrics, filters and two-car head-to-head. They traverse all three result tabs and
+return with the selected cars/metric intact. Legacy bare result, championship listing
+and profile event links must also reach a graph. Missing-timing and printed-rank
+fixtures show explicit limitations while preserving official Final data.
+Stage-times transitions wait for the destination URL and visible explanatory text before
+asserting fastest-time highlighting; a click completing does not mean hash rendering
+has completed. This avoids an assertion-before-render race without sleeps or weaker checks.
 
 The RS engine regressions also cover explicitly reviewed driver/co-driver profile IDs
 for identical printed names, unchanged source-row spellings, private identity-review
@@ -135,14 +158,19 @@ Started DNF regressions distinguish source-evidenced rows (zero points in the pr
 calculation and projected public snapshot) from DNFs without row-level start evidence
 (unavailable points even when an event starter count is reviewed), DNS and TEST rows.
 
-The private local preview is generated outside the repository from the actual public
-shell/assets, synthetic NR fixtures, and locally reviewed RS records. It uses a local
-fixture fetch shim plus a restrictive CSP; a browser smoke verifies homepage toggles,
-round ordering, source qualifications, event-point states and local-file evidence with
-no external network requests. Its separate source-classification preview reports the
-production validator's current result and clearly distinguishes structural validity
-from championship readiness. Synthetic evidence is not substituted for unresolved
-starter counts, double-points bulletins or missing future results.
+The competition-display private local preview uses the actual public shell/assets and
+only synthetic NR/RS fixtures, with a loopback-only server, fixture fetch shim and
+self-only CSP. Preview tooling, dependencies and captures stay outside Git. Visual
+review covers desktop/mobile, both competitions/themes, head-to-head and the welcome;
+browser checks reject external requests and page errors and assert primary-button
+contrast and no overflow. It is not a deployment or evidence about actual classifications.
+The preview's richer three-stage synthetic times have matching synthetic official totals
+for classified rows; a deliberately missing stage remains missing. Do not confuse the
+unit/browser fixture's simpler one-stage result with a production rendering limitation.
+Any separate private source-classification preview must report the production
+validator's current result and distinguish structural validity from championship
+readiness. Synthetic evidence cannot resolve starter counts, double-points bulletins
+or missing future results.
 The private source preview must show actual engine validation status and never hide an
 identity error or fabricate standings. These private review artifacts and source files
 must remain outside Git; do not use or inspect the membership workbook for this work.

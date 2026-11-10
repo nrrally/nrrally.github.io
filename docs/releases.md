@@ -31,6 +31,86 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## 2026-11-10: authorized unified NR/RS display and loading release
+
+- Based on November 9 RallyeSport main
+  `3734d91408d9d3c5504d9e66329f47de0c06f3ee`. Following private preview and the
+  graph-discovery correction, the user explicitly said **"I think it looks great - push
+  and lets test."** This authorizes committing the reviewed code/documentation,
+  a normal non-force push to `origin/main`, Pages deployment and no-write live-site
+  checks. Firebase/GCP access, data publication, rules/settings, admin workflows,
+  provider changes and the earlier RS database rollout remain excluded.
+  Origin is the expected GitHub repository; fresh fetched main and Pages baseline both
+  match the reviewed parent. Recheck main immediately before pushing and stop on
+  divergence. Release authentication and commit identity are scoped per process/command;
+  the user explicitly selected the verified push account's ID-based GitHub noreply identity.
+  No global authentication/configuration is changed. Actual deployment is recorded
+  separately after verifying the built SHA; this entry alone is not deployment evidence.
+- Replaces three homepage switches with one header NR/RS preference, defaulting to NR.
+  URL/local storage preserve competition through navigation, refresh, history and season
+  changes; legacy result/home links remain supported. Home, standings, calendars,
+  crews, profiles and sources are competition-specific. Detailed-result switching uses
+  only a unique explicit existing association, otherwise rounds. Empty RS seasons
+  never borrow NR data. Resolved RS identities link to RS-only cross-season history;
+  unresolved printed names remain visible without fabricated profiles.
+- RS uses a blue primary accent and decorative hero track in light/dark, NR remains red.
+  Category/series, warning/success colors and logos are unchanged. Public mobile header
+  rows accommodate the added control without overlapping the brand; admin layout is
+  excluded. Every deliberate NR-to-RS switch shows the accessible welcome with Info,
+  Continue, Escape, focus containment/restoration; normal RS navigation/reload does not.
+  Getting Started and Info copy and the guide's explicit 2026 reference edition remain.
+- RS reuses the full NR graph UI: six metrics, car/class filters, quick selections,
+  tooltips, legend interaction, head-to-head bars/table and stage table. Only its own
+  stage axes/source field are plotted, including standalone events; old `rs=1` links no
+  longer mix series. Existing pure RS parsing is exported and cumulative display values
+  are exposed additively; no scorer, scoring policy or official classification changed.
+  RS hundredths are retained; missing times/ranks remain missing, cumulative gaps stop
+  after missing timing, and official classified Final values are never inferred.
+- Initial HTML now contains an accessible loading status before scripts, with loading
+  feedback during later asynchronous season/profile reads and explicit error replacement.
+  Simple text is intentional; no sprite artwork, dependencies or animation were added.
+  Privacy copy discloses the saved competition preference. No analytics runtime behavior
+  changed; synthetic pending-tag races use deterministic test gates instead of delays.
+- User preview correction: RS graphs existed but home/calendar and legacy result links
+  still opened the old classification table, unlike NR. Direct graph-URL tests missed
+  that real navigation mismatch. RS cards now say Graph and open it first, as do
+  championship event links and bare legacy result URLs. Explicit `/classification` and
+  `/stages` views share three tabs, previous/next and round navigation, and retain
+  car/metric choices across tabs. Stage times reuse the shared renderer with RS precision.
+  Missing timing and printed ranks are explicitly disclosed. No source/scoring change.
+  Journey regressions click home/calendar cards for standalone and linked RS events
+  at desktop/mobile, plus legacy/listing/profile links, three-tab navigation and
+  head-to-head; all pass alongside 93 synthetic units. The visible loopback preview
+  was reproduced/refreshed, and its session-only richer fixture's synthetic classified
+  totals corrected to match its synthetic times; preview fixture simplicity/inconsistency
+  was separate from the table-first production routing bug.
+- Compatibility/recovery: `competition-1` cache query versions are coordinated across
+  index/admin/disclaimer/privacy. Public pages load `display-context.js` before the app;
+  admin does not. No data migration, engine contract version, schema, Auth, administration,
+  notice, analytics, database rules or provider configuration change. This deployment
+  includes all matching assets/shells; retire old admin tabs before new
+  data; existing tabs do not upgrade automatically. Restoring the reviewed base's
+  complete code restores the previous presentation without a database rollback.
+- Validation: all 93 synthetic Node unit tests and public theme, analytics, rally-notice,
+  admin-access and AI Import browser regressions pass. Tests use intercepted fixtures,
+  fake collection/authentication where needed and no live writes. Separate loopback
+  preview checks cover desktop/mobile NR/RS light/dark, welcome/head-to-head, legal-page
+  continuity, primary contrast at least 4.5:1, no overflow/external requests/page errors.
+  These checks do not certify every WCAG criterion, deployed services, official source
+  truth, private backups, rules or current regulations.
+- The pre-release browser rerun exposed an assertion-before-hash-render race after
+  clicking Stage times. The test now waits for the destination `/stages` URL and
+  intended visible RS text, then asserts actual fastest-time highlighting. No arbitrary
+  sleep, removed assertion or production workaround was used. Repeated public browser
+  runs and the full release suites pass. A pre-release deployed NR snapshot (standings,
+  classification, stage table and graph observations) uses intercepted synthetic data
+  for exact post-release comparison; no Firebase/Auth/Google collection is contacted.
+- Remaining source boundaries: unavailable timing/printed ranks and unresolved identities
+  remain unavailable; source appearances do not establish starts. Blocked/provisional RS
+  scoring gates remain in force. With denied storage, app URLs preserve competition;
+  persistence across plain static-document links still depends on browser storage.
+  Any subsequent unrelated release needs fresh explicit approval, main comparison and deployment checks.
+
 ## 2026-11-08: authorized season-wide getting-started guide release
 
 - Local work based on `b818767` integrates final SEO main `c06c390` locally, preserving

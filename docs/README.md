@@ -13,7 +13,7 @@ Public Git cannot recover private Firestore/Auth/config/History/source data by i
 
 There are two parts:
 
-- **A public results site** for the MSA Northern Regions Regional Rally Championship, with an independent, secondary RallyeSport scoreboard.
+- **A public results site** for the MSA Northern Regions Regional Rally Championship and independent RallyeSport competition. One persistent NR/RS control selects the public context; NR is the default.
 - **An admin page** where results and competitor details are maintained. Admins sign in with Google.
 
 Results come only from official classification PDFs, never from live timing. NR standings, points and stage graphs are calculated in the visitor's browser from raw NR results each time a page loads; NR does not store derived scoring snapshots. RallyeSport is a separate competition: its validated scoring snapshots are stored with the published RS data and never feed NR standings or statistics.

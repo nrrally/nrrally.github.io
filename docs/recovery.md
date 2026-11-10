@@ -157,8 +157,10 @@ The supplied Northern Regions logo is used in the public, admin and static-docum
 headers at its source dimensions; the light rectangle is retained in dark mode. It is
 not a favicon. All HTML shells continue to use the original `brand.svg` and `favicon.png`
 NR icons. The logo file is a user-provided asset, not a change to the site's original
-favicon/identity artwork. Cache query versions are coordinated as `rallyesport-12` for
-the RS feature and logo integration. These favicon hints do not guarantee indexing,
+favicon/identity artwork. The authorized competition-display release coordinates cache
+query versions as `competition-1` across index, admin, disclaimer and privacy; its base
+release used `rallyesport-12`. This does not establish a deployed version; see the release
+ledger. Existing tabs do not upgrade automatically. These favicon hints do not guarantee indexing,
 ranking, site-name selection or display; recrawling can take days or weeks.
 
 The small user-authorized SEO code release was verified on Pages at
@@ -233,10 +235,19 @@ RallyeSport is a separate optional season subdocument. Keep RS event/result IDs,
 stage selection, official order/status, penalties and derived scores isolated from NR.
 Reviewed shared-stage reuse stores a time-value snapshot plus explicit provenance; it is
 not a live pointer and never imports NR status, class, position, penalty or points. Public
-graph overlays are optional presentation only; RS stage ranks/gaps are not NR ranks/gaps,
-and RS graph precision does not change NR calculations. The homepage retains NR leaders
-and round cards by default; local section controls expose separate RS tables/results, and
-the full calendar includes both using only explicit `nrEventId` links for shared cards.
+graphs are independent public views; RS stage ranks/gaps are not NR ranks/gaps, and RS
+graph precision does not change NR calculations. One persistent header NR/RS control
+selects home leaders/classes/results, standings, calendars, crews and profile histories.
+NR is the default; RS never borrows NR data for empty seasons. The same graph interactions,
+six metrics and head-to-head are available on each competition's own stage axes.
+RS home/calendar and championship event links open graphs first, including existing
+bare result URLs. `/classification` and `/stages` select the other result tabs;
+previous/next and round navigation stay within RS. A table-first landing is not evidence
+that source timing is absent: check the actual graph entry journey. Truly absent timing
+or printed stage ranks is explicitly disclosed without manufacturing values.
+Cross-result switching follows only a unique explicit `nrRoundId` and existing target,
+otherwise selected-competition rounds. Missing RS timing/ranks remain missing, and
+unresolved printed identities are not merged or linked to an invented profile.
 RS round numbers are independent and RS-only events need no NR calendar entry. The
 2026 Rallysprint SSR V1 profile is user-confirmed only for a privately reviewed 2026
 classification set, including a pre-issue independent event. The event identities and

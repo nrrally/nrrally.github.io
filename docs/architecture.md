@@ -28,8 +28,8 @@ Hosting and data use two providers, with optional public analytics and no applic
 
 | Part | Files | What it does |
 |---|---|---|
-| Engine | `assets/engine.js` | Pure functions shared by the site, admin and Node tools: NR and independent RS models/scoring, reviewed stage-time snapshot copying, explicit-stage RS graph overlays, checks, and existing importers. No browser or network code. See [data-entry-guide.md](data-entry-guide.md). |
-| Public site | `index.html`, `assets/site.js`, `assets/styles.css` | A single-page app. Reads `public/site`, `public/people` and `public/season_<year>` through the Firestore REST API, then calls `NREngine.buildSeason`. RallyeSport has a secondary route and optional separate graph overlay. |
+| Engine | `assets/engine.js` | Pure functions shared by the site, admin and Node tools: NR and independent RS models/scoring, reviewed stage-time snapshot copying, RS graph progressions, checks, and existing importers. No browser or network code. See [data-entry-guide.md](data-entry-guide.md). |
+| Public site | `index.html`, `assets/site.js`, `assets/styles.css`, `assets/display-context.js` | A single-page app. Reads `public/site`, `public/people` and `public/season_<year>` through the Firestore REST API, then calls `NREngine.buildSeason`. A shared NR/RS preference selects independent views and graph axes, never mixed series. |
 | Getting started | `assets/getting-started.js` | Bundled original guide, independent of results/database state. Maintainer edition metadata and dated sources support annual review separately from season cutover; no edition badge is rendered. |
 | Active-rally notice | `assets/rally-notice.js`, `assets/rally-notice.css`, `disclaimer.html` | Reads only `public/site`; shares that initial promise with the results app. Native full-page yellow modal, followed by a sticky compact reminder after bypass. Not loaded by the admin. |
 | Optional analytics & privacy | `assets/analytics.js`, `privacy.html` | Shares the public site settings promise, validates GA4 settings and sends manual sanitized pageviews after rendering. Dedicated static privacy notice and persistent browser opt-out; never loaded by admin. |
@@ -50,7 +50,8 @@ Hosting and data use two providers, with optional public analytics and no applic
 | `#/<year>/standings`, `#/<year>/standings/codrivers` | Standings. Optional `?class=NR1&pts=split`. |
 | `#/<year>/rounds` | Calendar and the round winners |
 | `#/<year>/round/<id>/graph`, `…/classification`, `…/stages` | One round. The graph takes `?cars=200,201&m=gap`, where `m` is one of `pos`, `gap`, `cpos`, `cgap`, `loss`, `spos`. |
-| `#/<year>/rallyesport`, `#/<year>/rallyesport/<resultId>` | Separate RS championship tables and source-backed event classifications. RS-only events need no NR round. |
+| `#/<year>/rallyesport` | Legacy RS championship tables, with graph-first event links. |
+| `#/<year>/rallyesport/<resultId>`, `…/<resultId>/graph`, `…/classification`, `…/stages` | RS result defaults to Stage graph, including legacy bare result links. Classification and Stage times are explicit tabs. RS-only events need no NR round. |
 | `#/<year>/crews` | Everyone in the season |
 | `#/person/<id>` | One person across all seasons |
 | `#/getting-started`, `#/getting-started/<topic>` | Shared newcomer guide, not a season-specific rules page |
@@ -59,12 +60,27 @@ Hosting and data use two providers, with optional public analytics and no applic
 
 Routes without a year use the current season, so older links still work. Hash routing means the host needs no rewrite rules.
 
+Every public hash route carries `competition=nr|rs`. The header control beside the
+theme control persists `nr-competition` locally; URL context takes precedence on
+refresh/back/forward, with explicit NR result and RS routes preserving their original
+competition. Legacy homepage `leaders/classes/results=rs` links activate site-wide RS.
+Home, standings, rounds, crews, profiles and sources use only that competition.
+Getting Started and Info retain their content. Privacy/disclaimer share display
+preferences and mode-qualified return links; admin never loads the preference module.
+Each deliberate NR-to-RS switch opens a native labelled welcome dialog with Info and
+Continue, keyboard focus containment, Escape and focus restoration. Navigation and
+refresh do not reopen it. Cross-competition result switching requires a unique explicit
+`nrRoundId` association and an existing destination; otherwise it returns to rounds.
+
 Data loading works like this:
 - **The code holds no results data.** The site reads only the published copy from the database (`public/` documents, no sign-in needed).
 - **If the database is unreachable, or nothing has been published,** visitors see a short message ("Results coming soon" or "temporarily unavailable"). The site never shows old or built-in data.
 - **The guide remains available** with missing, unconfigured or unavailable results. It is reference content, not a results fallback.
+- **Loading is visible immediately:** initial HTML includes a live status before any
+  scripts, and subsequent asynchronous season/profile loads replace old content with
+  a loading status. Ready content or an explicit failure message replaces it.
 
-### Independent RallyeSport data and graph overlays
+### Independent RallyeSport data and graph presentation
 
 Optional `season.rallyesport` lives inside that season document so existing staged edits,
 whole-document backups/restores, revision preconditions, History/undo, rebase validation
@@ -80,19 +96,37 @@ it requires exact mapped stage IDs and matching car plus reviewed stable crew id
 It does not copy NR status/class/order/penalty/points, and subsequent NR changes cannot
 change the RS snapshot. A discrepancy remains a human review decision.
 
-The public RS tables are driven by source-backed RS classifications and a separate
-ruleset scorer. Invitation flags, member toggles, applicability/bulletin evidence and
-other decision metadata are removed from the public projection. Public RS event points
-and standings are derived on load; no derived RS values are saved into the working
-record. NR's model, homepage statistics, crew histories and default graph never consume
-RS values. RS-only leaders remain plain text until a profile view can represent RS
-history separately from NR statistics. The homepage keeps NR as the default; section-local
-controls switch leaders/classes/results without changing NR statistics. Dated calendar
-cards are ordered by explicit date evidence, undated events remain labelled, and shared
-cards are merged only through `nrEventId`. An explicitly requested graph overlay uses
-only RS stage times/status/order and its explicit stage-to-NR-axis mappings; it is dashed
-and off by default. It is a presentation comparison, not a car/person identity merge or
-an NR calculation.
+The public RS tables consume the validated published RS scoring snapshot; private
+calculation remains the separate ruleset scorer. Invitation flags, member toggles,
+applicability/bulletin evidence and other decision metadata are removed from the public
+projection. NR's statistics and histories never consume RS values. RS profile links use
+reviewed stable identities and RS-only history across offered seasons. Unresolved crew
+names remain visible without fabricated person links or name-based identity merging.
+Profiles describe source/classified appearances, not inferred championship starts.
+
+The shared graph UI provides the same six metrics, car/class quick filters, legend
+highlighting, tooltips, head-to-head bars/table and stage table in both modes. An RS
+display adapter uses each classification's own stage IDs/labels and the existing pure
+RS graph calculations, including standalone events; it never overlays NR series.
+Missing timing and printed stage ranks remain missing. Cumulative values require
+preceding times; Final uses official classified totals/positions/status. RS source
+precision is retained, including hundredths; existing NR precision stays unchanged.
+The pure helper's older explicit-stage mapping capability remains available, but
+public `rs=1` links no longer mix graph series.
+
+RS homepage/calendar cards say Graph and open it directly, as NR cards do. Bare legacy
+RS result links also render the graph; explicit classification URLs preserve table access.
+All result views share Stage graph, Classification and Stage times tabs, previous/next
+and round navigation. Car/metric selection persists between the RS tabs. Stage times
+reuse the shared renderer with RS precision and official printed ranks. Absent source
+timing or printed stage positions has a visible unavailable message, not an invented
+graph/rank; any valid official Final observations remain available independently.
+
+Each calendar shows only its competition in its own event/round order, with
+source-backed dates and undated entries labelled. RS cards can indicate an explicit shared `nrEventId`, but
+do not include NR results. Empty RS seasons never borrow NR leaders/results.
+RS overrides only primary-accent tokens and the decorative hero track to blue in
+light/dark; NR stays red. Logos, series/category and success/warning colors remain.
 
 Calendar-only models display known events/rounds without result statistics or leaders.
 Missing-round cards/pages use strict date-only dates compared with South African UTC+02:00

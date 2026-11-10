@@ -706,6 +706,7 @@
         key: 'RS:' + result.id + ':' + row.entry.car,
         label: 'RS #' + row.entry.car + ' ' + row.entry.driver + ' · ' + row.entry['class'],
         color: null, dash: true, values: aligned,
+        cumulative: row.cumulative.concat([row.entry.status === 'classified' ? row.total : null]),
         end: row.entry.status === 'classified' ? null : row.entry.status,
         entry: row.entry, timePrecision: row.timePrecision
       };
@@ -1449,7 +1450,7 @@
 
   var api = { analyticsContractVersion: 1, validateAnalytics: validateAnalytics,
     rallyeSportContractVersion: 1, buildRallyeSport: buildRallyeSport, calculateRallyeSportScoring: calculateRallyeSportScoring,
-    projectRallyeSport: projectRallyeSport, buildRallyeSportGraph: buildRallyeSportGraph, copyReviewedRallyeSportTimes: copyReviewedRallyeSportTimes,
+    projectRallyeSport: projectRallyeSport, buildRallyeSportGraph: buildRallyeSportGraph, parseRallyeSportTime: parseRallyeSportTime, copyReviewedRallyeSportTimes: copyReviewedRallyeSportTimes,
     validateRallyeSport: validateRallyeSport,
     rallyNoticeContractVersion: 1, validateActiveRally: validateActiveRally, nrcDestination: nrcDestination,
     entryContractVersion: 2, parseTime: parseTime, fmtTime: fmtTime, slug: slug, normName: normName, normClass: normClass, ord: ord, r1: r1, prettyJson: prettyJson,

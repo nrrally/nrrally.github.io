@@ -160,28 +160,31 @@ When those clauses or application to another competition/year matter, obtain wri
 rule clarification before enabling the affected calculation. A scoreboard explains
 unconfigured/blocked scoring while preserving official result tables.
 
-### RS graph overlay and source reuse
+### RS graph presentation and source reuse
 
-The NR graph remains unchanged and RS overlays are off by default. When explicitly
-enabled, dashed RS series use only the selected RS classification's times, official
-final RS position/status/total, and its explicit `nrStage` mapping to place observations
-on the NR x-axis. RS per-stage positions and gaps are compared within RS; NR positions
-and gaps are compared within NR, so the two fields are not a shared leaderboard.
+The NR graph calculations remain unchanged. Public graphs never combine NR and RS
+series: the site-wide control selects one competition, with independent RS event/stage
+axes, including standalone events. The shared UI provides the same six metrics,
+car/class filters, tooltips, legend highlighting, stage table and head-to-head.
+RS uses only its selected classification's times and official final position/status/total.
+RS per-stage positions and gaps are compared within RS; NR positions and gaps within NR.
 Each valid later RS stage observation is retained for per-stage metrics when an earlier
 stage is missing; cumulative values remain discontinuous. RS graph parsing preserves
 source precision, including hundredths, for ranking, differences and labels; NR parsing
-and calculations retain existing precision. The overlay does not infer a person or
-result match from car number, change NR series, or add RS to NR statistics. RS-only
-events and result tables work without NR graph data.
+and calculations retain existing precision. Missing printed stage positions are not
+recomputed from times. Graph presentation never infers person/result matches from car
+numbers, changes NR series or adds RS to NR statistics. The pure helper's explicit-stage
+mapping remains supported internally, but no public overlay control remains.
 
 On the homepage the NR overall/class leader panels and NR round cards remain the
-default. The three compact NR/RS controls remain visible and synchronized: changing
-any one switches all three home sections together, including keyboard use and browser
-history. Partial legacy RS deep links also activate all three. The homepage uses a short
+default. One header NR/RS control switches every public competition-specific view,
+including all three home sections, keyboard use and browser history.
+Partial legacy RS deep links also activate site-wide RS. The homepage uses a short
 provisional-points label; detailed RS views retain scoring qualifications and blocked
-round disclosures. The full rounds calendar always includes both competitions. An NR + RS event badge and
-shared card are shown only for an explicit `nrEventId` association; event names, dates,
-or array order are never used to merge competitions. RS round numbers are independent.
+round disclosures. Calendars show only the selected competition. An NR + RS event badge
+on an RS card requires an explicit `nrEventId`; it does not include NR results. Event
+names, dates or array order never establish an association. RS round numbers remain
+independent. These are display changes only; scoring policy and classifications are unchanged.
 
 For shared physical stages, the admin offers a human-confirmed, one-time copy of RS
 stage-time values from an explicitly linked NR round, requiring the exact stage mapping

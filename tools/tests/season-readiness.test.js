@@ -13,14 +13,16 @@ function harness(now = '2027-03-01T10:00:00Z') {
   class Clock extends Date { static now() { return Date.parse(now); } }
   const window = { NREngine: E, NR_FIREBASE: {}, NRGettingStarted: { edition: { year: 2026 } }, addEventListener() {} };
   const context = {
-    window, Date: Clock, console, location: { hash: '' },
+    window, Date: Clock, console, location: { hash: '' }, URLSearchParams,
     localStorage: { getItem: () => null },
     document: { getElementById: () => ({}), documentElement: { setAttribute() {} } }
   };
   const instrumented = code.slice(0, code.indexOf('  /* ------------------------------------------------------------------ boot */')) +
     `window.testSite = { ST, useSeason, fmtDate, calendarStatus, viewHome, viewStandings,
-      viewRounds, viewRound, viewCrews, viewAbout, viewInfo, viewPerson, header, viewRallyeSport };
+      viewRounds, viewRound, viewCrews, viewAbout, viewInfo, viewPerson, header, viewRallyeSport,
+      rememberCompetition, viewRsHome, viewRsStandings, viewRsCrews, viewRsPerson, viewRsGraph, rsGraphModel };
     })();`;
+  vm.runInNewContext(fs.readFileSync(path.join(root, 'assets', 'display-context.js'), 'utf8'), context);
   vm.runInNewContext(instrumented, context);
   const api = window.testSite;
   const docs = F.docs();
@@ -45,7 +47,7 @@ function select(api, season, rounds = {}, publicProjection = false) {
   api.useSeason(model);
   return model;
 }
-test('RS tables are separate and optional mapped overlays do not change NR graph defaults', () => {
+test('RS graphs use independent stage axes and cannot mix into NR graphs, even with legacy overlay queries', () => {
   const api = harness(), s = emptySeason();
   s.rallyesport = {
     events: [{ id: 'rs-only', name: 'Synthetic RS-only Event', dates: '2027-03-01' }],
@@ -61,12 +63,15 @@ test('RS tables are separate and optional mapped overlays do not change NR graph
   ] };
   select(api, s, { R1: raw });
   const defaultGraph = api.viewRound('R1', 'graph', { cars: '1', m: 'pos' }).html;
-  assert.ok(defaultGraph.includes('Show RS overlay'));
+  assert.ok(!defaultGraph.includes('Show RS overlay'));
   assert.ok(!defaultGraph.includes('data-key="RS:rs-only-results:1"'));
   const overlay = api.viewRound('R1', 'graph', { cars: '1', m: 'pos', rs: '1' }).html;
-  assert.ok(overlay.includes('data-key="RS:rs-only-results:1"'));
-  assert.ok(overlay.includes('Dashed RS series'));
-  assert.ok(overlay.includes('separate source fields'));
+  assert.ok(!overlay.includes('data-key="RS:'));
+  assert.ok(!overlay.includes('Show RS overlay'));
+  const rsGraph = api.viewRsGraph('rs-only-results', { cars: '1' }).html;
+  assert.ok(rsGraph.includes('data-hl="RS:rs-only-results:1"'));
+  assert.ok(!rsGraph.includes('NR position'));
+  assert.ok(rsGraph.includes('RS-only stages'));
   const rsPage = api.viewRallyeSport().html;
   assert.ok(rsPage.includes('Synthetic RS-only Event'));
   assert.ok(rsPage.includes('Final RS classification'));
@@ -204,7 +209,7 @@ test('missing round pages and cards distinguish future, today, undated and past 
   select(api, s);
   const html = api.viewRounds().html;
   for (const label of ['Awaiting results', 'Scheduled today', 'Upcoming', 'Date to be confirmed']) assert.ok(html.includes(label), label);
-  assert.ok(html.includes('href="#/2027/round/R1"'));
+  assert.ok(html.includes('href="#/2027/round/R1?competition=nr"'));
   assert.ok(api.viewRound('R1', 'graph', {}).html.includes('<h2>Awaiting results</h2>'));
   assert.ok(api.viewRound('R2', 'classification', {}).html.includes('<h2>Scheduled today</h2>'));
   assert.ok(api.viewRound('R4', 'stages', {}).html.includes('<h2>Date to be confirmed</h2>'));
@@ -291,7 +296,7 @@ test('archived scoring, source status and historical profiles stay separate from
   const rescored = E.buildSeason({ season: old, rounds: { R1: raw }, people: api.ST.people });
   assert.equal(JSON.stringify(rescored.standings), points);
   assert.ok(api.viewInfo().html.includes('2027 information'));
-  assert.ok(api.header('info').includes('href="#/2027/info"'));
+  assert.ok(api.header('info').includes('href="#/2027/info?competition=nr"'));
   assert.ok(!/reference guide|season-pill|seasonSel/.test(api.header('getting-started')));
   select(api, old, { R1: { ...raw, status: 'Provisional classification' } });
   assert.ok(api.viewRound('R1', 'graph', {}).html.includes('Provisional sheet'));
@@ -313,4 +318,84 @@ test('published DNS-only classifications do not produce an unexplained empty sta
     assert.ok(html.includes('Entries and DNS do not create starts'));
     assert.ok(!html.includes('<tbody>'));
   }
+});
+test('RS context has honest empty views, preserves guide/info content and never relabels NR statistics', () => {
+  const api = harness(), season = emptySeason();
+  const raw = F.payload('results', 2027).rounds[0];
+  select(api, season, { R1: raw });
+  const info = api.viewInfo().html, nr = api.viewHome().html;
+  api.rememberCompetition('rs');
+  for (const html of [api.viewHome().html, api.viewRsStandings('driver', {}).html, api.viewRounds().html,
+    api.viewRsCrews().html, api.viewRsPerson('alex-test').html]) {
+    assert.ok(!html.includes('Every NR stage'));
+    assert.ok(!html.includes('Driver standings:'));
+    assert.ok(!html.includes('Best result'));
+    assert.ok(!html.includes('href="#/2027/round/'));
+  }
+  assert.ok(api.viewHome().html.includes('No RS data is published for 2027'));
+  assert.ok(api.viewRsPerson('alex-test').html.includes('No published RS history'));
+  assert.equal(api.viewInfo().html.replaceAll('competition=rs', 'competition=nr'), info);
+  api.rememberCompetition('nr');
+  assert.equal(api.viewHome().html, nr);
+});
+test('RS crews and cross-season profiles use resolved RS identities and official positions, not NR appearances or inferred starts', () => {
+  const api = harness(), season = emptySeason();
+  season.rallyesport = { events: [{ id: 'rs-event', name: 'Standalone RS' }], results: [{
+    id: 'rs-result', eventId: 'rs-event', status: 'Final classification', title: 'Synthetic RS source',
+    stages: [{ id: 'rs-a', label: 'RS A' }, { id: 'rs-b', label: 'RS B' }],
+    entries: [{ car: '91', driver: 'Printed spelling', codriver: 'Unresolved name', class: 'RS4',
+      publicIdentity: { driverId: 'alex-test' }, status: 'classified', pos: 7, classPos: 3,
+      times: [null, '1:00.01'], stagePos: [null, 2], total: null }]
+  }], scoring: { status: 'unconfigured', reason: 'No verified rules', results: [], standings: null } };
+  select(api, season, {}, true);
+  api.rememberCompetition('rs');
+  const crews = api.viewRsCrews().html, person = api.viewRsPerson('alex-test').html;
+  assert.ok(crews.includes('Alex Test'));
+  assert.ok(crews.includes('Unresolved name'));
+  assert.ok(crews.includes('Source name; profile unresolved'));
+  assert.ok(!crews.includes('/person/unresolved-name'));
+  assert.ok(!crews.includes('Blake Example'));
+  assert.ok(person.includes('7th'));
+  assert.ok(person.includes('Unavailable'));
+  assert.ok(!person.includes('>Starts<'));
+  assert.ok(!person.includes('NR1'));
+  assert.ok(person.includes('competition=rs'));
+  const before = JSON.stringify(api.ST.models[2027].rallyesport);
+  api.viewRsGraph('rs-result', { m: 'spos', cars: '91' });
+  assert.equal(JSON.stringify(api.ST.models[2027].rallyesport), before);
+});
+test('shared RS graph controls, head-to-head and stage tables preserve hundredths, official finals and gaps', () => {
+  const api = harness(), season = emptySeason();
+  season.rallyesport = { events: [{ id: 'rs-event', name: 'RS-only graph' }], results: [{
+    id: 'rs-result', eventId: 'rs-event', status: 'Final classification', title: 'Synthetic RS source',
+    stages: ['A', 'B', 'C'].map(id => ({ id, label: 'RS ' + id })),
+    entries: [
+      { car: '91', driver: 'Alex Test', codriver: '', class: 'RS4', status: 'classified', pos: 7, classPos: 3,
+        times: ['1:00.01', null, '1:00.03'], stagePos: [1, null, 7], total: null },
+      { car: '92', driver: 'Blake Example', codriver: '', class: 'RS4', status: 'classified', pos: 2, classPos: 1,
+        times: ['1:00.04', '0:01.00', '1:00.00'], stagePos: [2, 1, 1], total: '2:01.04' }
+    ]
+  }] };
+  const model = select(api, season), before = JSON.stringify(model);
+  api.rememberCompetition('rs');
+  const r = api.rsGraphModel(model.rallyesport.results[0], model.rallyesport.events[0]);
+  assert.deepEqual(Array.from(r.progression['91'].cum), [60.01, null, null, null]);
+  assert.deepEqual(Array.from(r.progression['91'].pos), [1, null, null, 7]);
+  assert.equal(r.progression['91'].delta[2], 0.03);
+  assert.equal(r.timePrecision, 2);
+  const html = api.viewRsGraph('rs-result', { cars: '91,92' }).html;
+  for (const text of ['Head-to-head', 'Stage by stage', 'Top 5', '>All<', '>Clear<', 'data-quick="RS4"',
+    '0.03s', 'Official total gap unavailable', 'P7']) assert.ok(html.includes(text), text);
+  assert.equal((html.match(/data-metric=/g) || []).length, 6);
+  for (const tab of ['/graph?', '/classification?', '/stages?']) assert.ok(html.includes('rs-result' + tab));
+  const stageHtml = api.viewRsGraph('rs-result', {}, 'stages').html;
+  assert.ok(stageHtml.includes('1:00.01'));
+  assert.ok(stageHtml.includes('Highlighted: fastest RS time'));
+  assert.ok(!stageHtml.includes('fastest NR'));
+  assert.equal(JSON.stringify(model), before, 'display adaptation never rewrites source data or scoring');
+});
+test('initial public HTML contains an accessible loader before any public JavaScript initialization', () => {
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert.match(html, /class="loading" role="status" aria-live="polite"/);
+  assert.ok(html.indexOf('Loading results') < html.indexOf('<script src='));
 });
