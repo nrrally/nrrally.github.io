@@ -1343,6 +1343,20 @@
       fld('Duplicate profile', select(function (v) { mg.other = v; }, mg.other, [['', 'Choose…']].concat(others.map(function (x) { return [x.id, x.name]; })))) + '<div class="fld">' +
       btn(function () {
         var o = doc.people.filter(function (x) { return x.id === mg.other; })[0]; if (!o) throw new Error('Choose the duplicate profile first.');
+        var membershipMoves = [];
+        years().forEach(function (y) {
+          var se = season(y), rs = se && se.rallyesport, review = rs && rs.membershipReview;
+          if (!review) return;
+          if (typeof review !== 'object' || Array.isArray(review) || !review.people ||
+            typeof review.people !== 'object' || Array.isArray(review.people)) {
+            throw new Error('The saved RallyeSport membership review is malformed. Repair it before merging profiles.');
+          }
+          var oldDecision = review.people[o.id], targetDecision = review.people[id];
+          if (oldDecision && targetDecision && JSON.stringify(oldDecision) !== JSON.stringify(targetDecision)) {
+            throw new Error('The profiles have conflicting RallyeSport membership decisions. Resolve them before merging.');
+          }
+          if (oldDecision) membershipMoves.push({ review: review, oldDecision: oldDecision });
+        });
         if (!window.confirm('Merge ' + o.name + ' into ' + p.name + '?')) return;
         [o.name].concat(o.aliases || []).forEach(function (n) { if (n !== p.name && p.aliases.indexOf(n) < 0) p.aliases.push(n); });
         if (!p.bio && o.bio) p.bio = o.bio; if (!p.photo && o.photo) p.photo = o.photo;
@@ -1354,11 +1368,28 @@
             if (cm[o.id] && !cm[id]) cm[id] = cm[o.id];
             delete cm[o.id];
           });
-          if (se.rallyesport && Array.isArray(se.rallyesport.nonScoringPeople)) {
-            var people = se.rallyesport.nonScoringPeople, oldIndex = people.indexOf(o.id);
-            if (oldIndex >= 0) {
-              if (people.indexOf(id) < 0) people.push(id);
-              se.rallyesport.nonScoringPeople = people.filter(function (personId) { return personId !== o.id; });
+          if (se.rallyesport) {
+            var rs = se.rallyesport;
+            if (rs.membershipReview && rs.membershipReview.people) {
+              if (!rs.membershipReview.people[id] && rs.membershipReview.people[o.id]) {
+                rs.membershipReview.people[id] = membershipMoves.filter(function (move) { return move.review === rs.membershipReview; })[0].oldDecision;
+              }
+              delete rs.membershipReview.people[o.id];
+            }
+            (rs.results || []).forEach(function (result) {
+              (result.entries || []).forEach(function (entry) {
+                var identity = entry.identityReview;
+                if (!identity) return;
+                if (identity.driverId === o.id) identity.driverId = id;
+                if (identity.codriverId === o.id) identity.codriverId = id;
+              });
+            });
+            if (Array.isArray(rs.nonScoringPeople)) {
+              var people = rs.nonScoringPeople, oldIndex = people.indexOf(o.id);
+              if (oldIndex >= 0) {
+                if (people.indexOf(id) < 0) people.push(id);
+                rs.nonScoringPeople = people.filter(function (personId) { return personId !== o.id; });
+              }
             }
           }
         });
@@ -1411,8 +1442,12 @@
   }
   function viewRallyeSport() {
     var s = season(), data = rallyeSportData(s), built = model(A.year), scoring = built.rallyesport.scoring;
+    var starterThreshold = scoring.starterMinimum ? 'threshold of ' + scoring.starterMinimum.minimum : 'applicable threshold';
+    var review = data.membershipReview && typeof data.membershipReview === 'object' && !Array.isArray(data.membershipReview) ?
+      data.membershipReview : { sourceDate: '2026-11-09', reviewed: false, evidence: '', people: {} };
+    var reviewPeople = review.people && typeof review.people === 'object' && !Array.isArray(review.people) ? review.people : {};
     var html = pageHead(A.year + ' · independent competition', 'RallyeSport', 'Separate RS events, classifications and scoring. RS-only events need no NR calendar entry; shared stages are reused only by reviewed, independent snapshots.');
-    html += '<div class="callout warn"><div><b>Membership assumption and unresolved rule boundaries</b><p>Unless an individual is marked below, the system assumes that person is paid up for RS scoring; this is not verified membership data. The “Non-Scoring RS Member” toggle applies to that person across this RS season only. NR data and NR calculations are unchanged. SSR 7.5 specifies stage-time round tie-breaks, but this app does not recompute tied official positions. Finisher qualification and season tie-break order remain unresolved.</p>' +
+    html += '<div class="callout warn"><div><b>RS eligibility and unresolved rule boundaries</b><p>Only a reviewed, person-matched 2026 membership decision can establish eligibility. Missing or ambiguous records are unverified and score as RS0, not as confirmed non-members. Drivers and co-drivers are assessed separately; an excluded person does not change their partner’s scoring order. Source classes, official positions, times and finish order stay unchanged. NR data and calculations are unchanged. SSR 7.5 specifies stage-time round tie-breaks, but this app does not recompute tied official positions. Finisher qualification and season tie-break order remain unresolved.</p>' +
       (A.mode === 'demo' ? '<p>Demo data is a public projection: its published scoring snapshot is removed before private validation. Member, invitation and starter-count inputs are not public, so this demo cannot reconstruct eligibility or reproduce the published scoring calculation.</p>' : '') + '</div></div>';
     html += '<div class="card"><h3>Ruleset evidence</h3>';
     if (A.year === 2026) {
@@ -1424,9 +1459,100 @@
             version: 1, issueDate: '2026-07-09', sourceUrl: 'https://www.motorsport.co.za/wp-content/uploads/2026/07/2026-MSA-RallyeSport-Association-SSRs-V1.pdf' };
           render();
         }, data.ruleset ? 'Re-select verified 2026 SSR V1' : 'Use verified 2026 SSR V1', 'tiny');
-    } else html += '<p class="small">No scoring rules are configured for ' + A.year + '. Do not copy the 2026 profile into another year without applicable regulations.</p>';
+    } else {
+      html += '<p class="small">No scoring rules are configured for ' + A.year + '. Do not copy the 2026 profile into another year without applicable regulations.</p>';
+      if (Object.prototype.hasOwnProperty.call(data, 'starterMinimumReview')) {
+        html += '<div class="callout warn"><div><b>Unsupported 2026-only starter review</b><p>This review cannot configure ' + A.year + ' RS scoring. Remove it before publishing this season.</p>' +
+          btn(function () {
+            s.rallyesport = data;
+            delete data.starterMinimumReview;
+            render();
+          }, 'Remove 2026-only review', 'tiny ghost') + '</div></div>';
+      }
+    }
     html += '</div>';
-    html += '<div class="card"><h3>Non-scoring RS members</h3><p class="small muted">Check an individual to exclude only that person from RS class/overall points in this season. Their crew partner remains eligible and the role-specific scoring order recalculates. This does not change official event results or any NR record.</p>' +
+    if (A.year === 2026) {
+      var starterReview = data.starterMinimumReview;
+      var reviewedSix = starterReview && typeof starterReview === 'object' && starterReview.minimum === 6;
+      html += '<div class="card"><h3>2026 RS event starter threshold</h3>' +
+        '<p class="small">SSR 7.3 in the published 2026 SSR V1 says 15 event starters. A six-starter value is a separate user-reported review, not wording in that document; no written amendment has been supplied. This review applies only to 2026 RallyeSport and is kept as private evidence.</p>' +
+        '<div class="form-grid">' +
+        fld('Threshold used for RS event points', select(function (v) {
+          s.rallyesport = data;
+          if (v === 'six') {
+            if (!reviewedSix) data.starterMinimumReview = { minimum: 6, reviewed: true, evidence: '' };
+          } else delete data.starterMinimumReview;
+        }, reviewedSix ? 'six' : 'ssr-v1',
+          [['ssr-v1', 'Published SSR V1 baseline — 15 starters'], ['six', 'User-reported 2026 review — 6 starters']], 'data-rerender'),
+          'The baseline applies when no review is recorded. Select six only with an evidence note; malformed or evidence-free reviews block scoring.', 'span2') +
+        fld('Six-starter review evidence', area(function (v) {
+          s.rallyesport = data;
+          if (data.starterMinimumReview && typeof data.starterMinimumReview === 'object') data.starterMinimumReview.evidence = v;
+        }, reviewedSix && typeof starterReview.evidence === 'string' ? starterReview.evidence : '',
+          'rows="3"' + (reviewedSix ? '' : ' disabled')),
+          'Record the provenance of the user-reported confirmation and state that no written amendment was supplied. Do not describe six as text of SSR V1.', 'span2') +
+        '</div></div>';
+    }
+    if (A.year === 2026) {
+      var people = peopleDoc().people.slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
+      var memberStatuses = [
+        ['unverified', 'Unverified — pending review'],
+        ['eligible', 'Eligible — complete profile and both membership fields'],
+        ['non-member', 'Confirmed non-member'],
+        ['missing-license', 'Licence evidence missing — not a non-member determination'],
+        ['missing-membership-reference', 'Membership reference missing — not a non-member determination'],
+        ['profile-incomplete', 'Profile not complete — eligibility not established']
+      ];
+      html += '<div class="card"><h3>2026 RS membership eligibility review</h3>' +
+        '<p class="small">Apply the reviewed 9 November 2026 roster retrospectively to all 2026 RS rounds. Mark a person eligible only when a matching Profile Complete record has both a licence number and membership reference. Active, Inactive and Invite Pending account labels do not change this rule. A qualifying complete match takes precedence over an incomplete duplicate. Unknown, unmatched or ambiguous people remain unverified. Store no licence numbers, membership numbers, workbook rows or raw workbook content here. The exact user-confirmed eligibility corrections are recorded as private per-person overrides with their own provenance; do not relabel them as workbook corrections.</p>' +
+        '<div class="form-grid">' +
+        fld('Roster review date', '<input value="2026-11-09" readonly aria-label="Roster review date">', 'Source date for the privately reviewed membership sheet.') +
+        fld('Review state', select(function (v) {
+          data.membershipReview = review;
+          review.reviewed = v === 'true';
+        }, review.reviewed === true ? 'true' : 'false', [['false', 'Not confirmed'], ['true', 'Reviewed and confirmed']], 'data-rerender')) +
+        fld('Private source provenance', area(function (v) {
+          data.membershipReview = review;
+          review.sourceDate = '2026-11-09';
+          review.evidence = v;
+        }, review.evidence || '', 'rows="2" maxlength="1000"'),
+          'Describe the private review source without copying identifiers or workbook contents.', 'span2') +
+        '</div><div class="table-wrap"><table class="data"><thead><tr><th>RS profile</th><th>Eligibility outcome</th><th>Decision basis</th><th>Private override provenance</th></tr></thead><tbody>' +
+        people.map(function (person) {
+          var decision = reviewPeople[person.id] || { status: 'unverified', basis: 'membership-sheet' };
+          return '<tr><td>' + esc(person.name) + '</td><td>' +
+            select(function (v) {
+              data.membershipReview = review;
+              review.sourceDate = '2026-11-09';
+              review.people = reviewPeople;
+              reviewPeople[person.id] = reviewPeople[person.id] || { basis: 'membership-sheet' };
+              reviewPeople[person.id].status = v;
+            }, memberStatuses.some(function (item) { return item[0] === decision.status; }) ? decision.status : 'unverified',
+              memberStatuses, 'data-rerender aria-label="Membership eligibility for ' + esc(person.name) + '"') + '</td><td>' +
+            select(function (v) {
+              data.membershipReview = review;
+              review.sourceDate = '2026-11-09';
+              review.people = reviewPeople;
+              reviewPeople[person.id] = reviewPeople[person.id] || { status: 'unverified' };
+              reviewPeople[person.id].basis = v;
+              if (v !== 'user-confirmed') delete reviewPeople[person.id].evidence;
+            }, decision.basis === 'user-confirmed' ? 'user-confirmed' : 'membership-sheet',
+              [['membership-sheet', 'Reviewed roster decision'], ['user-confirmed', 'User-confirmed override']],
+              'data-rerender aria-label="Decision basis for ' + esc(person.name) + '"') +
+            '</td><td>' + area(function (v) {
+              data.membershipReview = review;
+              review.sourceDate = '2026-11-09';
+              review.people = reviewPeople;
+              reviewPeople[person.id] = reviewPeople[person.id] || { status: 'unverified', basis: 'user-confirmed' };
+              if (reviewPeople[person.id].basis === 'user-confirmed') reviewPeople[person.id].evidence = v;
+            }, decision.basis === 'user-confirmed' ? decision.evidence || '' : '',
+              'rows="2" maxlength="1000" aria-label="Private override provenance for ' + esc(person.name) + '"' +
+                (decision.basis === 'user-confirmed' ? '' : ' disabled')) +
+            '</td></tr>';
+        }).join('') + '</tbody></table></div>' +
+        '<p class="small muted">Unlisted stable profile IDs remain unverified and non-scoring until reviewed. A manual RS exclusion below is independent and is never removed or overridden by this roster map.</p></div>';
+    }
+    html += '<div class="card"><h3>Manual RS scoring exclusions</h3><p class="small muted">This legacy season-scoped admin override remains independent of the membership roster. It excludes only the selected person’s RS points; it never changes NR records or the membership decision. A manual exclusion is not itself proof that a person is a non-member.</p>' +
       (peopleDoc().people.length ? '<div class="chk-row">' + peopleDoc().people.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (person) {
         return check(function (on) {
           s.rallyesport = data;
@@ -1434,9 +1560,17 @@
           var i = data.nonScoringPeople.indexOf(person.id);
           if (on && i < 0) data.nonScoringPeople.push(person.id);
           if (!on && i >= 0) data.nonScoringPeople.splice(i, 1);
-        }, (data.nonScoringPeople || []).indexOf(person.id) >= 0, esc(person.name) + ' — Non-Scoring RS Member', 'data-rerender');
+        }, (data.nonScoringPeople || []).indexOf(person.id) >= 0, esc(person.name) + ' — Manual RS scoring exclusion', 'data-rerender');
       }).join('') + '</div>' : '<p class="small">Add reviewed shared identities in Competitors before scoring results.</p>') + '</div>';
-    html += '<div class="card"><h3>Championship scoring state</h3><p><b>' + esc(scoring.status) + '</b> — ' + esc(scoring.reason || '') + '</p><p class="small muted">Official RS event classifications remain displayable even when championship scoring is blocked or unresolved. Event points require 15 source-backed starters overall, confirmed event applicability, explicit invitation status, reviewed competitor identities, and either source-confirmed finality or an evidence-backed user finality review. A user review never changes printed source wording or proves a technical check was completed. A started DNF earns no points but counts as a starter; a no-time DNF needs explicit start evidence or a reviewed event starter count.</p></div>';
+    var hasInvalidStarterReview = Object.prototype.hasOwnProperty.call(data, 'starterMinimumReview') && !scoring.starterMinimum;
+    var starterRequirement = A.year !== 2026 ? 'no event starter minimum is configured for this year' :
+      hasInvalidStarterReview ? 'a valid, evidence-backed 2026 minimum (the current review is invalid, so scoring is withheld)' :
+      !scoring.starterMinimum ? 'the published SSR V1 baseline of 15, when that profile is selected' :
+    (scoring.starterMinimum.minimum + ' source-backed starters overall, including TEST and invitational entries; DNS does not count (' +
+        (scoring.starterMinimum.basis === 'user-reported-review' ?
+          'the six-starter value is a user-reported review, not text in SSR V1; no written amendment is supplied' :
+          'the published SSR V1 baseline of 15 applies') + ')');
+    html += '<div class="card"><h3>Championship scoring state</h3><p><b>' + esc(scoring.status) + '</b> — ' + esc(scoring.reason || '') + '</p><p class="small muted">Official RS event classifications remain displayable even when event scoring is blocked or the overall championship is incomplete. Event points require ' + esc(starterRequirement) + ', confirmed event applicability, explicit invitation status, reviewed competitor identities, and either source-confirmed finality or an evidence-backed user finality review. A user review never changes printed source wording or proves a technical check was completed. A started DNF earns no points but counts as a starter; a no-time DNF needs explicit start evidence or a reviewed event starter count. Eligible event points do not establish final championship eligibility or a champion.</p></div>';
     html += '<div class="section"><div class="section-head"><h2>Independent RS events</h2>' + btn(function () {
       s.rallyesport = data;
       var id = uniqueId('rs-event-' + A.year, Object.fromEntries(data.events.map(function (e) { return [e.id, true]; })));
@@ -1474,8 +1608,8 @@
         fld('Championship status', select(function (v) { event.countsForChampionship = v === '' ? undefined : v === 'true'; }, event.countsForChampionship == null ? '' : String(event.countsForChampionship),
           [['', 'Unconfirmed'], ['true', 'Counts toward championship'], ['false', 'Event only; not a championship round']], 'data-rerender')) +
         fld('Championship evidence', input(function (v) { event.championshipEvidence = v; }, event.championshipEvidence || '', 'maxlength="1000"'), '', 'span2') +
-        fld('Reviewed non-TEST starter count (optional)', input(function (v) { event.starterCount = numOrNull(v); }, event.starterCount, 'inputmode="numeric" min="0"'), 'Count source-confirmed starters with a non-TEST classification. If TEST entries could affect whether the 15-starter threshold is met, scoring stays unresolved.', 'span2') +
-        fld('Non-TEST starter-count evidence', input(function (v) { event.starterCountEvidence = v; }, event.starterCountEvidence || '', 'maxlength="1000"'), 'Record the source and locator for the reviewed count.', 'span2') +
+        fld('Reviewed event starter count (optional)', input(function (v) { event.starterCount = numOrNull(v); }, event.starterCount, 'inputmode="numeric" min="0"'), 'Count all source-confirmed starters, including RS0, invitation and TEST entries; DNS does not count. A TEST or DNF row still needs actual start evidence.', 'span2') +
+        fld('Event starter-count evidence', input(function (v) { event.starterCountEvidence = v; }, event.starterCountEvidence || '', 'maxlength="1000"'), 'Record the source and locator for the reviewed total.', 'span2') +
         fld('Double points', select(function (v) { event.doublePoints = v === '' ? undefined : v === 'true'; }, event.doublePoints == null ? '' : String(event.doublePoints),
           [['', 'Unconfirmed'], ['false', 'No bulletin-confirmed double points'], ['true', 'Bulletin confirms double points']], 'data-rerender')) +
         fld('Double-points bulletin evidence', input(function (v) { event.doublePointsEvidence = v; }, event.doublePointsEvidence || '', 'maxlength="1000"'), '', 'span2') +

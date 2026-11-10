@@ -90,21 +90,43 @@ The implementation applies the documented scoring scope conservatively:
 
 - The event must be explicitly confirmed for the selected SSRs and as a championship
   round; double-points status must be explicit, with bulletin evidence when enabled.
-- SSR 7.3's minimum is 15 starters total at the event, not per competitor or class.
+- SSR 7.3 in the published 2026 SSR V1 states a 15-starter event minimum, not a
+  per-competitor or per-class minimum. The user has separately reported a revised
+  2026 RallyeSport minimum of six; no written amendment or bulletin has been supplied.
+  The working season can record this as `starterMinimumReview` with explicit review and
+  required evidence.
+  When absent, the printed 15 remains the baseline; when present, only the explicit
+  evidence-backed value six is supported. Unreviewed, malformed or evidence-free review data blocks
+  scoring rather than silently reverting to either value. This is a 2026 RS-only user
+  review, not a claim that the published SSR text has changed, and it is not inherited
+  by another year.
+- The applied minimum is for total starters at the event, not per competitor or class.
   Started DNF rows earn no points but count as starters only when start evidence exists.
-  A no-time DNF is not proof of a start. Reviewed `starterCount` evidence records a
-  non-TEST starter count, so it can establish at least 15 without deciding whether TEST
-  entries count. A started DNF's zero points are emitted per role only when that person
-  is resolved, has a supported scoring class, and is neither invited nor non-scoring;
-  unresolved identities, unsupported classes, invitations and the non-scoring toggle
-  remain unavailable rather than receiving zero. If fewer than 15 non-TEST starters are
-  established and TEST entries
-  could change the threshold, the event remains blocked.
-- Invitational entries do not score, but remain in the official classification.
-  Their exclusion is distinct from the user-directed per-person “Non-Scoring RS Member”
-  toggle. Absent that season-scoped toggle, everyone is assumed paid up for RS scoring;
-  that assumption is not verified. Each role's eligible finishing order is recalculated
-  independently, so a toggled driver/co-driver does not suppress their partner's points.
+  A no-time DNF is not proof of a start. The user-confirmed 2026 threshold counts all
+  source-evidenced starters, including TEST and invitational/RS0 entries; DNS does not
+  count. A TEST or DNF needs actual start evidence to count. A reviewed `starterCount`
+  and evidence may establish a total only when it is consistent with known source-backed
+  starters. No TEST ambiguity is used to infer a start.
+- A private, reviewed `membershipReview` is required before 2026 RS scoring. It is
+  season-scoped and keyed by stable profile ID after any per-entry `identityReview`.
+  Eligibility requires a matching complete profile with both licence and membership
+  reference evidence; account Active/Inactive/Invite Pending labels do not change it.
+  A qualifying complete match takes precedence over an incomplete duplicate. User-
+  confirmed eligibility corrections require their own private provenance and are not
+  represented as workbook corrections. No licence/member identifiers, workbook rows,
+  aliases or workbook contents are stored in the repository or public projection.
+  Unmatched/ambiguous people remain unverified; missing licence, missing membership
+  reference and incomplete profile are distinct statuses, not assertions of
+  non-membership. Invalid, absent or unreviewed 2026 membership data fails closed, and
+  the map never configures another year.
+- Driver and co-driver eligibility is applied independently. Eligible members are
+  ranked and receive points in their own class order with excluded roles removed;
+  partners retain their independent scoring position. Ineligible, unverified, manual-
+  exclusion, invitation and TEST roles receive zero championship points when a source
+  result exists, have no scoring rank, and appear after ranked people as RS0. Existing
+  manual exclusions remain separate from membership status. Original source class,
+  position, time and finish order stay unchanged. Public RS0 markers and explanations
+  distinguish confirmed non-membership from missing/unverified evidence.
 - Event points require either a source classification explicitly marked final or an
   evidence-backed, private `finalityReview` explicitly accepting the supplied source
   classification for scoring. A user-confirmed scoring decision does not rewrite the
@@ -113,13 +135,13 @@ The implementation applies the documented scoring scope conservatively:
   qualifications. A source-evidenced started DNF is published with zero event points
   and counts as a starter under the user's explicit 2026 clarification. A DNF with no
   row-level start evidence has unavailable (`null`) points, even when a separate event
-  count establishes the minimum; DNS and TEST points remain unavailable and neither
-  becomes a started DNF. Official rows remain published unchanged. SSR 7.4's finisher wording is blank, so no additional finisher
+  count establishes the minimum; DNS remains unavailable and TEST/invitation rows remain
+  non-scoring. Official rows remain published unchanged. SSR 7.4's finisher wording is blank, so no additional finisher
   rule or awards logic is inferred.
 - Official `TEST` rows and their printed order/status remain in event results, are
-  excluded from championship points, and do not create a TEST championship table, as
-  SSR 6.1(a) specifies. Whether TEST entries count toward SSR 7.3's 15 starters remains
-  unresolved. Stage observations are recorded independently: a later-stage time after
+  excluded from championship points and appear at the bottom as RS0 Invitational, as
+  SSR 6.1(a) specifies. Source-evidenced TEST starters do count toward the user-confirmed
+  six-starter threshold but receive no points. Stage observations are recorded independently: a later-stage time after
   an earlier missing value remains visible in the source row and is never filled or
   treated as a gapless prefix.
 - Class points use the printed class position when present, otherwise the official overall
@@ -143,16 +165,17 @@ The implementation applies the documented scoring scope conservatively:
   does not select a double-points event. If otherwise-supported completed events have
   points while another event or season rule is unresolved, clearly labelled provisional
   cumulative tables are available with excluded rounds and their reasons. Final
-  championship eligibility and a final champion remain gated.
+  championship eligibility and a final champion remain gated. R1-R4 can each earn event
+  points when their own evidence is confirmed, but four scoring rounds do not satisfy
+  SSR 7.2's season round-count rule; cumulative totals remain provisional.
 
-SSR 6.1(a)/(b) eligibility wording has been clarified by the user for implementation:
-assume paid-up status, provide the independent person toggle, and defer actual
-membership verification. The toggle is not evidence that a person paid dues. Event
-invitation exclusion remains a separate input. The unspecified non-scoring class is not
-configured. A non-standard printed category blocks its scoring unless an explicit,
-classification-scoped mapping to RS2/RS4 is recorded with evidence; the printed category
-remains in event results, mappings are not inferred or reused across events, and TEST is
-never mapped into championship scoring.
+SSR 6.1(a)/(b) eligibility is implemented with the reviewed 2026 person-ID map described
+above, not an assumption of paid-up status. The independent manual exclusion remains a
+separate override, and invitation exclusion is not treated as a membership decision.
+The unspecified non-scoring source class is not configured. A non-standard printed
+category blocks its scoring unless an explicit, classification-scoped mapping to RS2/RS4
+is recorded with evidence; the printed category remains in event results, mappings are
+not inferred or reused across events, and TEST is never mapped into championship scoring.
 
 No class-minimum-start rule, DNF finisher definition, championship tie-break, future
 year rules or non-scoring-class semantics are inferred. SSR 7.4 and 7.6 are blank.

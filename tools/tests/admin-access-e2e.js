@@ -33,6 +33,11 @@ workingSeason.rallyesport = {
   events: [{ id: 'synthetic-rs-event', name: 'Synthetic RS event', dates: 'Synthetic date',
     rulesetConfirmed: true, rulesetEvidence: 'Synthetic event applicability', countsForChampionship: true,
     championshipEvidence: 'Synthetic championship status', doublePoints: false }],
+  starterMinimumReview: { minimum: 6, reviewed: true, evidence: 'Synthetic user-reported review; no written amendment supplied.' },
+  membershipReview: {
+    sourceDate: '2026-11-09', reviewed: true, evidence: 'Synthetic reviewed membership roster.',
+    people: Object.fromEntries(workingPeople.people.map(person => [person.id, { status: 'eligible', basis: 'membership-sheet' }]))
+  },
   nonScoringPeople: ['blake-duplicate'],
   results: [{ id: 'synthetic-rs-result', eventId: 'synthetic-rs-event', title: 'Synthetic official classification',
     status: 'Final classification', nrRoundId: 'R1',
@@ -163,6 +168,32 @@ async function main() {
     }
     await page.evaluate(() => location.hash = '#/rallyesport');
     await page.getByText('Ruleset evidence').waitFor();
+    const starterThreshold = page.getByLabel('Threshold used for RS event points');
+    const starterEvidence = page.getByLabel('Six-starter review evidence');
+    const membershipStatus = page.getByLabel('Membership eligibility for Alex Test');
+    const membershipBasis = page.getByLabel('Decision basis for Alex Test');
+    const membershipEvidence = page.getByLabel('Private override provenance for Alex Test');
+    assert.equal(await starterThreshold.inputValue(), 'six');
+    assert.match(await starterEvidence.inputValue(), /Synthetic user-reported review/);
+    assert.equal(await membershipStatus.inputValue(), 'eligible');
+    assert.equal(await membershipBasis.inputValue(), 'membership-sheet');
+    assert.equal(await membershipEvidence.isDisabled(), true);
+    await membershipBasis.selectOption('user-confirmed');
+    assert.equal(await membershipEvidence.isDisabled(), false);
+    await membershipEvidence.fill('Synthetic separate user-confirmed provenance.');
+    assert.equal(await membershipEvidence.inputValue(), 'Synthetic separate user-confirmed provenance.');
+    await membershipStatus.selectOption('missing-license');
+    assert.equal(await membershipStatus.inputValue(), 'missing-license');
+    await membershipStatus.selectOption('eligible');
+    await membershipBasis.selectOption('membership-sheet');
+    assert.equal(await membershipEvidence.inputValue(), '');
+    assert.equal(await membershipEvidence.isDisabled(), true,
+      'changing away from a user-confirmed override clears and disables its private per-person evidence');
+    await starterThreshold.selectOption('ssr-v1');
+    assert.equal(await starterEvidence.isDisabled(), true, 'evidence control is disabled for the SSR baseline');
+    await starterThreshold.selectOption('six');
+    assert.equal(await starterEvidence.isDisabled(), false, 'evidence control is enabled for the six-starter review');
+    await starterEvidence.fill('Synthetic user-reported review; no written amendment supplied.');
     assert.equal(await page.getByLabel('Source file/title').inputValue(), 'Synthetic attached source title');
     assert.equal(await page.getByLabel('Official source URL').inputValue(), '');
     assert.equal(await page.getByLabel('Source description').inputValue(), 'Synthetic official final classification');
@@ -194,8 +225,11 @@ async function main() {
     await page.getByRole('button', { name: 'Merge', exact: true }).click();
     assert.match(dialogs[dialogs.length - 1], /Merge Blake Duplicated into Blake Example/);
     await page.evaluate(() => location.hash = '#/rallyesport');
-    assert.equal(await page.getByRole('checkbox', { name: /Blake Example — Non-Scoring RS Member/ }).isChecked(), true);
-    assert.equal(await page.getByRole('checkbox', { name: /Blake Duplicated — Non-Scoring RS Member/ }).count(), 0);
+    assert.equal(await page.getByRole('checkbox', { name: /Blake Example — Manual RS scoring exclusion/ }).isChecked(), true);
+    assert.equal(await page.getByRole('checkbox', { name: /Blake Duplicated — Manual RS scoring exclusion/ }).count(), 0);
+    assert.equal(await page.getByLabel('Membership eligibility for Blake Example').inputValue(), 'eligible');
+    assert.equal(await page.getByLabel('Membership eligibility for Blake Duplicated').count(), 0,
+      'profile merges move the reviewed membership decision to the surviving stable ID');
 
     const backupWithoutRs = JSON.parse(JSON.stringify(workingSeason));
     delete backupWithoutRs.rallyesport;
@@ -213,7 +247,7 @@ async function main() {
     assert.match(await oldBackupPrompt, /Replace the working copy with the backup/);
     assert.match(await oldBackupRsWarning, /source and stage-time evidence.*Non-Scoring RS Member decisions/);
     await page.evaluate(() => location.hash = '#/rallyesport');
-    assert.equal(await page.getByRole('checkbox', { name: /Blake Example — Non-Scoring RS Member/ }).isChecked(), true);
+    assert.equal(await page.getByRole('checkbox', { name: /Blake Example — Manual RS scoring exclusion/ }).isChecked(), true);
     assert.equal(await stageTimes.nth(0).inputValue(), '01:11.0, ');
     await page.evaluate(() => location.hash = '#/');
     await page.getByText('Backups', { exact: true }).waitFor();
@@ -233,7 +267,7 @@ async function main() {
     rejectRsWarning = false;
     await page.evaluate(() => location.hash = '#/rallyesport');
     await page.getByText('Ruleset evidence').waitFor();
-    assert.equal(await page.getByRole('checkbox', { name: /Blake Example — Non-Scoring RS Member/ }).isChecked(), true);
+    assert.equal(await page.getByRole('checkbox', { name: /Blake Example — Manual RS scoring exclusion/ }).isChecked(), true);
     await page.reload(); await admin();
     assert.ok(await page.locator('#demoBtn').isVisible());
     await page.click('#demoBtn'); await page.locator('.demo-bar').waitFor();
@@ -258,6 +292,10 @@ async function main() {
     await page.locator('#yearSel').selectOption('2026');
     await page.getByText('Synthetic RS event', { exact: true }).waitFor();
     assert.equal(writes.length, 0, 'the rollover rehearsal remains an unpublished demo');
+    await page.evaluate(() => location.hash = '#/rallyesport');
+    await page.getByText(/Demo data is a public projection/).waitFor();
+    await page.getByLabel('Review state').selectOption('true');
+    await page.getByLabel('Private source provenance').fill('Synthetic demo-only review evidence; no real roster is available.');
     await page.evaluate(() => location.hash = '#/site'); await page.locator('#activeRallyEnabled').waitFor();
     assert.equal(await page.locator('#addAdminBtn').count(), 0);
     assert.ok(await page.isChecked('#analyticsEnabled'));
@@ -267,6 +305,8 @@ async function main() {
     await page.evaluate(() => location.hash = '#/site'); await page.locator('#activeRallyEnabled').waitFor();
     await page.getByText('Tagline', { exact: true }).locator('..').locator('input').fill('Synthetic practice change');
     await page.evaluate(() => location.hash = '#/publish'); await page.locator('#pubGo').waitFor();
+    assert.equal(await page.locator('#pubGo').isDisabled(), false,
+      'synthetic demo review inputs allow validation without treating the public projection as private eligibility evidence');
     await page.click('#pubGo'); await page.getByText(/Demo:.*would have been saved/).waitFor();
     assert.equal(writes.length, 0);
     assert.equal(JSON.parse(docs.get('public/site').fields.json.stringValue).analytics.enabled, true);
@@ -277,7 +317,7 @@ async function main() {
     const newRsEvent = page.locator('article').filter({ hasText: 'New RallyeSport event' });
     await newRsEvent.getByLabel('RS event name').waitFor();
     assert.ok(await page.getByText('No NR event association', { exact: true }).count());
-    await newRsEvent.getByLabel('Reviewed non-TEST starter count (optional)').waitFor();
+    await newRsEvent.getByLabel('Reviewed event starter count (optional)').waitFor();
     await newRsEvent.getByRole('button', { name: '+ Add classification' }).click();
     await newRsEvent.getByRole('button', { name: '+ Add selected RS stage' }).click();
     await newRsEvent.getByRole('button', { name: '+ Add classification row' }).waitFor();
@@ -313,7 +353,7 @@ async function main() {
     await newRsEvent.getByLabel('Reviewed driver identity (optional)').selectOption('alex-test');
     await newRsEvent.getByLabel('Reviewed co-driver identity (optional)').selectOption('blake-example');
     await newRsEvent.getByLabel('Identity-review evidence').fill('Synthetic reviewed driver and co-driver roles; printed names remain unchanged.');
-    assert.ok(await page.getByText(/Non-Scoring RS Member/).count());
+    assert.ok(await page.getByText(/Manual RS scoring exclusion/).count());
     assert.ok(await page.locator('.fld').filter({ hasText: 'Invitation status' }).count());
     await page.click('#leaveDemoBtn'); await page.locator('.demo-bar').waitFor({ state: 'detached' }); await admin();
     assert.equal(await page.locator('.demo-bar').count(), 0);

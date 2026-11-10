@@ -56,6 +56,35 @@
     }
     return idx.resolve(role === 'driver' ? entry && entry.driver : entry && entry.codriver);
   }
+  var RS_MEMBERSHIP_STATUSES = ['eligible', 'non-member', 'missing-license', 'missing-membership-reference',
+    'profile-incomplete', 'unverified'];
+  var RS_MEMBERSHIP_MESSAGES = {
+    'eligible': '',
+    'non-member': 'RS0 Non-Scoring SSR 6.1 — this crew role is confirmed as a non-member and does not score championship points or awards.',
+    'missing-license': 'RS0 Non-Scoring SSR 6.1 — licence evidence is missing; membership status is not asserted.',
+    'missing-membership-reference': 'RS0 Non-Scoring SSR 6.1 — membership reference evidence is missing; membership status is not asserted.',
+    'profile-incomplete': 'RS0 Non-Scoring SSR 6.1 — the membership profile is not complete; membership status is not asserted.',
+    'unverified': 'RS0 Non-Scoring SSR 6.1 — membership eligibility is unverified and pending review.',
+    'manual-exclusion': 'RS0 Non-Scoring SSR 6.1 — this person has a separate manual RS scoring exclusion; membership status is unchanged.',
+    'invitational': 'RS0 Invitational — this entry is excluded from championship points, while its official result remains visible.',
+    'test': 'RS0 Invitational — TEST entries are retained in results but do not score championship points.'
+  };
+  function validRallyeSportMembershipReview(review, idx) {
+    if (!review || typeof review !== 'object' || Array.isArray(review) ||
+      Object.keys(review).some(function (key) { return ['sourceDate', 'reviewed', 'evidence', 'people'].indexOf(key) < 0; }) ||
+      review.sourceDate !== '2026-11-09' || review.reviewed !== true ||
+      typeof review.evidence !== 'string' || !review.evidence.trim() ||
+      !review.people || typeof review.people !== 'object' || Array.isArray(review.people)) return false;
+    return Object.keys(review.people).every(function (personId) {
+      var decision = review.people[personId];
+      return !!idx.byId[personId] && decision && typeof decision === 'object' && !Array.isArray(decision) &&
+        Object.keys(decision).every(function (key) { return ['status', 'basis', 'evidence'].indexOf(key) >= 0; }) &&
+        RS_MEMBERSHIP_STATUSES.indexOf(decision.status) >= 0 &&
+        ['membership-sheet', 'user-confirmed'].indexOf(decision.basis) >= 0 &&
+        (decision.basis !== 'user-confirmed' || typeof decision.evidence === 'string' && !!decision.evidence.trim()) &&
+        (decision.basis === 'user-confirmed' || decision.evidence === undefined);
+    });
+  }
   function rallyeSportFinalityAccepted(result) {
     return !!(result && result.finalityReview && result.finalityReview.acceptedForScoring === true &&
       typeof result.finalityReview.evidence === 'string' && result.finalityReview.evidence.trim());
@@ -336,7 +365,7 @@
     if (!raw) {
       scoring = calculateRallyeSportScoring(data, season, people);
     } else if (publicProjection && data.scoring !== undefined) {
-      scoring = compatiblePublishedRallyeSportScoring(data, data.scoring) ? data.scoring : {
+      scoring = compatiblePublishedRallyeSportScoring(data, data.scoring, season) ? data.scoring : {
         status: 'invalid', reason: 'Published RS scoring is malformed or incompatible with its source results; review and republish.',
         results: [], standings: null, provisionalStandings: null
       };
@@ -367,10 +396,24 @@
       scoring: scoring
     };
   }
-  function compatiblePublishedRallyeSportScoring(data, scoring) {
+  function compatiblePublishedRallyeSportScoring(data, scoring, season) {
     if (!scoring || typeof scoring !== 'object' ||
       ['ready', 'blocked', 'incomplete', 'unconfigured', 'invalid'].indexOf(scoring.status) < 0 ||
        typeof scoring.reason !== 'string' || !Array.isArray(scoring.results)) return false;
+    if (Object.prototype.hasOwnProperty.call(scoring, 'starterMinimum') && (!scoring.starterMinimum ||
+      typeof scoring.starterMinimum !== 'object' || Array.isArray(scoring.starterMinimum) ||
+      Object.keys(scoring.starterMinimum).some(function (key) { return ['minimum', 'basis'].indexOf(key) < 0; }) ||
+      !Number.isInteger(scoring.starterMinimum.minimum) ||
+      [6, 15].indexOf(scoring.starterMinimum.minimum) < 0 ||
+      ['ssr-v1', 'user-reported-review'].indexOf(scoring.starterMinimum.basis) < 0 ||
+      scoring.starterMinimum.minimum === 6 && scoring.starterMinimum.basis !== 'user-reported-review' ||
+      scoring.starterMinimum.minimum === 15 && scoring.starterMinimum.basis !== 'ssr-v1')) return false;
+    var membershipRulesApply = season && season.year === 2026 && data.ruleset &&
+      data.ruleset.code === 'clubman-sprint-2026-v1';
+    if (membershipRulesApply && (!scoring.membershipReviewApplied ||
+      scoring.membershipReviewApplied.sourceDate !== '2026-11-09' ||
+      scoring.membershipReviewApplied.basis !== 'reviewed-membership-decisions' ||
+      Object.keys(scoring.membershipReviewApplied).some(function (key) { return ['sourceDate', 'basis'].indexOf(key) < 0; }))) return false;
     var events = data.events || [], results = data.results || [], seenEvents = Object.create(null), seenResults = Object.create(null);
     for (var i = 0; i < scoring.results.length; i++) {
       var row = scoring.results[i];
@@ -389,7 +432,8 @@
             return !entry || cars.indexOf(String(entry.car)) < 0 ||
               [entry.driverPoints, entry.codriverPoints].some(function (points) {
                 return points != null && (typeof points !== 'number' || !Number.isFinite(points) || points < 0);
-              });
+              }) || membershipRulesApply && (!validRallyeSportEligibility(entry.driverEligibility) ||
+                (entry.codriverEligibility !== null && !validRallyeSportEligibility(entry.codriverEligibility)));
           }) || new Set(row.entries.map(function (entry) { return String(entry.car); })).size !== cars.length) return false;
         } else if (row.entries.length) return false;
       } else if (row.entries.length) return false;
@@ -406,15 +450,31 @@
     function validRows(rows) {
       return Array.isArray(rows) && rows.every(function (row) {
         return row && typeof row.id === 'string' && typeof row.name === 'string' &&
-          Number.isFinite(row.points) && row.points >= 0 && Number.isInteger(row.rank) && row.rank > 0;
+          Number.isFinite(row.points) && row.points >= 0 &&
+          (Number.isInteger(row.rank) && row.rank > 0 ||
+            row.rank === null && row.scoringClass === 'RS0' && row.points === 0 &&
+            RS_MEMBERSHIP_STATUSES.concat(['manual-exclusion', 'invitational', 'test']).indexOf(row.eligibilityStatus) >= 0 &&
+            typeof row.eligibilityReason === 'string');
       });
     }
     return validRows(standings.overallDrivers) && validRows(standings.overallCodrivers) &&
-      ['RS2', 'RS4'].every(function (cls) {
+      ['RS0', 'RS2', 'RS4'].every(function (cls) {
       return ['classDrivers', 'classCodrivers'].every(function (group) {
         return validRows(standings[group][cls]);
       });
     });
+  }
+  function validRallyeSportEligibility(value) {
+    return !!value && typeof value === 'object' && !Array.isArray(value) &&
+      Object.keys(value).every(function (key) {
+        return ['status', 'membershipStatus', 'scoringClass', 'scoringPosition', 'reason'].indexOf(key) >= 0;
+      }) &&
+      ['eligible', 'non-member', 'missing-license', 'missing-membership-reference', 'profile-incomplete',
+        'unverified', 'manual-exclusion', 'invitational', 'test'].indexOf(value.status) >= 0 &&
+      RS_MEMBERSHIP_STATUSES.indexOf(value.membershipStatus) >= 0 &&
+      ['RS0', 'RS2', 'RS4', 'UNCONFIGURED'].indexOf(value.scoringClass) >= 0 &&
+      (value.scoringPosition === null || Number.isInteger(value.scoringPosition) && value.scoringPosition > 0) &&
+      typeof value.reason === 'string';
   }
   function calculateRallyeSportScoring(data, season, people) {
     var events = data && data.events || [], results = data && data.results || [], idx = peopleIndex(people);
@@ -426,9 +486,48 @@
     if (season && season.year !== 2026) {
       return { status: 'unconfigured', reason: 'The reviewed SSRs apply to the 2026 calendar year only.', results: [], standings: null };
     }
+    var hasStarterMinimumReview = Object.prototype.hasOwnProperty.call(data, 'starterMinimumReview');
+    var starterMinimum = hasStarterMinimumReview ? data.starterMinimumReview &&
+      typeof data.starterMinimumReview === 'object' && !Array.isArray(data.starterMinimumReview) &&
+      data.starterMinimumReview.minimum === 6 && data.starterMinimumReview.reviewed === true &&
+      typeof data.starterMinimumReview.evidence === 'string' &&
+      !!data.starterMinimumReview.evidence.trim() &&
+      Object.keys(data.starterMinimumReview).every(function (key) { return ['minimum', 'reviewed', 'evidence'].indexOf(key) >= 0; }) ?
+        { minimum: 6, basis: 'user-reported-review' } : null :
+      { minimum: 15, basis: 'ssr-v1' };
+    if (!starterMinimum) {
+      var invalidReason = 'The 2026 RS starter-minimum review is malformed, unreviewed or lacks evidence; event scoring is withheld rather than falling back to the SSR baseline.';
+      return { status: 'invalid', reason: invalidReason, results: events.filter(function (event) {
+        return event.countsForChampionship === true;
+      }).map(function (event) {
+        return { eventId: event.id, resultId: '', status: 'blocked', reason: invalidReason, entries: [] };
+      }), standings: null, provisionalStandings: null };
+    }
+    if (!validRallyeSportMembershipReview(data.membershipReview, idx)) {
+      var membershipError = 'A reviewed 2026 membership eligibility map is required. Unmatched or unverified people are not assumed eligible.';
+      return { status: 'invalid', reason: membershipError, starterMinimum: starterMinimum, results: events.filter(function (event) {
+        return event.countsForChampionship === true;
+      }).map(function (event) {
+        return { eventId: event.id, resultId: '', status: 'blocked', reason: membershipError, entries: [] };
+      }), standings: null, provisionalStandings: null };
+    }
     var counted = events.filter(function (event) { return event.countsForChampionship === true; });
     var doubleEvents = counted.filter(function (event) { return event.doublePoints === true; });
     (data.nonScoringPeople || []).forEach(function (id) { nonScoring[id] = true; });
+    function membershipStatus(person) {
+      var decision = person && person.id && data.membershipReview.people[person.id];
+      return decision ? decision.status : 'unverified';
+    }
+    function eligibility(entry, role, person, result) {
+      var memberStatus = membershipStatus(person), status = memberStatus;
+      if (entry.status === 'TEST') status = 'test';
+      else if (entry.invited === true) status = 'invitational';
+      else if (person && person.id && nonScoring[person.id]) status = 'manual-exclusion';
+      var scoringClass = status === 'eligible' ? rallyeSportScoringClass(result, entry) : 'RS0';
+      if (status === 'eligible' && ['RS2', 'RS4'].indexOf(scoringClass) < 0) scoringClass = 'UNCONFIGURED';
+      return { status: status, membershipStatus: memberStatus, scoringClass: scoringClass,
+        scoringPosition: null, reason: RS_MEMBERSHIP_MESSAGES[status] || '' };
+    }
     results.forEach(function (result) { resultByEvent[result.eventId] = result; });
     events.forEach(function (event) {
       var result = resultByEvent[event.id];
@@ -449,17 +548,17 @@
       }
       function starterProblem() {
         var knownStarters = (result.entries || []).filter(function (entry) {
-          return entry.status === 'classified' || entry.status === 'DNF' && hasStartEvidence(entry);
+          return entry.status !== 'DNS' && (entry.status === 'classified' || hasStartEvidence(entry));
         }).length;
         var unknownDnfStarts = (result.entries || []).filter(function (entry) { return entry.status === 'DNF' && !hasStartEvidence(entry); }).length;
-        var testRows = (result.entries || []).filter(function (entry) { return entry.status === 'TEST'; }).length;
         if (event.starterCount != null && (!Number.isInteger(event.starterCount) || event.starterCount < 0 ||
           !event.starterCountEvidence || event.starterCount < knownStarters)) return 'The reviewed event starter count is invalid, unsupported or conflicts with source-backed starter evidence.';
-        if (event.starterCount != null && event.starterCount < 15 && testRows) return 'The reviewed non-TEST starter count is below 15, and whether TEST entries count toward SSR 7.3 remains unresolved.';
-        if (event.starterCount != null && event.starterCount < 15) return 'The reviewed event starter count is below 15; SSR 7.3 says this event does not count toward the championship.';
-        if (event.starterCount == null && knownStarters < 15 && testRows) return 'The 15-starter requirement cannot be confirmed: whether TEST entries count toward SSR 7.3 remains unresolved. Record a reviewed non-TEST starter count/source.';
-        if (event.starterCount == null && knownStarters < 15 && unknownDnfStarts) return 'The 15-starter requirement cannot be confirmed: at least one DNF has no recorded start evidence. Add reviewed event starter-count evidence or source-backed start evidence.';
-        if (event.starterCount == null && knownStarters < 15) return 'Fewer than 15 source-backed starters are recorded; SSR 7.3 says this event does not count toward the championship.';
+        if (event.starterCount != null && event.starterCount < starterMinimum.minimum)
+          return 'The reviewed event starter count is below ' + starterMinimum.minimum + '; the event does not meet the configured 2026 RS starter threshold.';
+        if (event.starterCount == null && knownStarters < starterMinimum.minimum && unknownDnfStarts)
+          return 'The ' + starterMinimum.minimum + '-starter requirement cannot be confirmed: at least one DNF has no recorded start evidence. Add reviewed event starter-count evidence or source-backed start evidence.';
+        if (event.starterCount == null && knownStarters < starterMinimum.minimum)
+          return 'Fewer than ' + starterMinimum.minimum + ' source-backed starters, including TEST and invitational entries, are recorded; the event does not meet the configured 2026 RS starter threshold.';
         return '';
       }
       if (event.rulesetConfirmed !== true || !event.rulesetEvidence) row = blocked('This specific event has not been confirmed as governed by the selected SSRs.');
@@ -478,12 +577,12 @@
       else if ((result.entries || []).some(function (entry, i) { return (result.entries || []).slice(0, i).some(function (other) { return String(other.car) === String(entry.car); }); })) row = blocked('Duplicate car numbers need RS source review before points can be assigned.');
       else if (starterProblem()) row = blocked(starterProblem());
       else if ((result.entries || []).some(function (entry) { return entry.status === 'classified' && typeof entry.invited !== 'boolean'; })) row = blocked('Invitational/non-invitational status is not confirmed for every classified crew.');
-      else if ((result.entries || []).some(function (entry) { return entry.status === 'classified' &&
-        (!rallyeSportEntryPerson(idx, entry, 'driver').known || entry.codriver && !rallyeSportEntryPerson(idx, entry, 'codriver').known); })) row = blocked('Scoring needs reviewed shared person profiles; names are not merged by car number.');
       if (row.status === 'blocked') { row.eventId = event.id; row.resultId = result.id; row.entries = []; scoreRows.push(row); return; }
       var scoringRoles = {
-        driver: (result.entries || []).filter(function (entry) { return entry.status === 'classified' && !entry.invited && !nonScoring[rallyeSportEntryPerson(idx, entry, 'driver').id]; }),
-        codriver: (result.entries || []).filter(function (entry) { return entry.status === 'classified' && entry.codriver && !entry.invited && !nonScoring[rallyeSportEntryPerson(idx, entry, 'codriver').id]; })
+        driver: (result.entries || []).filter(function (entry) { return entry.status === 'classified' &&
+          eligibility(entry, 'driver', rallyeSportEntryPerson(idx, entry, 'driver'), result).status === 'eligible'; }),
+        codriver: (result.entries || []).filter(function (entry) { return entry.status === 'classified' && entry.codriver &&
+          eligibility(entry, 'codriver', rallyeSportEntryPerson(idx, entry, 'codriver'), result).status === 'eligible'; })
       };
       var classifiedEntries = (result.entries || []).filter(function (entry) { return entry.status === 'classified'; });
       var classEntries = Object.create(null), orderByCar = Object.create(null), orderIssue = '';
@@ -514,7 +613,7 @@
           reason: orderIssue, entries: [] });
         return;
       }
-      var pointsByCar = Object.create(null);
+      var pointsByCar = Object.create(null), positionsByCar = Object.create(null);
       Object.keys(scoringRoles).forEach(function (role) {
         var classRanks = Object.create(null);
         scoringRoles[role].slice().sort(function (a, b) {
@@ -526,32 +625,45 @@
           var points = rank < pointScale.length ? pointScale[rank] : 1;
           if (event.doublePoints) points *= 2;
           if (!pointsByCar[String(entry.car)]) pointsByCar[String(entry.car)] = { driver: null, codriver: null };
+          if (!positionsByCar[String(entry.car)]) positionsByCar[String(entry.car)] = { driver: null, codriver: null };
           pointsByCar[String(entry.car)][role] = points;
+          positionsByCar[String(entry.car)][role] = rank + 1;
         });
       });
       row.entries = (result.entries || []).map(function (entry) {
         var points = pointsByCar[String(entry.car)] || {};
-        var cls = rallyeSportScoringClass(result, entry);
-        var supportedClass = cls === 'RS2' || cls === 'RS4';
         var driver = rallyeSportEntryPerson(idx, entry, 'driver');
         var codriver = rallyeSportEntryPerson(idx, entry, 'codriver');
-        var startedDnf = entry.status === 'DNF' && hasStartEvidence(entry) && !entry.invited && supportedClass;
-        var eligibleDriverDnf = startedDnf && driver.known && !nonScoring[driver.id];
-        var eligibleCodriverDnf = startedDnf && codriver.known && !nonScoring[codriver.id];
+        var driverEligibility = eligibility(entry, 'driver', driver, result);
+        var codriverEligibility = entry.codriver ? eligibility(entry, 'codriver', codriver, result) : null;
+        var positions = positionsByCar[String(entry.car)] || {};
+        driverEligibility.scoringPosition = positions.driver || null;
+        if (codriverEligibility) codriverEligibility.scoringPosition = positions.codriver || null;
+        var hasPointsResult = entry.status !== 'DNS';
         return { car: String(entry.car),
-          driverPoints: eligibleDriverDnf ? 0 : points.driver == null ? null : points.driver,
-          codriverPoints: !entry.codriver ? null : eligibleCodriverDnf ? 0 : points.codriver == null ? null : points.codriver };
+          driverPoints: driverEligibility.status !== 'eligible' ? hasPointsResult ? 0 : null :
+            entry.status === 'DNF' && hasStartEvidence(entry) && ['RS2', 'RS4'].indexOf(driverEligibility.scoringClass) >= 0 ? 0 :
+              entry.status === 'DNF' ? null : points.driver == null ? null : points.driver,
+          codriverPoints: !entry.codriver ? null : codriverEligibility.status !== 'eligible' ? hasPointsResult ? 0 : null :
+            entry.status === 'DNF' && hasStartEvidence(entry) && ['RS2', 'RS4'].indexOf(codriverEligibility.scoringClass) >= 0 ? 0 :
+              entry.status === 'DNF' ? null : points.codriver == null ? null : points.codriver,
+          driverEligibility: driverEligibility, codriverEligibility: codriverEligibility };
       });
       scoreRows.push(row);
     });
     var readyRows = scoreRows.filter(function (row) { return row.status === 'ready'; });
     function buildStandings(rows) {
       var tables = { overallDrivers: Object.create(null), overallCodrivers: Object.create(null),
-        classDrivers: { RS2: Object.create(null), RS4: Object.create(null) },
-        classCodrivers: { RS2: Object.create(null), RS4: Object.create(null) } };
-      function add(table, id, name, points) {
+        classDrivers: { RS0: Object.create(null), RS2: Object.create(null), RS4: Object.create(null) },
+        classCodrivers: { RS0: Object.create(null), RS2: Object.create(null), RS4: Object.create(null) } };
+      function add(table, id, name, points, eligibilityInfo) {
         if (!id) return;
-        if (!table[id]) table[id] = { id: id, name: name, points: 0 };
+        if (!table[id]) table[id] = { id: id, name: name, points: 0,
+          eligibilityStatus: eligibilityInfo.status, eligibilityReason: eligibilityInfo.reason };
+        else if (eligibilityInfo.status === 'eligible') {
+          table[id].eligibilityStatus = 'eligible';
+          table[id].eligibilityReason = '';
+        }
         table[id].points += points;
       }
       rows.forEach(function (row) {
@@ -560,27 +672,40 @@
         (row.entries || []).forEach(function (score) {
           var entry = result.entries.filter(function (item) { return String(item.car) === score.car; })[0];
           if (!entry) return;
-          var driver = rallyeSportEntryPerson(idx, entry, 'driver'), codriver = rallyeSportEntryPerson(idx, entry, 'codriver'), cls = rallyeSportScoringClass(result, entry);
-          if (score.driverPoints != null) {
-            add(tables.overallDrivers, driver.id, driver.name, score.driverPoints);
-            add(tables.classDrivers[cls], driver.id, driver.name, score.driverPoints);
-          }
-          if (score.codriverPoints != null && codriver.id) {
-            add(tables.overallCodrivers, codriver.id, codriver.name, score.codriverPoints);
-            add(tables.classCodrivers[cls], codriver.id, codriver.name, score.codriverPoints);
-          }
+          var driver = rallyeSportEntryPerson(idx, entry, 'driver'), codriver = rallyeSportEntryPerson(idx, entry, 'codriver');
+          [['driver', driver, score.driverEligibility, score.driverPoints, tables.overallDrivers, tables.classDrivers],
+            ['codriver', codriver, score.codriverEligibility, score.codriverPoints, tables.overallCodrivers, tables.classCodrivers]]
+            .forEach(function (role) {
+              if (!role[1].id || !role[2]) return;
+              if (role[2].status === 'eligible' && role[3] != null) {
+                add(role[4], role[1].id, role[1].name, role[3], role[2]);
+                add(role[5][role[2].scoringClass], role[1].id, role[1].name, role[3], role[2]);
+              } else if (role[2].status !== 'eligible' && entry.status !== 'DNS') {
+                add(role[4], role[1].id, role[1].name, 0, role[2]);
+                add(role[5].RS0, role[1].id, role[1].name, 0, role[2]);
+              }
+            });
         });
       });
-      function table(value) {
+      function table(value, suppressEligible) {
         var rows = Object.keys(value).map(function (id) { return value[id]; });
-        rows.sort(function (a, b) { return b.points - a.points || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0); });
-        rows.forEach(function (row) { row.rank = 1 + rows.filter(function (other) { return other.points > row.points; }).length; });
-        return rows;
+        var eligible = rows.filter(function (row) { return row.eligibilityStatus === 'eligible'; });
+        var excluded = rows.filter(function (row) {
+          return row.eligibilityStatus !== 'eligible' &&
+            !(suppressEligible && suppressEligible[row.id] && suppressEligible[row.id].eligibilityStatus === 'eligible');
+        });
+        eligible.sort(function (a, b) { return b.points - a.points || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0); });
+        eligible.forEach(function (row) {
+          row.rank = 1 + eligible.filter(function (other) { return other.points > row.points; }).length;
+        });
+        excluded.sort(function (a, b) { return a.name.localeCompare(b.name); });
+        excluded.forEach(function (row) { row.rank = null; row.scoringClass = 'RS0'; });
+        return eligible.concat(excluded);
       }
       return {
         overallDrivers: table(tables.overallDrivers), overallCodrivers: table(tables.overallCodrivers),
-        classDrivers: { RS2: table(tables.classDrivers.RS2), RS4: table(tables.classDrivers.RS4) },
-        classCodrivers: { RS2: table(tables.classCodrivers.RS2), RS4: table(tables.classCodrivers.RS4) }
+        classDrivers: { RS0: table(tables.classDrivers.RS0, tables.overallDrivers), RS2: table(tables.classDrivers.RS2), RS4: table(tables.classDrivers.RS4) },
+        classCodrivers: { RS0: table(tables.classCodrivers.RS0, tables.overallCodrivers), RS2: table(tables.classCodrivers.RS2), RS4: table(tables.classCodrivers.RS4) }
       };
     }
     var allReady = counted.length > 0 && readyRows.length === counted.length;
@@ -599,7 +724,9 @@
       reason = 'Points use the reviewed 2026 Clubman’s Sprint SSR scale; equal championship totals share a rank because season tie-breaks are unresolved.';
     }
     var provisionalStandings = status === 'ready' || !readyRows.length ? null : buildStandings(readyRows);
-    return { status: status, reason: reason, results: scoreRows, standings: standings,
+    return { status: status, reason: reason, starterMinimum: starterMinimum,
+      membershipReviewApplied: { sourceDate: '2026-11-09', basis: 'reviewed-membership-decisions' },
+      results: scoreRows, standings: standings,
       provisionalStandings: provisionalStandings,
       includedProvisionalEvents: provisionalStandings ? readyRows.map(function (row) { return row.eventId; }) : [],
       excludedProvisionalEvents: provisionalStandings ? scoreRows.filter(function (row) { return row.status !== 'ready'; }).map(function (row) {
@@ -611,6 +738,8 @@
     var projected = JSON.parse(JSON.stringify(data));
     projected.scoring = calculateRallyeSportScoring(data, season, people);
     delete projected.nonScoringPeople;
+    delete projected.starterMinimumReview;
+    delete projected.membershipReview;
     projected.events = (projected.events || []).map(function (event) {
       delete event.countsForChampionship; delete event.championshipEvidence; delete event.doublePoints; delete event.doublePointsEvidence;
       delete event.doublePointsBulletinDate;
@@ -783,8 +912,44 @@
       if ((value == null || value === '') && !required) return;
       if (typeof value !== 'string' || value.length > 32 || parseTime(value) == null || isNaN(parseTime(value))) error(label + ' must be a printed rally time or empty.');
     }
-    if (!object(data, 'data', ['ruleset', 'events', 'results', 'nonScoringPeople'])) return issues;
+    if (!object(data, 'data', ['ruleset', 'events', 'results', 'nonScoringPeople', 'starterMinimumReview', 'membershipReview'])) return issues;
     if (!Array.isArray(data.events) || !Array.isArray(data.results)) { error('events and results must be lists.'); return issues; }
+    if (Object.prototype.hasOwnProperty.call(data, 'starterMinimumReview')) {
+      if (season && season.year !== 2026) error('starter minimum review is supported only for the 2026 RallyeSport season.');
+      if (object(data.starterMinimumReview, 'starter minimum review', ['minimum', 'reviewed', 'evidence'])) {
+        if (data.starterMinimumReview.minimum !== 6) error('starter minimum review must explicitly set the confirmed 2026 value of six.');
+        if (data.starterMinimumReview.reviewed !== true) error('starter minimum review must be explicitly reviewed and confirmed.');
+        text(data.starterMinimumReview.evidence, 'starter minimum review evidence', true, 1000);
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'membershipReview')) {
+      var membershipReview = data.membershipReview, memberProfiles = Object.create(null), membershipPeople = Object.create(null);
+      ((people && people.people) || []).forEach(function (person) { memberProfiles[person.id] = true; });
+      if (season && season.year !== 2026) error('membership review is supported only for the 2026 RallyeSport season.');
+      if (object(membershipReview, 'membership review', ['sourceDate', 'reviewed', 'evidence', 'people'])) {
+        if (membershipReview.sourceDate !== '2026-11-09') error('membership review must identify the reviewed 2026-11-09 roster date.');
+        if (membershipReview.reviewed !== true) error('membership review must be explicitly reviewed.');
+        text(membershipReview.evidence, 'membership review provenance', true, 1000);
+        if (!membershipReview.people || typeof membershipReview.people !== 'object' || Array.isArray(membershipReview.people)) {
+          error('membership review people must be an object keyed by stable profile ID.');
+        } else Object.keys(membershipReview.people).forEach(function (personId) {
+          var decision = membershipReview.people[personId], label = 'membership decision for ' + personId;
+          if (!memberProfiles[personId]) error(label + ' refers to an unknown profile.');
+          if (!object(decision, label, ['status', 'basis', 'evidence'])) return;
+          if (RS_MEMBERSHIP_STATUSES.indexOf(decision.status) < 0) error(label + ' has an unsupported eligibility status.');
+          if (['membership-sheet', 'user-confirmed'].indexOf(decision.basis) < 0) error(label + ' must identify the membership-sheet or user-confirmed basis.');
+          if (decision.basis === 'user-confirmed') text(decision.evidence, label + ' private override provenance', true, 1000);
+          else if (decision.evidence !== undefined) error(label + ' must not include per-person evidence unless it is a user-confirmed override.');
+          if (membershipPeople[personId]) error(label + ' is duplicated.');
+          membershipPeople[personId] = true;
+        });
+      }
+    }
+    if (season && season.year === 2026 && data.ruleset &&
+      data.ruleset.code === 'clubman-sprint-2026-v1' &&
+      !Object.prototype.hasOwnProperty.call(data, 'membershipReview')) {
+      error('a reviewed 2026 membership eligibility map is required before RS scoring can be published.');
+    }
     if (data.nonScoringPeople != null) {
       if (!Array.isArray(data.nonScoringPeople)) error('nonScoringPeople must be a list of stable person IDs.');
       else {

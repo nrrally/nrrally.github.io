@@ -11,6 +11,10 @@ node tools/report.js 2026 nr-rally-backup-2026-11-06.json   # lists every overri
 ```
 
 The admin runs the same per-round checks before it lets you publish.
+For a private admin backup, `tools/validate.js` also recalculates RallyeSport from the
+working season, prints the applied starter minimum/basis and each ready event's per-car
+points, independently of any public scoring snapshot. Keep the backup and its output
+private.
 
 ## AI Import regression checks (synthetic, no live database)
 
@@ -124,6 +128,17 @@ database writes. Additional regressions cover persistent mode through all naviga
 reload/back/forward, season selection, legacy links and denied browser storage within
 the app; verified/missing result associations; empty RS seasons; resolved versus
 unresolved crew identities; RS-only standings, sources and cross-season profiles.
+The synthetic 2026 RS fixture also includes a role with missing licence evidence.
+Public assertions verify that its official class, position and result remain unchanged,
+while scoring, standings, profile markers and the RS graph tooltip identify it as RS0
+with zero championship points and no rank. No private membership evidence or identifiers
+may appear in public HTML.
+Public championship labels are binary: eligible roles retain RS2/RS4 and excluded roles
+show "RS0 · Non-Scoring", not the private review reason. Synthetic browser checks pair
+an RS0 person with an eligible partner and verify individual labels directly in Results,
+unchanged official classified status/classes/positions, and independent zero/nonzero
+points. Crews has a separate Championship status column; the shared SSR 6.1 explanation
+does not assert non-membership merely because a role is Non-Scoring.
 The same graph UI is exercised for all six metrics, car selection, Top 5/All/Clear/class
 filters, legend focus/highlighting, tooltips, head-to-head and stage tables. Tests assert
 no NR/RS series mixing, independent standalone RS stage axes, official Final semantics,
@@ -173,7 +188,8 @@ readiness. Synthetic evidence cannot resolve starter counts, double-points bulle
 or missing future results.
 The private source preview must show actual engine validation status and never hide an
 identity error or fabricate standings. These private review artifacts and source files
-must remain outside Git; do not use or inspect the membership workbook for this work.
+must remain outside Git. The RS eligibility regressions use synthetic identities and
+decision maps only; a private membership workbook is not a test fixture.
 
 The getting-started unit checks cover the season and general event journey, official-source allowlist, unique working
 topic anchors, a spectator-first opening without competition prerequisites, spectator safety,
@@ -316,17 +332,23 @@ node --test tools/tests/rallyesport.test.js tools/tests/season-readiness.test.js
 
 Fixtures are synthetic. Engine coverage asserts the 2026 class scale, the distinct
 event-invitation exclusion and per-person season toggle, asymmetric driver/co-driver
-re-ranking and toggle reversal, 15 starters overall, started-DNF no-points/starter
-semantics, unresolved no-time DNF and TEST starter boundaries, and blocked round-tie cases,
-unconfigured years/classes, standalone RS-only validation, private-field projection,
-one-time explicit NR stage-time snapshots and two-way NR/RS isolation. Synthetic cases
+re-ranking and toggle reversal, role-specific membership exclusions and RS0 zero-point
+rows, identity-review resolution before eligibility lookup and canonical accumulation,
+missing/ambiguous membership statuses and strict private override evidence, the original
+15-starter SSR baseline and evidence-backed six-starter review (including exactly five,
+six and fourteen starters), source-evidenced TEST/invitation starter counting and DNS/
+unknown-DNF boundaries, malformed reviews and 2027 non-inheritance, blocked round-tie
+cases, unconfigured years/classes, standalone RS-only validation, private-field
+projection, one-time explicit NR stage-time snapshots and two-way NR/RS isolation. Synthetic cases
 also cover a user-confirmed pre-issue 2026 event, preserving a `Final Results` heading
 and TEST row without rewriting their source status or awarding championship points,
 consistent per-class ordering when class positions are partial, separate printed class
 positions under tied overall order, unresolved within-class ties and a later DNF stage
 time after an earlier missing observation. RS graph tests cover non-prefix stage values
 and hundredth-second differences without changing NR precision. The public VM regression
-checks the working-to-public-to-builder scoring path, ready and blocked states,
+checks the working-to-public-to-builder scoring path, public source preservation and
+review-evidence stripping, R1-R4 event points with R2-R4 unchanged and four-round
+championship incompleteness, ready and blocked states,
 provisional tables with excluded rounds disclosed, unchanged NR graph defaults, a mapped
 dashed RS overlay, separate RS tables and RS-only events absent from NR Home or standings.
 Homepage regressions also cover the three visible, keyboard-operable NR/RS switches

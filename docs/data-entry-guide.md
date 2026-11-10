@@ -172,11 +172,11 @@ round status and the evidence. User confirmation applies to the privately review
 classification set, including a pre-issue independent event; keep event identities and
 source records in the private review archive. This does not authorize applying the SSRs
 to other events or years. Set
-invitational status explicitly for every classified row. Event-level
-invitation exclusion is not the same as the RS-season per-person **Non-Scoring RS Member**
-toggle. That toggle assumes all unchecked people are paid up (not verified), excludes
-only that person from RS scoring, and recalculates the driver and co-driver orders
-separately. It never changes the event sheet or NR.
+invitational status explicitly for every classified row. Event-level invitation
+exclusion is separate from the reviewed membership map and the legacy per-person manual
+RS scoring exclusion. The manual exclusion does not establish membership status and
+only excludes that person from RS scoring; driver and co-driver orders recalculate
+separately. None of these decisions changes the event sheet or NR.
 
 For SSR 7.2's five-round double-points exception, record the event's start date and the
 official bulletin issue date separately as ISO dates, plus the bulletin evidence. The
@@ -207,14 +207,53 @@ entering its evidence; the evidence field is disabled otherwise, and editing it 
 activate scoring finality on its own.
 
 Event points require either source-supported finality or an evidence-backed user
-finality review, the 15-starter threshold, applicable ruleset,
+finality review, the applicable 2026 RS event-starter minimum, applicable ruleset,
 championship-round and invitation inputs. A started DNF earns no points but counts as a
 starter when start evidence is present. A no-time DNF is not proof of a start; otherwise
-record a reviewed non-TEST starter count and its evidence. `TEST` entries remain in the
-event results and do not score; whether they count toward the minimum is unresolved. A
-reviewed count of at least 15 non-TEST starters establishes the threshold. If fewer than
-15 non-TEST starters are established and TEST rows could change whether the threshold is
-met, points stay blocked.
+record a reviewed event starter count and its evidence. The 2026 six-starter review
+counts all source-evidenced starters, including TEST, invitation and RS0 entries; DNS
+does not count, and a TEST or DNF row still needs actual start evidence. `TEST` entries
+remain in source results and do not score.
+Without a private `starterMinimumReview`, the published 2026 SSR V1's 15-starter
+minimum applies. The separate user-reported six-starter review is available only for
+2026 RallyeSport, requires provenance evidence, and must not be described as a written
+SSR amendment; the source document still states 15. A reviewed count at or above the
+currently recorded minimum establishes the event threshold. In Admin > Season >
+RallyeSport, select the six-starter review and record its provenance before using
+Review & publish; the evidence is private and is not copied into public data.
+For 2026 membership, review the private person-ID map after identity reconciliation.
+Only a matching Profile Complete record with both licence and membership reference
+supports eligibility; account Active/Inactive/Invite Pending status is irrelevant. A
+qualifying complete duplicate is sufficient. Record explicit user-confirmed corrections
+with their own private provenance. Do not copy licence/member numbers, workbook rows,
+aliases or workbook content. Unmatched/ambiguous people remain unverified, and missing
+licence, missing membership reference and incomplete profile are distinct non-eligible
+reasons, not proof of non-membership. A non-member or other excluded role receives zero
+championship points and appears after ranked people as RS0, without changing its
+partner's scoring position or the source classification.
+Public Crews uses a separate Championship status column; an excluded person is shown
+as "RS0 · Non-Scoring", not as a confirmed non-member. Eligible roles show their RS2/RS4
+championship class. Private review reasons remain distinct; they are not public statuses.
+Results identify championship status directly beneath each individual crew member,
+including an eligible partner alongside a Non-Scoring person. Official RS2/RS4 class,
+classified finish and positions remain source results. Classified describes the official
+event finish; RS0 describes championship scoring only. A later reviewed eligibility
+decision can change championship scoring without rewriting the official finish.
+Overall championship tables derive each person's scoring class from their role-specific
+class standings, not the vehicle class of an excluded source appearance. A person scoring
+in both supported classes is explicitly labelled "RS2 + RS4"; a class-filtered table
+shows only that class. Results labels the preserved source finish as "Official finish".
+Record R1-R4 as championship events only with their existing event-specific evidence.
+Scoring those four events does not satisfy the separate season round-count rule or make
+the championship final.
+After downloading a private admin backup, run `node tools/validate.js <backup.json>` to
+recalculate RS scoring from the working records rather than trusting a published scoring
+snapshot; compare R1-R4 points, the applied threshold/basis, and every blocked reason
+before publication.
+When applying a revised scoring review, also inspect existing curated RS result notes for
+obsolete commentary about the prior threshold or unresolved scoring. Correct only that
+outdated commentary in the working record; keep official source notes, classifications,
+positions, times and source order unchanged, and retain the prior version in History.
 Explicit `Final Results` wording is recognized as final without rewriting the source
 status. A source note that says checks are pending is not independently treated as
 cleared; only an explicit finality review can accept that source for scoring, and the UI

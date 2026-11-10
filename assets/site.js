@@ -101,6 +101,14 @@
     var scoring = D.rallyesport && D.rallyesport.scoring;
     return scoring && (scoring.results || []).filter(function (row) { return row.resultId === result.id; })[0] || null;
   }
+  function rallyeSportStarterMinimumNote(scoring, year) {
+    if (year !== 2026) return '';
+    var review = scoring && scoring.starterMinimum;
+    if (!review) return '';
+    return review.basis === 'user-reported-review' ?
+      '2026 RS event minimum: 6 source-backed starters, including TEST and invitational entries; DNS does not count. This is a user-reported review. Published SSR V1 states 15; no written amendment is recorded.' :
+      '2026 RS event minimum: 15 starters as printed in SSR V1.';
+  }
   function posBadge(p, status) {
     if (status === 'DNF' || status === 'DNS') return '<span class="pos dnf">' + status + '</span>';
     if (p == null) return '<span class="pos dnf">—</span>';
@@ -437,15 +445,16 @@
       return Array.isArray(value) ? value : [];
     }
     var note = '';
+    var minimumNote = rallyeSportStarterMinimumNote(scoring, YEAR);
     if (tables && provisional) {
-      note = 'Provisional RS points. <a href="' + sh('/rallyesport') + '">RS tables</a>.';
-    } else if (tables) note = 'RS points are separate from NR. <a href="' + sh('/rallyesport') + '">RS tables</a>.';
-    else note = 'RS points unavailable. <a href="' + sh('/rallyesport') + '">RS tables</a>.';
+      note = 'Provisional RS points. ' + (minimumNote ? esc(minimumNote) + ' ' : '') + '<a href="' + sh('/rallyesport') + '">RS tables</a>.';
+    } else if (tables) note = 'RS points are separate from NR. ' + (minimumNote ? esc(minimumNote) + ' ' : '') + '<a href="' + sh('/rallyesport') + '">RS tables</a>.';
+    else note = 'RS points unavailable. ' + (minimumNote ? esc(minimumNote) + ' ' : '') + '<a href="' + sh('/rallyesport') + '">RS tables</a>.';
     return { rows: rows, note: note, provisional: provisional, available: !!tables };
   }
   function homeRallyeSportChampCard(tables) {
     function leaderLine(role, path) {
-      var rows = tables.rows(path);
+      var rows = tables.rows(path).filter(function (row) { return row.rank != null; });
       var leaders = rows.length ? rows.filter(function (row) { return row.rank === rows[0].rank; }) : [];
       var title = (tables.provisional ? 'Provisional ' : '') + 'RS ' + role + ' leader' + (leaders.length === 1 ? '' : 's');
       if (!leaders.length) return '<p><b>' + title + '</b> unavailable.</p>';
@@ -464,21 +473,21 @@
     if (!rallyeSportEvents().length) html += '<div class="section card empty">No RS data is published for ' + YEAR + '. NR results are available using the competition switch.</div>';
     html += '<div class="section"><div class="section-head"><h2>Championship leaders</h2><a class="go" href="' +
       sh('/standings') + '">Full RS tables →</a></div><div class="grid grid-3">' + homeRallyeSportChampCard(tables) +
-      leaderCard('RS drivers', tables.rows('overallDrivers'), 'driver', 'rs', {}, tables) +
-      leaderCard('RS co-drivers', tables.rows('overallCodrivers'), 'codriver', 'rs', {}, tables) + '</div>';
+      leaderCard('RS drivers', tables.rows('overallDrivers').filter(function (row) { return row.rank != null; }), 'driver', 'rs', {}, tables) +
+      leaderCard('RS co-drivers', tables.rows('overallCodrivers').filter(function (row) { return row.rank != null; }), 'codriver', 'rs', {}, tables) + '</div>';
     if (tables.note) html += '<p class="small muted home-rs-note">' + tables.note + '</p>';
     html += '</div><div class="section"><div class="section-head"><h2>RS class leaders · drivers</h2></div><div class="grid grid-2 home-rs-classes">';
-    ['RS2', 'RS4'].forEach(function (cls) {
+    ['RS2', 'RS4', 'RS0'].forEach(function (cls) {
       var rows = tables.rows('classDrivers.' + cls).slice(0, 3);
       html += '<div class="card tight"><div class="leader-card-head">' + clsTag(cls) +
         '<a class="small" href="' + sh('/rallyesport') + '">RS tables →</a></div>' +
         (rows.length ? rows.map(function (r, i) {
-          return '<div class="leader"><span class="pos' + (i < 3 ? ' p' + (i + 1) : '') + '">' + r.rank +
-            '</span><div class="who">' + rsProfileLink(r.id, r.name) + '</div>' +
+          return '<div class="leader"><span class="pos' + (r.rank != null && i < 3 ? ' p' + (i + 1) : '') + '">' + (r.rank == null ? '—' : r.rank) +
+            '</span><div class="who">' + rsProfileLink(r.id, r.name) + rsEligibilityMarker({ status: r.eligibilityStatus, reason: r.eligibilityReason }) + '</div>' +
             '<div class="pts">' + r.points + '<small>pts</small></div></div>';
         }).join('') : '<p class="small muted">No RS points available for this class.</p>') + '</div>';
     });
-    return { title: 'RallyeSport', html: html + '</div></div><div class="section"><div class="section-head"><h2>RS rounds &amp; results</h2>' +
+    return { title: 'RallyeSport', html: html + rsEligibilityNote() + '</div></div><div class="section"><div class="section-head"><h2>RS rounds &amp; results</h2>' +
       '<a class="go" href="' + sh('/rounds') + '">Full RS calendar &amp; results →</a></div>' + eventCards('rs') + '</div>' };
   }
   function miniBars(row) {
@@ -659,10 +668,26 @@
   function rsEntryLink(entry, role) {
     return rsProfileLink(entry[role + 'Known'] ? entry[role + 'Id'] : '', entry[role]);
   }
+  function rsEligibilityMarker(info) {
+    return info && info.status !== 'eligible' ?
+      '<span class="note-mark" title="RS0 Non-Scoring SSR 6.1 — championship scoring only; this does not establish non-membership.">RS0 · Non-Scoring*</span>' : '';
+  }
+  function rsChampionshipStatus(info) {
+    return !info ? '<span class="muted">Scoring status unavailable</span>' : info.status === 'eligible' ?
+      esc(info.scoringClass) : rsEligibilityMarker(info);
+  }
+  function rsResultScoringNote() {
+    return '<p class="small muted">Classified describes the official event finish. RS0 describes championship scoring only.</p>';
+  }
+  function rsEligibilityNote() {
+    return '<div class="small muted">* RS0 Non-Scoring SSR 6.1: RS0 roles receive zero championship points and no championship rank. Driver and co-driver eligibility is assessed separately; excluded roles are shown after ranked competitors. SSR 6.1 excludes non-member roles, invitations and TEST entries from championship scoring. RS0 also applies when eligibility has not been established; it is not a declaration of non-membership. Official source classes, positions, times and finish order remain unchanged.</div>';
+  }
   function rsScoringNotice() {
     var scoring = D.rallyesport.scoring;
     return '<div class="callout ' + (scoring.status === 'ready' ? '' : 'warn') + '"><div><b>RS championship scoring: ' +
       esc(scoring.status) + '</b><p>' + esc(scoring.reason || '') + '</p>' +
+      (scoring.membershipReviewApplied ? '<p class="small">Eligibility is based on the reviewed 9 November 2026 membership record. The public view contains derived decisions only, not membership or licence identifiers or private review evidence.</p>' : '') +
+      (rallyeSportStarterMinimumNote(scoring, D.year) ? '<p class="small">' + esc(rallyeSportStarterMinimumNote(scoring, D.year)) + '</p>' : '') +
       (scoring.provisionalStandings && scoring.status !== 'ready' ? '<p>Provisional cumulative points: ready events only; blocked events are excluded, not scored as zero.</p>' : '') +
       ((scoring.excludedProvisionalEvents || []).length ? '<p class="small">Not scored: ' +
         scoring.excludedProvisionalEvents.map(function (row) {
@@ -672,16 +697,19 @@
   }
   function viewRsStandings(role, q) {
     var tables = homeRallyeSportStandings(), base = '/standings' + (role === 'codriver' ? '/codrivers' : '');
-    var cls = ['RS2', 'RS4'].indexOf(q['class']) >= 0 ? q['class'] : '';
+    var cls = ['RS0', 'RS2', 'RS4'].indexOf(q['class']) >= 0 ? q['class'] : '';
     var path = cls ? (role === 'driver' ? 'classDrivers.' : 'classCodrivers.') + cls :
       role === 'driver' ? 'overallDrivers' : 'overallCodrivers';
     var title = 'RS ' + (role === 'driver' ? 'drivers' : 'co-drivers');
     var html = '<div class="page-head"><div><p class="eyebrow">' + YEAR + ' · RallyeSport standings</p><h1>' + title + '</h1></div>' +
       '<div class="seg"><a href="' + buildHash('/standings', { 'class': cls }) + '" class="' + (role === 'driver' ? 'on' : '') +
       '">Drivers</a><a href="' + buildHash('/standings/codrivers', { 'class': cls }) + '" class="' + (role === 'codriver' ? 'on' : '') + '">Co-drivers</a></div></div>';
-    html += rsScoringNotice() + '<div class="filters"><div class="seg">' + ['', 'RS2', 'RS4'].map(function (value) {
+    html += rsScoringNotice() + '<div class="filters"><div class="seg">' + ['', 'RS2', 'RS4', 'RS0'].map(function (value) {
       return '<a href="' + buildHash(base, { 'class': value }) + '" class="' + (value === cls ? 'on' : '') + '">' + (value || 'Overall') + '</a>';
-    }).join('') + '</div></div>' + rsStandingsTable((tables.provisional ? 'Provisional · ' : '') + (cls || 'Overall'), tables.rows(path));
+    }).join('') + '</div></div>' + rsStandingsTable((tables.provisional ? 'Provisional · ' : '') + (cls || 'Overall'), tables.rows(path),
+      { RS2: tables.rows((role === 'driver' ? 'classDrivers.' : 'classCodrivers.') + 'RS2'),
+        RS4: tables.rows((role === 'driver' ? 'classDrivers.' : 'classCodrivers.') + 'RS4') }, cls);
+    html += rsEligibilityNote();
     if (!rallyeSportEvents().length) html += '<p>No RS data is published for ' + YEAR + '.</p>';
     return { title: title, html: html };
   }
@@ -719,15 +747,24 @@
     if (q.m === 'spos' && !model.entries.some(function (entry) { return entry.stagePos.some(function (pos) { return pos != null; }); }))
       html += '<div class="callout warn"><div>No official RS stage positions are published for this result. This metric is unavailable; ranks are not inferred from times.</div></div>';
     html += tab === 'stages' ? roundStageTimes(model) : roundGraph(model, q);
+    if (model.entries.some(function (entry) {
+      return entry.driverEligibility && entry.driverEligibility.status !== 'eligible' ||
+        entry.codriverEligibility && entry.codriverEligibility.status !== 'eligible';
+    })) html += rsEligibilityNote();
     html += '<p class="small muted">RS-only stages and source rows. Missing timing stays missing; cumulative values require every preceding time. Final positions and statuses are official source fields, never inferred from stage sums.</p>';
     return { title: event.name + ' — RS ' + (tab === 'stages' ? 'stage times' : 'graph'), html: html };
   }
   function rsGraphModel(result, event) {
+    var score = rallyeSportScoreForResult(result), scoreByCar = Object.create(null);
+    (score && score.entries || []).forEach(function (row) { scoreByCar[row.car] = row; });
     var r = { rs: true, id: result.id, name: event.name, timePrecision: 1, progression: {},
       stages: result.stages.map(function (stage) { return stage.label || stage.id; }),
       entries: result.entries.map(function (entry) {
+        var points = scoreByCar[String(entry.car)] || {};
         return Object.assign({}, entry, { car: String(entry.car),
           cls: (result.classMappings || {})[E.normClass(entry['class'])] || entry['class'],
+          driverEligibility: points.driverEligibility || null,
+          codriverEligibility: points.codriverEligibility || null,
           times: result.stages.map(function (stage, i) { return E.parseRallyeSportTime((entry.times || [])[i]); }),
           total: E.parseRallyeSportTime(entry.total), pen: E.parseRallyeSportTime(entry.penalty) });
       }) };
@@ -746,11 +783,60 @@
     });
     return r;
   }
-  function rsStandingsTable(title, rows) {
+  function rsStandingsTable(title, rows, classTables, selectedClass) {
+    function championshipClasses(row) {
+      var classes = ['RS2', 'RS4'].filter(function (cls) {
+        return (!selectedClass || selectedClass === cls) && classTables && (classTables[cls] || []).some(function (person) {
+          return person.id === row.id && person.rank != null;
+        });
+      });
+      return classes.length ? classes.join(' + ') : 'Scoring class unavailable';
+    }
     return '<div class="section"><div class="section-head"><h2>' + esc(title) + '</h2></div>' +
-      (rows && rows.length ? '<div class="table-wrap"><table class="data"><thead><tr><th>Rank</th><th>Competitor</th><th class="num">Points</th></tr></thead><tbody>' +
-        rows.map(function (row) { return '<tr><td class="num">' + row.rank + '</td><td>' + rsProfileLink(row.id, row.name) + '</td><td class="num"><b>' + row.points + '</b></td></tr>'; }).join('') +
+      rsResultScoringNote() +
+      (rows && rows.length ? '<div class="table-wrap"><table class="data"><thead><tr><th>Rank</th><th>Competitor</th><th>Championship scoring</th><th class="num">Points</th></tr></thead><tbody>' +
+        rows.map(function (row) { return '<tr><td class="num">' + (row.rank == null ? '—' : row.rank) + '</td><td>' +
+          rsProfileLink(row.id, row.name) + '</td><td>' +
+          (row.rank == null ? rsEligibilityMarker({ status: row.eligibilityStatus, reason: row.eligibilityReason }) :
+            esc(championshipClasses(row))) + '</td><td class="num"><b>' + row.points + '</b></td></tr>'; }).join('') +
         '</tbody></table></div>' : '<div class="card empty">No points have been established for this table.</div>') + '</div>';
+  }
+  function rsEventScoringTable(result, score) {
+    if (!score || score.status !== 'ready') return '';
+    var scoreByCar = Object.create(null);
+    (score.entries || []).forEach(function (row) { scoreByCar[row.car] = row; });
+    var rows = [];
+    (result.entries || []).forEach(function (entry) {
+      var carScore = scoreByCar[String(entry.car)] || {};
+      ['driver', 'codriver'].forEach(function (role) {
+        if (!entry[role] || entry.status === 'DNS') return;
+        var info = carScore[role + 'Eligibility'];
+        if (!info) return;
+        rows.push({ entry: entry, role: role, info: info, points: carScore[role + 'Points'] });
+      });
+    });
+    rows.sort(function (a, b) {
+      var aRanked = a.info.status === 'eligible' && a.info.scoringPosition != null;
+      var bRanked = b.info.status === 'eligible' && b.info.scoringPosition != null;
+      if (aRanked !== bRanked) return aRanked ? -1 : 1;
+      if (aRanked && (a.info.scoringClass !== b.info.scoringClass)) return a.info.scoringClass < b.info.scoringClass ? -1 : 1;
+      if (aRanked && a.info.scoringPosition !== b.info.scoringPosition) return a.info.scoringPosition - b.info.scoringPosition;
+      if (a.info.status === 'eligible' && b.info.status !== 'eligible') return -1;
+      if (b.info.status === 'eligible' && a.info.status !== 'eligible') return 1;
+      return a.entry[ a.role ].localeCompare(b.entry[ b.role ]) || a.role.localeCompare(b.role);
+    });
+    return '<div class="section"><div class="section-head"><h2>RS championship scoring order</h2></div>' +
+      '<p class="small muted">This derived view ranks eligible driver and co-driver roles independently. The official classification above remains in its source order, with source classes, positions and times unchanged. Excluded roles follow ranked eligible roles as RS0.</p>' +
+      rsResultScoringNote() +
+      '<div class="table-wrap"><table class="data"><thead><tr><th>Scoring position</th><th>Competitor</th><th>Role</th><th>Car</th><th>Championship scoring</th><th class="num">Championship points</th></tr></thead><tbody>' +
+      rows.map(function (row) {
+        var isEligible = row.info.status === 'eligible';
+        var position = isEligible && row.info.scoringPosition != null ? row.info.scoringPosition : '—';
+        return '<tr class="' + (isEligible ? '' : 'rs0-row') + '"><td class="num">' + position + '</td><td>' +
+          rsEntryLink(row.entry, row.role) + '</td><td>' +
+          (row.role === 'driver' ? 'Driver' : 'Co-driver') + '</td><td>' + esc(row.entry.car) + '</td><td>' +
+          rsChampionshipStatus(row.info) + '</td><td class="num"><b>' + (row.points == null ? '—' : row.points) + '</b></td></tr>';
+      }).join('') + '</tbody></table></div>' + rsEligibilityNote() + '</div>';
   }
   function viewRallyeSport(resultId, q) {
     var rs = D.rallyesport || { events: [], results: [], scoring: { status: 'unconfigured', reason: 'RS rules are not configured.', results: [], standings: null } };
@@ -762,16 +848,21 @@
       var score = (scoring.results || []).filter(function (row) { return row.resultId === result.id; })[0];
       var scoreByCar = Object.create(null);
       (score && score.entries || []).forEach(function (row) { scoreByCar[row.car] = row; });
-      var columns = ['<th>Official position</th>', '<th>Official class position</th>', '<th>Car</th>', '<th>Driver</th>', '<th>Co-driver</th>', '<th>Class</th>', '<th>Official status</th>']
+      var columns = ['<th>Official position</th>', '<th>Official class position</th>', '<th>Car</th>', '<th>Driver</th>', '<th>Co-driver</th>', '<th>Class</th>', '<th>Official finish</th>']
         .concat((result.stages || []).map(function (stage) { return '<th>' + esc(stage.label) + '</th>'; }))
         .concat(['<th>Penalty</th>', '<th>Official total</th>']);
-      if (score && score.status === 'ready') columns.push('<th>Driver RS points</th>', '<th>Co-driver RS points</th>');
+      if (score && score.status === 'ready') columns.push('<th>Driver championship points</th>', '<th>Co-driver championship points</th>');
       var rows = (result.entries || []).map(function (entry) {
         var points = scoreByCar[String(entry.car)] || {};
+        var driverEligibility = points.driverEligibility, codriverEligibility = points.codriverEligibility;
         var officialPosition = entry.pos != null ? entry.pos : entry.status === 'TEST' ? 'TEST' : '—';
         var cells = ['<td class="num">' + esc(officialPosition) + '</td>', '<td class="num">' + esc(entry.classPos == null ? '—' : entry.classPos) + '</td>',
           '<td>' + esc(entry.car) + '</td>',
-          '<td>' + rsEntryLink(entry, 'driver') + '</td>', '<td>' + rsEntryLink(entry, 'codriver') + '</td>', '<td>' + esc(entry['class']) + '</td>', '<td>' + esc(entry.status) + '</td>']
+          '<td>' + rsEntryLink(entry, 'driver') +
+            (driverEligibility ? '<br><span class="small">Championship: ' + rsChampionshipStatus(driverEligibility) + '</span>' : '') + '</td>',
+          '<td>' + rsEntryLink(entry, 'codriver') +
+            (codriverEligibility ? '<br><span class="small">Championship: ' + rsChampionshipStatus(codriverEligibility) + '</span>' : '') + '</td>',
+          '<td>' + esc(entry['class']) + '</td>', '<td>' + esc(entry.status) + '</td>']
           .concat((result.stages || []).map(function (stage, i) { var time = (entry.times || [])[i]; return '<td class="nowrap">' + (time == null || time === '' ? '<span class="muted">—</span>' : esc(time)) + '</td>'; }))
           .concat(['<td class="nowrap">' + (entry.penalty ? esc(entry.penalty) : '<span class="muted">—</span>') + '</td>',
             '<td class="nowrap">' + (entry.total ? '<b>' + esc(entry.total) + '</b>' : '<span class="muted">—</span>') + '</td>']);
@@ -790,11 +881,13 @@
           result.source && (result.source.file || result.source.description) ? '<p><b>Source evidence:</b> ' + esc(result.source.file || result.source.description) +
             (result.source.file && result.source.description ? ' · ' + esc(result.source.description) : '') + '</p>' : '') +
         ((result.notes || []).length ? '<p>' + result.notes.map(esc).join('<br>') + '</p>' : '') +
-        '<p class="small muted">This table preserves the official RS order and statuses. Times, penalties and totals are source fields; missing values are not zero and no finish status is inferred from stage sums.</p></div>';
+        '<p class="small muted">This table preserves the official RS order and statuses. Times, penalties and totals are source fields; missing values are not zero and no finish status is inferred from stage sums.</p>' + rsResultScoringNote() + '</div>';
       if (score) {
         var qualification = rallyeSportQualificationNote(result);
         var pointsLabel = score.status === 'ready' ? 'RS event points' : 'RS event points unavailable';
         var pointsReason = score.reason || (score.status === 'ready' ? 'Class points are also used for the overall Clubman’s Challenge.' : '');
+        var minimumNote = rallyeSportStarterMinimumNote(scoring, D.year);
+        if (minimumNote) pointsReason += (pointsReason ? ' ' : '') + minimumNote;
         if (qualification) pointsReason += (pointsReason ? ' ' : '') +
           'Subject to post-event technical checks; clearance unverified.';
         html += '<div class="callout ' + (score.status === 'ready' && (!qualification || score.finalityBasis === 'user-confirmed') ? '' : 'warn') + '"><div><b>' +
@@ -802,10 +895,13 @@
       }
       else html += '<div class="callout warn"><div><b>No championship points are published for this event.</b><p>It is not confirmed as a championship round.</p></div></div>';
       html += '<div class="section"><div class="table-wrap"><table class="data"><thead><tr>' + columns.join('') + '</tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+      html += rsEventScoringTable(result, score);
       return { title: event.name + ' — RallyeSport classification', html: html };
     }
     var htmlList = '<div class="page-head"><div><p class="eyebrow">' + YEAR + ' · separate competition</p><h1>RallyeSport</h1><p>Independent RS event classifications and championship tables. RS data never contributes to NR results, points, starts or statistics.</p></div></div>';
     htmlList += '<div class="card"><h2>RS championship scoring: ' + esc(scoring.status) + '</h2><p>' + esc(scoring.reason || '') + '</p>';
+    var minimumNote = rallyeSportStarterMinimumNote(scoring, D.year);
+    if (minimumNote) htmlList += '<p class="small">' + esc(minimumNote) + '</p>';
     if (rs.ruleset && safeUrl(rs.ruleset.sourceUrl)) htmlList += '<p><a href="' + esc(safeUrl(rs.ruleset.sourceUrl)) + '" target="_blank" rel="noopener">2026 Rallysprint SSR V1 — issued 9 July 2026 ↗</a></p>';
     htmlList += '<p class="small muted">The 2026 SSRs apply only to confirmed events. NR points and statuses are not reused. Unresolved tie-break and finisher rules remain gated.</p></div>';
     var standings = scoring.status === 'ready' ? scoring.standings : scoring.provisionalStandings;
@@ -819,11 +915,11 @@
             }).join('; ') + '</p>' : '') + '</div></div>';
       }
       var labelPrefix = scoring.status === 'ready' ? '' : 'Provisional · ';
-      htmlList += rsStandingsTable(labelPrefix + 'Overall drivers', standings.overallDrivers) +
-        rsStandingsTable(labelPrefix + 'Overall co-drivers', standings.overallCodrivers);
+      htmlList += rsStandingsTable(labelPrefix + 'Overall drivers', standings.overallDrivers, standings.classDrivers) +
+        rsStandingsTable(labelPrefix + 'Overall co-drivers', standings.overallCodrivers, standings.classCodrivers);
       ['RS2', 'RS4'].forEach(function (cls) {
-        htmlList += rsStandingsTable(labelPrefix + cls + ' drivers', standings.classDrivers[cls]) +
-          rsStandingsTable(labelPrefix + cls + ' co-drivers', standings.classCodrivers[cls]);
+        htmlList += rsStandingsTable(labelPrefix + cls + ' drivers', standings.classDrivers[cls], standings.classDrivers, cls) +
+          rsStandingsTable(labelPrefix + cls + ' co-drivers', standings.classCodrivers[cls], standings.classCodrivers, cls);
       });
     } else htmlList += '<div class="card empty"><b>Championship totals are not available.</b><p>' + esc(scoring.reason || 'Scoring rules are unconfigured.') + ' Event classifications remain available below.</p></div>';
     htmlList += '<div class="section"><div class="section-head"><h2>RS event classifications</h2></div>';
@@ -947,13 +1043,20 @@
     var series = cars.map(function (car) {
       var e = entryByCar(r, car); var vals = seriesValues(r, car, metric).slice(0, labels.length);
       var end = e.status !== 'classified' ? e.status : null;
-      return { key: r.rs ? 'RS:' + r.id + ':' + car : car, label: '#' + car + ' ' + surname(e.driver), color: colorFor(cars, car),
-        values: vals, end: end, entry: e, timePrecision: r.rs ? r.timePrecision : undefined };
+      var eligibilityNote = r.rs ? ['driver', 'codriver'].map(function (role) {
+        var eligibility = e[role + 'Eligibility'];
+        return eligibility && eligibility.status !== 'eligible' ?
+          (role === 'driver' ? 'Driver' : 'Co-driver') + ' championship scoring: RS0 · Non-Scoring*' : '';
+      }).filter(Boolean).join('; ') : '';
+      return { key: r.rs ? 'RS:' + r.id + ':' + car : car,
+        label: '#' + car + ' ' + surname(e.driver) + (eligibilityNote ? ' · ' + eligibilityNote : ''), color: colorFor(cars, car),
+        values: vals, end: end, entry: e, entryEligibility: eligibilityNote,
+        timePrecision: r.rs ? r.timePrecision : undefined };
     });
     var chartHtml = series.length ? lineChart({ labels: labels, series: series, kind: metric.kind, finalCol: metric.final, title: metric.label + ' — ' + (r.rs ? r.name : roundName(r)), metric: metric }) :
       '<div class="empty">Choose one or more cars to draw the graph.</div>';
     var legend = series.length ? '<div class="legend">' + series.map(function (s) {
-      return '<button type="button" data-hl="' + esc(s.key) + '"><i' + (s.key.indexOf('RS:') === 0 ? ' class="rs-legend"' : '') + ' style="' + (s.key.indexOf('RS:') === 0 ? 'border-top:2px dashed ' + s.color + ';background:none;height:0' : 'background:' + s.color) + '"></i>' + (s.key.indexOf('RS:') === 0 ? '<b>RS</b> ' : '#') + esc(s.entry.car || s.key) + ' ' + esc(s.entry.driver) + (s.entry['class'] ? ' · ' + esc(s.entry['class']) : '') + (s.end ? ' <span class="muted">(' + esc(s.end) + ')</span>' : '') + '</button>';
+      return '<button type="button" data-hl="' + esc(s.key) + '"><i' + (s.key.indexOf('RS:') === 0 ? ' class="rs-legend"' : '') + ' style="' + (s.key.indexOf('RS:') === 0 ? 'border-top:2px dashed ' + s.color + ';background:none;height:0' : 'background:' + s.color) + '"></i>' + (s.key.indexOf('RS:') === 0 ? '<b>RS</b> ' : '#') + esc(s.entry.car || s.key) + ' ' + esc(s.entry.driver) + (s.entry['class'] ? ' · ' + esc(s.entry['class']) : '') + (s.entryEligibility ? ' · ' + esc(s.entryEligibility) : '') + (s.end ? ' <span class="muted">(' + esc(s.end) + ')</span>' : '') + '</button>';
     }).join('') + '</div>' : '';
     var html = '<div class="graph-layout">' + picker + '<div>' + mbar + '<div class="card chart-card"><div class="chart-title"><h3>' + esc(metric.label) + '</h3><p>' + esc(metric.help) + '</p></div>' + legend + chartHtml + '</div>';
     if (cars.length === 2) html += headToHead(r, cars[0], cars[1]);
@@ -1299,13 +1402,20 @@
   function rsAppearances(model, id, includeUnresolved) {
     var all = [];
     model.rallyesport.results.forEach(function (result) {
+      var scoring = model.rallyesport.scoring || {};
+      var score = (scoring.results || []).filter(function (row) { return row.resultId === result.id; })[0];
       result.entries.forEach(function (entry) {
         ['driver', 'codriver'].forEach(function (role) {
-          if (entry[role] && (entry[role + 'Known'] || includeUnresolved) && (!id || entry[role + 'Id'] === id)) all.push({
-            id: entry[role + 'Known'] ? entry[role + 'Id'] : '',
-            key: entry[role + 'Known'] ? entry[role + 'Id'] : result.id + ':' + entry.car + ':' + role,
-            name: entry[role], role: role, entry: entry, result: result
-          });
+          if (entry[role] && (entry[role + 'Known'] || includeUnresolved) && (!id || entry[role + 'Id'] === id)) {
+            var scoreEntry = score && (score.entries || []).filter(function (row) { return row.car === String(entry.car); })[0];
+            all.push({
+              id: entry[role + 'Known'] ? entry[role + 'Id'] : '',
+              key: entry[role + 'Known'] ? entry[role + 'Id'] : result.id + ':' + entry.car + ':' + role,
+              name: entry[role], role: role, entry: entry, result: result,
+              eligibility: scoreEntry && scoreEntry[role + 'Eligibility'] || null,
+              points: scoreEntry && scoreEntry[role + 'Points']
+            });
+          }
         });
       });
     });
@@ -1323,7 +1433,12 @@
   function viewRsCrews() {
     var people = {};
     rsAppearances(D, null, true).forEach(function (appearance) {
-      if (!people[appearance.key]) people[appearance.key] = { id: appearance.id, name: (ST.profiles[appearance.id] || {}).name || appearance.name, roles: {}, cars: {} };
+      if (!people[appearance.key]) people[appearance.key] = {
+        id: appearance.id, name: (ST.profiles[appearance.id] || {}).name || appearance.name, roles: {}, cars: {},
+        eligibility: appearance.eligibility
+      };
+      if (appearance.eligibility && appearance.eligibility.status === 'eligible') people[appearance.key].eligibility = appearance.eligibility;
+      else if (!people[appearance.key].eligibility && appearance.eligibility) people[appearance.key].eligibility = appearance.eligibility;
       people[appearance.key].roles[appearance.role] = true;
       people[appearance.key].cars[appearance.entry.car] = true;
     });
@@ -1331,13 +1446,16 @@
     var html = '<div class="page-head"><div><p class="eyebrow">' + YEAR + ' · RallyeSport</p><h1>RS crews</h1><p>Competitors in published RS classifications only. A source appearance is not proof of a championship start.</p></div></div>';
     if (!rows.length) return { title: 'RS crews', html: html + '<div class="card empty">No RS crews are documented for ' + YEAR + '. Published source rows remain available in <a href="' + sh('/rounds') + '">RS results</a>.</div>' };
     html += '<div class="filters"><label class="sr-only" for="crewSearch">Search RS crews</label><input id="crewSearch" class="search" type="search" placeholder="Search by name or car number…"></div>' +
-      '<div class="table-wrap"><table class="data" id="crewTable"><thead><tr><th>Name</th><th>RS role</th><th>Car(s)</th></tr></thead><tbody>' +
+      rsResultScoringNote() +
+      '<div class="table-wrap"><table class="data" id="crewTable"><thead><tr><th>Name</th><th>RS role</th><th>Car(s)</th><th>Championship status</th></tr></thead><tbody>' +
       rows.map(function (row) {
         var cars = Object.keys(row.cars).join(', ');
         return '<tr data-s="' + esc((row.name + ' ' + cars).toLowerCase()) + '"><td>' + rsProfileLink(row.id, row.name) +
           (row.id ? '' : '<br><span class="small muted">Source name; profile unresolved</span>') + '</td><td>' +
-          (row.roles.driver && row.roles.codriver ? 'Driver &amp; co-driver' : row.roles.driver ? 'Driver' : 'Co-driver') + '</td><td>' + esc(cars) + '</td></tr>';
+          (row.roles.driver && row.roles.codriver ? 'Driver &amp; co-driver' : row.roles.driver ? 'Driver' : 'Co-driver') + '</td><td>' + esc(cars) +
+          '</td><td>' + rsChampionshipStatus(row.eligibility) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
+    if (rows.some(function (row) { return row.eligibility && row.eligibility.status !== 'eligible'; })) html += rsEligibilityNote();
     mounts.push(mountCrewSearch);
     return { title: 'RS crews', html: html };
   }
@@ -1361,22 +1479,29 @@
       kpi(positions.filter(function (pos) { return pos <= 3; }).length, 'RS podiums') + '</div>';
     seasons.forEach(function (season) {
       var scoring = season.model.rallyesport.scoring;
-      html += '<div class="section"><div class="section-head"><h2>' + season.year + ' RS season</h2></div><div class="table-wrap"><table class="data"><thead><tr>' +
-        '<th>RS event</th><th>Role</th><th>With</th><th>Class</th><th>Official position / status</th><th>RS event points</th><th>Graph</th></tr></thead><tbody>' +
+      var minimumNote = rallyeSportStarterMinimumNote(scoring, season.year);
+      html += '<div class="section"><div class="section-head"><h2>' + season.year + ' RS season</h2></div>' +
+        (minimumNote ? '<p class="small muted">' + esc(minimumNote) + '</p>' : '') +
+        rsResultScoringNote() + '<div class="table-wrap"><table class="data"><thead><tr>' +
+        '<th>RS event</th><th>Role</th><th>With</th><th>Source class</th><th>Championship scoring</th><th>Official position / finish</th><th>RS event points</th><th>Graph</th></tr></thead><tbody>' +
         season.apps.map(function (appearance) {
           var entry = appearance.entry, result = appearance.result, partner = appearance.role === 'driver' ? 'codriver' : 'driver';
           var event = season.model.rallyesport.events.filter(function (row) { return row.id === result.eventId; })[0];
           var score = (scoring.results || []).filter(function (row) { return row.resultId === result.id; })[0];
-          var points = score && score.status === 'ready' && (score.entries || []).filter(function (row) { return row.car === String(entry.car); })[0];
-          var value = points ? points[appearance.role === 'driver' ? 'driverPoints' : 'codriverPoints'] : null;
+          var info = appearance.eligibility;
+          var value = appearance.points;
           var href = '#/' + season.year + '/rallyesport/' + encodeURIComponent(result.id);
           return '<tr><td><a href="' + competitionHref(href, 'rs') + '">' + esc(event ? event.name : result.eventId) + '</a></td><td>' +
             (appearance.role === 'driver' ? 'Driver' : 'Co-driver') + '</td><td>' + rsEntryLink(entry, partner) + '</td><td>' + clsTag(entry['class']) +
-            '</td><td>' + esc(entry.pos == null ? '—' : entry.pos) + ' · ' + esc(entry.status) + '</td><td>' +
+            '</td><td>' + rsChampionshipStatus(info) + '</td><td>' +
+            esc(entry.pos == null ? '—' : entry.pos) + ' · ' + esc(entry.status) + '</td><td>' +
             (value == null ? '<span class="muted" title="' + esc(score && score.reason || 'No published RS event points') + '">Unavailable</span>' : value) +
             '</td><td><a href="' + competitionHref(href + '/graph', 'rs') + '">RS graph →</a></td></tr>';
         }).join('') + '</tbody></table></div></div>';
     });
+    if (all.some(function (appearance) {
+        return appearance.eligibility && appearance.eligibility.status !== 'eligible';
+    })) html += rsEligibilityNote();
     return { title: name + ' — RS', html: html };
   }
   function viewPerson(id) {

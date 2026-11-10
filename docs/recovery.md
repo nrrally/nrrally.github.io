@@ -268,26 +268,37 @@ source records remain outside this public repository. This is not a general retr
 rule or a future-season confirmation. Other categories are
 preserved in event results but block that event's scoring. The user-confirmed DNF rule is
 zero RS championship points for a starter who does not finish, while counting that
-starter for the 15-starter requirement only with source-backed start evidence or reviewed
-non-TEST event count. TEST entries are retained and never score; whether they count toward
-the 15-starter minimum remains unresolved when fewer than 15 non-TEST starters are
-established. The unspecified non-scoring class, blank SSR 7.4/7.6 details, season
+starter for the applicable 2026 event minimum only with source-backed start evidence or
+a reviewed total starter count. The 2026 threshold includes source-evidenced TEST,
+invitation and RS0 starters; DNS does not count. The published 2026 SSR V1 says 15; a
+separate user-reported six-starter review can be recorded only with required private
+evidence in the 2026 RS season document. The public scoring snapshot discloses the
+applied value and its basis, not the private evidence. Do not describe the user report
+as written SSR text. TEST entries are retained and never score but count toward the
+minimum only with actual start evidence. The unspecified
+non-scoring class, blank SSR 7.4/7.6 details, season
 tie-break and SSR 7.5 tie-break implementation remain limitations. Do not broaden these
 rules during restore or a future annual copy. See the
 [RS scoring boundaries](scoring-rules.md#rallyesport-separate-ruleset-and-records).
 
-The RS member toggle and event invitation/applicability/bulletin inputs are in the private
-season document and its History/backup. Reviewed row identity/finality evidence is also
-private working data: the public projection strips those review records but retains
-derived points and the `user-confirmed` finality basis needed to explain scoring. The
-public projection contains only source-backed RS results plus derived public points/tables;
-never restore a hand-edited public projection.
+The 2026 RS `membershipReview` map, manual scoring exclusions, event invitation/
+applicability/bulletin inputs, and row identity/finality evidence are in the private
+season document and its History/backup. The map uses stable person IDs after per-entry
+identity review; it contains no membership/licence identifiers or workbook rows.
+Eligibility requires a matching complete profile with both membership fields. Missing
+or ambiguous evidence is unverified, not confirmed non-membership. User-confirmed
+eligibility overrides have their own private provenance. The public projection strips
+these inputs and evidence but retains derived per-role statuses/reasons, points and the
+`user-confirmed` finality basis needed to explain scoring. The public projection contains
+only source-backed RS results plus derived public scoring; never restore a hand-edited
+public projection.
 The public scoring snapshot is not trusted by private/admin calculations, and demo mode
 cannot reconstruct its private eligibility inputs. Normal app backup restore and undo
 replace the season as a whole; an RS-specific loss/replacement warning precedes mutation
 and cancellation leaves the draft unchanged. Check RS evidence after restore in ordinary
-review. Profile merges carry a non-scoring decision across verified profile IDs in every
-season without changing NR results. The isolated local feature work has made no Firebase,
+review. Profile merges carry a manual exclusion and move identical membership decisions across
+verified profile IDs, updating reviewed entry IDs without changing NR results. Conflicting
+membership decisions must be resolved before merge. The isolated local feature work has made no Firebase,
 History, rules or provider changes.
 
 ## 4. Auth, rules and administrative audit boundaries

@@ -102,7 +102,10 @@ test('public RallyeSport pages show provisional cumulative tables and disclose u
     sourceUrl: 'https://www.motorsport.co.za/wp-content/uploads/2026/07/2026-MSA-RallyeSport-Association-SSRs-V1.pdf'
   }, events: [event('ready-rs'), event('blocked-rs')], results: [
     result('ready-rs', 'Final classification'), result('blocked-rs', 'Provisional classification')
-  ], nonScoringPeople: [] };
+  ], nonScoringPeople: [], membershipReview: {
+    sourceDate: '2026-11-09', reviewed: true, evidence: 'Synthetic reviewed membership roster.',
+    people: Object.fromEntries(people.people.map(person => [person.id, { status: 'eligible', basis: 'membership-sheet' }]))
+  } };
   season.rallyesport = E.projectRallyeSport(raw, season, people);
   api.ST.people = people;
   const model = E.buildSeason({ season, rounds: {}, people, publicProjection: true });
@@ -115,6 +118,37 @@ test('public RallyeSport pages show provisional cumulative tables and disclose u
   assert.ok(page.includes('Ready events only; blocked events are excluded, not scored as zero.'));
   assert.ok(page.includes('Ready RS round'));
   assert.ok(page.includes('Not scored: Blocked RS round — The source classification is provisional'));
+  assert.equal(model.rallyesport.scoring.provisionalStandings.overallDrivers[0].scoringClass, undefined,
+    'the real projected eligible standings row has no scoringClass property');
+  api.rememberCompetition('rs');
+  assert.ok(api.viewRsStandings('driver', {}).html.includes('</td><td>RS2</td>'));
+  assert.ok(!page.includes('RS2 / RS4'));
+
+  raw.events.push(event('second-ready-rs'));
+  raw.results.push(result('second-ready-rs', 'Final classification'));
+  raw.results[0].entries[1].class = 'RS4';
+  raw.results[2].entries[0].class = 'RS4';
+  raw.results[2].entries[1].class = 'RS4';
+  season.rallyesport = E.projectRallyeSport(raw, season, people);
+  select(api, season, {}, true);
+  function scoringCell(html, name) {
+    const row = html.split('<tr>').find(text => text.includes('>' + name + '</a>'));
+    assert.ok(row, name);
+    return row.split('</tr>')[0];
+  }
+  for (const role of ['driver', 'codriver']) {
+    const name = role === 'driver' ? 'RS Driver ' : 'RS Co-driver ';
+    const overall = api.viewRsStandings(role, {}).html;
+    assert.ok(scoringCell(overall, name + '1').includes('</td><td>RS2 + RS4</td>'),
+      'multiple actual scoring classes are explicit, not a generic alternative');
+    assert.ok(scoringCell(overall, name + '2').includes('</td><td>RS4</td>'));
+    const classView = api.viewRsStandings(role, { class: 'RS4' }).html;
+    assert.ok(scoringCell(classView, name + '1').includes('</td><td>RS4</td>'),
+      'a class table shows only that class even for a multi-class competitor');
+  }
+  const listing = api.viewRallyeSport().html;
+  assert.ok(scoringCell(listing, 'RS Driver 1').includes('</td><td>RS2 + RS4</td>'));
+  assert.ok(!listing.includes('RS2 / RS4'));
 });
 function entryList(entries, complete = true) {
   return { eventId: 'test-event', roundIds: ['R1'], complete,
@@ -360,6 +394,28 @@ test('RS crews and cross-season profiles use resolved RS identities and official
   assert.ok(!person.includes('>Starts<'));
   assert.ok(!person.includes('NR1'));
   assert.ok(person.includes('competition=rs'));
+  api.ST.models[2027].rallyesport.scoring.results = [{
+    resultId: 'rs-result', status: 'ready', entries: [{
+      car: '91', driverPoints: 0, codriverPoints: 0,
+      driverEligibility: { status: 'unverified', scoringClass: 'RS0',
+        reason: 'RS0 Non-Scoring SSR 6.1 — eligibility is unverified, pending review.' }
+    }]
+  }];
+  const reviewedCrews = api.viewRsCrews().html, reviewedPerson = api.viewRsPerson('alex-test').html;
+  assert.ok(reviewedCrews.includes('<th>Championship status</th>'));
+  assert.ok(reviewedCrews.includes('RS0 · Non-Scoring*'));
+  assert.ok(!reviewedCrews.includes('eligibility unverified'));
+  assert.ok(reviewedPerson.includes('<th>Source class</th><th>Championship scoring</th>'));
+  assert.ok(reviewedPerson.includes('Official position / finish'));
+  const classification = api.viewRallyeSport('rs-result', {}).html;
+  assert.ok(classification.includes('<th>Official finish</th>'));
+  assert.ok(!classification.includes('<th>Official status</th>'));
+  assert.ok(reviewedPerson.includes('RS4'));
+  assert.ok(reviewedPerson.includes('7 · classified'));
+  for (const html of [reviewedCrews, reviewedPerson]) {
+    assert.ok(html.includes('Classified describes the official event finish. RS0 describes championship scoring only.'));
+    assert.ok(html.includes('RS0 Non-Scoring SSR 6.1'));
+  }
   const before = JSON.stringify(api.ST.models[2027].rallyesport);
   api.viewRsGraph('rs-result', { m: 'spos', cars: '91' });
   assert.equal(JSON.stringify(api.ST.models[2027].rallyesport), before);

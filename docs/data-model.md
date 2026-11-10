@@ -209,7 +209,12 @@ display does not relax strict round schedule/status validation.
       }
     }]
   }],
-  "nonScoringPeople": ["stable-person-id"]
+  "nonScoringPeople": ["stable-person-id"],
+  "starterMinimumReview": {
+    "minimum": 6,
+    "reviewed": true,
+    "evidence": "Private provenance for the user-reported 2026 review; no written amendment supplied"
+  }
 }
 ```
 
@@ -266,13 +271,34 @@ disclosure. A source heading that looks final but its own notes say technical ch
 pending is not treated as independently cleared; it needs this explicit review before
 event scoring.
 
+The published 2026 SSR V1 text states a 15-starter event minimum. With no
+`starterMinimumReview`, the engine applies that baseline. The optional review is
+2026-RS-only and accepts exactly `minimum: 6`, explicit `reviewed: true`, and required
+private `evidence`; it
+records a user-reported confirmation, not an amendment to the SSR wording. An unreviewed,
+malformed or evidence-free record blocks scoring. The public projection strips this review record
+but its scoring snapshot retains the applied minimum and `basis` (`ssr-v1` or
+`user-reported-review`) for transparent display. Other years remain unconfigured.
+
 The 2026 profile gives a started DNF no championship points while counting it as a
 starter. A DNF counts as a proven start only with stage/start evidence or a reviewed
-event starter count. `starterCount` means a reviewed count of non-TEST starters, with
-source evidence in `starterCountEvidence`; this can establish the 15-starter minimum
-without deciding whether TEST entries count. If fewer than 15 non-TEST starters are
-established and TEST entries could change the result, the event remains blocked because
-their contribution to SSR 7.3 is unresolved.
+event starter count. Under the user-reported 2026 six-starter review, the minimum counts
+all evidenced starters, including TEST, invitation and RS0 entries; DNS does not count.
+TEST and DNF rows need actual start evidence. `starterCount` is the reviewed total of
+source-confirmed starters, with source evidence in `starterCountEvidence`, and cannot
+contradict the row-level evidenced count.
+
+`membershipReview` is a private 2026-only object on `season.rallyesport`:
+`{sourceDate: "2026-11-09", reviewed: true, evidence, people}`. Its `people` map is
+keyed by stable profile ID after any per-entry `identityReview`; a decision contains a
+status and basis, and a `user-confirmed` basis also requires private per-person evidence.
+Statuses distinguish `eligible`, `non-member`, `missing-license`,
+`missing-membership-reference`, `profile-incomplete` and `unverified`. A complete,
+matching profile with both membership fields establishes eligibility irrespective of
+account Active/Inactive/Invite Pending status; a qualifying complete duplicate is
+sufficient. Missing or ambiguous people default to unverified, never eligible. The map
+contains no licence/member numbers, workbook row numbers, aliases or raw workbook text.
+It is not copied to future seasons.
 
 Class scoring order uses printed `classPos` only if every classified entrant in that
 class has one. Otherwise, all entries in that class use printed overall `pos` as one
@@ -282,14 +308,19 @@ observations even after an earlier missing value.
 `timeEvidence` is stage-aligned. For `reviewed-nr-copy`, it records the NR round, car,
 exact stage ID and copied value as a snapshot; it never becomes a live pointer.
 
-`nonScoringPeople` is private, season-scoped stable IDs. An absent toggle means the
-user-directed assumption that the person is paid up for RS scoring; it is not a
-membership verification claim. A checked person is excluded only from that role's RS
-scoring order; the crew partner can still score. The separate per-entry `invited`
-boolean is required for every classified row before points can be calculated. These
-decision inputs and event applicability/bulletin evidence are stripped from the public
-projection. The projection retains source links, reviewed classification-scoped class
-mappings, official result rows, derived event points and derived RS standings only.
+`nonScoringPeople` remains a private, season-scoped manual RS scoring exclusion, separate
+from the membership map and never proof of non-membership. An excluded role does not
+change its partner's independently calculated order. The per-entry `invited` boolean is
+required for every classified row before points can be calculated. Membership decisions,
+manual exclusions, invitation flags, starter evidence/counts, and event
+applicability/bulletin evidence are stripped from the public projection. The projection
+retains source links, reviewed classification-scoped class mappings, unchanged official
+result rows and derived event points, role eligibility reasons, scoring positions and
+standings. Public reasons distinguish confirmed non-membership from missing or
+unverified evidence; no private provenance or identifiers are projected.
+Role scoring classes are RS2/RS4 for configured categories, RS0 for excluded roles, and
+UNCONFIGURED when an otherwise eligible role has no configured scoring-class semantics;
+that last state does not create points or a membership-exclusion marker.
 
 The working/admin scorer recalculates from private inputs. The public projection strips
 membership toggles, invitations, starter evidence/counts, and event applicability or

@@ -64,6 +64,32 @@ if (site && people) {
     try {
       const m = E.buildSeason({ season, rounds, people });
       console.log(`${y}: ${m.rounds.length}/${(season.rounds || []).length} rounds with results · ${m.standings.drivers.length} drivers · ${m.standings.codrivers.length} co-drivers` + (m.standings.drivers[0] ? ` · leader ${m.standings.drivers[0].name} (${m.standings.drivers[0].total})` : ''));
+      const rs = m.rallyesport;
+      if (rs && (rs.events.length || rs.results.length)) {
+        const scoring = rs.scoring;
+        console.log(`${y} RallyeSport: ${scoring.status} · ${scoring.reason}`);
+        if (scoring.starterMinimum) {
+          console.log(`  Event starter minimum: ${scoring.starterMinimum.minimum} (${scoring.starterMinimum.basis})`);
+        }
+        if (scoring.membershipReviewApplied) {
+          console.log(`  Membership review applied: ${scoring.membershipReviewApplied.sourceDate} (${scoring.membershipReviewApplied.basis})`);
+        }
+        (scoring.results || []).forEach(row => {
+          const event = rs.events.find(item => item.id === row.eventId);
+          const result = rs.results.find(item => item.id === row.resultId);
+          console.log(`  ${event && event.roundNumber ? `R${event.roundNumber} ` : ''}${event ? event.name : row.eventId}: ${row.status}${row.reason ? ` · ${row.reason}` : ''}`);
+          if (row.status !== 'ready' || !result) return;
+          const pointsByCar = new Map((row.entries || []).map(entry => [String(entry.car), entry]));
+          result.entries.forEach(entry => {
+            const points = pointsByCar.get(String(entry.car)) || {};
+            const driver = points.driverPoints == null ? 'unavailable' : points.driverPoints;
+            const codriver = points.codriverPoints == null ? 'unavailable' : points.codriverPoints;
+            const driverStatus = points.driverEligibility ? ` · ${points.driverEligibility.scoringClass}/${points.driverEligibility.status}` : '';
+            const codriverStatus = points.codriverEligibility ? ` · ${points.codriverEligibility.scoringClass}/${points.codriverEligibility.status}` : '';
+            console.log(`    car ${entry.car} ${entry.driver}${entry.codriver ? ` / ${entry.codriver}` : ''}: ${driver} driver${driverStatus}, ${codriver} co-driver${codriverStatus}`);
+          });
+        });
+      }
     } catch (e) { err(sp, 'the standings could not be calculated: ' + e.message); }
   }
 }

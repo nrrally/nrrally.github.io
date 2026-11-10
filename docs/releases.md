@@ -31,6 +31,206 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## 2026-11-10: authorized RS release preparation (push gate pending)
+
+The user approved the reviewed preview with "ok push to live and i'll test more."
+The coordinator has limited this worktree's current action to preparing a local commit;
+push must wait for its explicit database-preflight gate. The coordinator exclusively owns
+protected backups, audited database publication and readback. This agent has not accessed
+Firebase/GCP or the private workbook/reconciliation data and will not do so.
+
+Fresh fetch confirmed both local HEAD and origin/main at the reviewed
+`75c906a3cd3085fd457dd9f2a16e1bf9ad68835b`, with no base drift. The intended later
+destination is a normal, non-force update to origin/main and GitHub Pages; no push or
+deployment has occurred at this preparation stage. The local commit uses the previously
+user-selected ID-based noreply author/committer scoped only to that commit, plus the
+required Copilot co-author trailer; no global identity/authentication setting is changed.
+
+Scope is the six-starter review, retrospective role-specific 2026 RS membership policy,
+private validation/admin controls and privacy-preserving public projection, plus the
+reviewed championship/source UX corrections documented below. Asset queries are
+coordinated at `competition-3`. NR calculations/source data, static hosting, the guide's
+2026 reference edition, analytics, Auth and provider configuration are unchanged.
+Code-before-data compatibility, retirement of old admin tabs, coordinated rollback and
+the still-open finality/double-points/R5/2027 boundaries remain as documented below.
+Prior "not released" records describe preparation history, not a veto on this new approval.
+Actual code deployment and database publication must each be verified separately.
+Release-preparation validation: the final full Node suite completed with 99 tests passed,
+zero failures. The public theme suite passed after the actual-class standings fix;
+Official finish headers also pass focused Node assertions. The admin access suite
+passed during this preparation series. All browser provider traffic was intercepted
+with synthetic fixtures. Diff whitespace checks passed; no untracked files were present.
+These checks do not certify actual source truth, live authentication, deployed rules or
+the coordinator's separate private candidate/publication.
+
+## 2026-11-10: local 2026 RS starter-threshold implementation (not released)
+
+- Based on fetched `origin/main` `75c906a3cd3085fd457dd9f2a16e1bf9ad68835b`, which
+  matched the requested review baseline before edits. This is isolated local work only:
+  no commit, push, deployment, Firebase/GCP access, data export, authentication or write
+  occurred. No database publication or code release is authorized by this change.
+- The engine keeps the published 2026 SSR V1's 15-starter event minimum as the default.
+  A 2026-only `rallyesport.starterMinimumReview` can apply six only when it has exactly
+  `minimum: 6`, `reviewed: true` and non-empty evidence. Unreviewed, malformed or
+  evidence-free records fail closed. The source SSR profile/title/URL stay unchanged;
+  no written amendment or bulletin was supplied. The private evidence is stripped from
+  public projection while the calculated snapshot retains the applied minimum and basis.
+- R1-R4 are still individual event-point decisions: event-specific classification,
+  ruleset, championship and other existing evidence must be verified before an event
+  scores. Four scoring events do not satisfy SSR 7.2's season round-count rule. R5 remains
+  unclassified, double-points/finality and other gates remain unresolved, and the
+  championship cannot be marked final. Existing DNF, TEST, invitation, identity and
+  membership behavior is unchanged; no membership-policy expansion was made.
+- The admin has a 2026-only control for the SSR baseline versus the reported six-starter
+  review, with required private evidence. Public RS surfaces distinguish the user-reported
+  six from the printed SSR V1 value of 15 without exposing evidence or changing source
+  classifications. A non-2026 review is rejected and can be removed in the admin.
+  All shell asset queries are coordinated at `competition-2`; already-open tabs still
+  require retirement/reload.
+- No Firestore schema migration or data edit was made. After a separately authorized
+  code deployment and retiring old admin tabs, the coordinator can record
+  `starterMinimumReview` in the 2026 working `docs/season_2026` document, including the
+  reviewed provenance and explicit lack of a written amendment. Verify existing R1-R4
+  `countsForChampionship`, applicability and other event evidence against the private
+  sources; do not infer or rewrite source rows, R5 or other-year policy. Use Admin Review
+  & publish to atomically create the public `public/season_2026` projection and attributed
+  History before/after. Before publishing, run `node tools/validate.js <private-backup.json>`
+  and independently compare its recalculated R1-R4 event points, applied threshold/basis,
+  blocked reasons and unchanged NR results with the admin preview and reviewed sources.
+- Validation uses synthetic-only records: focused RS and season tests, public-theme and
+  admin-access browser regressions, JavaScript syntax checks, and a synthetic-backup
+  `tools/validate.js` recomputation. No private source record, competitor data or provider
+  response was used. This does not verify production classifications, membership,
+  eligibility or History; coordinator review and separate release/publication approval
+  remain required.
+
+## 2026-11-10: local 2026 RS membership-scoring expansion (not released)
+
+- This uncommitted continuation retains the 2026-only, evidence-backed six-starter review
+  above and implements the user's finalized retrospective membership policy for all 2026
+  RS scoring rounds. It supersedes the earlier local entry's statement that membership
+  behavior was unchanged. Work remains isolated and preview-only: no commit, push,
+  deployment, Firebase/GCP access, data export, authentication, provider write or
+  publication occurred. No release or database-publication approval is implied.
+- The private working schema adds `rallyesport.membershipReview` with
+  `sourceDate: "2026-11-09"`, `reviewed: true`, private review evidence, and a `people`
+  map keyed by stable RS profile ID. Each decision records a validated status and basis;
+  user-confirmed decisions require their own private evidence. The map contains no
+  licence/member numbers, workbook row numbers, aliases or workbook text. A matching
+  complete profile with both membership fields establishes eligibility irrespective of
+  account status; a qualifying complete duplicate suffices. Missing, incomplete or
+  ambiguous decisions fail closed with distinct public reasons and never imply confirmed
+  non-membership. Per-entry `identityReview` is resolved before this map is applied.
+- Driver and co-driver eligibility, scoring positions, points and standings are
+  independent. Excluded roles remain visible after ranked roles as RS0 with zero points
+  and no rank; their eligible partner is not demoted. Existing manual exclusions,
+  invitations and TEST entries remain distinct gates. Original classification rows,
+  official positions, times, source order and vehicle class are preserved. The public
+  projection contains only derived role status/reason and scoring outputs, never the
+  private review map or evidence. An eligible DNF in an unsupported category remains
+  unscored (`UNCONFIGURED`), not mislabeled RS0 or membership-ineligible.
+- The 2026 six-starter count includes all evidenced actual starters, including TEST,
+  invitations and RS0 entries; DNS and DNF without start evidence do not count. The
+  printed SSR V1 source remains at 15, with the six recorded only as a user-reported
+  review and not as a written amendment. R1-R4 are not made final by this change:
+  R5 remains without a classification, and double-points, finality and other unresolved
+  scoring gates remain in force. No 2027 rule is configured; NR model, source records,
+  starts, calculations and rendering remain isolated.
+- The coordinator-owned candidate update, after separate authorization, is to record the
+  reviewed 2026 `membershipReview` and its private provenance in working
+  `docs/season_2026`, apply only the already-decided per-entry identity reviews after
+  private reconciliation, and retain the separate `starterMinimumReview`. The coordinator
+  must independently recompute all 2026 RS scoring rounds against the reviewed candidate
+  and sources, compare source rows/classes/times and every driver/co-driver event and
+  championship total, verify NR output is unchanged, and review all blocked reasons.
+  Reconcile stale curated scoring commentary from prior threshold decisions while
+  preserving official source notes and classification data; the data-entry guide now
+  records this check.
+  Only after that verification should the authorized Admin Review & publish workflow
+  create the public `public/season_2026` projection and attributed History before/after.
+  Public output may contain derived eligibility/reasons and scoring only; no membership
+  identifiers or private evidence.
+- Compatibility sequencing is material: the `competition-3` code must be deployed
+  before the new candidate is published, and old admin tabs must be retired. Until the
+  candidate includes the reviewed membership map, the new engine intentionally fails
+  closed for 2026 RS scoring rather than reusing the historical implicit-eligibility
+  behavior. Publishing the candidate to an older runtime would not provide the new
+  role-specific policy. After publication, rollback to code that predates this map is
+  not data-compatible; any rollback must coordinate a compatible reviewed data snapshot.
+  No Firestore path migration is introduced; the public scoring projection is extended
+  with derived per-role eligibility fields and must be generated by the compatible code.
+- Validation performed here: all 99 synthetic Node unit tests passed, including the 51
+  focused tests across `rallyesport.test.js` and `season-readiness.test.js`; JavaScript
+  syntax checks for all changed JavaScript files and `git diff --check` passed. The
+  `admin-access-e2e.js` and `site-theme-e2e.js` browser suites then passed using the
+  already-installed Playwright module and Edge with process-only environment variables;
+  all provider requests were mocked/intercepted. Browser fixes updated stale assertions
+  for projected per-role fields, the eligible NR-linked co-driver versus an RS0
+  missing-licence driver, accessible tooltip reasons, UI-backed profile-merge checks,
+  and the current inclusive starter-count label. A synthetic regression verifies that a
+  reviewed count excluding an evidenced TEST starter conflicts with the now-inclusive
+  starter total; the count including it is accepted. No private workbook/source records,
+  actual competitor fixture or provider response was used. Synthetic tests do not verify
+  real 2026 event eligibility, source truth, production History, finality or publication.
+- The working tree is uncommitted. The current review base remains
+  `75c906a3cd3085fd457dd9f2a16e1bf9ad68835b`, matching the requested baseline checked
+  before implementation. This record and code do not authorize a push, release, data
+  update or deployment; those need separate coordinator/user approval.
+
+### Local championship-status wording follow-up (preview only)
+
+Crews now separates the person's name from a labelled Championship status column.
+Excluded roles visibly distinguish eligibility unverified, missing licence evidence,
+confirmed non-membership and other exclusion reasons instead of displaying bare RS0.
+Standings, derived event scoring and profile columns say Championship scoring; official
+classification points/status columns and graph labels explicitly identify championship
+scoring. A nearby note explains: "Classified describes the official event finish. RS0
+describes championship scoring only." The SSR 6.1 footnote remains.
+An official RS4 classified finish can therefore coexist with unverified championship
+eligibility without implying non-membership or rewriting the result. This is presentation
+only: scoring, role-specific eligibility, source classes/order/positions/times, NR and
+provider behavior are unchanged. Cache version remains `competition-3` within this
+unreleased work. No data migration or release/publication approval is introduced.
+Validation: all 51 focused RS/season Node tests passed, including explicit separate
+source-result/championship-status assertions. The public theme browser suite passed
+with synthetic fixtures at desktop/mobile widths in both themes, including a classified
+RS4 P6 source row whose driver has unverified RS0 championship eligibility and whose
+partner remains independently eligible. JavaScript syntax and `git diff --check` passed.
+No actual competitor data, workbook or provider access was used.
+
+### Local binary public scoring-label correction (preview only)
+
+The subsequent user-directed correction supersedes the reason-specific public labels
+above. Every excluded role is now labelled "RS0 · Non-Scoring", while eligible roles
+retain their actual RS2/RS4 championship class. Crews, profiles, standings, scoring tables,
+leader markers and graph legends/tooltips use this consistent public wording. Results
+show the championship status directly beneath each individual driver's/co-driver's name,
+so mixed-eligibility crews are explicit. Official finish status/class/positions/times stay
+separate and unchanged. The SSR 6.1 explanation states that RS0 is not a declaration of
+non-membership. Private eligibility reasons and fail-closed scoring are unchanged; no
+identity or membership decision is inferred from this wording change. No provider access,
+database edit, release, deployment or publication is authorized or performed.
+Validation: 51/51 focused RS/season Node tests passed; the synthetic public theme browser
+suite passed across responsive light/dark views, with explicit mixed-eligibility
+per-person status and unchanged source-field/points assertions. JavaScript syntax and
+`git diff --check` passed. This does not validate any actual eligibility decision.
+
+### Local actual-class standings labels (preview only)
+
+Overall eligible standings rows do not carry a singular scoringClass field. Public
+standings now derive the person's actual class membership from the corresponding
+driver/co-driver class standings rather than rendering the ambiguous "RS2 / RS4"
+fallback. A genuinely multi-class scorer shows "RS2 + RS4" overall; class tables show
+only the selected class. Missing derived class data is explicitly unavailable rather
+than guessed. This uses the existing published projection without a schema migration.
+RS0 Non-Scoring rows stay separate; points and official classifications are unchanged.
+Results also labels the preserved source status column "Official finish", with the
+profile column labelled "Official position / finish". No provider/data/release operation
+is involved. Cache version remains `competition-3` within this uncommitted preview.
+Validation: 51 focused Node tests passed, including projected rows without scoringClass,
+both roles' actual single/multiple class membership, class-filtered tables and Official
+finish headers. The synthetic public theme browser suite passed with a real projected-row
+shape asserting RS2 instead of the former generic fallback. Syntax and diff checks passed.
 ## 2026-11-10: authorized unified NR/RS display and loading release
 
 - Based on November 9 RallyeSport main
