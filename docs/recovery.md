@@ -11,6 +11,12 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
+For GitHub CLI release authentication, prefer its standard `gh auth git-credential`
+helper scoped to the release process. Do not extract tokens or hand-build a shell
+username/password credential protocol. If a credential appears in an error, stop its
+use, have the owner revoke the applicable authorization and sign in afresh, and obtain
+confirmation before resuming. Revocation does not erase existing logs or tool output.
+
 ## 1. Establish what exists before touching it
 
 1. Confirm the repository remote, checkout/worktree, branch, clean/dirty state and exact

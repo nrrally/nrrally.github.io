@@ -105,6 +105,14 @@ must be addressed; there is no automation that can infer approvals or certify pr
   runs and the full release suites pass. A pre-release deployed NR snapshot (standings,
   classification, stage table and graph observations) uses intercepted synthetic data
   for exact post-release comparison; no Firebase/Auth/Google collection is contacted.
+- The first release authentication attempt stopped before any push: a temporary custom
+  credential helper malformed its protocol fields and Git exposed a credential in its
+  error output. The user confirmed revoking the old GitHub CLI OAuth authorization,
+  completing a fresh browser sign-in, and resuming this release. The replacement is
+  used only through the standard `gh auth git-credential` helper, scoped per process;
+  no replacement token is extracted or custom password protocol constructed. Fresh
+  account permissions, unchanged remote parent and built Pages baseline were verified.
+  This recovery follow-up changes documentation only; runtime behavior is unchanged.
 - Remaining source boundaries: unavailable timing/printed ranks and unresolved identities
   remain unavailable; source appearances do not establish starts. Blocked/provisional RS
   scoring gates remain in force. With denied storage, app URLs preserve competition;
