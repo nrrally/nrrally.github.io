@@ -23,6 +23,14 @@ data publication. After local review, the user authorized a commit and normal
 static-runtime verification accompany this release. This pre-push entry does not assert
 a completed deployment; approval and verification scope belong in [releases.md](releases.md).
 
+The code release was subsequently verified built at
+`1ba4ca3687b44454c19f4dc8fd604949542d8a88`, with all 21 deployed HTML/runtime/brand
+files matching Git and canonical HTTPS redirects verified. Synthetic browser checks using
+the actual deployed static files passed the admin gate, all explorer topics, RS tasks and
+mobile/desktop layouts without provider traffic or writes. The documentation-only
+verification follow-up and limits are recorded in [releases.md](releases.md). This does
+not verify real sign-in, private data, roster/source truth or deployed Firestore rules.
+
 Keep the new JS/CSS and HTML shell references together on code rollback. The common
 `admin-logic-1` query version changes static cache URLs only. Retire/reload old admin tabs
 before subsequent authorized data work: open tabs do not upgrade automatically.

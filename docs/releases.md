@@ -92,6 +92,34 @@ must be addressed; there is no automation that can infer approvals or certify pr
   Pages completion and canonical live byte comparisons will be reported after the push;
   this pre-push record is not a claim that deployment has already succeeded.
 
+### Deployment verification and documentation-only follow-up
+
+- The reviewed implementation was committed and normally pushed to `origin/main` as
+  `1ba4ca3687b44454c19f4dc8fd604949542d8a88`. GitHub Pages reported that exact
+  commit **built** at `2026-11-10T18:32:08Z`, from `main` at `/`, with canonical
+  `nrrally.co.za` and HTTPS enforced.
+- After the build, all **21** canonical deployed HTML/runtime/brand files matched
+  the commit's Git blobs byte-for-byte, including both new explorer assets and all four
+  coordinated HTML shells. HTTP canonical-domain and default Pages-domain requests
+  redirected to the canonical domain.
+- A fresh browser loaded the actual canonical deployed static assets, with all Auth
+  and Firestore responses replaced by synthetic in-process data and every other external
+  request refused. Signed-out explorer deep-link gating, all 30 topic headings, NR/RS
+  decision paths, search, RS task navigation/event selection, keyboard disclosures,
+  390/1440 px layouts and public startup passed. There were no attempted writes,
+  external provider/analytics requests or page errors. The smoke harness was corrected
+  to assert disclosure toggling relative to its retained state, not assume a previously
+  opened row had reset; no runtime change was needed.
+- No live sign-in, private records, real roster/source verification, Firebase/GCP/workbook
+  access or data publication was attempted. Existing open tabs still require a reload.
+  The local synthetic review server was stopped after canonical verification.
+- This follow-up changes only this deployment record and the recovery handover.
+  **No runtime, scoring, schema, data or operational behavior changes.** It is the
+  documentation completion of the same approved release, not approval for another code
+  release. Before its normal push, require remote main still to equal the verified code
+  commit above, review the two-document diff and staged whitespace, and then verify
+  Pages built the documentation commit with the same 21 runtime files unchanged.
+
 ## 2026-11-10: authorized RS presentation and information-parity release
 
 - Based on clean HEAD and freshly fetched `origin/main`
