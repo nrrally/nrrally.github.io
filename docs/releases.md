@@ -31,6 +31,67 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## 2026-11-10: authorized RS admin workspace and logic-explorer release
+
+- Based on freshly fetched, clean `origin/main`/HEAD
+  `bcb4c8a68f975c7f7bdfa725839de4f3d798d8bc`. After local implementation/review,
+  the user approved "we can commit and ill review live". This authorizes committing
+  the reviewed code/documentation, a normal non-force push to `origin/main`, and
+  Pages/static-runtime verification. Preflight re-fetched that exact base with no drift
+  and confirmed the reviewed 18 paths only. No PR, Firebase/GCP/workbook access,
+  rules/schema/scoring change or data publication is authorized or performed.
+- RS administration is divided into events/results, season setup, people/eligibility
+  and scoring checks. A selected event has evidence, classification source, stages/reuse,
+  collapsible crew rows and points-preview tasks; its compact switcher retains the task
+  without repeating every event card. Membership review uses searchable cards.
+  Keyboard focus, selected task and disclosure state are UI-only; the existing draft,
+  editing bindings, complete validators and Review & publish pipeline remain in place.
+- The admin-only Logic explorer has 30 searchable, connected NR/RS/shared topics,
+  numbered decision flows, branch conditions/outcomes, unsupported cases and per-decision
+  exact source links pinned to the audited baseline above. It distinguishes NR/RS rules,
+  source positions versus points, independent RS roles, missing versus zero,
+  source finality versus MSA confirmation, provisional season totals, graph observations,
+  projection/privacy and unsupported years. It is manually curated documentation,
+  not a scoring engine, live competitor diagnosis or certification of source evidence.
+- The pure engine, public renderer, AI contract/projection, authentication/provider
+  adapter, Firestore rules, schema and scoring decisions are unchanged. Static cache
+  query versions advance together to `admin-logic-1` in public/admin/privacy/disclaimer
+  shells; new catalogue/style assets load only in admin. No migration or database
+  republish is needed. Guide reference edition stays 2026; analytics remains excluded
+  from admin and synthetic traffic never reaches collection.
+- Validation: all **106 Node tests** passed, including catalogue graph/source-range checks
+  and VM assertions that browsing every topic/task preserves drafts, scoring, projections
+  and validation. `node tools\tests\admin-access-e2e.js` passed all-topic navigation/search,
+  access gates, keyboard/disclosures/focus and RS tasks at 320/390/768/1440 px in light/dark,
+  unchanged full draft backups and existing editing/reuse/restore/merge/simulation checks.
+  `node tools\tests\site-theme-e2e.js` and `node tools\tests\ai-import-e2e.js` passed.
+  Existing external Node/Playwright and installed Edge were reused; no dependencies
+  installed or global settings changed. Release preflight repeated these checks successfully:
+  **106/106 Node tests**, all three browser suites and `git diff --check` passed.
+  Full diff and all four new synthetic/catalogue files were reviewed; only the 18
+  reviewed paths are in scope. Staged whitespace/scope review and the final remote-base
+  guard precede committing/pushing. Stop on unexpected remote drift.
+- A loopback-only synthetic review helper is reproducible with
+  `node tools\tests\admin-review-preview.js`. Its prominent banner, injected local adapter,
+  read-only server and self-only CSP prevent live Auth, external fetches and publication.
+  In-memory edits remain temporary. Desktop/mobile captures are outside Git. Stop the
+  preview process after review. These results do not verify deployed rules, real roster
+  correctness, a private backup, source completeness or every WCAG criterion.
+- Recovery: keep code/CSS/shell versions together. Retire/reload old admin tabs before
+  subsequent separately authorized data work. Presentation-only rollback needs no data
+  restore; existing compatible snapshot/data constraints still apply. The static public
+  catalogue is not confidential and cannot recover private working data. Future processing
+  changes require a semantic re-audit of topics and immutable evidence links, not just
+  passing the source-range test.
+- Release authentication uses the expressly approved existing write-capable keyring
+  account through a temporary non-secret, process-scoped GH configuration and standard
+  `gh auth git-credential`; identity and repository push permission were verified.
+  No token extraction or global authentication changes.
+  The selected ID-based noreply author/committer and Copilot coauthor trailer are retained.
+  Immediately before push, require `origin/main` still to equal the reviewed base.
+  Pages completion and canonical live byte comparisons will be reported after the push;
+  this pre-push record is not a claim that deployment has already succeeded.
+
 ## 2026-11-10: authorized RS presentation and information-parity release
 
 - Based on clean HEAD and freshly fetched `origin/main`

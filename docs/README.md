@@ -16,6 +16,12 @@ There are two parts:
 - **A public results site** for the MSA Northern Regions Regional Rally Championship and independent RallyeSport competition. One persistent NR/RS control selects the public context; NR is the default.
 - **An admin page** where results and competitor details are maintained. Admins sign in with Google.
 
+The admin's **RallyeSport** workspace separates events/results, season setup, eligibility
+and scoring checks. **Logic explorer** is the screen-shareable, read-only explanation of
+implemented NR, RS and shared processing paths, with conditional outcomes and source links.
+See [the admin workflow](data-entry-guide.md#rallyesport-workspace-and-logic-explorer).
+The explorer is UI-gated, not confidential: its static content is public source code.
+
 Results come only from official classification PDFs, never from live timing. NR standings, points and stage graphs are calculated in the visitor's browser from raw NR results each time a page loads; NR does not store derived scoring snapshots. RallyeSport is a separate competition: its validated scoring snapshots are stored with the published RS data and never feed NR standings or statistics.
 
 ## Where everything lives

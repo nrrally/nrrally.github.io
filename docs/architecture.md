@@ -34,10 +34,35 @@ Hosting and data use two providers, with optional public analytics and no applic
 | Active-rally notice | `assets/rally-notice.js`, `assets/rally-notice.css`, `disclaimer.html` | Reads only `public/site`; shares that initial promise with the results app. Native full-page yellow modal, followed by a sticky compact reminder after bypass. Not loaded by the admin. |
 | Optional analytics & privacy | `assets/analytics.js`, `privacy.html` | Shares the public site settings promise, validates GA4 settings and sends manual sanitized pageviews after rendering. Dedicated static privacy notice and persistent browser opt-out; never loaded by admin. |
 | Admin | `admin/index.html`, `assets/admin.js`, `assets/admin.css` | Google sign-in, an in-memory editable copy of the data, checks, points preview, publishing, history and undo, backups and the admin list. |
+| Admin logic explorer | `assets/admin-logic.js`, `assets/admin-logic.css` | Admin-only entry point for a bundled, read-only NR/RS/shared decision catalogue. Conditional flows and revision-pinned code/docs evidence; no dataset evaluation, rules configuration or provider access. Static source is public. |
 | AI preparation | `assets/ai-import.js` | Pure versioned contract/prompt generation, strict parsing, capability/evidence checks, identity assessment and scoped change planning. Shared by admin and Node tests/tools; no network or provider SDK. |
 | Connection settings | `assets/firebase-config.js` | Says which Firebase project to use. Public by design: it identifies the project and grants no access. |
 | Access rules | `docs/firestore.rules` | The database's security rules, pasted into the Firebase console. They decide who can read and write what. |
 | Tools | `tools/load.js`, `tools/validate.js`, `tools/report.js` | Node scripts that run on a backup file: check all data, and list every override and note. |
+
+### Admin presentation and explanation maintenance
+
+RS uses hash routes `#/rallyesport/{events,setup,eligibility,checks}` and
+`#/rallyesport/events/<eventId>/{event,source,stages,rows,preview}`. Existing bound controls
+still edit the same objects and use the same validators/projection/publish pipeline.
+Task, search and disclosure state are ephemeral UI state, not schema fields.
+
+`#/logic/<nr|rs|shared>/<topicId>` renders a manually curated directed topic graph.
+Each decision has conditions/outcomes and evidence `{path,start,end,symbol}`. Evidence
+links are immutable GitHub blobs pinned to `bcb4c8a68f975c7f7bdfa725839de4f3d798d8bc`,
+the audited pre-change runtime; current admin line numbers will differ after layout work.
+The scorer and public renderer are unchanged from that revision. This catalogue is not
+generated from executable branches: when processing changes, re-audit affected topics,
+outcomes, links and related paths, then advance the baseline after the supporting code
+exists in an inspectable commit. Do not silently link moving `main` or reinterpret old rules.
+The Node catalogue checks verify graph closure and pinned source ranges, not semantic
+truth. Human comparison against implementation/docs remains essential.
+
+The explorer's responsive Clawpilot palette is scoped to its components. Existing admin
+authentication, Firestore REST and Auth SDK adapters, database rules and CSP are unchanged.
+Only the admin shell includes the new assets. Coordinated HTML query version
+`admin-logic-1` busts caches across public/admin/disclaimer/privacy; it is not a data or
+scoring-contract version.
 
 ## Public site
 

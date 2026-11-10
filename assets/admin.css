@@ -187,3 +187,43 @@ body.is-busy::after { content: ""; position: fixed; inset: 0 0 auto 0; height: 3
 .issues li.ok { border-color: color-mix(in srgb, var(--good) 45%, transparent); background: color-mix(in srgb, var(--good) 9%, var(--surface)); }
 .issues li.ok b { color: var(--good); }
 .steps .btn { vertical-align: baseline; }
+
+/* RallyeSport task workspace */
+.rs-work-nav { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; margin-bottom: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.rs-work-nav a { padding: 10px 14px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 700; color: var(--ink-2); }
+.rs-work-nav a:hover { background: var(--bg-2); }
+.rs-work-nav a.on { background: var(--ink); color: var(--bg); }
+.rs-work-nav a:focus-visible, .rs-event-link:focus-visible, .rs-crew-row summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.rs-context { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin: 0 0 20px; font-size: 13px; color: var(--muted); }
+.rs-event-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; margin-bottom: 16px; }
+.rs-event-link { display: flex; flex-direction: column; gap: 8px; text-decoration: none; color: var(--ink); overflow-wrap: anywhere; }
+.rs-event-link span { font-size: 13px; color: var(--muted); }
+.rs-event-link.on { border-color: var(--accent); }
+.rs-event-switch { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 20px; }
+.rs-event-switch > a { font-size: 13px; font-weight: 700; }
+.rs-event-switch .fld { flex: 1 1 220px; margin: 0; }
+.rs-event-switch select { min-height: 44px; }
+.rs-editor > .section-head { margin-bottom: 16px; }
+.rs-pane[hidden] { display: none; }
+.rs-pane .form-grid { align-items: start; margin-bottom: 20px; }
+.rs-pane .fld, .rs-member .fld { justify-content: flex-start; }
+.rs-pane .fld > input, .rs-pane .fld > select, .rs-member .fld > select { min-height: 42px; }
+.rs-pane .section-head { margin-top: 20px; }
+.rs-member-list { display: grid; gap: 12px; margin-top: 20px; }
+.rs-member { padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+.rs-member h4 { margin: 0 0 8px; }
+.rs-member[hidden], .rs-exclusion[hidden] { display: none; }
+.rs-help { margin: 16px 0; padding: 12px; background: var(--surface-2); border-radius: 10px; }
+.rs-help summary { cursor: pointer; font-size: 13px; font-weight: 700; }
+.rs-crew-row { margin: 12px 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.rs-crew-row > summary { cursor: pointer; display: flex; gap: 12px; align-items: center; padding: 16px; background: var(--surface-2); }
+.rs-crew-row > summary::before { content: "+"; color: var(--accent); font-weight: 800; }
+.rs-crew-row[open] > summary::before { content: "-"; }
+.rs-crew-row summary small { display: block; color: var(--muted); margin-top: 4px; }
+.rs-row-number { font-family: var(--mono); font-weight: 800; }
+.rs-row-body { padding: 0 16px 16px; }
+@media (max-width: 760px) {
+  .rs-work-nav a { flex: 1 1 130px; text-align: center; padding: 10px 8px; }
+  .rs-crew-row > summary { align-items: flex-start; overflow-wrap: anywhere; }
+  .rs-editor.card { padding: 12px; }
+}

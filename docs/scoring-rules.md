@@ -1,5 +1,10 @@
 # Scoring and calculation rules
 
+For a screen-shareable view of these implemented data-processing decisions, use the
+signed-in admin's **Logic explorer**. Its read-only branches link to exact audited code
+and documentation; it does not change policy or diagnose live competitors. See the
+[workflow and scope](data-entry-guide.md#rallyesport-workspace-and-logic-explorer).
+
 These rules are implemented in `assets/engine.js` (`buildSeason`). The values they use — points scales, classes and minimum starts — come from each season's `season.json`.
 
 The 2026 settings follow the 2026 MSA Northern Regions Regional Rally SSRs (Version 2, 9 July 2026). Calculated points for rounds 1–5 match MSA's published Northern Regions points (15 September 2026) exactly, for every driver and co-driver that document lists.

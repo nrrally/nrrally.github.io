@@ -1,5 +1,39 @@
 # Testing
 
+## Admin workspace and logic explorer (synthetic)
+
+```
+node --test tools\tests\admin-logic.test.js
+node tools\tests\admin-access-e2e.js
+node tools\tests\site-theme-e2e.js
+node tools\tests\ai-import-e2e.js
+```
+
+The catalogue test needs Node and local Git history for the pinned evidence revision.
+It checks all 30 IDs, groups, connected paths, conditional outcomes and exact source ranges;
+renders every topic and RS task in an instrumented VM; and compares serialized working
+documents, NR scoring, public projection and validation before/after. It does not expose a
+production test API or prove the prose matches every executable condition.
+
+The admin browser suite checks all topics, evidence links/disclosures, search including no
+matches, hash/heading focus, signed-out/non-admin deep links and unchanged full draft
+backups. RS task paths run at 320/390/768/1440 px, light/dark: no horizontal page overflow,
+no nested grids, native keyboard row expansion, retained select focus/disclosure state,
+membership search and reversible controls. Existing edit, time-copy, identity/finality,
+restore/merge/undo/simulation/rollover/publication checks remain in the same intercepted
+runner. Optional `ADMIN_LOGIC_SCREENSHOT_DIR` saves synthetic review captures outside Git.
+These checks do not certify every WCAG criterion or any provider/live data state.
+
+For a human local review, `node tools\tests\admin-review-preview.js` starts a loopback-only
+server at the printed ephemeral URL, with fictional 2026 records and a prominent synthetic
+banner. It uses no installed package, live Auth, real credentials or Firestore traffic.
+Its injected local-only adapter rejects all writes and external fetches; a self-only CSP
+also restricts browser connections. Ordinary in-memory editing is temporary. Publishing
+and admin-list saves must fail explicitly. Sign-in may land on Dashboard; choose RallyeSport
+or Logic explorer afterwards. The preview adapter is never included in production HTML.
+Stop this process when review is finished. Do not use it to inspect a real backup or claim
+that a synthetic preview verifies deployed permissions.
+
 ## Quick checks (anyone, with Node.js 18 or later)
 
 For authorized live data maintenance, use a privately stored backup (Admin → Dashboard →

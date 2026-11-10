@@ -2,6 +2,51 @@
 
 How to get a season or round's official data into the site correctly. Manual entry, deterministic PDF/spreadsheet import and optional AI preparation are all available.
 
+## RallyeSport workspace and logic explorer
+
+Open **RallyeSport** in the existing signed-in admin:
+
+- **Events & results** lists independent RS events. Choose one event, then use
+  **Event & evidence**, **Classification source**, **Stages & reuse**, **Crew rows**
+  or **Points preview**. Only the chosen task is shown. Crew rows expand individually;
+  their summary retains car, source crew, class and status. Blank newly added rows open.
+  A compact event switcher keeps the same task when changing events; **All RS events**
+  returns to the list without repeating that whole list above every editor.
+- **Season setup** contains the existing year-specific ruleset and starter-minimum review.
+- **People & eligibility** has searchable, aligned per-person membership/license review
+  cards, manual exclusions and collapsible procedural guidance. Search is UI-only.
+- **Scoring checks** separates structural validation errors from scoring readiness,
+  with links to event blocking reasons and points previews.
+
+These are ordinary links and native disclosures, usable by keyboard and on narrow screens.
+Task switching keeps the same in-memory draft, including edits in a collapsed row; it does
+not save or publish. Reload, closing or signing out can lose unpublished work as before.
+Review the whole dataset through **Review & publish**, not just the visible task.
+No new rules, fields, database migration or permission is introduced by this layout.
+
+For a committee discussion, open **Logic explorer**, choose **Northern Regions**,
+**RallyeSport** or **Shared workflow**, and select a topic. Search finds topics across
+both competitions and shared processing. Each topic shows inputs, numbered decisions,
+conditional outcomes and connected paths; **Evidence for this decision** opens exact
+code/documentation line links at the displayed audited revision. Browser back/forward
+works between topics. It needs no competitor data or additional database query.
+
+The 30 curated topics cover intake/validation, credited versus printed identities,
+starts/entries, eligibility, event points, rankings/totals, source finality versus MSA
+comparison, graph gaps/endpoints, profiles, calendar/empty states, projection, publication,
+notices/analytics and unsupported decisions. In particular NR provisional results still
+calculate points; RS points have separate readiness/finality gates; RS roles rank
+independently; RS0 is not a blanket non-membership claim; unavailable is not zero.
+This is a maintained explanation, not another scoring engine, live individual diagnosis,
+regulatory authority or automatic proof that a source/workbook is correct. Follow the
+stored evidence when investigating a real record; never infer a person-specific reason.
+
+The explorer is inside the existing admin access model, including its existing simulation.
+Its catalogue is static/public in Git, with no private roster or source evidence. Simulation
+cannot recreate stripped private RS scoring inputs. Unsupported years/rules and unknown
+cases are explicit; unrelated tyre/licensing regulations not implemented by the website
+are outside its scope. The guide's reference edition remains 2026.
+
 ## AI Import (free ChatGPT or Claude)
 
 AI Import prepares data; it cannot publish. Free chat accounts do not provide supported free API access, so there are no provider keys, automatic uploads or paid backend. You choose your AI service and attach the documents there. No prompt guarantees correctness.

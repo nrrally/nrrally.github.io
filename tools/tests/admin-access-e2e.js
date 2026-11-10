@@ -3,7 +3,6 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
-const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const E = require('../../assets/engine.js');
 const AI = require('../../assets/ai-import.js');
 const fixtures = require('./ai-fixtures.js').docs();
@@ -74,6 +73,7 @@ put('config/admins', { emails: { arrayValue: { values: [{ stringValue: 'admin@ex
 put('config/revision', { n: { integerValue: '1' } });
 
 async function main() {
+  const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
   const server = http.createServer((req, res) => {
     const file = path.resolve(repo, '.' + new URL(req.url, 'http://localhost').pathname);
     if (!file.startsWith(repo + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); res.end(); return; }
@@ -146,7 +146,7 @@ async function main() {
       assert.equal(await page.locator('#demoBtn, .adm-main, .demo-bar, .adm-nav').count(), 0);
       assert.ok(await page.locator('.site-disclosure').isVisible());
     };
-    for (const hash of ['', '#/site', '#/publish', '#/history', '#/demo', '#/competitors']) {
+    for (const hash of ['', '#/site', '#/publish', '#/history', '#/demo', '#/competitors', '#/logic/rs/rs-members', '#/rallyesport/events']) {
       await page.goto(base + '/admin/index.html' + hash); await absent();
       await page.reload(); await absent();
     }
@@ -166,7 +166,115 @@ async function main() {
       if (width <= 390) assert.equal(await page.locator('.adm-top .brand').evaluate(el =>
         el.getBoundingClientRect().bottom <= el.parentElement.querySelector('.chg').getBoundingClientRect().top + 1), true);
     }
-    await page.evaluate(() => location.hash = '#/rallyesport');
+    const visit = async hash => {
+      await page.evaluate(value => { location.hash = value; }, hash);
+      await page.waitForFunction(value => location.hash === value && document.querySelector('main')?.getAttribute('data-admin-route') === value, hash);
+      await page.locator('.adm-nav a.on').waitFor();
+    };
+    const catalogue = require('../../assets/admin-logic.js');
+    const captureDir = process.env.ADMIN_LOGIC_SCREENSHOT_DIR;
+    if (captureDir) fs.mkdirSync(captureDir, { recursive: true });
+    const capture = async name => {
+      if (captureDir) {
+        await page.evaluate(() => scrollTo(0, 0));
+        await page.screenshot({ path: path.join(captureDir, name + '.png'), fullPage: true, style: '.toasts { visibility: hidden; }' });
+      }
+    };
+    async function draftBackup() {
+      await visit('#/');
+      const event = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Download a backup', exact: true }).click();
+      const download = await event;
+      return JSON.parse(fs.readFileSync(await download.path(), 'utf8')).docs;
+    }
+    const originalDraft = await draftBackup();
+    for (const scheme of ['light', 'dark']) {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.evaluate(theme => document.documentElement.setAttribute('data-theme', theme), scheme);
+      for (const width of [390, 1440]) {
+        await page.setViewportSize({ width, height: 1000 });
+        await visit('#/logic/nr/nr-finality');
+        assert.equal(await page.locator('#logicTopicTitle').innerText(), 'NR source finality is not MSA confirmation');
+        assert.equal(await page.locator('#logicTopicTitle').evaluate(el => el === document.activeElement), true);
+        const evidence = page.locator('.logic-evidence').first();
+        await evidence.locator('summary').focus();
+        await page.keyboard.press('Enter');
+        assert.equal(await evidence.getAttribute('open'), '');
+        assert.match(await evidence.locator('a').first().getAttribute('href'), /\/blob\/bcb4c8a[0-9a-f]+\/.*#L\d+-L\d+/);
+        await page.keyboard.press('Enter');
+        await capture('explorer-nr-' + width + '-' + scheme);
+        await visit('#/logic/rs/rs-roles');
+        await capture('explorer-rs-' + width + '-' + scheme);
+        await page.locator('#logicSearch').fill('co-driver');
+        assert.ok(await page.locator('[data-logic-topic]:visible').count() > 0);
+        assert.match(await page.locator('#logicSearchStatus').innerText(), /across both competitions/);
+        await page.locator('#logicSearch').fill('no such decision here');
+        assert.equal(await page.locator('[data-logic-topic]:visible').count(), 0);
+        assert.match(await page.locator('#logicSearchStatus').innerText(), /^0 topics/);
+        await page.locator('#logicSearch').fill('');
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      }
+    }
+    for (const topic of catalogue.topics) {
+      await visit('#/logic/' + topic.group + '/' + topic.id);
+      assert.equal(await page.locator('#logicTopicTitle').innerText(), topic.title);
+      assert.equal(await page.locator('.logic-flow > li').count(), topic.nodes.length);
+      assert.equal(await page.locator('.logic-explorer [data-k], .logic-explorer [data-act]').count(), 0);
+    }
+    await visit('#/logic/rs/rs-roles');
+    await page.locator('.logic-branch a').first().click();
+    await page.waitForFunction(() => document.querySelector('main')?.getAttribute('data-admin-route') === '#/logic/rs/rs-points');
+    assert.match(await page.locator('#logicTopicTitle').innerText(), /zero and unavailable/);
+    await page.goBack();
+    await page.waitForFunction(() => document.querySelector('main')?.getAttribute('data-admin-route') === '#/logic/rs/rs-roles');
+    assert.match(await page.locator('#logicTopicTitle').innerText(), /score independently/);
+    await page.getByRole('link', { name: 'RallyeSport', exact: true }).first().click();
+    await page.locator('.rs-work-nav').waitFor();
+    assert.deepEqual(await draftBackup(), originalDraft, 'browsing every rule and RS landing preserves the entire working dataset');
+    for (const scheme of ['light', 'dark']) {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.evaluate(theme => document.documentElement.setAttribute('data-theme', theme), scheme);
+      for (const width of [320, 390, 768, 1440]) {
+        await page.setViewportSize({ width, height: 1000 });
+        for (const route of ['setup', 'eligibility', 'checks', 'events/synthetic-rs-event/event', 'events/synthetic-rs-event/source',
+          'events/synthetic-rs-event/stages', 'events/synthetic-rs-event/rows', 'events/synthetic-rs-event/preview']) {
+          await visit('#/rallyesport/' + route);
+          assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, route + ' fits ' + width);
+          assert.equal(await page.locator('.form-grid .form-grid').count(), 0, 'no nested misaligned grids');
+          assert.equal(await page.locator('.rs-pane').evaluateAll(panes => panes.every(pane => !!pane.closest('article.rs-editor'))), true);
+          if (route.startsWith('events/')) {
+            assert.equal(await page.locator('#rsEventSwitch').inputValue(), 'synthetic-rs-event');
+            assert.equal(await page.locator('.rs-event-list').count(), 0, 'selected editor does not repeat the season event cards');
+          }
+          if (route.endsWith('/rows')) {
+            const disclosure = page.locator('.rs-crew-row').first();
+            await disclosure.locator('summary').focus(); await page.keyboard.press('Enter');
+            assert.equal(await disclosure.evaluate(el => el.open), true);
+            await page.getByLabel('Invitation status').first().focus();
+            await page.getByLabel('Invitation status').first().selectOption('true');
+            assert.equal(await disclosure.evaluate(el => el.open), true, 'rerender preserves expanded rows');
+            assert.equal(await page.getByLabel('Invitation status').first().evaluate(el => el === document.activeElement), true, 'select focus survives rerender');
+            await page.getByLabel('Invitation status').first().selectOption('false');
+            if ([390, 1440].includes(width)) await capture('rs-editor-' + width + '-' + scheme);
+            await disclosure.locator('summary').focus(); await page.keyboard.press('Enter');
+          }
+          if (route === 'eligibility') {
+            await page.locator('#rsMemberSearch').fill('alex');
+            assert.equal(await page.locator('.rs-member:visible').count(), 1);
+            await page.locator('#rsMemberSearch').fill('');
+          }
+        }
+      }
+    }
+    assert.deepEqual(await draftBackup(), originalDraft, 'task navigation and reversible synthetic controls preserve the dataset');
+    assert.equal(writes.length, 0);
+    const rsEvent = '#/rallyesport/events/synthetic-rs-event/';
+    const openRows = async () => {
+      await visit(rsEvent + 'rows');
+      await page.locator('.rs-pane:not([hidden]) h4').waitFor();
+      await page.locator('.rs-crew-row').evaluateAll(rows => rows.forEach(row => { row.open = true; }));
+    };
+    await visit('#/rallyesport/setup');
     await page.getByText('Ruleset evidence').waitFor();
     const starterThreshold = page.getByLabel('Threshold used for RS event points');
     const starterEvidence = page.getByLabel('Six-starter review evidence');
@@ -175,6 +283,7 @@ async function main() {
     const membershipEvidence = page.getByLabel('Private override provenance for Alex Test');
     assert.equal(await starterThreshold.inputValue(), 'six');
     assert.match(await starterEvidence.inputValue(), /Synthetic user-reported review/);
+    await visit('#/rallyesport/eligibility');
     assert.equal(await membershipStatus.inputValue(), 'eligible');
     assert.equal(await membershipBasis.inputValue(), 'membership-sheet');
     assert.equal(await membershipEvidence.isDisabled(), true);
@@ -189,28 +298,34 @@ async function main() {
     assert.equal(await membershipEvidence.inputValue(), '');
     assert.equal(await membershipEvidence.isDisabled(), true,
       'changing away from a user-confirmed override clears and disables its private per-person evidence');
+    await visit('#/rallyesport/setup');
     await starterThreshold.selectOption('ssr-v1');
     assert.equal(await starterEvidence.isDisabled(), true, 'evidence control is disabled for the SSR baseline');
     await starterThreshold.selectOption('six');
     assert.equal(await starterEvidence.isDisabled(), false, 'evidence control is enabled for the six-starter review');
     await starterEvidence.fill('Synthetic user-reported review; no written amendment supplied.');
+    await visit(rsEvent + 'source');
     assert.equal(await page.getByLabel('Source file/title').inputValue(), 'Synthetic attached source title');
     assert.equal(await page.getByLabel('Official source URL').inputValue(), '');
     assert.equal(await page.getByLabel('Source description').inputValue(), 'Synthetic official final classification');
-    assert.equal(await page.getByLabel('Printed RS category').nth(2).inputValue(), 'TEST');
-    assert.equal(await page.getByLabel('Printed RS status').nth(2).inputValue(), 'TEST');
-    await page.getByLabel('Printed vehicle/model (optional)').first().fill('Synthetic RS source model');
     const unsafeCategoryLabel = 'Scoring class for printed 2WD<SVG ONLOAD="WINDOW.RSXSS=1">';
     await page.getByLabel(unsafeCategoryLabel).selectOption('RS2');
     assert.equal(await page.locator('svg[onload]').count(), 0, 'printed categories render as text, not executable markup');
     await page.getByLabel('Scoring-class mapping evidence').fill('Synthetic event-specific mapping evidence');
+    await openRows();
+    assert.equal(await page.getByLabel('Printed RS category').nth(2).inputValue(), 'TEST');
+    assert.equal(await page.getByLabel('Printed RS status').nth(2).inputValue(), 'TEST');
+    await page.getByLabel('Printed vehicle/model (optional)').first().fill('Synthetic RS source model');
     assert.equal(await page.getByLabel('Printed RS category').nth(1).inputValue(), '2WD<SVG ONLOAD="WINDOW.RSXSS=1">');
     const stageTimes = page.locator('input[placeholder^="e.g. 01:23.45"]');
     await stageTimes.nth(0).fill('01:11.0');
+    await visit(rsEvent + 'stages');
     await page.getByRole('button', { name: 'Review and copy mapped NR stage times' }).click();
     await page.getByText(/stage times and provenance must align/).waitFor();
     assert.equal(await stageTimes.nth(0).inputValue(), '01:11.0');
+    await openRows();
     await stageTimes.nth(0).fill('01:11.0, ');
+    await visit(rsEvent + 'stages');
     await page.getByRole('button', { name: 'Review and copy mapped NR stage times' }).click();
     await page.getByText(/Copied 2 reviewed blank RS stage value/).waitFor();
     const review = dialogs[dialogs.length - 1];
@@ -226,7 +341,7 @@ async function main() {
     await page.getByLabel('Duplicate profile').selectOption('blake-duplicate');
     await page.getByRole('button', { name: 'Merge', exact: true }).click();
     assert.match(dialogs[dialogs.length - 1], /Merge Blake Duplicated into Blake Example/);
-    await page.evaluate(() => location.hash = '#/rallyesport');
+    await visit('#/rallyesport/eligibility');
     assert.equal(await page.getByRole('checkbox', { name: /Blake Example — Manual RS scoring exclusion/ }).isChecked(), true);
     assert.equal(await page.getByRole('checkbox', { name: /Blake Duplicated — Manual RS scoring exclusion/ }).count(), 0);
     assert.equal(await page.getByLabel('Membership eligibility for Blake Example').inputValue(), 'eligible');
@@ -248,8 +363,9 @@ async function main() {
       .setInputFiles({ name: 'synthetic-pre-rs-backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(oldBackup)) });
     assert.match(await oldBackupPrompt, /Replace the working copy with the backup/);
     assert.match(await oldBackupRsWarning, /source and stage-time evidence.*Non-Scoring RS Member decisions/);
-    await page.evaluate(() => location.hash = '#/rallyesport');
+    await visit('#/rallyesport/eligibility');
     assert.equal(await page.getByRole('checkbox', { name: /Blake Example — Manual RS scoring exclusion/ }).isChecked(), true);
+    await openRows();
     assert.equal(await stageTimes.nth(0).inputValue(), '01:11.0, ');
     await page.evaluate(() => location.hash = '#/');
     await page.getByText('Backups', { exact: true }).waitFor();
@@ -267,14 +383,14 @@ async function main() {
     assert.match(await undoUnpublishedPrompt, /unpublished changes.*Undoing this change/);
     assert.match(await undoRsWarning, /History undo will replace or delete RallyeSport data/);
     rejectRsWarning = false;
-    await page.evaluate(() => location.hash = '#/rallyesport');
-    await page.getByText('Ruleset evidence').waitFor();
+    await visit('#/rallyesport/eligibility');
     assert.equal(await page.getByRole('checkbox', { name: /Blake Example — Manual RS scoring exclusion/ }).isChecked(), true);
     await page.reload(); await admin();
     assert.ok(await page.locator('#demoBtn').isVisible());
     await page.click('#demoBtn'); await page.locator('.demo-bar').waitFor();
     assert.match(await page.locator('.demo-bar').innerText(), /Simulation.*nothing is ever saved/);
-    await page.evaluate(() => location.hash = '#/rallyesport');
+    await visit('#/rallyesport/setup');
+    await page.locator('details.card').first().locator('summary').click();
     await page.getByText(/Demo data is a public projection/).waitFor();
     await page.evaluate(() => location.hash = '#/publish');
     await page.getByText('Nothing to publish').waitFor();
@@ -286,15 +402,17 @@ async function main() {
     assert.equal(await page.locator('#yearSel').inputValue(), '2027');
     await page.evaluate(() => location.hash = '#/season');
     await page.getByRole('button', { name: 'Open the public site on 2027' }).waitFor();
-    await page.evaluate(() => location.hash = '#/rallyesport');
+    await visit('#/rallyesport/setup');
     await page.getByText('No scoring rules are configured for 2027. Do not copy the 2026 profile into another year without applicable regulations.').waitFor();
+    await visit('#/rallyesport/events');
     await page.getByText('No RS events are recorded for this season. Adding an RS event does not require adding an NR event.').waitFor();
     assert.equal(await page.getByText('Synthetic RS event', { exact: true }).count(), 0,
       'the real admin rollover does not copy prior-year RS events or classifications');
     await page.locator('#yearSel').selectOption('2026');
     await page.getByText('Synthetic RS event', { exact: true }).waitFor();
     assert.equal(writes.length, 0, 'the rollover rehearsal remains an unpublished demo');
-    await page.evaluate(() => location.hash = '#/rallyesport');
+    await visit('#/rallyesport/eligibility');
+    await page.locator('details.card').first().locator('summary').click();
     await page.getByText(/Demo data is a public projection/).waitFor();
     await page.getByLabel('Review state').selectOption('true');
     await page.getByLabel('Private source provenance').fill('Synthetic demo-only review evidence; no real roster is available.');
@@ -312,18 +430,25 @@ async function main() {
     await page.click('#pubGo'); await page.getByText(/Demo:.*would have been saved/).waitFor();
     assert.equal(writes.length, 0);
     assert.equal(JSON.parse(docs.get('public/site').fields.json.stringValue).analytics.enabled, true);
-    await page.evaluate(() => location.hash = '#/rallyesport');
+    await visit('#/rallyesport/setup');
     await page.getByText('Ruleset evidence').waitFor();
     await page.getByRole('button', { name: /verified 2026 SSR V1/ }).click();
+    await visit('#/rallyesport/events');
     await page.getByRole('button', { name: '+ Add RS event' }).click();
     const newRsEvent = page.locator('article').filter({ hasText: 'New RallyeSport event' });
     await newRsEvent.getByLabel('RS event name').waitFor();
     assert.ok(await page.getByText('No NR event association', { exact: true }).count());
     await newRsEvent.getByLabel('Reviewed event starter count (optional)').waitFor();
     await newRsEvent.getByRole('button', { name: '+ Add classification' }).click();
+    await newRsEvent.getByLabel('Source file/title').waitFor();
+    const newEventPath = page.url().split('#')[1].replace(/\/source$/, '');
+    await visit('#' + newEventPath + '/stages');
+    assert.equal(await newRsEvent.getByRole('button', { name: '+ Add selected RS stage' }).count(), 1, await page.locator('main').innerText());
     await newRsEvent.getByRole('button', { name: '+ Add selected RS stage' }).click();
+    await visit('#' + newEventPath + '/rows');
     await newRsEvent.getByRole('button', { name: '+ Add classification row' }).waitFor();
     await newRsEvent.getByRole('button', { name: '+ Add classification row' }).click();
+    await visit('#' + newEventPath + '/source');
     await newRsEvent.getByLabel('Source file/title').waitFor();
     assert.ok(await newRsEvent.getByLabel('Source description').count());
     assert.ok(await newRsEvent.getByLabel('Printed RS category').count());
@@ -347,16 +472,25 @@ async function main() {
     });
     await page.evaluate(() => location.hash = '#/publish');
     await page.locator('#pubGo').waitFor();
-    await page.evaluate(() => location.hash = '#/rallyesport');
+    await visit('#' + newEventPath + '/source');
     await newRsEvent.getByLabel('Finality-review evidence').waitFor();
     assert.equal(await finalityReview.inputValue(), '',
       'editing evidence after deselection does not recreate a scoring-finality review');
     assert.equal(await finalityEvidence.isDisabled(), true);
+    await visit('#' + newEventPath + '/rows');
     await newRsEvent.getByLabel('Reviewed driver identity (optional)').selectOption('alex-test');
     await newRsEvent.getByLabel('Reviewed co-driver identity (optional)').selectOption('blake-example');
     await newRsEvent.getByLabel('Identity-review evidence').fill('Synthetic reviewed driver and co-driver roles; printed names remain unchanged.');
-    assert.ok(await page.getByText(/Manual RS scoring exclusion/).count());
+    await newRsEvent.getByLabel('Row notes').fill('Synthetic unpublished draft survives event switching.');
+    await page.locator('#rsEventSwitch').selectOption('synthetic-rs-event');
+    await page.waitForFunction(() => document.querySelector('main')?.getAttribute('data-admin-route') === '#/rallyesport/events/synthetic-rs-event/rows');
+    await page.locator('#rsEventSwitch').selectOption(newEventPath.split('/').pop());
+    await page.waitForFunction(value => document.querySelector('main')?.getAttribute('data-admin-route') === '#' + value + '/rows', newEventPath);
+    assert.equal(await newRsEvent.getByLabel('Reviewed driver identity (optional)').inputValue(), 'alex-test');
+    assert.equal(await newRsEvent.getByLabel('Row notes').inputValue(), 'Synthetic unpublished draft survives event switching.');
     assert.ok(await page.locator('.fld').filter({ hasText: 'Invitation status' }).count());
+    await visit('#/rallyesport/eligibility');
+    assert.ok(await page.getByText(/Manual RS scoring exclusion/).count());
     await page.click('#leaveDemoBtn'); await page.locator('.demo-bar').waitFor({ state: 'detached' }); await admin();
     assert.equal(await page.locator('.demo-bar').count(), 0);
     await page.evaluate(() => location.hash = '#/site'); await page.locator('#activeRallyEnabled').waitFor();
@@ -393,7 +527,8 @@ async function main() {
     await page.click('#demoBtn'); await page.getByText(/Synthetic token failure/).first().waitFor(); await absent();
     assert.equal(writes.length, 0); assert.deepEqual(external, []); assert.deepEqual(errors, []);
     await ctx.close();
-    console.log('Admin access E2E passed: signed-out, non-admin, admin simulation, refresh, sign-out, denied access and delayed-load race; no writes.');
+    console.log('Admin access E2E passed: access gates, all 30 logic topics, responsive light/dark RS tasks, keyboard/focus, unchanged drafts, editing/reuse/restore/merge/simulation, refresh, sign-out and delayed-load race; no writes.');
   } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }
 }
-main().catch(e => { console.error(e); process.exitCode = 1; });
+module.exports = { fixtures, nrRound };
+if (require.main === module) main().catch(e => { console.error(e); process.exitCode = 1; });

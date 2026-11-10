@@ -11,6 +11,27 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
+### Authorized RS workspace / logic-explorer code release
+
+The presentation-only work based on `bcb4c8a68f975c7f7bdfa725839de4f3d798d8bc`
+adds task-based RS editing and a read-only admin logic explorer. See
+[data-entry-guide.md](data-entry-guide.md#rallyesport-workspace-and-logic-explorer) and
+[architecture.md](architecture.md#admin-presentation-and-explanation-maintenance).
+There is no schema/rules/scoring/contract migration, Firebase/GCP/workbook access or
+data publication. After local review, the user authorized a commit and normal
+`origin/main` code/documentation push for live review. Only GitHub Pages and canonical
+static-runtime verification accompany this release. This pre-push entry does not assert
+a completed deployment; approval and verification scope belong in [releases.md](releases.md).
+
+Keep the new JS/CSS and HTML shell references together on code rollback. The common
+`admin-logic-1` query version changes static cache URLs only. Retire/reload old admin tabs
+before subsequent authorized data work: open tabs do not upgrade automatically.
+Presentation rollback does not require restoring or republishing Firestore.
+Private drafts still need private backups; the static explorer contains no live records
+and cannot explain/recover an individual's missing review evidence by itself.
+Its source links deliberately use the audited immutable baseline, not current admin line
+numbers. A future scoring/processing change must update this maintained explanation too.
+
 For GitHub CLI release authentication, prefer its standard `gh auth git-credential`
 helper scoped to the release process. Do not extract tokens or hand-build a shell
 username/password credential protocol. If a credential appears in an error, stop its
