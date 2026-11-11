@@ -63,6 +63,21 @@ must be addressed; there is no automation that can infer approvals or certify pr
   before push. Pages status and canonical byte comparisons must be verified after push;
   this pre-push record is not a claim that deployment has already succeeded.
 
+### Deployment verification and documentation-only follow-up
+
+- The code release was normally pushed as `3d4b48e74c09340327b9b0285a73613d479bfa17`.
+  GitHub Pages built that exact SHA at `2026-11-11T07:13:52Z`, from `main` at `/`;
+  the configured canonical domain is `nrrally.co.za` with HTTPS enforced.
+- All 22 tracked HTML, runtime and brand files matched the built commit byte-for-byte
+  at the canonical site with the release query version. The canonical homepage, admin,
+  privacy and disclaimer endpoints returned HTTP 200. This does not verify live sign-in,
+  private data, real standings/source correctness or deployed Firestore rules.
+- This same-release follow-up updates only this verification record and recovery
+  handover. **No runtime, scoring, data, schema or operational behavior changes.**
+  Before its normal push, confirm main is still the verified code SHA and review the
+  documentation-only staged diff. Verify the resulting Pages build and unchanged
+  canonical runtime bytes after pushing; report the resulting SHA separately.
+
 ## 2026-11-10: authorized RS admin workspace and logic-explorer release
 
 - Based on freshly fetched, clean `origin/main`/HEAD

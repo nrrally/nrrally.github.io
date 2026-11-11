@@ -21,6 +21,10 @@ query version must be kept coordinated across public/admin/privacy/disclaimer on
 rollback. No schema, scoring, rules, Firebase or data migration accompanies this UI
 change. Reload old tabs; static rollback needs no database restore or republish.
 Release approval, checks and deployment verification are recorded in [releases.md](releases.md).
+The code release was verified built at `3d4b48e74c09340327b9b0285a73613d479bfa17`,
+with all 22 canonical HTML/runtime/brand files matching Git. A documentation-only
+handover follows that release; recheck current Pages/main rather than assuming this
+historical code SHA is still the latest build.
 
 ### Authorized RS workspace / logic-explorer code release
 
