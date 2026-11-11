@@ -809,7 +809,7 @@ async function main() {
     await visit('#/rallyesport/synthetic-rs-result/classification');
     assert.equal(await page.locator('main h1').innerText(), 'Synthetic RS-only event');
     assert.deepEqual(await page.locator('main table thead th').allTextContents(),
-      ['Pos', 'No.', 'Crew / championship scoring', 'Source class', 'Official finish', 'Official total']);
+      ['Pos', 'No.', 'Crew / championship scoring', 'RS class', 'Official finish', 'Official total']);
     const rsCells = page.locator('main table tbody tr').first().locator('td');
     assert.equal(await rsCells.nth(0).innerText(), 'TEST');
     assert.equal(await rsCells.nth(1).innerText(), '88');
@@ -840,16 +840,46 @@ async function main() {
       { car: '89', driver: 'Blake Example', codriver: '', class: 'RS2', status: 'classified', pos: 2, classPos: 2,
         total: '1:00.04', times: ['1:00.04', '00:01.00'], stagePos: [2, 1] }
     ];
-    graphResult.entries.forEach(entry => { entry.class = '2WD'; });
-    graphResult.classMappings = { '2WD': 'RS2' };
+    graphResult.entries[0].class = '2WD';
+    graphResult.entries[1].class = '4WD';
+    graphResult.classMappings = { '2WD': 'RS2', '4WD': 'RS4' };
     graphResult.classMappingEvidence = 'Synthetic event-specific category review';
+    const mappedSourceBefore = F.copy(graphResult);
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(t => localStorage.setItem('nr-theme', t), theme);
+      for (const width of [320, 390, 768, 1440]) {
+        await page.setViewportSize({ width, height: 1000 });
+        for (const hash of [
+          '#/rallyesport/synthetic-rs-result/classification',
+          '#/rallyesport/synthetic-rs-result/graph?cars=88,89',
+          '#/rallyesport/synthetic-rs-result/stages',
+          '#/2026/crews?competition=rs',
+          '#/2026/person/alex-test?competition=rs',
+          '#/2026/person/blake-example?competition=rs'
+        ]) {
+          await visit(hash);
+          if (hash.includes('/classification')) await page.locator('.rs-source-notes summary').click();
+          const text = await page.locator('main').textContent();
+          assert.doesNotMatch(text, /\b[24]WD\b/, 'RS public surfaces use only the explicit mapped class labels');
+          if (!hash.includes('/person/blake-example')) assert.match(text, /RS2/);
+          if (!hash.includes('/person/alex-test')) assert.match(text, /RS4/);
+          if (hash.includes('/graph')) {
+            assert.match(await page.locator('.legend').innerText(), /RS2[\s\S]*RS4/);
+            assert.equal(await page.locator('[data-quick="RS2"]').count(), 1);
+            assert.equal(await page.locator('[data-quick="RS4"]').count(), 1);
+          }
+          await noOverflow();
+        }
+      }
+    }
+    assert.deepEqual(graphResult, mappedSourceBefore, 'browsing never rewrites source categories or mappings');
     await visit('#/rallyesport/synthetic-rs-result/classification');
     assert.ok(!(await page.locator('main').innerText()).includes('Championship class mapping'));
     await page.locator('.rs-source-notes summary').click();
-    assert.ok((await page.locator('main').innerText()).includes('Championship class mapping: 2WD → RS2'));
+    assert.ok((await page.locator('main').innerText()).includes('Displayed RS classes: RS2, RS4'));
     assert.ok(!(await page.locator('main').textContent()).includes('Synthetic event-specific category review'),
       'private review evidence is not rendered as public commentary');
-    assert.equal(await page.locator('.rs-result-class .cls').first().innerText(), '2WD');
+    assert.deepEqual(await page.locator('.rs-result-class .cls').allTextContents(), ['RS2', 'RS4']);
     await visit('#/2026/round/R1/graph?cars=1&m=loss&rs=1');
     assert.ok((await page.locator('.chart-title').innerText()).includes('Time lost'));
     assert.equal(await page.locator('.series[data-key^="RS:"]').count(), 0, 'legacy overlay queries cannot mix competitions');
@@ -877,7 +907,8 @@ async function main() {
     await page.locator('[data-car="88"]').click(); await page.locator('[data-car="89"]').click();
     await page.getByRole('heading', { name: 'Head-to-head', exact: true }).waitFor();
     await page.locator('[data-quick="RS2"]').click();
-    assert.equal(await page.locator('.car-btn[aria-pressed="true"]').count(), 2);
+    await page.waitForFunction(() => document.querySelectorAll('.car-btn[aria-pressed="true"]').length === 1);
+    assert.equal(await page.locator('.car-btn[aria-pressed="true"]').getAttribute('data-car'), '88');
     await page.locator('[data-quick="top5"]').click();
     await page.locator('[data-quick="all"]').click();
     await page.locator('[data-hl]').first().focus();

@@ -79,6 +79,42 @@ test('RS graphs use independent stage axes and cannot mix into NR graphs, even w
   assert.ok(!api.viewHome().html.includes('Synthetic RS-only Event'));
   assert.ok(!api.viewStandings('driver', {}).html.includes('Synthetic RS-only Event'));
 });
+test('RS display applies only recorded class mappings without mutating sources, scoring or NR rendering', () => {
+  const api = harness(), season = F.season(2026);
+  season.rallyesport = {
+    events: [{ id: 'rs-event', name: 'Synthetic RS event', dates: '' }],
+    results: [{ id: 'rs-result', eventId: 'rs-event', title: 'Synthetic RS source',
+      status: 'Final classification', source: { file: 'synthetic.pdf', url: 'https://example.com/rs.pdf' },
+      classMappings: { '2WD': 'RS2', '4WD': 'RS4' }, classMappingEvidence: 'Synthetic category mapping',
+      notes: [], stages: [{ id: 'ss1', label: 'SS1' }], entries: [
+        { car: '91', driver: 'Alex Test', codriver: '', class: '2WD', status: 'classified', pos: 1,
+          classPos: 1, total: '1:00.0', times: ['1:00.0'], stagePos: [1] },
+        { car: '92', driver: 'Alex Test', codriver: '', class: '4WD', status: 'classified', pos: 2,
+          classPos: 1, total: '1:01.0', times: ['1:01.0'], stagePos: [2] }
+      ] }]
+  };
+  const raw = F.payload('results', 2026).rounds[0];
+  raw.entries[0].class = '2WD'; raw.entries[0].scoredClass = 'OPEN';
+  const seasonBefore = JSON.stringify(season), model = select(api, season, { R1: raw });
+  const modelBefore = JSON.stringify(model), nrBefore = api.viewRound('R1', 'classification', {}).html;
+  assert.match(nrBefore, /2WD/);
+  for (const html of [
+    api.viewRallyeSport('rs-result', {}).html, api.viewRsCrews().html,
+    api.viewRsPerson('alex-test').html, api.viewRsGraph('rs-result', { cars: '91,92' }).html,
+    api.viewRsGraph('rs-result', {}, 'stages').html
+  ]) {
+    assert.doesNotMatch(html, /\b[24]WD\b/);
+    assert.match(html, /RS2/); assert.match(html, /RS4/);
+  }
+  assert.equal(api.viewRound('R1', 'classification', {}).html, nrBefore);
+  assert.equal(JSON.stringify(season), seasonBefore);
+  assert.equal(JSON.stringify(model), modelBefore);
+  const result = model.rallyesport.results[0];
+  delete result.classMappings;
+  assert.match(api.viewRallyeSport('rs-result', {}).html, /2WD/);
+  result.entries[0].class = 'TEST';
+  assert.match(api.viewRallyeSport('rs-result', {}).html, />TEST</);
+});
 test('public RallyeSport pages show provisional cumulative tables and disclose unscored events', () => {
   const api = harness(), season = emptySeason(), people = { people: [] }, entries = [];
   for (let n = 1; n <= 15; n++) {
@@ -406,7 +442,7 @@ test('RS crews and cross-season profiles use resolved RS identities and official
   assert.ok(reviewedCrews.includes('<th>Championship status</th>'));
   assert.ok(reviewedCrews.includes('RS0 · Non-Scoring*'));
   assert.ok(!reviewedCrews.includes('eligibility unverified'));
-  assert.ok(reviewedPerson.includes('<th>Source class</th><th>Championship scoring</th>'));
+  assert.ok(reviewedPerson.includes('<th>RS class</th><th>Championship scoring</th>'));
   assert.ok(reviewedPerson.includes('Official position / finish'));
   const classification = api.viewRallyeSport('rs-result', {}).html;
   assert.ok(classification.includes('scope="col">Official finish</th>'));
@@ -484,13 +520,14 @@ test('RS classification leads with compact source results and independent role s
   assert.ok(!html.includes('Private reviewer rationale'));
   assert.ok(!html.includes('Private upload handling commentary'));
   assert.ok(html.includes('Synthetic official source qualification.'));
-  assert.ok(html.includes('Championship class mapping: 2WD → RS2'));
+  assert.ok(html.includes('Displayed RS classes: RS2'));
+  assert.doesNotMatch(html, /\b2WD\b/);
   assert.ok(html.includes('aria-label="Driver"><span><a'));
   assert.ok(html.includes('RS0 · Non-Scoring*'));
   assert.ok(html.includes('aria-label="Co-driver"><span>Blake Example'));
   assert.ok(html.includes('title="Driver championship points">D <b>0</b>'));
   assert.ok(html.includes('title="Co-driver championship points">C <b>15</b>'));
-  for (const value of ['2WD', 'Class pos: 3', 'classified', '1:00.01', '0:01.02']) assert.ok(html.includes(value), value);
+  for (const value of ['RS2', 'Class pos: 3', 'classified', '1:00.01', '0:01.02']) assert.ok(html.includes(value), value);
   assert.ok(html.indexOf('data-car="91"') < html.indexOf('data-car="92"'), 'official source order is unchanged');
   assert.ok(html.includes('<details class="notes rs-scoring-order">'));
   assert.ok(!html.includes('<details open'));

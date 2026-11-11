@@ -11,6 +11,17 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
+### RS class display continuity
+
+Public RS class labels use the existing result-specific mappings; printed source
+categories remain intact in source records and admin editing. Graph legends, stage
+tables, classifications, crews and profiles share the mapped display convention.
+Unmapped categories are not inferred, and role eligibility/RS0 remains separate.
+The points/split toggle stays in place. The coordinated `rs-classes-1` shell/asset
+version is presentation-only: no engine, schema, rules or data migration, Firebase/GCP
+access or publication. Reload old tabs; roll back the matching static shells/assets
+together without restoring or republishing the database. See [releases.md](releases.md).
+
 ### RS standings split display
 
 The RS standings points/split control shows each existing per-round score and its

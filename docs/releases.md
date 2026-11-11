@@ -31,6 +31,40 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## 2026-11-11: authorized RS class-label continuity release
+
+- Freshly fetched base: `bf698ff9c80014e998322d78a414a357b66713ff`. The user requested
+  mapped RS2/RS4 public labels in place of the older source category labels, retaining
+  the points/split toggle. The coordinating request expressly authorizes implementing,
+  testing, a normal non-force `origin/main` push and Pages/static verification.
+  No Firebase/GCP access, reads, writes, data publication or provider changes are included.
+- A shared display helper reuses each published result's explicit class mapping in RS
+  classifications, crews, cross-season profiles, graph pickers/legends and stage tables.
+  Source notes disclose mapped classes without repeating the old aliases. Headers say
+  RS class rather than incorrectly claiming the mapped text is the printed category.
+  Unmapped categories are not guessed; eligibility/RS0 remains separate. Admin source
+  editing and the underlying categories/mappings remain unchanged.
+- Scoring, eligibility, engine, schema, NR rendering and published source data are
+  unchanged. The retained toggle does not introduce overall points or support for
+  unknown future regulations. No migration or database republish is needed. Guide
+  reference edition remains 2026; analytics/privacy behavior is unchanged.
+  Coordinated shell cache queries advance to `rs-classes-1`; reload old tabs and keep
+  shell/runtime versions together on rollback. A static rollback needs no data restore.
+- Validation: 107 Node tests passed, including explicit mapping, unmapped/TEST,
+  source/model/scoring preservation and unchanged NR output. Public browser regressions
+  cover both mappings, expanded notes, profiles, crews, graphs and stage times at
+  320/390/768/1440 px in both themes. All five synthetic public/admin/import/notice/analytics
+  browser suites passed; all provider traffic was intercepted and no synthetic collection
+  reached live services. Optional actual-Google-runtime replay and live sign-in are
+  outside this display change; real data/source correctness and deployed rules are
+  not certified by synthetic checks.
+- Before push, review all changed/untracked paths and whitespace, verify the exact
+  remote base, and use only temporary non-secret GH configuration with the approved
+  existing keyring account and standard scoped `gh auth git-credential` helper.
+  No token extraction or global authentication change. Verify the resulting Pages SHA
+  and canonical deployed file bytes after pushing; this is a pre-push scope record,
+  not a claim that deployment has already completed.
+
 ## 2026-11-11: authorized RS standings split display
 
 - Based on freshly fetched `origin/main`

@@ -62,7 +62,7 @@ truth. Human comparison against implementation/docs remains essential.
 The explorer's responsive Clawpilot palette is scoped to its components. Existing admin
 authentication, Firestore REST and Auth SDK adapters, database rules and CSP are unchanged.
 Only the admin shell includes the new assets. Coordinated HTML query version
-`rs-split-1` busts caches across public/admin/disclaimer/privacy; it is not a data or
+`rs-classes-1` busts caches across public/admin/disclaimer/privacy; it is not a data or
 scoring-contract version.
 
 ## Public site
@@ -97,6 +97,13 @@ Each deliberate NR-to-RS switch opens a native labelled welcome dialog with Info
 Continue, keyboard focus containment, Escape and focus restoration. Navigation and
 refresh do not reopen it. Cross-competition result switching requires a unique explicit
 `nrRoundId` association and an existing destination; otherwise it returns to rounds.
+
+RS class labels in classifications, crews, profiles, graphs and stage tables use the
+published result's explicit class mapping when present. Source categories and mappings
+remain unchanged in data/admin editing; unmapped categories are not guessed.
+The source-notes disclosure names mapped RS classes without repeating old category
+aliases. RS0 eligibility is separate from the displayed class, and the standings
+points/split toggle remains available without introducing an overall-points award.
 
 Data loading works like this:
 - **The code holds no results data.** The site reads only the published copy from the database (`public/` documents, no sign-in needed).

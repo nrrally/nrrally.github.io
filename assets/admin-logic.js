@@ -278,7 +278,7 @@
           branch('Excluded partner', 'Only that role is removed from its scoring pool. The other role is assessed independently; driver/co-driver positions and points can differ.')
         ], [source('assets/engine.js', 591, 597, 'scoringRoles'), source('assets/engine.js', 617, 633, 'role ranks and points')]),
         node('How does this affect the event display?', [
-          branch('Official classification', 'Preserve source class, position, time, status and row order. Display independent role scoring labels and points separately.'),
+          branch('Official classification', 'Preserve source class, position, time, status and row order in the data. Public RS class labels use any recorded event-specific mapping; independent role scoring labels and points remain separate.'),
           branch('Secondary scoring-order table', 'Ranked eligible people first; excluded roles have no scoring rank. The RS0 marker means Non-Scoring, not necessarily non-member.', 'rs-points')
         ], [source('assets/site.js', 838, 873, 'rsEventScoringTable'), source('assets/site.js', 889, 936, 'RS classification')])
       ], ['rs-order', 'rs-points', 'rs-members']),

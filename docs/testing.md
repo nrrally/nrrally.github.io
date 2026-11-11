@@ -133,6 +133,10 @@ The synthetic public browser suite checks the RS standings points/split toggle a
 views, checks per-round RS2/RS4, class changes, DNF and RS0, and preserves split mode
 across role/class navigation, history and reload. RS uses class points for overall
 totals, not a second overall award. Browser traffic remains intercepted.
+Mapped-class regressions check both source-category mappings across RS classifications,
+expanded source notes, crews, profiles, graph legends/pickers and stage times at all
+four widths in both themes. VM checks preserve source/model/scoring bytes and NR
+rendering; unmapped categories and TEST remain unchanged rather than guessed.
 
 These checks verify behavior, not the truth/currency of actual new SSRs or a private
 database backup. The guide unit checks assert maintainer edition metadata, labelled sources
