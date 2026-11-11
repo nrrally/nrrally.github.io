@@ -46,6 +46,9 @@ database publication is needed. The user subsequently authorized committing and 
 pushing this complete reviewed UI batch to `origin/main` for Pages deployment.
 This excludes Firebase/GCP access, data/scoring/provider changes and PR creation.
 This pre-push record is not a deployment claim; verify the exact Pages SHA and live bytes.
+Release authentication preflight must check repository push permission: a process token
+can mask the documented linked keyring account. Remove overrides only in the release
+process when using that existing account; do not extract tokens or change global sign-in.
 Validation and remaining release limitations are recorded in [releases.md](releases.md).
 
 ### RS class display continuity

@@ -101,6 +101,11 @@ must be addressed; there is no automation that can infer approvals or certify pr
   active-rally/welcome and full public-theme browser runners. MENU remains visible in
   both disclosure states, the icon changes correctly and the 320 px layout still fits.
   Earlier same-batch analytics/admin browser passes remain recorded above.
+- The first push attempt was refused with HTTP 403 by the process-token identity;
+  no remote ref changed. A read-only preflight confirmed the pre-existing documented
+  keyring release account has repository push permission. The release retry removes
+  token overrides only from its own process and uses `gh auth git-credential`; no token
+  extraction, account registration or global authentication change is involved.
 
 ## 2026-11-11: authorized RS class-label continuity release
 
