@@ -98,6 +98,26 @@ must be addressed; there is no automation that can infer approvals or certify pr
   After push, verify the exact Pages SHA, canonical HTTPS and all deployed static bytes
   against Git blobs, not Windows checkout line endings. Record actual deployment
   evidence separately; no real Firebase/Auth/Analytics calls belong in these checks.
+- Compatible-code deployment verified at
+  `800f679179133c3f15e9a1cda510428cc4b301cb`: workflow `43037869747` succeeded;
+  Pages reported that exact commit built at `2026-11-11T14:23:10Z` without error.
+  All **24** checked canonical static files (22 HTML/runtime/brand files and
+  `robots.txt`/`sitemap.xml`) matched their Git blobs byte-for-byte with `rs-entry-1`.
+  Unversioned root/admin/privacy/disclaimer shells also matched; HTTP, www and default
+  Pages-domain requests redirected to canonical HTTPS. Engine SHA-256:
+  `c7d7a2fcfa4410bf24fc6b2d6380d91013e5a626de225b0cbdfefc7558e4465b`;
+  `assets/ai-import.js` public-projector wrapper SHA-256:
+  `171706846ea6f5eb6e5baa7b85160567ee049573f6676932f0d87a4f98bf044b`.
+- Revised public/admin and existing legacy public browser regressions both passed again
+  against an outside-Git snapshot of those downloaded deployed bytes. Provider requests
+  were intercepted with synthetic data; no real Auth/Firestore/Analytics calls or writes.
+  The earlier full admin-access runner passed against the identical release source.
+  No live data/source correctness, authenticated sign-in or database activation is claimed.
+- The same-release documentation-only handover records these actual outcomes. It changes
+  no runtime, scoring behavior, cache version, data or approval scope. Re-fetch/guard
+  `origin/main` at the code SHA above, review the docs-only staged diff and whitespace,
+  normally push without force, then verify the resulting Pages SHA and the unchanged
+  canonical runtime files. Report the final documentation/deployment SHA in the handoff.
 
 ## 2026-11-11: authorized public welcome/navigation/guide UI release
 

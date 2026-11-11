@@ -34,7 +34,8 @@ IDs/NR/source evidence, public snapshot compatibility, privacy and rollback requ
 Never infer the exact private launch crew row/identities from this synthetic code fixture.
 No actual private snapshot was available or needed for this work.
 
-The June launch retains event data but has no championship round number or contribution;
+When the reviewed policy is activated, the June launch retains event data but has no
+championship round number or contribution;
 the four championship events display R1-R4. Both championship crew roles qualify
 without membership/licence/invitation/manual exclusions. DNS, DNF start evidence,
 minimum starters, finality, scales, order, ties and four-round provisional finality are
@@ -52,6 +53,21 @@ its new policy-helper link as mutable release `main`, not an immutable source ci
 Keep existing S2 Mine wording for this release; the SN/S2 discrepancy is not a code-release
 blocker and must not be resolved by guessing. No upcoming result/date/programme
 is invented. Validation and operational limitations are recorded in [releases.md](releases.md).
+
+The compatible-code release was verified built at
+`800f679179133c3f15e9a1cda510428cc4b301cb`, Pages workflow `43037869747`;
+Pages reported that exact SHA built at `2026-11-11T14:23:10Z` without error.
+All 24 checked canonical static files (22 HTML/runtime/brand files plus robots/sitemap)
+matched Git blobs byte-for-byte; unversioned shells and canonical HTTPS redirects passed.
+Revised public/admin and existing legacy public browser checks passed against a downloaded
+snapshot of those exact deployed bytes with synthetic intercepted providers and no writes.
+Engine SHA-256 is `c7d7a2fcfa4410bf24fc6b2d6380d91013e5a626de225b0cbdfefc7558e4465b`;
+public-projector wrapper `assets/ai-import.js` SHA-256 is
+`171706846ea6f5eb6e5baa7b85160567ee049573f6676932f0d87a4f98bf044b`.
+No Firebase/GCP/data access or policy activation accompanied this deployment.
+This same-release documentation-only handover changes no runtime, behavior, cache version,
+data or authorization scope. Recheck resulting main/Pages and unchanged runtime bytes
+after its normal push; the code SHA above is not a permanent claim about latest main.
 
 ### Authorized public welcome/navigation/guide UI release
 
