@@ -624,7 +624,8 @@
     var body = isRs ? (rows.length ? rows.map(function (r) {
       return '<div class="leader"><span class="pos' + (r.rank <= 3 ? ' p' + r.rank : '') + '">' + r.rank +
         '</span><div class="who">' + rsProfileLink(r.id, r.name) + '<div>' +
-        rsClassTagsForPerson(rsTables, r.id, role) + '</div></div>' +
+        rsClassTagsForPerson(rsTables, r.id, role) + ' · ' +
+        rsRoundsStartedLabel(rsRoundsStarted(D, r.id, role)) + '</div></div>' +
         '<div class="pts">' + r.points + '<small>pts</small></div></div>';
     }).join('') : '<p class="small muted">' + (rsTables.available ? 'No RS points recorded for this table.' : esc(rsTables.note.replace(/<[^>]*>/g, ''))) + '</p>') :
       rows.map(function (r) {
@@ -955,13 +956,13 @@
       return classes.length ? classes.map(clsTag).join(' ') : 'Scoring class unavailable';
     }
     return '<div class="section"><div class="section-head"><h2>' + esc(title) + '</h2></div>' +
-      (rows && rows.length ? '<div class="table-wrap"><table class="data"><thead><tr><th>Pos</th><th>Competitor</th><th>Championship scoring</th>' +
+      (rows && rows.length ? '<div class="table-wrap"><table class="data"><thead><tr><th class="center s-pos">Pos</th><th>Competitor</th><th>Championship scoring</th>' +
         results.map(function (item) { return '<th class="num"><a href="' + sh('/rallyesport/' + encodeURIComponent(item.result.id) + '/classification') +
           '" title="' + esc(item.event.name) + '">' + (item.event.roundNumber == null ? esc(item.event.name) : 'R' + item.event.roundNumber) + '</a></th>'; }).join('') +
         '<th class="num">Points</th></tr></thead><tbody>' +
         rows.map(function (row) {
           var byRound = rsPersonRoundPoints(D, row.id, role, selectedClass);
-          return '<tr><td class="num">' + (row.rank == null ? '—' : row.rank) + '</td><td>' +
+          return '<tr><td class="center s-pos">' + (row.rank == null ? '—' : row.rank) + '</td><td>' +
           rsProfileLink(row.id, row.name) + '</td><td>' +
           (row.rank == null ? rsEligibilityMarker({ status: row.eligibilityStatus, reason: row.eligibilityReason }) :
             championshipClasses(row)) + '</td>' + results.map(function (item) {
@@ -1646,7 +1647,10 @@
           return person ? (person.rank == null ? '—' : 'P' + person.rank) + ' · ' + person.points + ' pts' : '—';
         }
         var role = row.roles.driver && row.roles.codriver ? 'Driver & co-driver' : row.roles.driver ? 'Driver' : 'Co-driver';
-        var scoringStatus = Object.keys(row.scoringClasses).length ? Object.keys(row.scoringClasses).sort().map(clsTag).join(' ') :
+        var scoringClasses = Object.keys(row.scoringClasses).sort();
+        var additionalScoringClasses = scoringClasses.filter(function (cls) { return !row.classes[cls]; });
+        var scoringStatus = additionalScoringClasses.length ? 'Scoring: ' + additionalScoringClasses.map(clsTag).join(' ') :
+          scoringClasses.length ? 'Eligible' :
           !row.eligibility && !Object.keys(row.championshipEventIds).length ? 'Non-scoring event appearances' : rsChampionshipStatus(row.eligibility);
         return '<tr data-s="' + esc((row.name + ' ' + cars).toLowerCase()) + '"><td class="rs-crew-identity" data-label="Competitor">' + rsProfileLink(row.id, row.name) +
           '<div class="small muted">' + (row.id ? esc(role) : 'Source name; profile unresolved · ' + esc(role)) + '</div></td><td class="rs-crew-class" data-label="RS class / status">' +

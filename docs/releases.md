@@ -31,6 +31,36 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## 2026-11-11: authorized RS parity repair (pre-push)
+
+- After live testing the recent public parity release, the user directly reported that
+  RS2/RS4 badges appeared twice on Crews and requested three additional visual fixes:
+  rounds-started labels on the overall RS driver/co-driver homepage leaders, a centered
+  compact Pos column on RS standings, and RS4 red / RS2 blue badges matching NR1 / NR2.
+- The repair changes only `assets/site.js`, `assets/styles.css`, the synthetic public
+  tests, the four public/admin/disclaimer/privacy HTML cache references, and these
+  directly related testing/recovery/release records. Duplicate scoring badges are
+  suppressed only when that scoring class is already represented by a source class;
+  distinct RS2 and RS4 source classes remain visible. The round-start labels use the
+  existing evidence-based helper and do not change scoring, eligibility or totals.
+- The coordinated shell token advances from `rs-visual-1` to `rs-visual-2` so open tabs
+  can load the repaired runtime. Rollback restores the matching static shells/assets
+  together. No schema, source data, scoring rules, Firebase/GCP, provider configuration,
+  analytics behavior or private data changes are included.
+- Synthetic validation passed: `node tools\tests\site-theme-e2e.js` across 320/390/768/
+  1440 px in light/dark themes, `node tools\tests\rs-entry-policy-e2e.js`,
+  `node --test tools\tests\rallyesport.test.js` (41 checks),
+  `node --test tools\tests\season-readiness.test.js` (18 checks), and `git diff --check`.
+  The new multi-class regression fails against the old renderer with two RS2 badges
+  and passes with one each of the genuine RS2/RS4 classes; browser assertions also check
+  leader starts, color parity and position-column alignment.
+- This repair is based on `25ddbe865475c7ff532924b8ddf86c1f27c4d390`, the latest
+  verified `origin/main` at task start. Fetch and compare main immediately before push;
+  stop if it has drifted. The user expressly authorized a normal non-force release to
+  `origin/main` and Pages verification. This entry is a pre-push record until the commit
+  is pushed and the actual Pages SHA/runtime assets are verified. No PR or data/provider
+  operation is authorized or needed.
+
 ## 2026-11-11: authorized RS public visual parity release
 
 - Implemented in an isolated worktree from `3e778f76178b2a0448cb3f764c4b32c12d6b536f`.
@@ -68,7 +98,7 @@ must be addressed; there is no automation that can infer approvals or certify pr
   divergent commits. The complete reviewed scope is the 11 changed code, test, shell and
   documentation paths; there are no untracked files. The latest Pages API build also
   reports this same SHA built (`2026-11-11T14:33:30Z`). The approved existing keyring
--  account has repository push permission, verified without extracting a token or changing
+  account has repository push permission, verified without extracting a token or changing
   global authentication. Commit `3a68799272a72d2e2a60baaf681b812ce3196d1f` was pushed
   normally and without force to `origin/main`. No PR was created, and no Firebase/GCP/data
   operation or provider change was performed as part of this release.

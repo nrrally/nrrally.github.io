@@ -400,10 +400,28 @@ async function main() {
         assert.equal(await rsCodriverLink.count(), 1, 'full co-driver tables remain linked');
         assert.ok((await rsDriverLink.innerText()).includes('RS tables'));
         assert.ok((await rsCodriverLink.innerText()).includes('RS tables'));
+        for (const [label, card] of [['driver', rsDriverCard], ['co-driver', rsCodriverCard]]) {
+          const leaderMeta = await card.locator('.leader').first().locator('.who div').innerText();
+          assert.match(leaderMeta, /(?:\d+ rounds? started|Rounds started unavailable)/,
+            `RS ${label} leaders show evidence-based rounds started`);
+        }
         assert.match((await page.locator('.home-rs-note').innerText()).trim(),
           /^Provisional RS points\. Standings & scoring notes\.$/);
         assert.equal(await page.locator('.home-rs-classes .card').count(), 2,
           'non-scoring people are not presented as class leaders');
+        const classBadgeColors = await page.evaluate(() => {
+          function color(cls) {
+            const badge = document.createElement('span');
+            badge.className = 'cls ' + cls;
+            document.body.appendChild(badge);
+            const value = getComputedStyle(badge).backgroundColor;
+            badge.remove();
+            return value;
+          }
+          return { rs2: color('RS2'), nr2: color('NR2'), rs4: color('RS4'), nr1: color('NR1') };
+        });
+        assert.equal(classBadgeColors.rs2, classBadgeColors.nr2, 'RS2 matches the NR2 blue');
+        assert.equal(classBadgeColors.rs4, classBadgeColors.nr1, 'RS4 matches the NR1 red');
         assert.ok(!(await page.locator('main').innerText()).includes('RS0 Non-Scoring SSR 6.1'),
           'the homepage does not repeat the scoring footnote');
         assert.doesNotMatch((await page.locator('.leader').allInnerTexts()).join('\n'), /Provisional RS points/,
@@ -483,6 +501,12 @@ async function main() {
         assert.ok(!(await page.innerText('main')).includes('Minimum 1 starts'));
         assert.equal(await page.locator('table.data thead th').first().innerText(), 'POS',
           'RS standings use the NR position label');
+        const positionHeader = page.locator('table.data thead th').first();
+        const positionCell = page.locator('table.data tbody tr').first().locator('td').first();
+        assert.equal(await positionHeader.evaluate(element => getComputedStyle(element).textAlign), 'center');
+        assert.equal(await positionCell.evaluate(element => getComputedStyle(element).textAlign), 'center');
+        assert.ok((await positionHeader.boundingBox()).width <= 56,
+          'the RS position column keeps the compact NR-sized padding');
         assert.ok(await page.locator('table.data tbody .cls.RS2, table.data tbody .cls.RS4').count(),
           'RS standings use the shared colour-coded class labels');
         await page.getByRole('link', { name: 'RS4', exact: true }).click();
@@ -494,6 +518,10 @@ async function main() {
         const unverifiedCrew = page.locator('#crewTable tbody tr').filter({ hasText: 'Synthetic Driver 6' });
         assert.ok((await unverifiedCrew.locator('.rs-crew-identity').innerText()).includes('Synthetic Driver 6'));
         assert.ok((await unverifiedCrew.locator('.rs-crew-class').innerText()).includes('RS0 · Non-Scoring*'));
+        const multiClassCrew = page.locator('#crewTable tbody tr').filter({ hasText: 'Synthetic Driver 4' }).locator('.rs-crew-class');
+        assert.equal(await multiClassCrew.locator('.cls.RS2').count(), 1);
+        assert.equal(await multiClassCrew.locator('.cls.RS4').count(), 1,
+          'genuine multi-class crews retain both unique source classes without duplicating scoring badges');
         assert.deepEqual(await page.locator('#crewTable thead th').allTextContents(),
           ['Competitor', 'RS class / status', 'Driver standings', 'Co-driver standings', 'Events / championship rounds', 'Car(s)']);
         assert.ok(!(await page.locator('main').innerText()).includes('RS0 roles receive'));

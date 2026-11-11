@@ -26,9 +26,11 @@ results. The coordinator separately reported the verified TRAC N4 supplementary-
 link was added to the live NR record through its guarded audited workflow. This UI work
 does not access or modify Firebase/GCP or any live record.
 
-The coordinated static query version is `rs-visual-1` in the public, admin, disclaimer
-and privacy shells. Reload old tabs. Rollback is static-only: restore those matching
-shell versions and assets together; there is no corresponding data/schema migration.
+The initial parity deployment used coordinated static query version `rs-visual-1`.
+The authorized repair below advances it to `rs-visual-2` in the public, admin,
+disclaimer and privacy shells. Reload old tabs. Rollback is static-only: restore
+matching shell versions and assets together; there is no corresponding data/schema
+migration.
 Synthetic public browser coverage passed at 320/390/768/1440 px in both themes, the RS
 entry-policy browser regression passed, all 41 RallyeSport unit checks and 18
 season-readiness checks passed. On 2026-11-11 the user authorized the normal non-force
@@ -38,6 +40,21 @@ performed as part of this UI release.
 The deployment scope, verification and remaining limitations are in
 [releases.md](releases.md#2026-11-11-authorized-rs-public-visual-parity-release)
 and the test cases are in [testing.md](testing.md).
+
+### Authorized RS public parity repair
+
+After live testing the parity release, the user reported duplicate RS class badges on
+Crews and directly requested evidence-based round-start labels for the overall RS
+driver/co-driver homepage leaders, a centered compact RS standings position column,
+and RS4 red / RS2 blue badges matching NR1 / NR2. The repair is based on
+`25ddbe865475c7ff532924b8ddf86c1f27c4d390`. It removes duplicate class/status badges
+without collapsing distinct source classes, uses the existing evidence-based RS start
+count helper, changes presentation only, and coordinates the shell asset version at
+`rs-visual-2`. Synthetic browser coverage passed at 320/390/768/1440 px in both themes,
+along with the entry-policy, RallyeSport and season-readiness regressions. The normal
+non-force `origin/main` release is authorized and pending fresh drift verification and
+Pages deployment; no Firebase/GCP/data operation is part of this repair. See
+[the pre-push record](releases.md#2026-11-11-authorized-rs-parity-repair-pre-push).
 
 ### RS entry-based policy activation: recovery state
 

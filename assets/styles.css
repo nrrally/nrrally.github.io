@@ -169,6 +169,7 @@ h3 { font-size: 16px; font-weight: 750; }
 /* badges */
 .cls { display: inline-flex; align-items: center; justify-content: center; min-width: 36px; padding: 1px 7px; border-radius: 6px; font-size: 11.5px; font-weight: 800; letter-spacing: .02em; color: #fff; background: var(--nr0); }
 .cls.NR1 { background: var(--nr1); } .cls.NR2 { background: var(--nr2); } .cls.NR3 { background: var(--nr3); } .cls.NR4 { background: var(--nr4); color: #241600; }
+.cls.RS2 { background: var(--nr2); } .cls.RS4 { background: var(--nr1); }
 .badge { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 700; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); }
 .badge.final { border-color: color-mix(in srgb, var(--good) 45%, transparent); color: var(--good); background: color-mix(in srgb, var(--good) 10%, var(--surface)); }
 .badge.prov { border-color: color-mix(in srgb, var(--nr4) 60%, transparent); color: #a86f00; background: color-mix(in srgb, var(--nr4) 14%, var(--surface)); }

@@ -225,6 +225,13 @@ test('public RallyeSport pages show provisional cumulative tables and disclose u
   const listedMultiClassRow = scoringCell(listing, 'RS Driver 1');
   assert.ok(hasClassTag(listedMultiClassRow, 'RS2') && hasClassTag(listedMultiClassRow, 'RS4'));
   assert.ok(!listing.includes('RS2 / RS4'));
+  const crewMultiClassRow = api.viewRsCrews().html.split('<tr data-s="').find(row => row.includes('RS Driver 1'));
+  assert.ok(crewMultiClassRow, 'the multi-class crew is listed');
+  for (const cls of ['RS2', 'RS4']) {
+    const badge = `class="cls ${cls}">${cls}</span>`;
+    assert.equal(crewMultiClassRow.split('</tr>')[0].split(badge).length - 1, 1,
+      `a genuine multi-class crew shows one ${cls} badge despite matching scoring class`);
+  }
 });
 function entryList(entries, complete = true) {
   return { eventId: 'test-event', roundIds: ['R1'], complete,
