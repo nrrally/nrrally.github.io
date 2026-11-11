@@ -11,11 +11,14 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
-### Unreleased RS public visual parity (local work only)
+### Released RS public visual parity
 
-The current isolated public-UI work is based on
-`3e778f76178b2a0448cb3f764c4b32c12d6b536f`; it has not been committed, pushed or
-deployed. RS now follows the NR presentation for homepage class labels and starts,
+The public-UI release was committed as
+`3a68799272a72d2e2a60baaf681b812ce3196d1f` and pushed normally to `origin/main`.
+GitHub Pages built that exact SHA. The canonical HTTPS JavaScript and stylesheet
+matched the commit's Git blobs byte-for-byte; the homepage, admin, disclaimer and
+privacy shells all returned HTTP 200 and contained the coordinated cache token.
+RS now follows the NR presentation for homepage class labels and starts,
 year-round wording, standings position/class labels, round winners and Crews layout.
 Related NR event links are read from the current public NR event only when its explicit
 ID matches the RS event's `nrEventId`; do not hardcode a link or treat NR results as RS
@@ -28,15 +31,13 @@ and privacy shells. Reload old tabs. Rollback is static-only: restore those matc
 shell versions and assets together; there is no corresponding data/schema migration.
 Synthetic public browser coverage passed at 320/390/768/1440 px in both themes, the RS
 entry-policy browser regression passed, all 41 RallyeSport unit checks and 18
-season-readiness checks passed. On 2026-11-11 the user authorized a normal non-force
+season-readiness checks passed. On 2026-11-11 the user authorized the normal non-force
 release to `origin/main` and waived an additional local review because the changes are
-cosmetic. Fresh `origin/main` still matches the reviewed base, and the existing keyring
-account's push permission was verified without token extraction or global authentication
-changes. At this recovery snapshot the commit, push and Pages verification are still
-pending; no PR, Firebase/GCP/data operation or provider change is authorized.
-See the release scope and pre-push record in
-[releases.md](releases.md#2026-11-11-authorized-rs-public-visual-parity-release-pre-push)
-and the cases in [testing.md](testing.md).
+cosmetic. No PR was created, and no Firebase/GCP/data operation or provider change was
+performed as part of this UI release.
+The deployment scope, verification and remaining limitations are in
+[releases.md](releases.md#2026-11-11-authorized-rs-public-visual-parity-release)
+and the test cases are in [testing.md](testing.md).
 
 ### RS entry-based policy activation: recovery state
 

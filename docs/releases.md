@@ -31,7 +31,7 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
-## 2026-11-11: authorized RS public visual parity release (pre-push)
+## 2026-11-11: authorized RS public visual parity release
 
 - Implemented in an isolated worktree from `3e778f76178b2a0448cb3f764c4b32c12d6b536f`.
   The user authorized release to `origin/main`: "can you push and ill test it in live.
@@ -68,12 +68,22 @@ must be addressed; there is no automation that can infer approvals or certify pr
   divergent commits. The complete reviewed scope is the 11 changed code, test, shell and
   documentation paths; there are no untracked files. The latest Pages API build also
   reports this same SHA built (`2026-11-11T14:33:30Z`). The approved existing keyring
-  account has repository push permission, verified without extracting a token or changing
-  global authentication. Commit and normal non-force push to `origin/main` are authorized;
-  no PR, Firebase/GCP/data operation or provider change is authorized. This remains a
-  pre-push record until Pages reports the pushed SHA built and canonical assets are checked.
+-  account has repository push permission, verified without extracting a token or changing
+  global authentication. Commit `3a68799272a72d2e2a60baaf681b812ce3196d1f` was pushed
+  normally and without force to `origin/main`. No PR was created, and no Firebase/GCP/data
+  operation or provider change was performed as part of this release.
+- GitHub Pages reports `3a68799272a72d2e2a60baaf681b812ce3196d1f` built without error.
+  At `https://nrrally.co.za/`, `assets/site.js` and `assets/styles.css` returned HTTP 200
+  and matched their Git blobs byte-for-byte. The root, admin, disclaimer and privacy HTML
+  shells also returned HTTP 200 and contain the coordinated `rs-visual-1` cache token.
+  This verifies the static release only; it does not verify authenticated or private live
+  data. The user will perform the live UI review.
 - Reload old tabs to receive `rs-visual-1`. Rollback is static-only; no database restore
   is needed. Live authenticated data/source verification remains outside this release.
+- This documentation-only handover records the completed push and static Pages checks.
+  It changes no runtime behavior, scoring, data, cache version or authorization scope.
+  Before its own normal push, recheck `origin/main`; afterward verify the resulting Pages
+  SHA and that the runtime assets remain unchanged.
 
 ## 2026-11-11: RS entry-based policy activation (documentation-only completion)
 
