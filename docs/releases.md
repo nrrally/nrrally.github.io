@@ -31,6 +31,77 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## 2026-11-11: authorized public welcome/navigation/guide UI release
+
+- Fetched `origin/main` and worktree HEAD both matched
+  `95643f5e7ef02dc904c52eeb95d7f7b7a1ad56af`, reconfirmed before release. After local
+  preview/review the user explicitly requested a visible MENU label and "push to live",
+  authorizing commit and normal non-force `origin/main` push/Pages deployment of this
+  whole UI batch. No PR, Firebase/GCP access, data publication or provider changes are
+  authorized. This pre-push entry does not assert a completed deployment.
+- The requested welcome is **Welcome to RallyeSport** in `display-context.js`, not
+  the independent active-rally warning. Continue, Info and Escape now persist a
+  seven-day absolute expiry in `nr-rs-welcome-until` local storage. Automatic NR-to-RS
+  switches suppress the welcome before expiry without extending it, including after
+  reload/restart; at expiry the next switch shows it. Navigation/refresh alone do not
+  open it. Route cleanup does not acknowledge it. Explicit manual helper reopening,
+  keyboard/focus behavior and the static privacy/disclaimer controls are preserved.
+- Invalid/expired preferences do not suppress it. Storage read/write failure logs a
+  warning and preserves only page-local dismissal; clearing site storage resets it.
+  Analytics opt-out/consent and active-rally session bypass/manual reminder are unchanged.
+  The privacy page now explains the separate seven-day preference.
+- NRC's rendered desktop/mobile menus were inspected in real Chromium: full wide
+  navigation becomes a hamburger with stacked links, toggle-to-close and closure on
+  selection. Our implementation uses that responsive principle, not NRC code/assets,
+  at a header-content-tested 1200 px breakpoint. Narrow desktop windows also collapse;
+  wide navigation remains full. The accessible disclosure closes on Escape, selection,
+  outside click/focus and breakpoint changes. Active routes, year, NR/RS and theme
+  controls remain intact. Short menus scroll vertically, never horizontally.
+  The hamburger now includes a clearly visible MENU label, retained alongside the
+  close icon while expanded; accessible Main menu naming and expanded state remain.
+- Getting started retains the same year selector/pill as other results pages.
+  Existing year-prefixed routing carries the selected results context through guide
+  links/topics, year changes, reload/history and return navigation. It still renders one
+  shared guide without new yearly content, edition relabelling or a database dependency.
+- The same shared guide now meaningfully includes RS in its National/Regional comparison:
+  club championship, standalone or shared selected-stage programmes that vary by round,
+  typically the lowest costs without a price guarantee, and its own SSRs. Newcomers are
+  directed to the applicable RS SSRs and each round's event SRs/official programme for
+  exact stages, entry/licensing requirements and costs. The dated 2026 RS SSR link is
+  reused from the existing documented source; NRC/NR technical distinctions are retained.
+  The user also supplied that exact official PDF URL: it appears inline as
+  **2026 RallyeSport SSRs** and in the dated reference list, with the existing safe
+  external-link attributes, not the misleading NR label from the pasted link.
+- No engine/scoring/schema/rules or database changes, migrations or publication.
+  Guide reference edition stays 2026. Shell/asset queries advance together to
+  `welcome-7d-1` across index/admin/disclaimer/privacy. Reload old tabs; roll back
+  matching static shells/assets together, with no database restore needed. Older code
+  ignores the new preference key.
+- Validation: all 112 synthetic Node tests passed. The intercepted rally-notice browser
+  suite passed first selection,
+  reload/restart persistence, one millisecond before/exact seven-day expiry, Continue,
+  Info, Escape, explicit reopen, privacy-shell sharing and storage-denied fallback,
+  alongside existing active-rally/admin/mock-publication/focus/responsive regressions.
+  The intercepted analytics, full public theme and admin-access browser suites passed,
+  with no live collection or provider writes. The focused navigation runner passed both
+  themes/competitions at 320/390/768/1024/1199/1200/1201/1440 px, including all routes,
+  guide year context/content, selector/theme behavior, keyboard/focus/outside/selection,
+  including identical NRC/NR/RS guide copy and readable RS text in both contexts,
+  short-height scrolling and bidirectional resize. Existing split/profile test assertions
+  now wait for their rendered destination rather than just the new URL; the initial
+  split timing failure was also reproduced with baseline code before updating those waits.
+- Re-run focused synthetic tests after the MENU label/layout adjustment, review the full
+  diff/untracked paths and whitespace, then recheck remote main before the authorized
+  normal push. Use process-scoped standard GitHub CLI credentials without extracting
+  tokens or changing global authentication. Verify Pages built the pushed SHA, canonical
+  HTTPS and static-file bytes; keep any synthetic live-asset browser replay intercepted.
+  Stop the loopback synthetic preview after review. Real sign-in, data/source truth and
+  deployed Firestore rules remain outside this code-only release.
+- Final pre-push checks after adding MENU passed: all 112 Node tests plus navigation,
+  active-rally/welcome and full public-theme browser runners. MENU remains visible in
+  both disclosure states, the icon changes correctly and the 320 px layout still fits.
+  Earlier same-batch analytics/admin browser passes remain recorded above.
+
 ## 2026-11-11: authorized RS class-label continuity release
 
 - Freshly fetched base: `bf698ff9c80014e998322d78a414a357b66713ff`. The user requested

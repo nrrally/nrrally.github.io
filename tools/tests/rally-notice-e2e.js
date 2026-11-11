@@ -101,6 +101,42 @@ async function main() {
     const open = () => page.locator('dialog.rally-notice[open]');
     await visit('#/');
     assert.equal(await page.locator('.rally-reminder, .rally-notice').count(), 0);
+    // The RallyeSport welcome is separate from the active-rally warning.
+    const start = Date.parse('2027-01-01T10:00:00Z'), week = 7 * 86400000;
+    await page.clock.install({ time: new Date(start) });
+    const switchRs = async p => {
+      await p.getByRole('switch', { name: 'RallyeSport competition' }).click();
+      await p.waitForFunction(() => document.getElementById('competitionBtn').getAttribute('aria-checked') === 'true');
+    };
+    const welcome = p => p.getByRole('dialog', { name: 'Welcome to RallyeSport' });
+    await switchRs(page); await welcome(page).waitFor();
+    await welcome(page).getByRole('button', { name: 'Continue', exact: true }).click();
+    const until = Number(await page.evaluate(() => localStorage.getItem('nr-rs-welcome-until')));
+    assert.ok(until >= start + week && until < start + week + 60000);
+    await visit('#/?competition=nr'); await switchRs(page);
+    assert.equal(await welcome(page).count(), 0, 'reload preserves dismissal');
+    // A fresh context with only persisted local storage models a browser restart (no session storage).
+    const restarted = await context({ storageState: await ctx.storageState() }), restartPage = await restarted.newPage();
+    await restartPage.clock.install({ time: new Date(until - 1) });
+    await restartPage.clock.setFixedTime(until - 1);
+    await restartPage.goto(base + '/index.html#/?competition=nr'); await switchRs(restartPage);
+    assert.equal(await welcome(restartPage).count(), 0, 'suppressed until the last millisecond');
+    await restartPage.clock.setFixedTime(until);
+    await restartPage.getByRole('switch', { name: 'RallyeSport competition' }).click();
+    await restartPage.waitForFunction(() => document.getElementById('competitionBtn').getAttribute('aria-checked') === 'false');
+    await switchRs(restartPage); await welcome(restartPage).waitFor();
+    await welcome(restartPage).getByRole('link', { name: 'click here to find out more' }).click();
+    await restartPage.waitForURL(url => url.hash.includes('/info'));
+    assert.equal(await welcome(restartPage).count(), 0);
+    assert.equal(Number(await restartPage.evaluate(() => localStorage.getItem('nr-rs-welcome-until'))), until + week);
+    await restartPage.goto(base + '/privacy.html?competition=nr');
+    await switchRs(restartPage);
+    assert.equal(await welcome(restartPage).count(), 0, 'static privacy shell shares the preference');
+    await restartPage.evaluate(() => window.NRDisplay.welcome('index.html#/info?competition=rs'));
+    await welcome(restartPage).waitFor(); await restartPage.keyboard.press('Escape');
+    await restarted.close();
+    await page.clock.resume();
+    await visit('#/?competition=nr');
     await admin.goto(base + '/admin/index.html'); await admin.waitForSelector('.adm-main h1');
     await go('#/site'); await admin.waitForSelector('#activeRallyEnabled');
     assert.equal(await admin.isChecked('#activeRallyEnabled'), false);
@@ -271,11 +307,22 @@ async function main() {
     const deniedPage = await denied.newPage();
     await deniedPage.goto(base + '/index.html'); await deniedPage.locator('dialog[open]').waitFor();
     await deniedPage.getByRole('button', { name: 'View past results' }).click();
+    await switchRs(deniedPage); await welcome(deniedPage).waitFor();
+    await deniedPage.keyboard.press('Escape');
+    await deniedPage.getByRole('switch', { name: 'RallyeSport competition' }).click();
+    await deniedPage.waitForFunction(() => document.getElementById('competitionBtn').getAttribute('aria-checked') === 'false');
+    await switchRs(deniedPage);
+    assert.equal(await welcome(deniedPage).count(), 0, 'storage failure still suppresses on this page');
     await deniedPage.evaluate(() => location.hash = '#/info');
     assert.equal(await deniedPage.locator('dialog[open]').count(), 0);
     assert.ok(await deniedPage.locator('.rally-reminder').isVisible());
-    await deniedPage.reload(); await deniedPage.locator('dialog[open]').waitFor(); await denied.close();
+    await deniedPage.reload(); await deniedPage.locator('dialog.rally-notice[open]').waitFor();
+    await deniedPage.getByRole('button', { name: 'View past results' }).click();
+    await deniedPage.getByRole('switch', { name: 'RallyeSport competition' }).click();
+    await deniedPage.waitForFunction(() => document.getElementById('competitionBtn').getAttribute('aria-checked') === 'false');
+    await switchRs(deniedPage); await welcome(deniedPage).waitFor(); await denied.close();
     assert.ok(warnings.some(m => m.includes('visit storage is unavailable')));
+    assert.ok(warnings.some(m => m.includes('RallyeSport welcome dismissal could not be saved')));
     // Long and markup-like names remain text, even in a short 320 px viewport.
     const publishedSite = json('public/site'), longName = { ...publishedSite,
       activeRally: { ...publishedSite.activeRally, name: '<img src=x onerror=alert(1)>' + 'X'.repeat(90) } };
@@ -300,7 +347,7 @@ async function main() {
     await page.goto(base + '/disclaimer.html'); await page.reload();
     assert.equal(await page.locator('.rally-reminder, .rally-notice').count(), 0);
     assert.deepEqual(errors, []); assert.deepEqual(unexpected, []);
-    console.log('PASS rally notice: manual staging, atomic publish/History, undo/restore/rebase, safe NRC URLs, session-scoped bypass/reactivation, public/error/disclaimer/admin coverage, focus/keyboard, themes and 320px layout.');
+    console.log('PASS rally notice: seven-day RallyeSport welcome persistence/restart/exact expiry/storage failure, manual reopen; active-rally session bypass, synthetic publish/History/undo/rebase, safe URLs, keyboard, themes and 320px layout.');
   } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }
 }
 main().catch(e => { console.error(e); process.exitCode = 1; });

@@ -4,6 +4,8 @@
   var sources = {
     nr: { title: '2026 Northern Regions Rally SSRs', edition: 'Version 2, 9 July 2026',
       url: 'https://www.motorsport.co.za/wp-content/uploads/2026/07/2026-MSA-NR-Regional-Rally-SSRs-V2-2.pdf' },
+    rs: { title: '2026 MSA RallyeSport Club SSRs (Rallysprint)', edition: 'Version 1, 9 July 2026',
+      url: 'https://www.motorsport.co.za/wp-content/uploads/2026/07/2026-MSA-RallyeSport-Association-SSRs-V1.pdf' },
     national: { title: '2026 MSA National Rally SSRs', edition: 'Version 2, 9 July 2026; includes provisions covering NR',
       url: 'https://www.motorsport.co.za/wp-content/uploads/2026/07/2026-MSA-National-Rally-SSRs-V2.pdf' },
     gcr: { title: '2026 MSA General Competition Rules', edition: '15 January 2026',
@@ -34,10 +36,15 @@
     { id: 'rules', title: 'Make the paperwork less mysterious', label: 'SRs & SSRs',
       lead: '<p><strong>GCRs</strong> are MSA&rsquo;s General Competition Rules. <strong>SSRs</strong> are Standing Supplementary Regulations for a championship or discipline. <strong>SRs</strong> are Supplementary Regulations for an event.</p>',
       summary: 'What to read, and who to ask',
-      detail: '<p>Start with the applicable NR and National Rally SSRs for championship and shared rally rules. Check each event&rsquo;s SRs and official bulletins for its arrangements. Regulations can change, so use the current documents.</p>' +
+      detail: '<p>Start with the applicable championship SSRs (NR, National Rally or RallyeSport) and any shared rally rules they reference. Check each event&rsquo;s SRs and official bulletins for its arrangements. Regulations can change, so use the current documents.</p>' +
         '<p>Ask MSA about licensing, a technical official about car and equipment eligibility, and the organiser about an event&rsquo;s entries and programme.</p>' },
-    { id: 'national-regional', title: 'National and Regional: shared sport, different championships', label: 'National & Regional',
-      lead: '<p>National and Northern Regions crews share the same rally community and often the same events. National competition awards South African championship titles; Northern Regions awards Regional titles. Choose the programme that fits your crew and car.</p>',
+    { id: 'national-regional', title: 'National, Northern Regions and RallyeSport: different championships', label: 'NRC, NR &amp; RS',
+      lead: '<p>National Rally Championship (NRC) and Northern Regions (NR) crews share the same rally community and often the same events. National competition awards South African championship titles; Northern Regions awards Regional titles. Choose the programme that fits your crew and car.</p>' +
+        '<h3>RallyeSport (RS): a club championship</h3>' +
+        '<p>RallyeSport is a separate club championship. It may run its own standalone events or join an NR event with a selected stage programme, which may not include all the NR stages. The arrangement varies from round to round, so do not assume the same format or stages at every event.</p>' +
+        '<p>RS is typically the lowest-cost option of the three, but that is not a guaranteed price difference. Compare entry fees and what they include, and allow for preparation, travel, service and maintenance too.</p>' +
+        '<p>RS has its own <strong>Standing Supplementary Regulations (SSRs)</strong>. Read the applicable RS SSRs, the relevant round&rsquo;s event Supplementary Regulations (SRs) and official programme for the exact stages, entry and licensing requirements, and costs. The ' +
+        link('rs', '2026 RallyeSport SSRs') + ' are a dated reference; check for current documents and bulletins through ' + link('msa') + ' and the organiser before entering.</p>',
       summary: 'Costs, classes, homologation and fuel',
       detail: '<p>Entry fees are generally cheaper for Regional competition, but compare what each entry covers and allow for other costs. The event&rsquo;s SRs set the fees.</p>' +
         '<p>The ' + link('national', '2026 National SSRs') + ' set out NRC1&ndash;NRC4 using specified vehicle categories and technical requirements. The ' + link('nr', '2026 NR SSRs') + ' describe NR1&ndash;NR4 using factors including engine capacity, induction, drivetrain and gearbox; NR0 is an optional class for National cars, with class points but no overall NR points. Matching numbers do not mean matching eligibility. The National SSRs also contain NR provisions; the 2026 NR SSRs say National rules prevail in a conflict. Check both with a technical official before choosing a class.</p>' +

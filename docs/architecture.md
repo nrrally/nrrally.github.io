@@ -80,7 +80,7 @@ scoring-contract version.
 | `#/<year>/rallyesport/<resultId>`, `…/<resultId>/graph`, `…/classification`, `…/stages` | RS result defaults to Stage graph, including legacy bare result links. Classification and Stage times are explicit tabs. RS-only events need no NR round. |
 | `#/<year>/crews` | Everyone in the season |
 | `#/person/<id>` | One person across all seasons |
-| `#/getting-started`, `#/getting-started/<topic>` | Shared newcomer guide, not a season-specific rules page |
+| `#/getting-started`, `#/getting-started/<topic>` (also with `#/<year>/` context) | One shared newcomer guide, not a season-specific rules page |
 | `#/<year>/about` | Sources and data notes |
 | `#/<year>/info`, `#/info` | Selected-season documents/events plus shared championship introduction and labelled shared useful links |
 
@@ -93,9 +93,38 @@ competition. Legacy homepage `leaders/classes/results=rs` links activate site-wi
 Home, standings, rounds, crews, profiles and sources use only that competition.
 Getting Started and Info retain their content. Privacy/disclaimer share display
 preferences and mode-qualified return links; admin never loads the preference module.
-Each deliberate NR-to-RS switch opens a native labelled welcome dialog with Info and
-Continue, keyboard focus containment, Escape and focus restoration. Navigation and
-refresh do not reopen it. Cross-competition result switching requires a unique explicit
+The results header retains full navigation above 1200 px and a hamburger disclosure
+at/below 1200 px, including narrow desktop windows. The breakpoint accounts for all
+six links, year selection and display controls rather than detecting device type.
+The visible MENU label accompanies the hamburger (or close icon when expanded).
+The expanded menu stacks links below the controls, scrolls vertically in short
+viewports and retains the active-page marker. Its labelled button exposes expanded
+state; Escape/toggling closes and restores focus, outside click/focus closes without
+stealing focus, and route selection closes before focusing the new content heading.
+Breakpoint changes reset the disclosure and move focus out of newly hidden controls.
+Admin and the short static privacy/disclaimer navigation do not acquire this menu.
+
+Getting started keeps the same year selector/pill as other results routes. Existing
+year-prefixed hash parsing carries navigation context through guide links, topics,
+reload/history and year changes; changing year while reading it stays on the guide.
+The unprefixed legacy links still work and the content remains one database-independent
+guide with separately labelled source editions, never a new yearly guide.
+Its NRC/NR comparison includes a visible RS club-championship introduction: standalone
+or selected-stage shared events, round-specific programmes, typically lower costs without
+a price guarantee, and separate RS SSRs/event instructions. The linked 2026 RS SSRs are
+the existing documented reference, not a claim that a later edition has been verified.
+
+An NR-to-RS switch opens a native labelled RallyeSport welcome dialog unless dismissed
+within the past seven days. Continue, Info and Escape save the absolute expiry in
+`nr-rs-welcome-until` local storage; suppressed switches do not extend it. This preference
+survives reloads/browser restarts on the same origin and is separate from analytics
+choices and the active-rally warning. Invalid/expired values do not suppress the welcome.
+Storage errors warn and retain dismissal only on the current page; clearing site storage
+resets it. Route cleanup is not acceptance. Navigation/refresh alone still do not open it,
+even at expiry: the next NR-to-RS switch does. The shared `NRDisplay.welcome(infoHref)`
+helper can still explicitly reopen it; automatic callers pass `true` as the second argument.
+Keyboard focus containment, Escape and focus restoration are unchanged.
+Cross-competition result switching requires a unique explicit
 `nrRoundId` association and an existing destination; otherwise it returns to rounds.
 
 RS class labels in classifications, crews, profiles, graphs and stage tables use the

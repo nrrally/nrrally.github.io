@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   var mode = 'nr', theme = null;
+  var welcomeKey = 'nr-rs-welcome-until', welcomeDuration = 7 * 24 * 60 * 60 * 1000, welcomeUntil = 0;
   try { mode = localStorage.getItem('nr-competition') === 'rs' ? 'rs' : 'nr'; theme = localStorage.getItem('nr-theme'); } catch (e) { console.warn('Display preferences could not be read; URL preferences remain available.', e); }
   var explicit = new URLSearchParams(location.search).get('competition');
   if (explicit === 'nr' || explicit === 'rs') mode = explicit;
@@ -35,7 +36,20 @@
     var toggle = document.getElementById('competitionBtn');
     if (toggle) toggle.focus({ preventScroll: true });
   }
-  function welcome(infoHref) {
+  function welcomeDismissed() {
+    var now = Date.now(), until = welcomeUntil;
+    try { until = Math.max(until, Number(localStorage.getItem(welcomeKey)) || 0); }
+    catch (e) { console.warn('RallyeSport welcome preference could not be read; only this page can remember dismissal.', e); }
+    return Number.isFinite(until) && until > now && until <= now + welcomeDuration;
+  }
+  function dismissWelcome() {
+    welcomeUntil = Date.now() + welcomeDuration;
+    try { localStorage.setItem(welcomeKey, String(welcomeUntil)); }
+    catch (e) { console.warn('RallyeSport welcome dismissal could not be saved; it lasts only on this page.', e); }
+    closeWelcome();
+  }
+  function welcome(infoHref, automatic) {
+    if (automatic && welcomeDismissed()) return;
     closeWelcome();
     var dialog = document.createElement('dialog');
     dialog.className = 'competition-welcome';
@@ -47,9 +61,9 @@
     dialog.querySelector('a').setAttribute('href', infoHref);
     document.body.appendChild(dialog);
     document.body.classList.add('competition-welcome-open');
-    dialog.querySelector('button').addEventListener('click', closeWelcome);
-    dialog.querySelector('a').addEventListener('click', closeWelcome);
-    dialog.addEventListener('cancel', function (event) { event.preventDefault(); closeWelcome(); });
+    dialog.querySelector('button').addEventListener('click', dismissWelcome);
+    dialog.querySelector('a').addEventListener('click', dismissWelcome);
+    dialog.addEventListener('cancel', function (event) { event.preventDefault(); dismissWelcome(); });
     dialog.addEventListener('keydown', function (event) {
       if (event.key !== 'Tab') return;
       var first = dialog.querySelector('a'), last = dialog.querySelector('button');
@@ -78,7 +92,7 @@
       document.getElementById('competitionBtn').setAttribute('aria-checked', String(mode === 'rs'));
       history.replaceState(null, '', location.pathname + '?competition=' + mode + location.hash);
       updateLinks();
-      if (mode === 'rs') welcome('index.html#/info?competition=rs');
+      if (mode === 'rs') welcome('index.html#/info?competition=rs', true);
     });
   });
 })();

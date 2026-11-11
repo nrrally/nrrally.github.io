@@ -80,6 +80,36 @@ node tools/tests/admin-access-e2e.js
 
 The first command needs Node only. The browser test needs an existing Playwright installation (`PLAYWRIGHT_MODULE` may point to it). It serves the checkout locally, supplies fake authentication and intercepts Firestore requests with an in-process mock; other external requests are refused. Never run synthetic imports against live Firebase.
 
+The rally-notice unit/browser runners also cover the distinct **Welcome to RallyeSport**
+dialog in `display-context.js`. Synthetic clocks check first NR-to-RS selection, Continue,
+Info and Escape acknowledgement, unchanged expiry across reloads, a new context carrying
+only persisted storage (browser-restart equivalent), one millisecond before/exactly at
+seven-day expiry, invalid stored values, read/write failures and page-only fallback.
+Route cleanup must not acknowledge the welcome. Explicit manual reopening and shared
+privacy-shell suppression remain available; the active-rally warning retains its separate
+session bypass and manual reminder. The public theme suite keeps keyboard/focus and
+responsive welcome checks, including suppressed repeat switches. No live database or
+analytics requests are used.
+
+Run `node tools\tests\navigation-e2e.js` for the responsive public header. It reuses
+synthetic published fixtures and intercepts all external traffic. It checks full
+navigation at 1440/1201 px and collapsed navigation at 1200/1199/1024/768/390/320 px,
+both themes and NR/RS: all links, active route, year/theme controls, Enter/Space/Tab,
+Escape/focus restoration, outside click/focus, selection closure, resize in both
+directions, a visible MENU label and open/closed icons, and a short viewport with a
+reachable last link. Header controls must not
+overlap and navigation must not scroll horizontally on either side of the breakpoint.
+Multi-year fixtures check that the selector stays visible on Getting started, preserves
+context through reload/back/forward and return navigation, and never changes the shared
+guide's content. Optional `NAVIGATION_SCREENSHOT_DIR` writes synthetic captures outside
+Git. The NRC design reference was inspected separately in real Chromium at wide/narrow
+viewports; no NRC code/assets are included.
+The guide unit test checks the visible NRC/NR/RS comparison, retained National/Regional
+distinction, club/standalone/selected-stage explanation, variable round programme,
+qualified cost comparison, RS SSRs and event-specific requirements. It preserves the
+dated existing RS source URL. The navigation browser runner verifies identical guide
+copy in both NR/RS contexts and readable, overflow-free RS copy at every tested width.
+
 ### Season-readiness reproduction
 
 `season-readiness.test.js` renders the actual public-site functions in an instrumented
@@ -88,7 +118,7 @@ does not expose a test API. It verifies calendar-only/wholly empty seasons; usef
 actions and omission of zero result statistics/leaders; missing/partial/complete-empty/
 two-day entry counts and day scope; entry-only profiles; archived notes/MSA/results and
 historical identities; strict invalid/leap dates; future/today/past/undated missing rounds;
-selected-season Info links; and the guide header without a season selector or edition badge.
+selected-season Info links; and the guide header retaining its season control without an edition badge.
 Populated synthetic 2026 models retain standings/points/status evidence unchanged.
 
 Date assertions pin 21:59:59 UTC, 22:00:00 UTC and the following South African midnight,

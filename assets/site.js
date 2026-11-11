@@ -247,7 +247,7 @@
   function showCompetitionWelcome() {
     if (!welcomePending) return;
     welcomePending = false;
-    window.NRDisplay.welcome(sh('/info'));
+    window.NRDisplay.welcome(sh('/info'), true);
   }
   var lastPath = null;
   function setQuery(patch) {
@@ -263,19 +263,22 @@
   /* ------------------------------------------------------------------ shell */
   function header(active) {
     var S = ST.site || { siteName: 'Northern Regions Rally' }, guide = active === 'getting-started';
-    var NAV = [['', 'Home', sh('')], ['standings', 'Standings', sh('/standings')], ['rounds', 'Rounds & graphs', sh('/rounds')], ['crews', 'Crews', sh('/crews')], ['getting-started', 'Getting started', '#/getting-started'], ['info', 'Info', sh('/info')]];
+    var NAV = [['', 'Home', sh('')], ['standings', 'Standings', sh('/standings')], ['rounds', 'Rounds & graphs', sh('/rounds')], ['crews', 'Crews', sh('/crews')], ['getting-started', 'Getting started', sh('/getting-started')], ['info', 'Info', sh('/info')]];
     var links = NAV.map(function (n) {
       var on = n[0] === active || (n[0] === 'rounds' && active === 'round') || (n[0] === 'crews' && active === 'person') || (n[0] === 'info' && active === 'about');
       return '<a href="' + n[2] + '"' + (on ? ' class="active" aria-current="page"' : '') + '>' + n[1] + '</a>';
     }).join('');
     var years = seasonList();
-    var sel = guide ? '' : years.length > 1 ? '<label class="season-sel"><span class="sr-only">Season</span><select id="seasonSel">' + years.map(function (y) {
+    var sel = years.length > 1 ? '<label class="season-sel"><span class="sr-only">Season</span><select id="seasonSel">' + years.map(function (y) {
       return '<option value="' + y + '"' + (y === YEAR ? ' selected' : '') + '>' + y + ' season</option>';
-    }).join('') + '</select></label>' : '<span class="season-pill" title="Season">' + esc(YEAR) + '</span>';
-    return '<header class="site-header"><div class="checker" aria-hidden="true"></div><div class="header-inner">' +
+    }).join('') + '</select></label>' : YEAR ? '<span class="season-pill" title="Season">' + esc(YEAR) + '</span>' : '';
+    return '<header class="site-header public-header"><div class="checker" aria-hidden="true"></div><div class="header-inner">' +
       '<a class="brand" href="#/" aria-label="' + esc(S.siteName) + ' home">' + logoImg() +
       '<span class="brand-text"><strong>' + esc(S.siteName) + '</strong><span>' + (guide ? 'Getting started' : esc(YEAR) + (competition === 'rs' ? ' RallyeSport' : ' Championship')) + '</span></span></a>' +
-      '<nav class="nav" aria-label="Main">' + links + '</nav>' + sel +
+      '<button class="nav-toggle" id="navigationToggle" type="button" aria-label="Main menu" aria-controls="publicNav" aria-expanded="false">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path class="nav-bars" d="M4 6h16M4 12h16M4 18h16"/>' +
+      '<path class="nav-cross" d="m6 6 12 12M6 18 18 6"/></svg><span>MENU</span></button>' +
+      '<nav class="nav public-nav" id="publicNav" aria-label="Main">' + links + '</nav>' + sel +
       window.NRDisplay.controls() +
       '</div></header>';
   }
@@ -290,7 +293,24 @@
   }
 
   /* ------------------------------------------------------------------ render */
-  var mounts = [];
+  var mounts = [], navigationFocusPending = false, navigationLastFocus = null;
+  function setNavigation(open, restoreFocus) {
+    var button = document.getElementById('navigationToggle'), nav = document.getElementById('publicNav');
+    if (!button || !nav) return;
+    button.setAttribute('aria-expanded', String(open));
+    nav.classList.toggle('is-open', open);
+    if (restoreFocus) button.focus({ preventScroll: true });
+  }
+  function mountNavigation() {
+    var button = document.getElementById('navigationToggle'), nav = document.getElementById('publicNav');
+    button.addEventListener('click', function () { setNavigation(button.getAttribute('aria-expanded') !== 'true'); });
+    nav.addEventListener('click', function (event) {
+      var link = event.target.closest('a');
+      if (!link || button.getAttribute('aria-expanded') !== 'true') return;
+      navigationFocusPending = link.getAttribute('href') !== location.hash;
+      setNavigation(false, true);
+    });
+  }
   function render() {
     window.NRDisplay.closeWelcome();
     var h = parseHash(); var parts = h.parts;
@@ -299,6 +319,9 @@
     if (canonical !== location.hash) history.replaceState(null, '', canonical);
     var page = parts[0] || '';
     if (page === 'getting-started') {
+      var guideYears = seasonList(), guideYear = h.year || YEAR || (ST.site && +ST.site.currentSeason);
+      if (guideYears.length && guideYears.indexOf(guideYear) < 0) guideYear = +ST.site.currentSeason;
+      YEAR = guideYear || null; SP = YEAR ? '/' + YEAR : '';
       mounts = []; charts = {}; chartSeq = 0;
       renderView(window.NRGettingStarted.view(), page, h);
       return;
@@ -348,18 +371,20 @@
       var href = link.getAttribute('href');
       if (href.indexOf('#/') !== 0) return;
       var target = href.replace(/^#\/(?:\d{4}\/)?/, '').split(/[/?]/)[0];
+      if (target === 'getting-started' && YEAR) href = href.replace(/^#\/(?:\d{4}\/)?getting-started/, '#/' + YEAR + '/getting-started');
       link.setAttribute('href', competitionHref(href, target === 'rallyesport' ? 'rs' : target === 'round' ? 'nr' : competition));
     });
     document.title = (view.title ? view.title + ' — ' : '') + (ST.site ? ST.site.siteName : 'Northern Regions Rally') + (page === 'getting-started' ? '' : ' ' + YEAR);
     window.NRDisplay.mount(switchCompetition);
+    mountNavigation();
     var ss = document.getElementById('seasonSel');
     if (ss) ss.addEventListener('change', function () {
-      var keep = { standings: 1, rounds: 1, crews: 1, about: 1, info: 1 };
-      location.hash = '#/' + ss.value + (keep[page] ? '/' + page + (page === 'standings' && parts[1] ? '/' + parts[1] : '') : '') +
+      var keep = { standings: 1, rounds: 1, crews: 1, about: 1, info: 1, 'getting-started': 1 };
+      location.hash = '#/' + ss.value + (keep[page] ? '/' + page + ((page === 'standings' || page === 'getting-started') && parts[1] ? '/' + parts[1] : '') : '') +
         qstr({ competition: competition });
     });
     mounts.forEach(function (fn) { fn(); });
-    if (page === 'getting-started') {
+    if (page === 'getting-started' && document.querySelector('.public-nav').getClientRects().length) {
       document.querySelector('.nav a.active').scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
     window.scrollTo(0, keepScroll);
@@ -371,6 +396,11 @@
       }
     }
     lastPath = pathKey;
+    if (navigationFocusPending) {
+      navigationFocusPending = false;
+      var heading = document.querySelector('main h1, main h2');
+      if (heading) { heading.setAttribute('tabindex', '-1'); heading.focus({ preventScroll: true }); }
+    }
     showCompetitionWelcome();
     if (window.NRAnalytics) window.NRAnalytics.page(h.parts, YEAR);
   }
@@ -1814,6 +1844,32 @@
   }
 
   /* ------------------------------------------------------------------ boot */
+  document.addEventListener('keydown', function (event) {
+    var button = document.getElementById('navigationToggle');
+    if (event.key === 'Escape' && button && button.getAttribute('aria-expanded') === 'true') {
+      event.preventDefault(); setNavigation(false, true);
+    }
+  });
+  function closeOutsideNavigation(event) {
+    var button = document.getElementById('navigationToggle'), nav = document.getElementById('publicNav');
+    if (button && nav && !button.contains(event.target) && !nav.contains(event.target)) setNavigation(false);
+  }
+  document.addEventListener('click', closeOutsideNavigation);
+  document.addEventListener('focusin', function (event) {
+    navigationLastFocus = event.target;
+    closeOutsideNavigation(event);
+  });
+  var compactNavigation = window.matchMedia('(max-width: 1200px)');
+  compactNavigation.addEventListener('change', function () {
+    var button = document.getElementById('navigationToggle'), nav = document.getElementById('publicNav');
+    if (!button || !nav) return;
+    // CSS can hide and blur the focused control before this callback runs.
+    var focus = document.activeElement === document.body ? navigationLastFocus : document.activeElement;
+    var inside = focus && nav.contains(focus), onButton = focus === button;
+    setNavigation(false);
+    if (compactNavigation.matches && inside) button.focus();
+    else if (!compactNavigation.matches && onButton) (nav.querySelector('.active') || nav.querySelector('a')).focus();
+  });
   window.addEventListener('hashchange', render);
   render();
   loadSiteAndPeople().then(function (res) {

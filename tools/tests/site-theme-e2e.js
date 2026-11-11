@@ -172,6 +172,11 @@ async function main() {
         return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
       }), false, 'branding and display controls must not overlap');
     };
+    const navigate = async (p, name) => {
+      const toggle = p.locator('#navigationToggle');
+      if (await toggle.isVisible() && await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
+      await p.locator('.nav').getByRole('link', { name, exact: true }).click();
+    };
     if (process.env.RS_PRESENTATION_SCREENSHOT_DIR) {
       fs.mkdirSync(process.env.RS_PRESENTATION_SCREENSHOT_DIR, { recursive: true });
       for (const width of [1440, 390]) {
@@ -284,6 +289,7 @@ async function main() {
           Array.from(row.cells, cell => cell.querySelector('.ptcell b')?.textContent || cell.textContent.trim())));
         const ordinaryRows = await tableValues();
         await page.getByRole('link', { name: 'Overall + class split' }).click();
+        await page.locator('.filters .seg a.on').filter({ hasText: 'Overall + class split' }).waitFor();
         assert.ok(page.url().includes('pts=split'));
         assert.deepEqual(await tableValues(), ordinaryRows, 'the split never changes standings values or ordering');
         assert.match(await page.locator('main').innerText(), /overall totals reuse class points; no separate overall points/i);
@@ -320,6 +326,7 @@ async function main() {
         assert.equal(await page.getByRole('dialog').count(), 0);
         await page.goForward();
         await page.waitForFunction(() => document.getElementById('competitionBtn').getAttribute('aria-checked') === 'false');
+        await page.evaluate(() => localStorage.removeItem('nr-rs-welcome-until'));
         await competitionSwitch().focus();
         await page.keyboard.press('Enter');
         const welcome = page.getByRole('dialog', { name: 'Welcome to RallyeSport' });
@@ -338,6 +345,9 @@ async function main() {
         await page.waitForFunction(() => document.getElementById('competitionBtn').getAttribute('aria-checked') === 'false');
         await competitionSwitch().focus();
         await page.keyboard.press('Space');
+        await page.waitForFunction(() => document.getElementById('competitionBtn').getAttribute('aria-checked') === 'true');
+        assert.equal(await welcome.count(), 0, 'acknowledged welcome stays suppressed on another RS switch');
+        await page.evaluate(() => window.NRDisplay.welcome('#/info?competition=rs'));
         await welcome.waitFor();
         await page.getByRole('button', { name: 'Continue', exact: true }).click();
         await visit('#/?competition=rs');
@@ -416,15 +426,14 @@ async function main() {
           return { accent: css.getPropertyValue('--accent').trim(), category: css.getPropertyValue('--nr2'), good: css.getPropertyValue('--good') };
         });
         assert.equal(palette.accent, theme === 'light' ? '#1254b5' : '#9dc4ff');
-        const nav = name => page.locator('.nav').getByRole('link', { name, exact: true });
-        await nav('Standings').click();
+        await navigate(page, 'Standings');
         await page.getByRole('heading', { name: 'RS drivers', exact: true }).waitFor();
         assert.ok(!(await page.innerText('main')).includes('Minimum 1 starts'));
         await page.getByRole('link', { name: 'RS4', exact: true }).click();
         await page.locator('table.data tbody tr').filter({ hasText: 'Synthetic Driver 4' }).waitFor();
         await page.getByRole('link', { name: 'Co-drivers', exact: true }).click();
         await page.getByRole('heading', { name: 'RS co-drivers', exact: true }).waitFor();
-        await nav('Crews').click();
+        await navigate(page, 'Crews');
         await page.getByRole('heading', { name: 'RS crews', exact: true }).waitFor();
         const unverifiedCrew = page.locator('#crewTable tbody tr').filter({ hasText: 'Synthetic Driver 6' });
         assert.equal(await unverifiedCrew.locator('td').first().innerText(), 'Synthetic Driver 6');
@@ -452,11 +461,13 @@ async function main() {
         assert.ok(await page.locator('.chart-card svg[aria-label="Points by round"]').count(),
           'NR keeps its existing points chart');
         await competitionSwitch().click();
-        await page.getByRole('dialog').getByRole('button', { name: 'Continue', exact: true }).click();
         await page.waitForURL(url => url.hash.includes('/person/alex-test?competition=rs'));
+        await page.locator('.rs-profile-points svg').waitFor();
+        assert.equal(await page.getByRole('dialog').count(), 0);
         assert.equal(await page.locator('.profile-head').innerText(), sharedProfileHeader);
         assert.equal(await page.locator('.rs-profile-points svg').count(), 1);
         await page.locator('a[href*="/graph?cars=1"][href*="competition=rs"]').first().click();
+        await page.locator('.car-btn[data-car="1"][aria-pressed="true"]').waitFor();
         await page.locator('.chart-card svg').waitFor();
         assert.equal(await page.locator('.car-btn[aria-pressed="true"]').count(), 1);
         assert.equal(await page.locator('.car-btn[data-car="1"]').getAttribute('aria-pressed'), 'true',
@@ -465,13 +476,13 @@ async function main() {
         await page.reload();
         await page.locator('.profile-head h1').filter({ hasText: 'Alex Test' }).waitFor();
         assert.equal(await page.getByRole('dialog').count(), 0);
-        await nav('Getting started').click();
+        await navigate(page, 'Getting started');
         await page.locator('.getting-started').waitFor();
         assert.equal(await competitionSwitch().getAttribute('aria-checked'), 'true');
-        await nav('Info').click();
+        await navigate(page, 'Info');
         await page.getByRole('heading', { name: 'About the championship', exact: true }).waitFor();
         assert.ok(page.url().includes('competition=rs'));
-        await nav('Home').click();
+        await navigate(page, 'Home');
         await page.getByRole('heading', { name: 'RS class leaders · drivers' }).waitFor();
         await page.goto(base + '/index.html');
         await page.getByRole('heading', { name: 'RS class leaders · drivers' }).waitFor();
@@ -491,6 +502,8 @@ async function main() {
         assert.equal(nrPalette.category, palette.category);
         assert.equal(nrPalette.good, palette.good);
         await competitionSwitch().click();
+        await page.waitForFunction(() => document.getElementById('competitionBtn').getAttribute('aria-checked') === 'true');
+        await page.evaluate(() => window.NRDisplay.welcome('#/info?competition=rs'));
         await page.getByRole('dialog').getByRole('link', { name: 'click here to find out more' }).click();
         await page.getByRole('heading', { name: 'About the championship', exact: true }).waitFor();
         assert.ok(page.url().includes('competition=rs'));
@@ -667,7 +680,7 @@ async function main() {
     await deniedPage.reload();
     await deniedPage.getByRole('heading', { name: 'RS class leaders · drivers' }).waitFor();
     assert.equal(await deniedPage.getByRole('dialog').count(), 0);
-    await deniedPage.locator('.nav').getByRole('link', { name: 'Crews', exact: true }).click();
+    await navigate(deniedPage, 'Crews');
     await deniedPage.getByRole('heading', { name: 'RS crews', exact: true }).waitFor();
     await deniedPage.close();
     // A bundled guide is readable without results; topic navigation works by keyboard.
@@ -683,11 +696,14 @@ async function main() {
         assert.equal(await page.locator('.guide-orientation').count(), 0);
         assert.ok(!/rally[- ]raid/i.test(await page.locator('.getting-started').textContent()));
         assert.equal(await page.locator('.nav a[aria-current="page"]').innerText(), 'Getting started');
+        const toggle = page.locator('#navigationToggle');
+        if (await toggle.isVisible()) await toggle.click();
         assert.ok(await page.locator('.nav a.active').evaluate(el => {
           const a = el.getBoundingClientRect(), n = el.closest('nav').getBoundingClientRect();
           return a.left >= n.left - 1 && a.right <= n.right + 1;
         }), 'Active guide navigation remains visible on mobile');
-        assert.equal(await page.locator('#seasonSel').count(), 0);
+        if (await toggle.isVisible()) await page.keyboard.press('Escape');
+        assert.equal(await page.locator('#seasonSel, .season-pill').count(), 1);
         assert.equal(await page.locator('main details').count(), 10);
         if (process.env.GUIDE_SCREENSHOT_DIR && theme === 'light' && [1440, 390].includes(width)) {
           fs.mkdirSync(process.env.GUIDE_SCREENSHOT_DIR, { recursive: true });
@@ -700,7 +716,7 @@ async function main() {
         }
         assert.ok((await page.locator('main').innerText()).includes('Entering does not establish a start'));
         await noOverflow();
-        const jump = page.locator('.guide-jumps a[href="#/getting-started/during?competition=nr"]');
+        const jump = page.locator('.guide-jumps a[href="#/2026/getting-started/during?competition=nr"]');
         await jump.focus(); await page.keyboard.press('Enter');
         await page.waitForFunction(() => document.activeElement.id === 'guide-during');
         assert.ok(await page.locator('#guide-during').isVisible());
@@ -916,7 +932,8 @@ async function main() {
     await noOverflow();
     await visit('#/round/R1/classification');
     await page.getByRole('switch', { name: 'RallyeSport competition' }).click();
-    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await page.waitForFunction(() => document.getElementById('competitionBtn').getAttribute('aria-checked') === 'true');
+    assert.equal(await page.getByRole('dialog').count(), 0);
     assert.ok(page.url().includes('/rallyesport/synthetic-rs-result/classification?competition=rs'), 'only the explicit nrRoundId maps a detail switch');
     await page.getByRole('switch', { name: 'RallyeSport competition' }).click();
     await page.locator('.round-meta').waitFor();
@@ -1000,7 +1017,6 @@ async function main() {
     assert.equal(await page.getByRole('link', { name: 'Full calendar →' }).getAttribute('href'), '#/2026/rounds?competition=nr',
       'the NR empty standings state retains the NR calendar link');
     await page.getByRole('switch', { name: 'RallyeSport competition' }).click();
-    await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await page.waitForFunction(() => document.querySelectorAll('.rs-event-card').length === 6);
     assert.equal(await page.locator('.rs-event-card').count(), 6);
     assert.equal(await page.getByRole('link', { name: 'Full RS calendar & results →' }).getAttribute('href'), '#/2026/rounds?competition=rs',
@@ -1090,7 +1106,6 @@ async function main() {
     assert.equal(await page.getByRole('link', { name: 'Full calendar →' }).getAttribute('href'), '#/2026/rounds?competition=nr',
       'the NR no-results branch retains the NR calendar link');
     await page.getByRole('switch', { name: 'RallyeSport competition' }).click();
-    await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await page.waitForFunction(() => document.querySelectorAll('.rs-event-card').length === 6);
     assert.equal(await page.locator('.rs-event-card').count(), 6);
     assert.equal(await page.getByRole('link', { name: 'Full RS calendar & results →' }).getAttribute('href'), '#/2026/rounds?competition=rs',
@@ -1156,7 +1171,8 @@ async function main() {
         await page.waitForURL(url => url.hash === '#/2026/info?competition=nr');
         await page.getByRole('heading', { name: '2026 regulations & documents' }).waitFor();
         await visit('#/2027/getting-started');
-        assert.equal(await page.locator('.season-pill, #seasonSel, .guide-edition').count(), 0);
+        assert.equal(await page.locator('#seasonSel').inputValue(), '2027');
+        assert.equal(await page.locator('.guide-edition').count(), 0);
         assert.ok((await page.locator('.guide-references').innerText()).includes('2026 Northern Regions Rally SSRs'));
         assert.ok(!/reference edition|checked 8 November 2026/i.test(await page.locator('.getting-started').innerText()));
         await noOverflow();
@@ -1231,7 +1247,7 @@ async function main() {
     assert.ok(await page.locator('.site-disclosure a[href="disclaimer.html"]').isVisible());
     await visit('#/getting-started/ready');
     assert.ok(await page.locator('#guide-ready').isVisible());
-    await page.locator('.nav').getByRole('link', { name: 'Home', exact: true }).click();
+    await navigate(page, 'Home');
     await page.getByRole('heading', { name: 'Site not connected yet' }).waitFor();
     configured = true;
     databaseDown = true;

@@ -11,6 +11,43 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
+### Authorized public welcome/navigation/guide UI release
+
+The welcome titled **Welcome to RallyeSport** is owned by `assets/display-context.js`,
+not the separate active-event warning in `assets/rally-notice.js`. Continue, Info or
+Escape now save a seven-day expiry in browser local storage (`nr-rs-welcome-until`).
+Reloads/restarts retain the preference; after expiry the next NR-to-RS switch can show
+the welcome again. Storage failure logs a warning and retains only current-page dismissal.
+Clearing browser site storage resets it; no server-side preference needs recovery.
+The existing explicit welcome helper and active-event reminder can still reopen their
+respective dialogs. Analytics choice/consent behavior and active-event session bypass
+are unchanged. See [architecture.md](architecture.md) and [testing.md](testing.md).
+
+The results header collapses its links to a hamburger with a visible MENU label
+(and a close icon when expanded) at/below 1200 px, based on viewport
+width rather than device type; wider windows keep full navigation. Year, NR/RS and theme
+controls remain available. Escape, selection, outside click/focus and breakpoint resizing
+close the menu with appropriate focus handling. Static privacy/disclaimer and admin
+navigation are unchanged. Getting started now retains the year selector/pill; existing
+year-prefixed routes carry results context, not a different yearly guide. Its content,
+reference edition and database-independent rendering remain unchanged.
+The shared guide also expands the existing National/Regional comparison with a visible
+RS club-championship explanation. It covers standalone/shared selected-stage programmes,
+round-to-round variation, typical lower costs without a guarantee, separate RS SSRs and
+the need to check each event's SRs/official programme. The dated RS reference link is
+reused from the existing documented 2026 source; no new scoring rules or later edition
+are claimed.
+
+This local change is based on `95643f5e7ef02dc904c52eeb95d7f7b7a1ad56af`.
+Coordinated `welcome-7d-1` shell/asset queries require reloading open tabs.
+Static rollback must keep shells/assets together; older code ignores the new local key.
+No scoring/schema/rules/guide-edition change, data migration, Firebase/GCP access or
+database publication is needed. The user subsequently authorized committing and normally
+pushing this complete reviewed UI batch to `origin/main` for Pages deployment.
+This excludes Firebase/GCP access, data/scoring/provider changes and PR creation.
+This pre-push record is not a deployment claim; verify the exact Pages SHA and live bytes.
+Validation and remaining release limitations are recorded in [releases.md](releases.md).
+
 ### RS class display continuity
 
 Public RS class labels use the existing result-specific mappings; printed source

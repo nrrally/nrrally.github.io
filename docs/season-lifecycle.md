@@ -164,9 +164,18 @@ The maintainer reference edition remains 2026 until actual replacement documents
 reviewed. The guide directs readers to current regulations without implying the dated
 sources were verified for another season. Selecting a newer default season does not
 update the guide.
-Guide routes remain shared and omit the season selector: they are reference content,
-not a season-specific rules page. Event/document actions go to the results application's
-season context/default; the dated references remain labelled independently.
+Guide content remains shared reference material, not a season-specific rules page.
+The header retains its year selector/pill to avoid a layout jump. Existing year-prefixed
+routes preserve the selected results context through guide topics, reload/history and
+return links; changing the year keeps the same guide/topic and does not change its
+content or reference edition. Legacy unprefixed guide links still work. With no
+published season context the guide remains readable without inventing a season.
+The shared NRC/NR/RS introduction describes RS as a club championship with standalone
+or selected-stage shared programmes that vary by round, typically the lowest costs
+without guaranteeing a price, and its own SSRs. Readers must check the applicable
+RS SSRs and each round's event SRs/official programme for stages, entry/licensing and
+costs. Its RS document link reuses the already documented 2026 reference; do not treat
+that as verification of later regulations.
 
 Annual review checklist:
 

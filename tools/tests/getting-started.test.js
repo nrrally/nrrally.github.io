@@ -45,6 +45,25 @@ test('watching is the welcoming starting point, with competition requirements ke
   assert.ok(!/rally[- ]raid|Your first three steps|guide-orientation/i.test(html));
   assert.ok(html.includes('To <strong>compete</strong>'));
 });
+test('NRC, NR and RS comparison explains the club option without promising stages, eligibility or prices', () => {
+  const html = guide().html;
+  const comparison = html.slice(html.indexOf('id="guide-national-regional"'), html.indexOf('id="guide-ready"'));
+  const visible = comparison.split('<details>')[0];
+  for (const phrase of ['National Rally Championship (NRC)', 'Northern Regions (NR)',
+    'South African championship titles', 'Regional titles', 'RallyeSport (RS): a club championship',
+    'separate club championship', 'standalone events', 'join an NR event', 'selected stage programme',
+    'may not include all the NR stages', 'varies from round to round', 'typically the lowest-cost',
+    'not a guaranteed price difference', 'Standing Supplementary Regulations (SSRs)',
+    'event Supplementary Regulations (SRs)', 'official programme', 'exact stages',
+    'entry and licensing requirements', 'costs', 'dated reference', 'current documents and bulletins']) {
+    assert.ok(visible.includes(phrase), phrase);
+  }
+  assert.ok(comparison.includes('NRC1&ndash;NRC4'));
+  assert.ok(comparison.includes('NR1&ndash;NR4'));
+  assert.ok(visible.includes('https://www.motorsport.co.za/wp-content/uploads/2026/07/2026-MSA-RallyeSport-Association-SSRs-V1.pdf'));
+  assert.ok(visible.includes('>2026 RallyeSport SSRs</a>'));
+  assert.ok(html.includes('2026 MSA RallyeSport Club SSRs (Rallysprint)'));
+});
 test('maintainer edition metadata stays independent of season without a visible edition notice', () => {
   const context = { window: {} };
   vm.runInNewContext(code, context);
