@@ -31,7 +31,7 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
-## 2026-11-11: authorized RS parity repair (pre-push)
+## 2026-11-11: authorized RS parity repair
 
 - After live testing the recent public parity release, the user directly reported that
   RS2/RS4 badges appeared twice on Crews and requested three additional visual fixes:
@@ -54,12 +54,19 @@ must be addressed; there is no automation that can infer approvals or certify pr
   The new multi-class regression fails against the old renderer with two RS2 badges
   and passes with one each of the genuine RS2/RS4 classes; browser assertions also check
   leader starts, color parity and position-column alignment.
-- This repair is based on `25ddbe865475c7ff532924b8ddf86c1f27c4d390`, the latest
-  verified `origin/main` at task start. Fetch and compare main immediately before push;
-  stop if it has drifted. The user expressly authorized a normal non-force release to
-  `origin/main` and Pages verification. This entry is a pre-push record until the commit
-  is pushed and the actual Pages SHA/runtime assets are verified. No PR or data/provider
-  operation is authorized or needed.
+- The fresh pre-push check confirmed `origin/main` was
+  `25ddbe865475c7ff532924b8ddf86c1f27c4d390`, exactly the repair parent, with one local
+  commit ahead, no remote-ahead commits and a clean worktree. Commit
+  `eb31b7832016744fdbf1c8648c74f4c080a9d86f` was pushed normally and without force to
+  `origin/main`. No PR was created and no Firebase/GCP/data operation was performed.
+- GitHub Pages built `eb31b7832016744fdbf1c8648c74f4c080a9d86f`. At
+  `https://nrrally.co.za/`, `assets/site.js` and `assets/styles.css` returned HTTP 200
+  and matched the pushed Git blobs byte-for-byte. The root, admin, disclaimer and privacy
+  shells also returned HTTP 200 and carry `rs-visual-2`. This verifies the deployed
+  static repair, not authenticated/private data.
+- This documentation-only handover records the verified repair deployment and changes
+  no runtime, scoring, data or cache behavior. Before its own normal push, recheck
+  `origin/main`; afterward verify the final Pages SHA and unchanged runtime assets.
 
 ## 2026-11-11: authorized RS public visual parity release
 

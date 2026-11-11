@@ -26,8 +26,8 @@ results. The coordinator separately reported the verified TRAC N4 supplementary-
 link was added to the live NR record through its guarded audited workflow. This UI work
 does not access or modify Firebase/GCP or any live record.
 
-The initial parity deployment used coordinated static query version `rs-visual-1`.
-The authorized repair below advances it to `rs-visual-2` in the public, admin,
+The initial parity deployment used coordinated static query version `rs-visual-1`;
+the authorized repair below advanced it to `rs-visual-2` in the public, admin,
 disclaimer and privacy shells. Reload old tabs. Rollback is static-only: restore
 matching shell versions and assets together; there is no corresponding data/schema
 migration.
@@ -47,14 +47,15 @@ After live testing the parity release, the user reported duplicate RS class badg
 Crews and directly requested evidence-based round-start labels for the overall RS
 driver/co-driver homepage leaders, a centered compact RS standings position column,
 and RS4 red / RS2 blue badges matching NR1 / NR2. The repair is based on
-`25ddbe865475c7ff532924b8ddf86c1f27c4d390`. It removes duplicate class/status badges
+`25ddbe865475c7ff532924b8ddf86c1f27c4d390` and was released in
+`eb31b7832016744fdbf1c8648c74f4c080a9d86f`. It removes duplicate class/status badges
 without collapsing distinct source classes, uses the existing evidence-based RS start
 count helper, changes presentation only, and coordinates the shell asset version at
 `rs-visual-2`. Synthetic browser coverage passed at 320/390/768/1440 px in both themes,
-along with the entry-policy, RallyeSport and season-readiness regressions. The normal
-non-force `origin/main` release is authorized and pending fresh drift verification and
-Pages deployment; no Firebase/GCP/data operation is part of this repair. See
-[the pre-push record](releases.md#2026-11-11-authorized-rs-parity-repair-pre-push).
+along with the entry-policy, RallyeSport and season-readiness regressions. Pages built
+the release SHA; live `site.js` and `styles.css` matched its Git blobs, and all four
+shells served HTTP 200 with the new cache token. No Firebase/GCP/data operation is part
+of this repair. See the [release record](releases.md#2026-11-11-authorized-rs-parity-repair).
 
 ### RS entry-based policy activation: recovery state
 
