@@ -65,6 +65,28 @@ must be addressed; there is no automation that can infer approvals or certify pr
   and canonical deployed file bytes after pushing; this is a pre-push scope record,
   not a claim that deployment has already completed.
 
+### Deployment verification and documentation-only follow-up
+
+- Code commit `51a523858ce690262585100bb1e1816fdba3cb3d` was normally pushed to main.
+  The initial Pages run checked out that commit, but reported the previous revision as
+  its build version. A rebuild of unchanged main aligned the metadata: Pages reports
+  that exact code SHA **built** at `2026-11-11T07:36:54Z`. All 22 canonical HTML,
+  runtime and brand files matched Git byte-for-byte; canonical HTTPS remains enforced.
+- Focused browser checks using actual deployed static assets with synthetic mapped
+  source records passed classifications (including expanded notes), graph legends and
+  filters, stage times, crews, profiles and the retained standings toggle at all four
+  widths in both themes. Source fixtures were unchanged, with no page errors, unexpected
+  requests or real provider traffic. No live Firebase/GCP access or writes occurred.
+  A broader deployed replay hit an existing asynchronous profile-to-graph assertion;
+  it is not claimed as a full deployed-suite pass. The complete local synthetic suite
+  passed, and the focused deployed checks explicitly await/reload each route.
+- This follow-up updates only this release record and the recovery handover.
+  **No runtime, data, scoring, schema or operational behavior changes.** Before its
+  normal push, confirm main is still the verified code SHA and review the two-document
+  staged diff. Verify the resulting Pages metadata and unchanged canonical runtime
+  bytes after pushing. Real source correctness, live sign-in and deployed rules
+  remain outside this display-only verification.
+
 ## 2026-11-11: authorized RS standings split display
 
 - Based on freshly fetched `origin/main`

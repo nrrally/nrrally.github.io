@@ -21,6 +21,12 @@ The points/split toggle stays in place. The coordinated `rs-classes-1` shell/ass
 version is presentation-only: no engine, schema, rules or data migration, Firebase/GCP
 access or publication. Reload old tabs; roll back the matching static shells/assets
 together without restoring or republishing the database. See [releases.md](releases.md).
+Code commit `51a523858ce690262585100bb1e1816fdba3cb3d` was verified built, with
+all 22 canonical static files byte-identical to Git and focused synthetic live-asset
+checks passing every affected RS surface at 320/390/768/1440 px in both themes.
+The deployment record explains the initial Pages metadata mismatch and verified rebuild.
+This same-release documentation handover changes no runtime or data; recheck current
+Pages/main rather than treating this historical SHA as the latest deployment forever.
 
 ### RS standings split display
 
