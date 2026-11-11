@@ -293,7 +293,8 @@ TEST and DNF rows need actual start evidence. `starterCount` is the reviewed tot
 source-confirmed starters, with source evidence in `starterCountEvidence`, and cannot
 contradict the row-level evidenced count.
 
-`membershipReview` is a private 2026-only object on `season.rallyesport`:
+`membershipReview` is a private 2026-only **legacy** object on `season.rallyesport`
+(inactive for scoring when the reviewed entry-based policy below is selected):
 `{sourceDate: "2026-11-09", reviewed: true, evidence, people}`. Its `people` map is
 keyed by stable profile ID after any per-entry `identityReview`; a decision contains a
 status and basis, and a `user-confirmed` basis also requires private per-person evidence.
@@ -313,7 +314,7 @@ observations even after an earlier missing value.
 `timeEvidence` is stage-aligned. For `reviewed-nr-copy`, it records the NR round, car,
 exact stage ID and copied value as a snapshot; it never becomes a live pointer.
 
-`nonScoringPeople` remains a private, season-scoped manual RS scoring exclusion, separate
+Under the legacy policy, `nonScoringPeople` remains a private, season-scoped manual RS scoring exclusion, separate
 from the membership map and never proof of non-membership. An excluded role does not
 change its partner's independently calculated order. The per-entry `invited` boolean is
 required for every classified row before points can be calculated. Membership decisions,
@@ -335,6 +336,75 @@ incompatible public scoring is surfaced as unavailable rather than replaced with
 success-shaped empty standings. Provisional cumulative tables may include supported
 completed rounds while explicitly listing blocked/unavailable rounds and the missing
 season rule evidence; they are not final eligibility or a champion declaration.
+
+### Entry-based policy migration
+
+Contract version 2 adds these fields; the policy is opt-in and does not migrate a document
+merely by loading it:
+
+- Private `season.rallyesport.eligibilityPolicy`:
+  `{code: "entry-based-2026-v1", reviewed: true, evidence: "<private user-decision provenance>"}`.
+  Exactly that code, explicit review and nonblank evidence are required for 2026.
+  This bypasses roster, licence, invitation and `nonScoringPeople` scoring exclusions;
+  it does not rewrite, remove or mark the legacy evidence verified. A roster may be absent.
+  If legacy evidence is retained it must still conform to its supported private schema,
+  but an inactive `reviewed: false` record may retain blank provenance; selecting this
+  policy never requires fabricating a membership verification.
+- Private source-entry `launchNonScoringReview: {evidence: "<private explicit crew decision>"}`:
+  both roles have effective class RS0 at that non-scoring, unnumbered event only.
+  The source row must retain printed TEST status and/or class. Other unknown statuses
+  remain unsupported. No general RS0 role/person override is added.
+- Public `eligibilityPolicy: {code: "entry-based-2026-v1"}` and scoring
+  `eligibilityPolicyApplied: "entry-based-2026-v1"` replace the legacy
+  `membershipReviewApplied` marker. Entry-based eligibility rows have
+  `{status: "eligible", scoringClass: "RS2" | "RS4", scoringPosition, reason: ""}`;
+  there is no membershipStatus assertion. Championship RS0 tables are empty.
+- Revised public events retain `countsForChampionship` (a public sporting scope boolean,
+  not private evidence). A false value requires no round number. Evidence remains
+  private. Legacy public projections retain their existing shape.
+- The launch row projects `publicLaunchNonScoring: true`, retaining unchanged printed
+  class/status/order/times and removing `launchNonScoringReview`. This marker drives
+  effective RS0 presentation, never a championship result or global person exclusion.
+
+**Proposed 2026 database changes, not executed or authorized by this code task:**
+
+| Existing stable event ID | Proposed scope/display fields |
+|---|---|
+| `rs-r1` | `countsForChampionship: false`; remove `roundNumber`; name clearly identifies the Willem Prinsloo 6 June **Launch Event** |
+| `rs-r2` | `countsForChampionship: true`; `roundNumber: 1`; retain GR Legends name/source |
+| `rs-r3` | `countsForChampionship: true`; `roundNumber: 2`; retain Ermelo name/source |
+| `rs-r4` | `countsForChampionship: true`; `roundNumber: 3`; retain TRAC N4 name/source |
+| `rs-r5` | `countsForChampionship: true`; `roundNumber: 4`; retain existing Willem Prinsloo / S2 Mine wording pending SN/S2 clarification |
+
+Add reviewed private policy provenance and update championship-scope evidence to the
+confirmed decision. Apply the launch-only review to the explicitly confirmed source
+crew row, after privately verifying exact result/car and both stable person identities;
+do not infer the navigator from a name or car alone. No real competitor fixture is
+bundled. Preserve that row's TEST evidence and every time/position/penalty/source note.
+Do not add either person to `nonScoringPeople`. If another TEST/RS0/unknown mapping is
+found, stop for a supported explicit decision rather than guessing or granting a blanket
+exception. Existing source-category mappings to RS2/RS4 remain classification-scoped.
+Do not invent an upcoming classification, date, stage programme, venue rename or
+finality/applicability/starter evidence; the upcoming event can remain blocked.
+
+All event IDs, result IDs, historical URLs, profile IDs, NR links, NR documents and
+original source evidence stay unchanged. Display renumbering never renames IDs.
+Regenerate the entire public season bundle through the shared projector; never patch
+points or public-only flags manually. Compare working and public computations, require
+no RS0 in the four championship events, verify both roles and unchanged NR hashes.
+Retain the six-starter review and existing finality/order/tie/points inputs unchanged.
+Four scoring rounds must remain provisional even after the upcoming results arrive.
+
+Release compatible code first, then retire old admin tabs before separately approved
+data work. Old admin validators do not understand these new fields; old public scorers
+reject the new snapshot rather than safely rendering revised eligibility. Mixed versions
+must not republish. An authorized migration needs a fresh complete private backup,
+working/public/revision preconditions and atomic attributed History before/after
+(`GitHub Copilot (direct Firebase)` for an approved direct change). This work does not
+perform those operations. Roll back migrated data and its generated public projection
+atomically from the matching backup **before** rolling back code; restoring code alone
+cannot re-establish legacy scoring. Review restores/undo carefully: removing the policy
+explicitly restores legacy membership semantics. Other years are not configured by it.
 
 The public bundle contains RS data inside `public/season_<year>`; there is no separate
 collection or publication path. App backups and whole-document History include the

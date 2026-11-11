@@ -101,7 +101,8 @@
     if (!E || E.analyticsContractVersion !== 1 || typeof E.validateAnalytics !== 'function') {
       return 'Analytics scripts are missing or out of date. Refresh this page with Ctrl+Shift+R before restoring or publishing; nothing has been published.';
     }
-    if (E.rallyeSportContractVersion !== 1 || typeof E.validateRallyeSport !== 'function' || typeof E.projectRallyeSport !== 'function') {
+    if (E.rallyeSportContractVersion !== 2 || typeof E.validateRallyeSport !== 'function' || typeof E.projectRallyeSport !== 'function' ||
+      typeof E.rallyeSportEntryPolicy !== 'function' || typeof E.rallyeSportLaunchRS0 !== 'function') {
       return 'RallyeSport scripts are missing or out of date. Refresh this page with Ctrl+Shift+R before restoring or publishing; nothing has been published.';
     }
     if (!E || E.rallyNoticeContractVersion !== 1 || typeof E.validateActiveRally !== 'function' || typeof E.nrcDestination !== 'function') {
@@ -765,8 +766,10 @@
                 (branch.next ? link(branch.next, 'Follow this path') : '') + '</div>';
             }).join('') + '</div><details class="logic-evidence"><summary>Evidence for this decision (' + node.evidence.length + ')</summary><ul>' +
             node.evidence.map(function (ref) {
-              var url = 'https://github.com/nrrally/nrrally.github.io/blob/' + catalogue.baseline + '/' + ref.path + '#L' + ref.start + '-L' + ref.end;
-              return '<li><a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(ref.symbol) + '</a><code>' + esc(ref.path) + ':' + ref.start + '-' + ref.end + '</code></li>';
+              var revision = ref.revision || catalogue.baseline;
+              var url = 'https://github.com/nrrally/nrrally.github.io/blob/' + revision + '/' + ref.path + '#L' + ref.start + '-L' + ref.end;
+              return '<li><a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(ref.symbol) + '</a><code>' + esc(ref.path) + ':' + ref.start + '-' + ref.end +
+                (ref.revision ? ' (release branch; not an immutable baseline)' : ' (legacy baseline)') + '</code></li>';
             }).join('') + '</ul></details></li>';
         }).join('') + '</ol>' +
         '<nav class="logic-related" aria-label="Continue exploring"><h3>Connected decisions</h3>' + topic.related.map(function (id) { return link(id); }).join('') + '</nav>';
@@ -1545,6 +1548,7 @@
   function viewRallyeSport() {
     var s = season(), data = rallyeSportData(s), built = model(A.year), scoring = built.rallyesport.scoring;
     var r = route(), section = ['events', 'setup', 'eligibility', 'checks'].indexOf(r.a) >= 0 ? r.a : 'events';
+    var entryPolicy = E.rallyeSportEntryPolicy(data);
     var pane = ['event', 'source', 'stages', 'rows', 'preview'].indexOf(r.c) >= 0 ? r.c : 'event';
     var review = data.membershipReview && typeof data.membershipReview === 'object' && !Array.isArray(data.membershipReview) ?
       data.membershipReview : { sourceDate: '2026-11-09', reviewed: false, evidence: '', people: {} };
@@ -1553,9 +1557,26 @@
     html += rsNav([['#/rallyesport/events', 'Events & results', 'events'], ['#/rallyesport/setup', 'Season setup', 'setup'],
       ['#/rallyesport/eligibility', 'People & eligibility', 'eligibility'], ['#/rallyesport/checks', 'Scoring checks', 'checks']], section, 'RallyeSport workspace');
     html += '<div class="rs-context"><span><b>' + data.events.length + ' RS events</b> · Scoring: ' + esc(scoring.status) + '</span><a href="#/logic/rs/rs-scope">Explore RS processing logic</a></div>';
-    if (section === 'setup' || section === 'eligibility') html += '<details class="card"><summary><b>Eligibility &amp; unresolved rule boundaries</b></summary><p>Only a reviewed, person-matched 2026 membership decision can establish eligibility. Missing or ambiguous records are unverified and score as RS0, not as confirmed non-members. Drivers and co-drivers are assessed separately; an excluded person does not change their partner’s scoring order. Source classes, official positions, times and finish order stay unchanged. NR data and calculations are unchanged. SSR 7.5 specifies stage-time round tie-breaks, but this app does not recompute tied official positions. Finisher qualification and season tie-break order remain unresolved.</p>' +
+    if (section === 'setup' || section === 'eligibility') html += '<details class="card"><summary><b>Eligibility &amp; unresolved rule boundaries</b></summary><p>' +
+      (entryPolicy ? 'The user-confirmed entry-based policy qualifies both crew roles without membership, licence, invitation or season manual exclusions. DNS earns no points; a DNF needs start evidence for zero points. Only RS2/RS4 score. Printed TEST evidence is retained only with a reviewed launch-only RS0 exception. The four-round championship remains provisional; this is not a printed SSR amendment. Legacy private membership evidence is retained, not marked verified or used for scoring. ' :
+        'Legacy policy: only a reviewed, person-matched 2026 membership decision can establish eligibility. Missing or ambiguous records are unverified and score as RS0, not as confirmed non-members. Drivers and co-drivers are assessed separately; an excluded person does not change their partner’s scoring order. ') +
+      'Source classes, official positions, times and finish order stay unchanged. NR data and calculations are unchanged. SSR 7.5 specifies stage-time round tie-breaks, but this app does not recompute tied official positions. Finisher qualification and season tie-break order remain unresolved.</p>' +
       (A.mode === 'demo' ? '<p>Demo data is a public projection: its published scoring snapshot is removed before private validation. Member, invitation and starter-count inputs are not public, so this demo cannot reconstruct eligibility or reproduce the published scoring calculation.</p>' : '') + '</details>';
     if (section === 'setup') {
+    if (A.year === 2026) html += '<div class="card"><h3>RS eligibility policy</h3><div class="form-grid">' +
+      fld('Scoring policy', select(function (v) {
+        s.rallyesport = data;
+        if (v === 'entry-based-2026-v1') {
+          if (!entryPolicy) data.eligibilityPolicy = { code: v, reviewed: true, evidence: '' };
+        }
+        else delete data.eligibilityPolicy;
+      }, entryPolicy ? 'entry-based-2026-v1' : '',
+        [['', 'Legacy reviewed membership policy'], ['entry-based-2026-v1', 'User-confirmed entry-based 2026 policy']], 'data-rerender'),
+        'Changing this draft does not publish. No blanket verification or membership-map rewrite is performed.', 'span2') +
+      fld('Private entry-based policy evidence', area(function (v) {
+        if (data.eligibilityPolicy) data.eligibilityPolicy.evidence = v;
+      }, data.eligibilityPolicy && data.eligibilityPolicy.evidence || '', 'rows="3" maxlength="1000"' + (entryPolicy ? '' : ' disabled')),
+        'Record the user decision, not a claim that SSR 6.1 was amended. Required before scoring/publication.', 'span2') + '</div></div>';
     html += '<div class="card"><h3>Ruleset evidence</h3>';
     if (A.year === 2026) {
       html += '<p class="small">The supported profile is the 2026 MSA RallyeSport Association Club Standing Supplementary Regulations — Rallysprint, Version 1, issued 9 July 2026. SSR 1.2 limits it to calendar year 2026. It is not a default for other RS events or seasons.</p>' +
@@ -1601,7 +1622,10 @@
         '</div></div>';
     }
     }
-    if (section === 'eligibility') {
+    if (section === 'eligibility' && entryPolicy) {
+      html += '<div class="card"><h3>Entry-based driver and co-driver eligibility</h3><p>Every championship entrant qualifies in RS2 or RS4. Membership, licence, invitation and legacy manual exclusions no longer remove either role or re-rank the field. Identity reviews still resolve stable profiles; unknown classes/statuses require an explicit supported decision. DNS and DNF start-evidence rules still apply.</p><p>Legacy membership decisions and manual exclusions are preserved privately for recovery but are inactive under this policy. They are not verified by selecting this policy. The launch-only TEST-to-RS0 review belongs on that event’s source row, never on a person’s season record.</p></div>';
+    }
+    if (section === 'eligibility' && !entryPolicy) {
     html += '<div class="card"><label class="fld"><span class="fl">Find a person</span><input id="rsMemberSearch" type="search" value="' + esc(A.rsMemberQuery || '') +
       '" placeholder="Search shared profile names" aria-describedby="rsMemberSearchStatus"></label><p class="small" id="rsMemberSearchStatus" role="status"></p></div>';
     liveRefresh = function () { filterRsMembers(A.rsMemberQuery || ''); };
@@ -1681,11 +1705,11 @@
     var starterRequirement = A.year !== 2026 ? 'no event starter minimum is configured for this year' :
       hasInvalidStarterReview ? 'a valid, evidence-backed 2026 minimum (the current review is invalid, so scoring is withheld)' :
       !scoring.starterMinimum ? 'the published SSR V1 baseline of 15, when that profile is selected' :
-    (scoring.starterMinimum.minimum + ' source-backed starters overall, including TEST and invitational entries; DNS does not count (' +
+    (scoring.starterMinimum.minimum + ' source-backed starters overall; DNS does not count (' +
         (scoring.starterMinimum.basis === 'user-reported-review' ?
           'the six-starter value is a user-reported review, not text in SSR V1; no written amendment is supplied' :
           'the published SSR V1 baseline of 15 applies') + ')');
-    html += '<div class="card"><h3>Championship scoring state</h3><p><b>' + esc(scoring.status) + '</b> — ' + esc(scoring.reason || '') + '</p><p class="small muted">Official RS event classifications remain displayable even when event scoring is blocked or the overall championship is incomplete. Event points require ' + esc(starterRequirement) + ', confirmed event applicability, explicit invitation status, reviewed competitor identities, and either source-confirmed finality or an evidence-backed user finality review. A user review never changes printed source wording or proves a technical check was completed. An evidenced DNF counts as a starter and an eligible role gets zero points. A reviewed event total may satisfy the event threshold but does not prove an individual DNF started; without row start evidence its eligible points remain unavailable. Eligible event points do not establish final championship eligibility or a champion.</p></div>';
+    html += '<div class="card"><h3>Championship scoring state</h3><p><b>' + esc(scoring.status) + '</b> — ' + esc(scoring.reason || '') + '</p><p class="small muted">Official RS event classifications remain displayable even when event scoring is blocked or the overall championship is incomplete. Event points require ' + esc(starterRequirement) + ', confirmed event applicability, ' + (entryPolicy ? 'entry-based eligibility in RS2/RS4' : 'explicit invitation status and reviewed membership eligibility') + ', reviewed competitor identities, and either source-confirmed finality or an evidence-backed user finality review. A user review never changes printed source wording or proves a technical check was completed. An evidenced DNF counts as a starter and an eligible role gets zero points. A reviewed event total may satisfy the event threshold but does not prove an individual DNF started; without row start evidence its eligible points remain unavailable. Eligible event points do not establish final championship eligibility or a champion.</p></div>';
     var rsIssues = E.validateRallyeSport(data, s, Object.fromEntries((s.rounds || []).map(function (round) { return [round.id, rawRound(round.id)]; })), peopleDoc());
     html += '<div class="card"><h3>Validation before publishing</h3>' + (rsIssues.length ? aiIssues(rsIssues.map(function (issue) { return issue.msg; })) : '<p class="ok-line">No RS data validation errors.</p>') +
       '<p class="small muted">Data validation and scoring readiness are separate checks. Review &amp; publish still runs the complete dataset validation.</p></div>';
@@ -1707,7 +1731,7 @@
       var result = data.results.filter(function (row) { return row.eventId === event.id; })[0];
       return '<a class="card rs-event-link' + (r.b === event.id ? ' on' : '') + '" href="#/rallyesport/events/' + encodeURIComponent(event.id) + '"' +
         (r.b === event.id ? ' aria-current="page"' : '') + '><b>' + esc(event.name || event.id) + '</b><span>' +
-        esc((event.roundNumber == null ? 'Round not assigned' : 'RS round ' + event.roundNumber) + ' · ' + (result ? result.entries.length + ' source rows' : 'No classification')) + '</span></a>';
+        esc((event.countsForChampionship === false ? 'Non-scoring event · not a championship round' : event.roundNumber == null ? 'Round not assigned' : 'RS round ' + event.roundNumber) + ' · ' + (result ? result.entries.length + ' source rows' : 'No classification')) + '</span></a>';
     }).join('') + '</div>';
     if (!r.b) return html + eventList + '<p class="small muted">Choose an event to edit its evidence, stages or classification. Season-wide settings and membership reviews are in their own sections above.</p></div>';
     if (!data.events.some(function (event) { return event.id === r.b; })) return html + eventList + '<div class="card empty">This RS event is not in the selected season. Choose an event above.</div></div>';
@@ -1724,7 +1748,7 @@
       var sourceCategories = Object.create(null);
       (result && result.entries || []).forEach(function (entry) {
         var category = String(entry['class'] || '').replace(/\s+/g, '').toUpperCase();
-        if (entry.status === 'classified' && category && ['RS2', 'RS4'].indexOf(category) < 0) sourceCategories[category] = entry['class'];
+        if ((entryPolicy || entry.status === 'classified') && category && ['RS2', 'RS4', 'TEST'].indexOf(category) < 0) sourceCategories[category] = entry['class'];
       });
       var eventPath = '#/rallyesport/events/' + encodeURIComponent(event.id);
       return '<article class="card rs-editor"><div class="section-head"><h3>' + esc(event.name || event.id) + '</h3>' + btn(function () {
@@ -1749,7 +1773,7 @@
         fld('Championship status', select(function (v) { event.countsForChampionship = v === '' ? undefined : v === 'true'; }, event.countsForChampionship == null ? '' : String(event.countsForChampionship),
           [['', 'Unconfirmed'], ['true', 'Counts toward championship'], ['false', 'Event only; not a championship round']], 'data-rerender')) +
         fld('Championship evidence', input(function (v) { event.championshipEvidence = v; }, event.championshipEvidence || '', 'maxlength="1000"'), '', 'span2') +
-        fld('Reviewed event starter count (optional)', input(function (v) { event.starterCount = numOrNull(v); }, event.starterCount, 'inputmode="numeric" min="0"'), 'Count all source-confirmed starters, including RS0, invitation and TEST entries; DNS does not count. A TEST or DNF row still needs actual start evidence.', 'span2') +
+        fld('Reviewed event starter count (optional)', input(function (v) { event.starterCount = numOrNull(v); }, event.starterCount, 'inputmode="numeric" min="0"'), 'Count all source-confirmed starters; DNS does not count. A DNF row still needs actual start evidence. Legacy TEST evidence is not a supported championship status under the entry-based policy.', 'span2') +
         fld('Event starter-count evidence', input(function (v) { event.starterCountEvidence = v; }, event.starterCountEvidence || '', 'maxlength="1000"'), 'Record the source and locator for the reviewed total.', 'span2') +
         fld('Double points', select(function (v) { event.doublePoints = v === '' ? undefined : v === 'true'; }, event.doublePoints == null ? '' : String(event.doublePoints),
           [['', 'Unconfirmed'], ['false', 'No bulletin-confirmed double points'], ['true', 'Bulletin confirms double points']], 'data-rerender')) +
@@ -1862,13 +1886,23 @@
                 'Required when either reviewed identity is selected. Keep printed source names above unchanged; never identify a person or role from car number alone. Use an NR main spelling only for a reviewed same-event car-and-crew match.', 'span2') +
               field('Printed RS category', 'class', entry['class'], 'maxlength="80"') +
               field('Printed vehicle/model (optional)', 'vehicle', entry.vehicle || '', 'maxlength="200"') +
-              field('Printed RS status', 'status', entry.status, 'maxlength="80" data-rerender') +
+              fld('Printed RS status', entryPolicy && ['classified', 'DNF', 'DNS'].indexOf(entry.status) >= 0 ?
+                select(function (v) { entry.status = v; }, entry.status, [['classified', 'classified'], ['DNF', 'DNF'], ['DNS', 'DNS']], 'data-rerender') :
+                input(function (v) { entry.status = v; }, entry.status, 'maxlength="80" data-rerender'),
+                entryPolicy ? 'Supported result statuses: classified, DNF, DNS. Retain printed TEST only for the reviewed launch exception; unsupported inputs block publication.' : '') +
+              (entryPolicy && (entry.status === 'TEST' || E.normClass(entry['class']) === 'TEST') ?
+                fld('Private launch-only RS0 review evidence', area(function (v) {
+                  if (v) entry.launchNonScoringReview = { evidence: v };
+                  else delete entry.launchNonScoringReview;
+                }, entry.launchNonScoringReview && entry.launchNonScoringReview.evidence || '', 'rows="2" maxlength="1000"'),
+                  'Only the explicitly confirmed launch crew, both roles, at a non-scoring event with no round number. Preserves printed TEST and all times. Never applies to later championship entries.', 'span2') : '') +
               field('Start evidence (when a DNF has no stage observation)', 'startEvidence', entry.startEvidence || '', 'maxlength="1000"') +
               fld('Official overall position', input(function (v) { entry.pos = numOrNull(v); }, entry.pos, 'inputmode="numeric" data-rerender')) +
               fld('Official class position', input(function (v) { entry.classPos = numOrNull(v); }, entry.classPos, 'inputmode="numeric"')) +
               field('Official total', 'total', entry.total || '') + field('Separate penalty', 'penalty', entry.penalty || '') +
-              fld('Invitation status', select(function (v) { entry.invited = v === '' ? undefined : v === 'true'; }, entry.invited == null ? '' : String(entry.invited),
-                [['', 'Unreviewed'], ['false', 'Not invitational'], ['true', 'Invitational — no championship points']], 'data-rerender')) +
+              (entryPolicy ? '<p class="small muted">Entry-based eligibility: invitation evidence does not exclude either crew role.</p>' :
+                fld('Invitation status', select(function (v) { entry.invited = v === '' ? undefined : v === 'true'; }, entry.invited == null ? '' : String(entry.invited),
+                [['', 'Unreviewed'], ['false', 'Not invitational'], ['true', 'Invitational — no championship points']], 'data-rerender'))) +
               fld('Stage times in selected-stage order', input(function (v) {
                 entry.times = v.split(',').map(function (x) { x = x.trim(); return x || null; });
                 if (entry.timeEvidence) entry.timeEvidence = entry.timeEvidence.map(function (evidence, i) { return evidence && evidence.value === entry.times[i] ? evidence : null; });

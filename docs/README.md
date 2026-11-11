@@ -21,6 +21,10 @@ and scoring checks. **Logic explorer** is the screen-shareable, read-only explan
 implemented NR, RS and shared processing paths, with conditional outcomes and source links.
 See [the admin workflow](data-entry-guide.md#rallyesport-workspace-and-logic-explorer).
 The explorer is UI-gated, not confidential: its static content is public source code.
+The reviewed entry-based RS policy and proposed launch/R1-R4 migration
+are described in [the schema/migration record](data-model.md#entry-based-policy-migration).
+The compatible-code release does not activate that policy: separately authorized audited
+data migration is required. See the release ledger for actual deployment evidence.
 
 Results come only from official classification PDFs, never from live timing. NR standings, points and stage graphs are calculated in the visitor's browser from raw NR results each time a page loads; NR does not store derived scoring snapshots. RallyeSport is a separate competition: its validated scoring snapshots are stored with the published RS data and never feed NR standings or statistics.
 

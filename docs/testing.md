@@ -1,5 +1,42 @@
 # Testing
 
+## Revised RS entry-based policy (synthetic)
+
+```
+node --test tools\tests\rallyesport.test.js tools\tests\season-readiness.test.js tools\tests\admin-logic.test.js tools\tests\ai-import.test.js
+node tools\tests\rs-entry-policy-e2e.js
+node tools\tests\site-theme-e2e.js
+node tools\tests\admin-access-e2e.js
+```
+
+`revisedRallyeSport()` in `tools/tests/ai-fixtures.js` is entirely synthetic. It
+represents the preserved five event IDs, an unnumbered non-scoring launch, R1-R4
+championship display numbers, three completed championship events and an unclassified
+upcoming event (optionally with synthetic results). It does not assert live entrants,
+dates, stages or venue truth. The launch's synthetic TEST crew has an explicit local
+RS0 review; the same people score normally at subsequent events despite legacy
+non-member/missing-licence/manual-exclusion and invitation evidence.
+
+Unit checks cover both roles, absent roster decisions, unchanged source/private evidence,
+RS2/RS4 ranks/points, evidenced and unproven DNF, DNS, absent co-driver, three-ready/four-
+counted provisional totals, all-four-ready still provisional, launch timing retention,
+public/private agreement, projection privacy, unsupported policy/status/class/TEST
+rejection and incompatible public markers. VM checks cover launch classifications,
+graphs, profile/crew event versus championship appearances, championship table columns
+and points bars. Matching RS contract 2 permits admin restore/publication checks; the
+cached legacy contract is explicitly rejected. Existing legacy policy and NR regression
+cases remain unchanged.
+
+The browser runner intercepts every provider request and rejects writes/external traffic.
+At 320/390/768/1440 px in both themes it visits revised public calendar, launch
+classification/graph, standings and profile, plus admin policy/eligibility/source rows.
+It checks preserved TEST/time evidence with effective RS0, no championship RS0 option,
+no launch championship column, 45-point three-round totals, inactive roster/invitation
+controls, allowed result-status options and explicit errors for cleared policy evidence.
+It uses the externally installed Playwright module (`PLAYWRIGHT_MODULE`) and cleans up
+its loopback server/browser. It does not access a private backup, live Auth/Firestore,
+Pages, real analytics, actual competitor/source mappings or provider configuration.
+
 ## Admin workspace and logic explorer (synthetic)
 
 ```

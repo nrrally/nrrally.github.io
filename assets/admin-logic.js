@@ -193,7 +193,7 @@
       'RallyeSport is not an NR class. The sole supported scoring profile is the explicitly reviewed 2026 Rallysprint SSR V1, issued 9 July 2026.',
       'Season year; ruleset code/year; independent RS events/classifications; reviewed shared people IDs.', [
         node('Is the selected profile clubman-sprint-2026-v1 for 2026?', [
-          branch('Yes, and season is 2026', 'Continue to reviewed starter and membership inputs, then event-level gates.', 'rs-events'),
+          branch('Yes, and season is 2026', 'Select the explicit eligibility policy, then continue to reviewed starter inputs and event-level gates.', 'rs-members'),
           branch('Missing profile or another year', 'Return unconfigured scoring. Preserve source event tables. Never silently copy NR rules or assume 2026 applies to a future year.')
         ], [source('assets/engine.js', 479, 491, 'calculateRallyeSportScoring'), source('assets/engine.js', 973, 982, 'ruleset validation')]),
         node('Does the RS event need an NR counterpart?', [
@@ -219,7 +219,7 @@
         ], [source('assets/engine.js', 573, 582, 'event rule gates')]),
         node('Do source and review inputs allow scoring?', [
           branch('Unaccepted finality', 'Block event points; do not hide the source.', 'rs-finality'),
-          branch('Unknown status/category, incomplete classified position/total, duplicate cars, insufficient/unproven starters or unknown classified invitation status', 'Block event points, never substitute zero for the blocked event.', 'rs-starters'),
+          branch('Unknown status/category, incomplete classified position/total, duplicate cars, insufficient/unproven starters or legacy-only unknown invitation status', 'Block event points, never substitute zero for the blocked event. Entry-based policy does not require invitation confirmation.', 'rs-starters'),
           branch('All gates pass', 'Check consistent official ordering, then independently rank eligible driver and co-driver roles.', 'rs-order')
         ], [source('assets/engine.js', 580, 616, 'source and starter gates')])
       ], ['rs-finality', 'rs-starters', 'rs-totals']),
@@ -233,7 +233,7 @@
         ], [source('assets/engine.js', 492, 512, 'starterMinimum selection')]),
         node('Who counts as a source-backed starter?', [
           branch('classified', 'Counts as a starter.'),
-          branch('DNF / TEST / invitational / RS0', 'Counts when actual start evidence exists: a recorded stage time, printed stage position or explicit startEvidence. Membership exclusion is not a start exclusion.'),
+          branch('DNF (or legacy TEST / invitational / RS0)', 'Counts when actual start evidence exists: a recorded stage time, printed stage position or explicit startEvidence. Membership exclusion is not a start exclusion. Entry-based championship TEST inputs are unsupported and block scoring.'),
           branch('DNS', 'Never counts. A no-time/no-observation DNF or TEST is not proof of a start.')
         ], [source('assets/engine.js', 555, 572, 'hasStartEvidence / starterProblem')]),
         node('Is a reviewed event starter count supplied?', [
@@ -246,9 +246,14 @@
         ], [source('assets/engine.js', 644, 651, 'DNF points')])
       ], ['rs-members', 'rs-points', 'rs-events']),
     topic('rs-members', 'rs', 'RS person eligibility and private review evidence',
-      'The app consumes reviewed decisions; it does not connect to a membership workbook or infer eligibility from account labels.',
+      'A reviewed entry-based policy replaces membership exclusions without rewriting historical membership evidence. No policy means the legacy membership workflow, not an automatic migration.',
       'Reviewed 2026-11-09 membership map keyed by stable profile ID; private provenance; membership status/basis; optional per-row reviewed identity.', [
-        node('Does the season have a valid reviewed map?', [
+        node('Does the season use the reviewed entry-based 2026 policy?', [
+          branch('entry-based-2026-v1, reviewed with private evidence', 'Both driver and co-driver qualify in RS2/RS4. Ignore membership, licence, invitation and season manual exclusions for scoring. Preserve private legacy evidence without marking it verified. DNS and DNF start-evidence rules still apply. This user decision is not a printed SSR amendment.', 'rs-roles'),
+          branch('Malformed / unreviewed / unsupported policy', 'Invalid scoring; never fall back silently. Another year needs its own implemented policy.'),
+          branch('Policy absent', 'The following membership-map branches describe legacy scoring only.')
+        ], [{ path: 'assets/engine.js', start: 45, end: 65, symbol: 'Entry-based policy and launch classification', revision: 'main' }]),
+        node('Legacy only: does the season have a valid reviewed map?', [
           branch('No / invalid / unreviewed', 'Fail closed: scoring is invalid. No automatic paid-up assumption or use in another year.'),
           branch('Yes', 'Resolve each role\'s profile ID (including an explicit identityReview when present), then look up that ID. A missing person decision becomes unverified.')
         ], [source('assets/engine.js', 50, 87, 'rallyeSportEntryPerson / validRallyeSportMembershipReview'), source('assets/engine.js', 513, 540, 'membership lookup')]),
@@ -264,18 +269,18 @@
         ], [source('assets/engine.js', 59, 71, 'membership messages'), source('assets/site.js', 689, 701, 'public eligibility labels')])
       ], ['rs-roles', 'shared-identity', 'shared-projection']),
     topic('rs-roles', 'rs', 'RS driver and co-driver score independently',
-      'A role excluded from championship scoring does not erase the official crew result or remove the eligible partner\'s scoring opportunity.',
+      'Entry-based championship entrants are not removed or re-ranked for membership, licence or invitation. Legacy exclusions below apply only when the reviewed entry-based policy is absent.',
       'Per-role membership status/ID; TEST status, invitation flag, season manual exclusions; source scoring class/order.', [
-        node('Which exclusion wins for this role?', [
+        node('Which exclusion wins for this role under legacy policy only?', [
           branch('TEST source status', 'Use test / RS0 Invitational.'),
           branch('Otherwise invited true', 'Use invitational / RS0.'),
           branch('Otherwise person in manual nonScoringPeople', 'Use manual-exclusion / RS0; keep underlying membershipStatus.'),
           branch('Otherwise', 'Use the role\'s reviewed membership status. Eligible roles use configured scoring class; all other roles use RS0.')
         ], [source('assets/engine.js', 524, 540, 'eligibility precedence')]),
         node('How does a classified eligible role get a scoring position?', [
-          branch('Drivers', 'Remove excluded drivers; rank the remaining drivers in each scoring class using consistent official order.'),
-          branch('Co-drivers', 'Independently remove excluded co-drivers and missing co-driver names; rank the remaining co-drivers within each class.'),
-          branch('Excluded partner', 'Only that role is removed from its scoring pool. The other role is assessed independently; driver/co-driver positions and points can differ.')
+          branch('Drivers', 'Use consistent official order within RS2/RS4. Entry-based policy keeps every classified driver; only legacy policy removes excluded drivers.'),
+          branch('Co-drivers', 'Independently remove excluded co-drivers under legacy policy only. Entry-based policy removes only missing co-driver names, not membership/licence/invitation cases.'),
+          branch('Excluded partner under legacy policy', 'Only that role is removed from its scoring pool. Entry-based championship policy has no excluded partner.')
         ], [source('assets/engine.js', 591, 597, 'scoringRoles'), source('assets/engine.js', 617, 633, 'role ranks and points')]),
         node('How does this affect the event display?', [
           branch('Official classification', 'Preserve source class, position, time, status and row order in the data. Public RS class labels use any recorded event-specific mapping; independent role scoring labels and points remain separate.'),
@@ -288,7 +293,7 @@
         node('Is the printed category configured?', [
           branch('RS2 or RS4', 'Use that scoring class, preserving the printed category.'),
           branch('Another classified category', 'Block unless an explicit classification-specific evidence-backed mapping to RS2/RS4 is recorded. Do not carry mappings to other events.'),
-          branch('TEST', 'Never map TEST into championship scoring. An unspecified non-scoring source class is not automatically supported.')
+          branch('TEST', 'Never map TEST into championship scoring. Under entry-based policy it is unsupported except retained printed launch evidence with an explicit row launchNonScoringReview: effective RS0 for both roles, event countsForChampionship false and no roundNumber. This never excludes the person at later events. Unknown inputs are not converted.')
         ], [source('assets/engine.js', 45, 49, 'rallyeSportScoringClass'), source('assets/engine.js', 1041, 1061, 'mapping validation'), source('assets/engine.js', 583, 584, 'category scoring gate')]),
         node('Which official order field is used within a class?', [
           branch('Every classified entry in that scoring class has a valid classPos', 'Use printed class positions throughout that class.'),
@@ -329,7 +334,7 @@
           branch('Eligible DNF with start evidence and supported class', 'Zero points, no scoring position; source-backed starter.'),
           branch('Eligible DNF without start evidence / unsupported class', 'Null points. A separate event starter count cannot establish this individual\'s start.'),
           branch('DNS', 'Null points, never a start.'),
-          branch('Non-eligible / invitation / TEST with non-DNS source row', 'Zero championship points and no rank, shown as RS0. This zero is an exclusion outcome, not proof of membership or an individual start.')
+          branch('Legacy policy only: non-eligible / invitation / TEST with non-DNS source row', 'Zero championship points and no rank, shown as RS0. Entry-based policy ignores those exclusions; championship TEST inputs block rather than receiving zero.')
         ], [source('assets/engine.js', 635, 652, 'driverPoints / codriverPoints')]),
         node('How does the website distinguish zero and missing?', [
           branch('Numeric score, including 0', 'Keep it in event/profile/standings values.'),
@@ -343,6 +348,7 @@
         node('Does the counted season satisfy the supported round pattern?', [
           branch('Six to eight counted rounds and no double-points event', 'Round-count rule can pass.'),
           branch('Five counted rounds with exactly one valid bulletin-confirmed double-points event', 'The five-round exception can pass.'),
+          branch('Four championship rounds plus a launch event', 'Keep provisional cumulative totals from ready championship events only. The launch has no round number, contributes no championship points or round/statistics count, but retains all event appearances, results and graphs. Never bypass the round-count rule.'),
           branch('Other pattern / >8 rounds / unsupported double declaration', 'Season is incomplete or blocked with a reason; the app does not select a double-points event to fix it.')
         ], [source('assets/engine.js', 710, 725, 'roundRule / status')]),
         node('Are all confirmed championship events ready?', [
@@ -353,7 +359,7 @@
         node('How are people aggregated and ranked?', [
           branch('Eligible role with numeric points', 'Sum by stable ID separately for drivers and co-drivers, in overall and actual RS2/RS4 class tables.'),
           branch('Equal season totals', 'Share rank = 1 + number of people with higher totals. Alphabetical presentation is not a season tie-break or winner declaration.'),
-          branch('Excluded role, non-DNS source', 'Keep a zero-point unranked RS0 row after eligible rows. If the person is eligible elsewhere, suppress a duplicate standalone RS0 class row.'),
+          branch('Legacy only: excluded role, non-DNS source', 'Keep a zero-point unranked RS0 row after eligible rows. Entry-based championship tables have RS2/RS4 only; the launch-only RS0 review never enters these totals.'),
           branch('Standings split display', 'Show each scored round with its RS class contribution. Overall totals reuse those class points; there is no separate overall award.')
         ], [source('assets/engine.js', 657, 709, 'buildStandings')])
       ], ['rs-events', 'rs-points', 'shared-limits']),

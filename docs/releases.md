@@ -31,6 +31,74 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## 2026-11-11: authorized RS entry-based compatible-code release
+
+- Base and freshly fetched `origin/main`:
+  `7aed656766ff3ce9992601ae962d7c41a62284b6`. Work is isolated on the RS entry-based
+  worktree branch. The initial assignment was implementation/synthetic verification only;
+  after review the user asked "cool - do you need something from me or do we push ?"
+  and authorized proceeding with the compatible-code release. The coordinator delegated
+  the reviewed commit and normal non-force `origin/main` push with Pages/static-byte
+  verification. This scope excludes PR creation, Firebase/GCP/data reads or writes,
+  database publication, rules/settings changes and unrelated backup work. Separately
+  guarded data migration is not performed by this code-release workflow.
+  The unrelated uncommitted graph-label work in another worktree was not imported.
+- RS contract 2 adds explicit private `entry-based-2026-v1` policy review/provenance;
+  archived/absent-policy documents retain legacy scoring. Championship driver and
+  co-driver eligibility no longer depends on membership/licence/invitation or manual
+  person exclusions. Old private evidence is retained without asserting verification.
+  DNS, source-evidenced DNF, minimum starters, finality, scales/order/ties/double-points
+  and provisional championship gate are unchanged; NR is unchanged.
+- Existing non-scoring-event and display-number fields express the launch plus R1-R4
+  without renaming stable IDs, changing historical links or NR associations. Public
+  results/graphs/event history retain launch data; championship table columns/bars and
+  championship appearance counts exclude it. Event stats are distinct from championship
+  appearances, not silently deleted.
+- A narrow private launch source-row review yields effective RS0 for both crew roles
+  only at a non-scoring, unnumbered event, retaining printed TEST and all timing/source
+  evidence. TEST is not a supported championship status/class or inferred mapping.
+  Unknown inputs and incompatible policy/snapshot shapes fail explicitly. Admin policy,
+  status options, inactive legacy controls, validation and Logic explorer explain this
+  as a user-confirmed decision, not a printed SSR amendment.
+- Public projection strips private policy/launch/membership provenance and emits only
+  policy/applied markers, public championship scope and the reviewed launch boolean.
+  Shared validation covers admin publication, restore and import document checks.
+  Generic AI/PDF/spreadsheet imports remain NR-only; no new RS parser is claimed.
+  The Node validator reports the active entry-based policy.
+- All 117 synthetic unit checks pass (`node --test tools\tests\*.test.js`); revised RS browser
+  regression passes all four widths (320/390/768/1440) and both themes; existing public
+  theme and admin-access regressions pass. The admin contract guard now requires the
+  matching RS contract 2/helpers, rejecting stale cached engines before restore/publish.
+  Admin checks include all 30 logic topics, responsive light/dark RS tasks, keyboard/focus,
+  unchanged drafts, editing/reuse/restore/merge/simulation and access/race handling.
+  Browser requests are intercepted; no writes or real analytics
+  traffic are forwarded. See [testing.md](testing.md) for precise cases/commands.
+  Four synthetic legacy-policy comparisons against the reviewed base preserve actual
+  scores, projections and old-published public models (JSON key order ignored). This
+  confirms the code-first compatibility path; real data correctness and authenticated
+  live admin sign-in remain untested. This pre-push record is not a deployment claim.
+- Proposed database fields and sequencing are in
+  [data-model.md](data-model.md#entry-based-policy-migration). They are not a live-data
+  diff: exact private result/car/role identities and any additional unknown categories
+  must be reviewed from a fresh authorized private backup before migration. Preserve
+  existing Willem Prinsloo / S2 Mine wording pending SN/S2 clarification; no date,
+  entrant, stage programme, finality evidence or upcoming classification is invented.
+- Coordinated shell/asset query version: `rs-entry-1`. Guide reference edition stays
+  2026; no Firebase rules, hosting architecture, analytics or permissions change.
+  Release compatible code before separately approved atomic audited data migration;
+  retire old admin tabs. After migration, restore matching backed-up working/public
+  data with revision/History coordination before an older-code rollback. Static rollback
+  alone is insufficient. New Logic explorer policy evidence links explicitly use mutable
+  release `main` (not an immutable baseline).
+- Release preflight confirms approved existing keyring credentials have repository push
+  permission using a temporary non-secret GH configuration and process-scoped standard
+  `gh auth git-credential`; no token extraction or global authentication change.
+  Fresh remote main and latest built Pages both remain exactly the reviewed base above.
+  Review staged scope/privacy/whitespace and recheck main immediately before pushing.
+  After push, verify the exact Pages SHA, canonical HTTPS and all deployed static bytes
+  against Git blobs, not Windows checkout line endings. Record actual deployment
+  evidence separately; no real Firebase/Auth/Analytics calls belong in these checks.
+
 ## 2026-11-11: authorized public welcome/navigation/guide UI release
 
 - Fetched `origin/main` and worktree HEAD both matched

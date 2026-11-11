@@ -91,7 +91,51 @@ including a pre-issue independent event. That confirmation is event-specific; ke
 source records in the private review archive. The rule profile is not a default for
 other events or future years.
 
-The implementation applies the documented scoring scope conservatively:
+### User-confirmed entry-based 2026 policy
+
+The explicit private `eligibilityPolicy` with code `entry-based-2026-v1`, `reviewed: true`
+and nonblank `evidence` activates the revised workflow. This is a user-confirmed
+eligibility decision, **not an amendment claimed to be printed in SSR 6.1**.
+Both driver and co-driver qualify by entry in a championship event; membership,
+licence, invitation and legacy season manual exclusions do not remove or re-rank them.
+Legacy private membership/manual evidence is preserved, not re-labelled as verified,
+and is never projected publicly. New entries in this workflow do not need a roster
+decision or invitation confirmation.
+
+Only RS2/RS4 (including existing evidence-backed event-specific source-category mappings)
+are supported for championship entrants. DNS still has no start or points; an evidenced
+DNF still earns zero, an unproven DNF has unavailable points. Missing co-drivers get no
+invented score. All existing finality, starter minimum, class order, points scales,
+double-points notice, tie and championship-finality rules remain in force. Four rounds
+therefore yield **provisional** cumulative points, never a final champion.
+
+The June launch event uses `countsForChampionship: false`, no `roundNumber`, and a clear
+Launch Event name. It retains all source results, appearances, statistics and graphs.
+It contributes no championship points, round columns, points bars or championship
+appearance counts. The four championship events use display round numbers 1-4 without
+changing stable event/result IDs or NR associations. Event appearance/finish/win/stage
+statistics include the launch and are labelled as event statistics, not championship starts.
+
+TEST is not a supported selectable championship class/status in this workflow and is
+never automatically converted to classified, DNF, DNS or RS2/RS4. The explicitly confirmed
+launch crew is a narrow exception: a private row `launchNonScoringReview: {evidence}`
+retains printed TEST class/status/order/times, but its effective class and both crew-role
+labels are RS0 for that event only. Validation requires a non-scoring event with no round
+number and printed TEST evidence. It cannot be used for a championship event, arbitrary
+unknown status/category or season-wide exclusion. Future championship appearances of
+either person qualify normally. The public projection carries only the boolean
+`publicLaunchNonScoring`, not the private review evidence; printed TEST remains inspectable
+as source evidence. Do not delete the source row or rewrite the original sheet wording.
+
+Policy absence preserves the legacy implementation below for archive/rollback
+compatibility. An unsupported, malformed, evidence-free or unreviewed policy fails
+closed rather than falling back. This policy supports 2026 only; future-year SSRs remain
+unconfigured, not implicitly approved. See [the migration constraints](data-model.md#entry-based-policy-migration).
+
+### Legacy profile and unchanged event/finality rules
+
+The following describes legacy eligibility when `eligibilityPolicy` is absent, together
+with the event/finality/points rules that remain unchanged under the revised policy:
 
 - The event must be explicitly confirmed for the selected SSRs and as a championship
   round; double-points status must be explicit, with bulletin evidence when enabled.

@@ -74,6 +74,9 @@ if (site && people) {
         if (scoring.membershipReviewApplied) {
           console.log(`  Membership review applied: ${scoring.membershipReviewApplied.sourceDate} (${scoring.membershipReviewApplied.basis})`);
         }
+        if (scoring.eligibilityPolicyApplied) {
+          console.log(`  Eligibility policy: ${scoring.eligibilityPolicyApplied} (user-confirmed, not a printed SSR amendment)`);
+        }
         (scoring.results || []).forEach(row => {
           const event = rs.events.find(item => item.id === row.eventId);
           const result = rs.results.find(item => item.id === row.resultId);

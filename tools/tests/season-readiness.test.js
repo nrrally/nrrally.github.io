@@ -48,6 +48,40 @@ function select(api, season, rounds = {}, publicProjection = false) {
   api.useSeason(model);
   return model;
 }
+test('entry-based launch remains in public history/graphs but not championship columns, bars or appearances', () => {
+  const api = harness(), f = F.revisedRallyeSport(true);
+  api.ST.people = f.people;
+  api.ST.peopleIndex = E.peopleIndex(f.people);
+  api.ST.profiles = Object.fromEntries(f.people.people.map(person => [person.id, person]));
+  const projected = AI.projectPublic(f.season, f.people);
+  const model = select(api, projected, {}, true);
+  api.rememberCompetition('rs');
+  const standings = api.viewRsStandings('driver', { pts: 'split' }).html;
+  assert.ok(!standings.includes('Synthetic Launch Event'), 'launch is not a championship column');
+  assert.ok(standings.includes('>R1</a>') && standings.includes('>R4</a>'));
+  assert.ok(!standings.includes('>RS0</a>'), 'no selectable championship RS0 class');
+  const launch = api.viewRallyeSport('rs-r1-classification', {}).html;
+  assert.match(launch, /Non-scoring event/);
+  assert.match(launch, /RS0/);
+  assert.match(launch, /TEST/);
+  assert.match(launch, /01:00.1/);
+  assert.ok(!launch.includes('No championship scoring review'));
+  const graph = api.viewRsGraph('rs-r1-classification', {}, 'graph').html;
+  assert.match(graph, /Non-scoring event/);
+  assert.match(graph, /RS0/);
+  const person = api.viewRsPerson('synthetic-driver-1').html;
+  assert.match(person, /Event appearances/);
+  assert.match(person, /Championship appearances/);
+  assert.match(person, /Synthetic Launch Event/);
+  assert.match(person, /Non-scoring event/);
+  assert.match(person, /60 pts/);
+  const points = api.rsPersonRoundPoints(model, 'synthetic-driver-1', 'driver');
+  assert.equal(points['rs-r1-classification'], undefined);
+  assert.deepEqual(Object.keys(points).sort(), ['rs-r2-classification', 'rs-r3-classification', 'rs-r4-classification', 'rs-r5-classification']);
+  const championship = api.viewRallyeSport('rs-r2-classification', {}).html;
+  assert.ok(!championship.includes('RS0'));
+  assert.match(championship, /D <b>15<\/b>/);
+});
 test('RS graphs use independent stage axes and cannot mix into NR graphs, even with legacy overlay queries', () => {
   const api = harness(), s = emptySeason();
   s.rallyesport = {

@@ -11,7 +11,7 @@ const catalogue = require('../../assets/admin-logic.js');
 const F = require('./ai-fixtures.js');
 const root = path.resolve(__dirname, '..', '..');
 
-function harness() {
+function harness(engine = E) {
   const docs = F.docs(), season = docs['data/seasons/2026/season.json'];
   season.rallyesport = { events: [{ id: 'rs-only', name: 'Synthetic RS event', dates: '' }],
     results: [{ id: 'rs-source', eventId: 'rs-only', title: 'Synthetic source', status: 'Provisional classification',
@@ -19,12 +19,12 @@ function harness() {
       entries: [{ car: '91', driver: 'Alex Test', codriver: '', class: 'RS2', status: 'classified', pos: 1,
         classPos: 1, total: '01:00.0', times: ['01:00.0'], stagePos: [1], invited: false }] }] };
   const ROOT = { addEventListener() {} };
-  const window = { NREngine: E, NRAIImport: AI, NRAdminLogic: catalogue, addEventListener() {} };
+  const window = { NREngine: engine, NRAIImport: AI, NRAdminLogic: catalogue, addEventListener() {} };
   const location = { hash: '#/rallyesport' };
   const context = { window, location, document: { getElementById: () => ROOT }, console, setTimeout, clearTimeout };
   const code = fs.readFileSync(path.join(root, 'assets', 'admin.js'), 'utf8');
   vm.runInNewContext(code.slice(0, code.indexOf('  /* ------------------------------------------------------------------ boot */')) +
-    'window.testAdmin = { A, viewRallyeSport, viewLogic, changes, workingDocs, publicDocs, publishIssues }; })();', context);
+    'window.testAdmin = { A, viewRallyeSport, viewLogic, changes, workingDocs, publicDocs, publishIssues, entryContractError }; })();', context);
   const api = window.testAdmin;
   for (const [key, obj] of Object.entries(docs)) api.A.docs[key] = { orig: E.prettyJson(obj) + '\n', obj, deleted: false };
   api.A.year = 2026; api.A.mode = 'live'; api.A.user = { email: 'admin@example.com' };
@@ -49,9 +49,11 @@ test('catalogue is a closed source-linked graph with explicit branch outcomes', 
       for (const ref of node.evidence) {
         assert.match(ref.path, /^(assets|docs)\//);
         assert.ok(!ref.path.includes('..'));
-        if (!files.has(ref.path)) files.set(ref.path, execFileSync('git', ['show', catalogue.baseline + ':' + ref.path],
-          { cwd: root, encoding: 'utf8', windowsHide: true }).split('\n'));
-        const lines = files.get(ref.path);
+        const key = (ref.revision || catalogue.baseline) + ':' + ref.path;
+        if (!files.has(key)) files.set(key, ref.revision ?
+          fs.readFileSync(path.join(root, ref.path), 'utf8').split('\n') :
+          execFileSync('git', ['show', key], { cwd: root, encoding: 'utf8', windowsHide: true }).split('\n'));
+        const lines = files.get(key);
         assert.ok(ref.start > 0 && ref.end >= ref.start && ref.end <= lines.length, JSON.stringify(ref));
         assert.ok(lines.slice(ref.start - 1, ref.end).join('\n').trim());
       }
@@ -107,4 +109,25 @@ test('explanations keep sensitive distinctions and are admin-only assets', () =>
   assert.match(admin, /admin-logic\.js/);
   assert.match(admin, /noindex, nofollow/);
   for (const file of ['index.html', 'privacy.html', 'disclaimer.html']) assert.ok(!/admin-logic\.(?:js|css)/.test(fs.readFileSync(path.join(root, file), 'utf8')));
+});
+test('entry-based admin shows inactive legacy evidence and validates unsupported imported source statuses', () => {
+  const { api, location } = harness(), f = F.revisedRallyeSport();
+  for (const [key, obj] of Object.entries(f.docs)) api.A.docs[key] = { orig: E.prettyJson(obj) + '\n', obj, deleted: false };
+  const before = JSON.stringify(api.workingDocs());
+  assert.equal(api.entryContractError(), '', 'matching contract must allow review/restore/publication checks');
+  assert.match(harness({ ...E, rallyeSportContractVersion: 1 }).api.entryContractError(), /RallyeSport scripts are missing or out of date/,
+    'cached legacy engines must not restore or publish revised data');
+  location.hash = '#/rallyesport/eligibility';
+  const eligibility = api.viewRallyeSport();
+  assert.match(eligibility, /Entry-based driver and co-driver eligibility/);
+  assert.ok(!eligibility.includes('Membership eligibility for '));
+  assert.ok(!eligibility.includes('Manual RS scoring exclusion</'));
+  location.hash = '#/rallyesport/events/rs-r1/rows';
+  const rows = api.viewRallyeSport();
+  assert.match(rows, /Private launch-only RS0 review evidence/);
+  assert.match(rows, /TEST/);
+  location.hash = '#/rallyesport/setup';
+  assert.match(api.viewRallyeSport(), /Private entry-based policy evidence/);
+  assert.equal(JSON.stringify(api.workingDocs()), before);
+  assert.equal(api.changes().length, 0);
 });

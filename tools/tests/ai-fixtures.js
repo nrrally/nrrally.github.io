@@ -56,4 +56,43 @@ function payload(task = 'season', year = 2027) {
   }
   return p;
 }
-module.exports = { copy, docs, season, payload, source };
+function revisedRallyeSport(withUpcoming = false) {
+  const all = docs(), s = all['data/seasons/2026/season.json'], people = all['data/people.json'];
+  const entries = Array.from({ length: 10 }, (_, i) => {
+    const n = i + 1;
+    for (const role of ['driver', 'codriver']) people.people.push({
+      id: 'synthetic-' + role + '-' + n, name: 'Synthetic ' + role + ' ' + n, aliases: []
+    });
+    return { car: String(n), driver: 'Synthetic driver ' + n, codriver: 'Synthetic codriver ' + n,
+      class: n === 7 ? 'RS4' : 'RS2', status: n === 8 || n === 9 ? 'DNF' : n === 10 ? 'DNS' : 'classified',
+      pos: n <= 7 ? n : null, classPos: n <= 7 ? n === 7 ? 1 : n : null,
+      times: [n <= 8 ? '01:00.' + n : null], stagePos: [n <= 8 ? n : null],
+      total: n <= 7 ? '01:00.' + n : null, penalty: null, invited: n === 1 };
+  });
+  const events = ['Launch Event', 'GR Legends', 'Ermelo', 'TRAC N4', 'Willem Prinsloo / S2 Mine'].map((name, i) => ({
+    id: 'rs-r' + (i + 1), name: 'Synthetic ' + name, dates: '', roundNumber: i === 0 ? undefined : i,
+    countsForChampionship: i !== 0, championshipEvidence: 'Synthetic reviewed event scope.',
+    rulesetConfirmed: true, rulesetEvidence: 'Synthetic applicability.', doublePoints: false
+  }));
+  const results = events.slice(0, withUpcoming ? 5 : 4).map(event => ({
+    id: event.id + '-classification', eventId: event.id, title: 'Synthetic official classification',
+    status: 'Final classification', source: { file: 'synthetic.pdf' }, notes: [],
+    stages: [{ id: 'ss1', label: 'SS1' }], entries: copy(entries)
+  }));
+  results[0].entries[0].status = 'TEST';
+  results[0].entries[0].class = 'TEST';
+  results[0].entries[0].launchNonScoringReview = { evidence: 'Synthetic explicit launch-only crew classification.' };
+  s.rallyesport = {
+    ruleset: { code: 'clubman-sprint-2026-v1', year: 2026,
+      title: '2026 MSA RallyeSport Association Club Standing Supplementary Regulations — Rallysprint',
+      version: 1, issueDate: '2026-07-09', sourceUrl: 'https://example.com/synthetic-rs-ssr.pdf' },
+    eligibilityPolicy: { code: 'entry-based-2026-v1', reviewed: true, evidence: 'Synthetic user-confirmed entry-based policy; not an SSR amendment.' },
+    starterMinimumReview: { minimum: 6, reviewed: true, evidence: 'Synthetic reviewed six-starter minimum; no written amendment.' },
+    membershipReview: { sourceDate: '2026-11-09', reviewed: true, evidence: 'Synthetic private legacy membership evidence.',
+      people: { 'synthetic-driver-1': { status: 'non-member', basis: 'membership-sheet' },
+        'synthetic-codriver-1': { status: 'missing-license', basis: 'membership-sheet' } } },
+    nonScoringPeople: ['synthetic-driver-1', 'synthetic-codriver-2'], events, results
+  };
+  return { docs: all, season: s, people, data: s.rallyesport };
+}
+module.exports = { copy, docs, season, payload, source, revisedRallyeSport };

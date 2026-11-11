@@ -166,6 +166,18 @@ reviewed stable identities and RS-only history across offered seasons. Unresolve
 names remain visible without fabricated person links or name-based identity merging.
 Profiles describe source/classified appearances, not inferred championship starts.
 
+RS contract 2 adds an explicit reviewed 2026 entry-based eligibility policy; absence
+keeps legacy scoring. It bypasses membership/licence/invitation/manual exclusions
+without verifying or changing the old private evidence. The projector emits only its
+code and applied scoring marker, not provenance or membership decisions. Revised public
+events retain the championship-scope boolean so the public UI can keep launch event
+appearances/results/graphs while excluding that event from championship columns,
+points bars and championship appearance counts. A narrow, reviewed printed-TEST launch
+row emits a public boolean for effective RS0 presentation of both roles; source fields
+and stage observations remain intact. It cannot exclude a person in another event.
+Working and published scoring must agree; incompatible policy/snapshot combinations
+fail closed. See [the schema and sequencing constraints](data-model.md#entry-based-policy-migration).
+
 RS presentation follows the NR information hierarchy: classification immediately after
 the result tabs, compact two-person crew cells, position/car/class badges and aligned
 totals/role points. On narrow screens the same RS source rows become labelled crew cards;

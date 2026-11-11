@@ -11,6 +11,48 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
+### Authorized RS entry-based compatible-code release
+
+The isolated implementation starts from freshly fetched
+`7aed656766ff3ce9992601ae962d7c41a62284b6`. After implementation and synthetic
+verification, the user authorized release of the reviewed compatible code/documentation
+batch by normal non-force push to `origin/main` and Pages verification. This code release
+does not authorize Firebase/GCP/data reads or writes, provider changes, PR creation or
+database publication. Data migration belongs to a separately guarded authorized workflow.
+
+RS contract 2 adds an explicit reviewed 2026 entry-based eligibility policy; existing
+documents continue legacy scoring until a separately approved field migration.
+Before push, remote main and latest built Pages were freshly checked at the base above.
+All 117 unit tests and revised/legacy public/admin browser regressions pass. Four synthetic
+legacy-policy comparisons also preserve actual scores, projections and old-published
+public models against that base (ignoring JSON object-key order). This supports safe
+code-first deployment without inspecting or changing the live database; it does not
+certify the correctness of real source data.
+The [schema/migration record](data-model.md#entry-based-policy-migration) lists every
+proposed event-scope/round-number change, the launch-only source-row review, preserved
+IDs/NR/source evidence, public snapshot compatibility, privacy and rollback requirements.
+Never infer the exact private launch crew row/identities from this synthetic code fixture.
+No actual private snapshot was available or needed for this work.
+
+The June launch retains event data but has no championship round number or contribution;
+the four championship events display R1-R4. Both championship crew roles qualify
+without membership/licence/invitation/manual exclusions. DNS, DNF start evidence,
+minimum starters, finality, scales, order, ties and four-round provisional finality are
+unchanged. Printed TEST survives only as reviewed launch source evidence with effective
+RS0 for that crew, not a global person restriction. Unknown inputs are rejected.
+No printed SSR amendment or future-year policy is asserted.
+
+The `rs-entry-1` shell/asset query versions must remain coordinated. Compatible code
+must be released and old admin tabs retired before any separately approved data change.
+After data migration, code-only rollback is unsafe: restore matching private working
+data and its regenerated public bundle atomically with revision/History preconditions
+before restoring older code. Keep full private backups and provenance; Git cannot
+recover them. The Logic explorer labels preserved pinned links as legacy baseline and
+its new policy-helper link as mutable release `main`, not an immutable source citation.
+Keep existing S2 Mine wording for this release; the SN/S2 discrepancy is not a code-release
+blocker and must not be resolved by guessing. No upcoming result/date/programme
+is invented. Validation and operational limitations are recorded in [releases.md](releases.md).
+
 ### Authorized public welcome/navigation/guide UI release
 
 The welcome titled **Welcome to RallyeSport** is owned by `assets/display-context.js`,

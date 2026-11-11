@@ -12,9 +12,11 @@ Open **RallyeSport** in the existing signed-in admin:
   their summary retains car, source crew, class and status. Blank newly added rows open.
   A compact event switcher keeps the same task when changing events; **All RS events**
   returns to the list without repeating that whole list above every editor.
-- **Season setup** contains the existing year-specific ruleset and starter-minimum review.
-- **People & eligibility** has searchable, aligned per-person membership/license review
-  cards, manual exclusions and collapsible procedural guidance. Search is UI-only.
+- **Season setup** contains the year-specific ruleset, starter-minimum review and explicit
+  reviewed entry-based policy/evidence control.
+- **People & eligibility** explains entry-based driver/co-driver eligibility when selected;
+  legacy membership/licence review cards and manual exclusion controls are then inactive
+  and hidden, without deleting their private records. Legacy-policy search is UI-only.
 - **Scoring checks** separates structural validation errors from scoring readiness,
   with links to event blocking reasons and points previews.
 
@@ -22,13 +24,17 @@ These are ordinary links and native disclosures, usable by keyboard and on narro
 Task switching keeps the same in-memory draft, including edits in a collapsed row; it does
 not save or publish. Reload, closing or signing out can lose unpublished work as before.
 Review the whole dataset through **Review & publish**, not just the visible task.
-No new rules, fields, database migration or permission is introduced by this layout.
+The layout itself introduces no permission. The revised eligibility policy requires the
+separately reviewed [field migration](data-model.md#entry-based-policy-migration).
 
 For a committee discussion, open **Logic explorer**, choose **Northern Regions**,
 **RallyeSport** or **Shared workflow**, and select a topic. Search finds topics across
 both competitions and shared processing. Each topic shows inputs, numbered decisions,
 conditional outcomes and connected paths; **Evidence for this decision** opens exact
-code/documentation line links at the displayed audited revision. Browser back/forward
+code/documentation line links at the displayed revision. Legacy links stay pinned;
+the new policy helper link explicitly identifies the release branch (`main`), not an
+immutable audit revision. For release verification compare it with the checked-out
+reviewed commit; a moving branch is not historical deployment evidence. Browser back/forward
 works between topics. It needs no competitor data or additional database query.
 
 The 30 curated topics cover intake/validation, credited versus printed identities,
@@ -196,6 +202,32 @@ When the sheet and the official standings disagree, follow the standings and rec
 
 ## RallyeSport results (independent from NR)
 
+For the revised 2026 workflow, select **User-confirmed entry-based 2026 policy** in
+**Season setup** and supply private provenance of the confirmed user decision. Never
+describe it as an amendment printed in SSR 6.1. Both championship crew roles qualify
+in RS2/RS4 regardless of legacy membership/licence/invitation/manual exclusions.
+Do not mark old membership evidence verified. Identity and all event finality,
+starter/DNF/DNS, points/order/tie and provisional championship gates remain unchanged.
+
+Set the June launch event to **Event only; not a championship round**, remove its display
+round number, and clearly name it Launch Event. Display-number the four existing
+championship events R1-R4; do not rename stable event/result IDs or change NR links.
+See the exact proposed fields and operational constraints in
+[the migration record](data-model.md#entry-based-policy-migration).
+Retain the original printed TEST evidence on the explicitly confirmed launch crew row,
+and add its **Private launch-only RS0 review evidence**. This marks both roles RS0 only
+there while preserving times/order/source text. Do not put either person in a season
+exclusion list. No TEST option or automatic conversion is supported for championship
+imports. Unknown categories/statuses must be resolved explicitly; a general bad input
+cannot use the launch exception. Publication/backup-restore validation uses these same
+rules. Subsequent 2026 entries retain the selected policy without needing new roster
+decisions. Generic AI/PDF/spreadsheet imports are still NR-only; they are not an RS
+classification importer and must not be used to normalize RS TEST evidence.
+
+The remaining legacy membership/invitation/TEST instructions below apply only when the
+entry-based policy is absent; the source-preservation and event-readiness procedures
+apply to both workflows.
+
 Use **RallyeSport** in the admin for RS seasons. It is intentionally a separate event
 and classification editor, not another NR class. Creating an RS event does not require
 an NR calendar event or round. Record the official event name/dates, exact classification
@@ -266,7 +298,7 @@ SSR amendment; the source document still states 15. A reviewed count at or above
 currently recorded minimum establishes the event threshold. In Admin > Season >
 RallyeSport, select the six-starter review and record its provenance before using
 Review & publish; the evidence is private and is not copied into public data.
-For 2026 membership, review the private person-ID map after identity reconciliation.
+For legacy 2026 membership policy only, review the private person-ID map after identity reconciliation.
 Only a matching Profile Complete record with both licence and membership reference
 supports eligibility; account Active/Inactive/Invite Pending status is irrelevant. A
 qualifying complete duplicate is sufficient. Record explicit user-confirmed corrections
