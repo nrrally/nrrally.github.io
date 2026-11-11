@@ -11,6 +11,17 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
+### RS standings split display
+
+The RS standings points/split control shows each existing per-round score and its
+RS class contribution. RS overall totals reuse class points; no extra overall points
+are awarded. Class filters retain their independently calculated RS tables; RS0 remains
+unranked and provisional tables still exclude blocked events. The `rs-split-1` shell
+query version must be kept coordinated across public/admin/privacy/disclaimer on
+rollback. No schema, scoring, rules, Firebase or data migration accompanies this UI
+change. Reload old tabs; static rollback needs no database restore or republish.
+Release approval, checks and deployment verification are recorded in [releases.md](releases.md).
+
 ### Authorized RS workspace / logic-explorer code release
 
 The presentation-only work based on `bcb4c8a68f975c7f7bdfa725839de4f3d798d8bc`

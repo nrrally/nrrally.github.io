@@ -398,7 +398,7 @@ async function main() {
     await page.locator('#nsYear').fill('2027');
     await page.getByLabel('Copy settings from').selectOption('2026');
     await page.getByRole('button', { name: 'Create season' }).click();
-    await page.locator('#yearSel').waitFor();
+    await page.waitForFunction(() => document.querySelector('#yearSel')?.value === '2027');
     assert.equal(await page.locator('#yearSel').inputValue(), '2027');
     await page.evaluate(() => location.hash = '#/season');
     await page.getByRole('button', { name: 'Open the public site on 2027' }).waitFor();

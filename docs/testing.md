@@ -128,6 +128,11 @@ produce no event points or standings.
 RS public copy regressions keep user-review provenance out of the prominent event-points
 summary, retain printed source qualification and technical-check status, and keep
 provisional standings concise while identifying excluded events and their blocking reasons.
+The synthetic public browser suite checks the RS standings points/split toggle at
+320/390/768/1440 px in both themes. It compares all table values and ordering across
+views, checks per-round RS2/RS4, class changes, DNF and RS0, and preserves split mode
+across role/class navigation, history and reload. RS uses class points for overall
+totals, not a second overall award. Browser traffic remains intercepted.
 
 These checks verify behavior, not the truth/currency of actual new SSRs or a private
 database backup. The guide unit checks assert maintainer edition metadata, labelled sources

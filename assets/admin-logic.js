@@ -353,7 +353,8 @@
         node('How are people aggregated and ranked?', [
           branch('Eligible role with numeric points', 'Sum by stable ID separately for drivers and co-drivers, in overall and actual RS2/RS4 class tables.'),
           branch('Equal season totals', 'Share rank = 1 + number of people with higher totals. Alphabetical presentation is not a season tie-break or winner declaration.'),
-          branch('Excluded role, non-DNS source', 'Keep a zero-point unranked RS0 row after eligible rows. If the person is eligible elsewhere, suppress a duplicate standalone RS0 class row.')
+          branch('Excluded role, non-DNS source', 'Keep a zero-point unranked RS0 row after eligible rows. If the person is eligible elsewhere, suppress a duplicate standalone RS0 class row.'),
+          branch('Standings split display', 'Show each scored round with its RS class contribution. Overall totals reuse those class points; there is no separate overall award.')
         ], [source('assets/engine.js', 657, 709, 'buildStandings')])
       ], ['rs-events', 'rs-points', 'shared-limits']),
     topic('rs-copy', 'rs', 'Reviewed time reuse: NR source to independent RS snapshot',

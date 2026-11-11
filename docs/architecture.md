@@ -51,7 +51,8 @@ Task, search and disclosure state are ephemeral UI state, not schema fields.
 Each decision has conditions/outcomes and evidence `{path,start,end,symbol}`. Evidence
 links are immutable GitHub blobs pinned to `bcb4c8a68f975c7f7bdfa725839de4f3d798d8bc`,
 the audited pre-change runtime; current admin line numbers will differ after layout work.
-The scorer and public renderer are unchanged from that revision. This catalogue is not
+The scorer is unchanged from that revision; later display-only changes are documented
+separately. This catalogue is not
 generated from executable branches: when processing changes, re-audit affected topics,
 outcomes, links and related paths, then advance the baseline after the supporting code
 exists in an inspectable commit. Do not silently link moving `main` or reinterpret old rules.
@@ -61,7 +62,7 @@ truth. Human comparison against implementation/docs remains essential.
 The explorer's responsive Clawpilot palette is scoped to its components. Existing admin
 authentication, Firestore REST and Auth SDK adapters, database rules and CSP are unchanged.
 Only the admin shell includes the new assets. Coordinated HTML query version
-`admin-logic-1` busts caches across public/admin/disclaimer/privacy; it is not a data or
+`rs-split-1` busts caches across public/admin/disclaimer/privacy; it is not a data or
 scoring-contract version.
 
 ## Public site
@@ -72,7 +73,7 @@ scoring-contract version.
 |---|---|
 | `#/` | Home page for the current season |
 | `#/<year>` | Home page for that season |
-| `#/<year>/standings`, `#/<year>/standings/codrivers` | Standings. Optional `?class=NR1&pts=split`. |
+| `#/<year>/standings`, `#/<year>/standings/codrivers` | Standings. Optional `?class=NR1&pts=split`, or `?competition=rs&class=RS2&pts=split` for RS. |
 | `#/<year>/rounds` | Calendar and the round winners |
 | `#/<year>/round/<id>/graph`, `…/classification`, `…/stages` | One round. The graph takes `?cars=200,201&m=gap`, where `m` is one of `pos`, `gap`, `cpos`, `cgap`, `loss`, `spos`. |
 | `#/<year>/rallyesport` | Legacy RS championship tables, with graph-first event links. |

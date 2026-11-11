@@ -717,17 +717,22 @@
   function viewRsStandings(role, q) {
     var tables = homeRallyeSportStandings(), base = '/standings' + (role === 'codriver' ? '/codrivers' : '');
     var cls = ['RS0', 'RS2', 'RS4'].indexOf(q['class']) >= 0 ? q['class'] : '';
+    var showBreak = q.pts === 'split';
     var path = cls ? (role === 'driver' ? 'classDrivers.' : 'classCodrivers.') + cls :
       role === 'driver' ? 'overallDrivers' : 'overallCodrivers';
     var title = 'RS ' + (role === 'driver' ? 'drivers' : 'co-drivers');
     var html = '<div class="page-head"><div><p class="eyebrow">' + YEAR + ' · RallyeSport standings</p><h1>' + title + '</h1></div>' +
-      '<div class="seg"><a href="' + buildHash('/standings', { 'class': cls }) + '" class="' + (role === 'driver' ? 'on' : '') +
-      '">Drivers</a><a href="' + buildHash('/standings/codrivers', { 'class': cls }) + '" class="' + (role === 'codriver' ? 'on' : '') + '">Co-drivers</a></div></div>';
+      '<div class="seg"><a href="' + buildHash('/standings', { 'class': cls, pts: q.pts }) + '" class="' + (role === 'driver' ? 'on' : '') +
+      '">Drivers</a><a href="' + buildHash('/standings/codrivers', { 'class': cls, pts: q.pts }) + '" class="' + (role === 'codriver' ? 'on' : '') + '">Co-drivers</a></div></div>';
     html += rsScoringNotice() + '<div class="filters"><div class="seg">' + ['', 'RS2', 'RS4', 'RS0'].map(function (value) {
-      return '<a href="' + buildHash(base, { 'class': value }) + '" class="' + (value === cls ? 'on' : '') + '">' + (value || 'Overall') + '</a>';
-    }).join('') + '</div></div>' + rsStandingsTable((tables.provisional ? 'Provisional · ' : '') + (cls || 'Overall'), tables.rows(path),
+      return '<a href="' + buildHash(base, { 'class': value, pts: q.pts }) + '" class="' + (value === cls ? 'on' : '') + '">' + (value || 'Overall') + '</a>';
+    }).join('') + '</div><div class="seg"><a href="' + buildHash(base, { 'class': cls }) + '" class="' + (showBreak ? '' : 'on') +
+      '">Points</a><a href="' + buildHash(base, { 'class': cls, pts: 'split' }) + '" class="' + (showBreak ? 'on' : '') +
+      '">Overall + class split</a></div></div>' +
+      (showBreak ? '<p class="small muted">RS overall totals reuse class points; no separate overall points are added. Each round shows its scoring class.</p>' : '') +
+      rsStandingsTable((tables.provisional ? 'Provisional · ' : '') + (cls || 'Overall'), tables.rows(path),
       { RS2: tables.rows((role === 'driver' ? 'classDrivers.' : 'classCodrivers.') + 'RS2'),
-        RS4: tables.rows((role === 'driver' ? 'classDrivers.' : 'classCodrivers.') + 'RS4') }, cls, role);
+        RS4: tables.rows((role === 'driver' ? 'classDrivers.' : 'classCodrivers.') + 'RS4') }, cls, role, showBreak);
     html += rsEligibilityNote();
     if (!rallyeSportEvents().length) html += '<p>No RS data is published for ' + YEAR + '.</p>';
     return { title: title, html: html };
@@ -805,7 +810,7 @@
     });
     return r;
   }
-  function rsStandingsTable(title, rows, classTables, selectedClass, role) {
+  function rsStandingsTable(title, rows, classTables, selectedClass, role, showBreak) {
     var results = role ? D.rallyesport.events.map(function (event) {
       var result = rallyeSportResultForEvent(event.id);
       return result ? { event: event, result: result } : null;
@@ -831,7 +836,9 @@
             esc(championshipClasses(row))) + '</td>' + results.map(function (item) {
               var value = byRound[item.result.id];
               return '<td class="num" title="' + esc(value ? value.status : 'Unavailable / no scored result') + '">' +
-                (value ? value.pts : '—') + '</td>';
+                (value ? (showBreak ? '<span class="ptcell' + (value.pts ? '' : ' zero') + '"><b>' + value.pts +
+                  '</b><small>' + esc(Object.keys(value.classes).map(function (cls) { return cls + ' ' + value.classes[cls]; }).join(' · ')) +
+                  '</small></span>' : value.pts) : '—') + '</td>';
             }).join('') + '<td class="num"><b>' + row.points + '</b></td></tr>'; }).join('') +
         '</tbody></table></div>' : '<div class="card empty">No points have been established for this table.</div>') + '</div>';
   }
@@ -1646,8 +1653,12 @@
     }).forEach(function (appearance) {
       if (typeof appearance.points !== 'number') return;
       var key = appearance.result.id, value = points[key];
+      var scoringClass = !appearance.eligibility ? 'Class unavailable' :
+        appearance.eligibility.status === 'eligible' ? appearance.eligibility.scoringClass || 'Class unavailable' : 'RS0';
+      var classes = value ? value.classes : Object.create(null);
+      if (scoringClass) classes[scoringClass] = (classes[scoringClass] || 0) + appearance.points;
       points[key] = { pts: (value ? value.pts : 0) + appearance.points,
-        o: 0, c: (value ? value.pts : 0) + appearance.points, status: appearance.entry.status };
+        o: 0, c: (value ? value.pts : 0) + appearance.points, status: appearance.entry.status, classes: classes };
     });
     return points;
   }

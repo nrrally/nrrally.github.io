@@ -31,6 +31,38 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## 2026-11-11: authorized RS standings split display
+
+- Based on freshly fetched `origin/main`
+  `891c170a156c1dc8e9f135fa6ab91977d8fecdc7`. The user requested the RS Standings
+  toggle and explicitly authorized testing and pushing live: a normal non-force
+  code/documentation push to `origin/main` and Pages verification. No Firebase/GCP,
+  rules, data publication, season creation or provider configuration change is included.
+- RS driver/co-driver standings gain the NR-style Points / Overall + class split control.
+  Split mode annotates each existing round value with its contributing RS class, including
+  zero and class changes. Overall totals reuse class points; there is no separate overall
+  award. Existing role-specific class tables, positions, eligibility, provisional and
+  unavailable values are not recalculated by the toggle. Role/class navigation retains
+  the display choice. The logic explorer and public route/testing/recovery notes describe it.
+- The engine, scoring, schema, public data, authentication and analytics are unchanged;
+  no migration or data republish is needed. HTML asset query versions advance together
+  to `rs-split-1`. Guide reference edition stays 2026. Reload old tabs; presentation-only
+  rollback restores matching shell/assets and needs no database restore. Private backups
+  and real source/roster verification remain outside the scope of this code change.
+- Validation: all 106 Node tests and the synthetic public, admin access, AI import,
+  rally notice and analytics browser suites passed. Public checks cover split values, class changes,
+  RS0 and DNF, navigation/history/reload, and 320/390/768/1440 px in both themes. Browser
+  provider requests are intercepted; no synthetic analytics reaches a real collector.
+  The admin season-creation assertion waits for the selected year rather than merely the
+  already-present selector, avoiding a pre-existing asynchronous-render race in the test.
+  Optional actual-Google-runtime replay is not part of this display change and is not
+  claimed here. These checks do not certify real data, live sign-in or deployed rules.
+- The approved existing write-capable keyring account is used through temporary,
+  non-secret, process-scoped GH configuration and `gh auth git-credential`; no token
+  extraction or global authentication change. Verify exact remote base and staged scope
+  before push. Pages status and canonical byte comparisons must be verified after push;
+  this pre-push record is not a claim that deployment has already succeeded.
+
 ## 2026-11-10: authorized RS admin workspace and logic-explorer release
 
 - Based on freshly fetched, clean `origin/main`/HEAD

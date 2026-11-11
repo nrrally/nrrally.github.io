@@ -86,6 +86,7 @@ season.rallyesport.results.push({
   stages: [{ id: 'ss1', label: 'SS1' }], notes: [],
   entries: rsResult.entries.map(entry => ({ ...entry, times: entry.times.slice(), stagePos: entry.stagePos.slice() }))
 });
+season.rallyesport.results[1].entries[3].class = 'RS4';
 rsResult.entries[2].status = 'DNF';
 rsResult.entries[2].pos = null;
 rsResult.entries[2].classPos = null;
@@ -247,7 +248,7 @@ async function main() {
     assert.equal(initialRsProjection.rallyesport.events[0].rulesetConfirmed, undefined);
     for (const theme of ['light', 'dark']) {
       await page.evaluate(t => localStorage.setItem('nr-theme', t), theme);
-      for (const width of [1440, 390, 320]) {
+      for (const width of [1440, 768, 390, 320]) {
         await page.setViewportSize({ width, height: 1000 });
         await visit('#/');
         assert.equal(await page.getByRole('heading', { name: 'Class leaders · drivers' }).count(), 1);
@@ -279,6 +280,39 @@ async function main() {
           'actual projected rows without scoringClass derive their class from the role-specific class table');
         assert.ok(!(await page.locator('main').innerText()).includes('RS2 / RS4'));
         assert.ok((await page.locator('main').innerText()).includes('RS0 Non-Scoring SSR 6.1'));
+        const tableValues = () => page.locator('table.data tbody tr').evaluateAll(rows => rows.map(row =>
+          Array.from(row.cells, cell => cell.querySelector('.ptcell b')?.textContent || cell.textContent.trim())));
+        const ordinaryRows = await tableValues();
+        await page.getByRole('link', { name: 'Overall + class split' }).click();
+        assert.ok(page.url().includes('pts=split'));
+        assert.deepEqual(await tableValues(), ordinaryRows, 'the split never changes standings values or ordering');
+        assert.match(await page.locator('main').innerText(), /overall totals reuse class points; no separate overall points/i);
+        assert.match(await page.locator('table.data tbody tr').filter({ hasText: 'Reviewed RS driver' }).innerText(), /RS2 \d+/);
+        assert.match(await page.locator('table.data tbody tr').filter({ hasText: 'Synthetic Driver 4' }).innerText(), /RS4 \d+[\s\S]*RS2 \d+/);
+        assert.match(await page.locator('table.data tbody tr').filter({ hasText: 'Alex Test' }).innerText(), /RS0 0/);
+        assert.match(await page.locator('table.data tbody tr').filter({ hasText: 'Synthetic Driver 3' }).innerText(), /RS2 0/);
+        await noOverflow();
+        await page.getByRole('link', { name: 'RS4', exact: true }).click();
+        await page.locator('.filters .seg a.on').filter({ hasText: /^RS4$/ }).waitFor();
+        assert.ok(page.url().includes('pts=split'));
+        assert.match(await page.locator('table.data tbody tr').filter({ hasText: 'Synthetic Driver 4' }).innerText(), /RS4 \d+/);
+        assert.doesNotMatch(await page.locator('table.data tbody tr').filter({ hasText: 'Synthetic Driver 4' }).innerText(), /RS2 \d+/);
+        await page.getByRole('link', { name: 'Co-drivers', exact: true }).click();
+        await page.getByRole('heading', { name: 'RS co-drivers', exact: true }).waitFor();
+        assert.ok(page.url().includes('pts=split'));
+        assert.ok(page.url().includes('class=RS4'));
+        assert.match(await page.locator('table.data tbody tr').filter({ hasText: 'Synthetic Co-driver 6' }).innerText(), /RS4 \d+/);
+        await page.getByRole('link', { name: 'Points', exact: true }).click();
+        await page.waitForURL(url => !url.hash.includes('pts=split'));
+        await page.locator('.filters .seg a.on').filter({ hasText: /^Points$/ }).waitFor();
+        assert.ok(!page.url().includes('pts=split'));
+        assert.equal(await page.locator('table.data .ptcell').count(), 0);
+        await page.goBack();
+        assert.ok(page.url().includes('pts=split'));
+        await page.reload();
+        assert.ok(page.url().includes('pts=split'));
+        await noOverflow();
+        await visit('#/2026/standings?competition=rs');
         await competitionSwitch().click();
         await page.waitForFunction(() => document.getElementById('competitionBtn').getAttribute('aria-checked') === 'false');
         await page.goBack();
@@ -387,7 +421,7 @@ async function main() {
         await page.getByRole('heading', { name: 'RS drivers', exact: true }).waitFor();
         assert.ok(!(await page.innerText('main')).includes('Minimum 1 starts'));
         await page.getByRole('link', { name: 'RS4', exact: true }).click();
-        await page.getByText('No points have been established for this table.', { exact: true }).waitFor();
+        await page.locator('table.data tbody tr').filter({ hasText: 'Synthetic Driver 4' }).waitFor();
         await page.getByRole('link', { name: 'Co-drivers', exact: true }).click();
         await page.getByRole('heading', { name: 'RS co-drivers', exact: true }).waitFor();
         await nav('Crews').click();
