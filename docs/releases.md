@@ -106,6 +106,24 @@ must be addressed; there is no automation that can infer approvals or certify pr
   keyring release account has repository push permission. The release retry removes
   token overrides only from its own process and uses `gh auth git-credential`; no token
   extraction, account registration or global authentication change is involved.
+- Deployment verified: the normal non-force push succeeded at
+  `c9fe6085a476ee392718871e52ffd83926dc7110`; Pages workflow `42997965175` succeeded
+  and the Pages API reported that exact SHA **built**, with no build error.
+  All 22 canonical HTTPS HTML/runtime/brand files matched that commit's Git blobs
+  byte-for-byte (compare Git blobs, not Windows checkout line endings).
+  The navigation browser runner also passed against a downloaded snapshot of those
+  deployed bytes: NR/RS, both themes, all eight widths, guide/year context, MENU states,
+  keyboard/focus/outside/selection and resizing, with provider traffic intercepted.
+  No live Firebase/GCP, Auth or Analytics calls were made; real authenticated admin
+  sign-in and live source-data correctness were not tested. Admin static assets matched
+  Git, and the earlier synthetic admin-access regression passed.
+- The detached loopback review preview has been stopped. This same-release
+  documentation-only handover changes no runtime, behavior, cache version, data or
+  approval scope. Guard remote main at the verified SHA above before the normal
+  follow-up push; verify Pages builds its resulting documentation SHA and that all
+  22 runtime/static files still match. No new code validation is required for these
+  documentation-only edits. Current main/Pages must be checked rather than treating
+  the historical verification SHA as the latest deployment indefinitely.
 
 ## 2026-11-11: authorized RS class-label continuity release
 

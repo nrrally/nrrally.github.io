@@ -51,6 +51,16 @@ can mask the documented linked keyring account. Remove overrides only in the rel
 process when using that existing account; do not extract tokens or change global sign-in.
 Validation and remaining release limitations are recorded in [releases.md](releases.md).
 
+The release was subsequently verified built at
+`c9fe6085a476ee392718871e52ffd83926dc7110`, with all 22 canonical HTTPS
+HTML/runtime/brand files byte-identical to their Git blobs. The intercepted navigation
+browser regression passed against a downloaded snapshot of those deployed files,
+including NR/RS, light/dark, narrow/wide layouts, MENU states and guide/year context.
+The synthetic review preview has been stopped. Real authenticated sign-in and live
+provider/data verification remain outside scope. This same-release documentation-only
+handover changes no runtime or data; recheck current main/Pages rather than assuming
+this historical SHA is still the latest build.
+
 ### RS class display continuity
 
 Public RS class labels use the existing result-specific mappings; printed source
