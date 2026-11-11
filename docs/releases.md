@@ -31,6 +31,50 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## 2026-11-11: authorized RS public visual parity release (pre-push)
+
+- Implemented in an isolated worktree from `3e778f76178b2a0448cb3f764c4b32c12d6b536f`.
+  The user authorized release to `origin/main`: "can you push and ill test it in live.
+  as its just cosmetic changes it doesnt need my local first review." This release covers
+  the completed public RS presentation parity only: homepage class badges and
+  evidence-based rounds-started labels; NR-style year heading; related NR event links
+  resolved from the explicit `nrEventId`; NR-style position/class labels; source-backed
+  RS round winners; and a clearer, narrow-screen RS Crews layout. NR rendering/scoring,
+  RS eligibility and points, result/source records, guide edition and analytics behavior
+  are unchanged. No live Firebase/GCP access or writes were made by this implementation.
+- Related NR links are rendered from the current public NR event links and entry-list
+  source only when the explicit RS-to-NR event relationship resolves. The code contains
+  no TRAC URL or other hardcoded NR event URL. Therefore a separately authorized NR
+  link edit is inherited dynamically; no code/data migration is needed for it.
+- RS starts are distinct championship-result events per person and role. A classified
+  result establishes a start; DNF requires source start evidence, and an unresolved DNF
+  produces an unavailable total. DNS is not counted. Non-scoring events do not contribute.
+  RS round winners use classified source positions only, respect result finality and
+  technical-check qualifications, and do not infer winners for provisional/unfinalized
+  or unpublished events. The non-scoring launch remains visibly identified.
+- Coordinated shell/asset query version is `rs-visual-1` across `index.html`,
+  `admin/index.html`, `disclaimer.html` and `privacy.html`; retire/reload older open tabs.
+  This is presentation-only, so rollback requires restoring the matching static shells
+  and assets together but no database restore or republish. No scoring schema, source
+  records, data migration, Firebase rules, hosting or provider configuration changed.
+- Synthetic validation passed: `node tools\tests\site-theme-e2e.js` at 320/390/768/1440 px
+  in light/dark themes; `node tools\tests\rs-entry-policy-e2e.js`;
+  `node --test tools\tests\rallyesport.test.js` (41 checks);
+  `node --test tools\tests\season-readiness.test.js` (18 checks); and `git diff --check`.
+  Browser requests were intercepted and synthetic; no real provider data, public
+  deployment, or live NR link was queried by these tests.
+- Fresh release preflight fetched `origin/main` at
+  `3e778f76178b2a0448cb3f764c4b32c12d6b536f`; it matches the worktree base with no
+  divergent commits. The complete reviewed scope is the 11 changed code, test, shell and
+  documentation paths; there are no untracked files. The latest Pages API build also
+  reports this same SHA built (`2026-11-11T14:33:30Z`). The approved existing keyring
+  account has repository push permission, verified without extracting a token or changing
+  global authentication. Commit and normal non-force push to `origin/main` are authorized;
+  no PR, Firebase/GCP/data operation or provider change is authorized. This remains a
+  pre-push record until Pages reports the pushed SHA built and canonical assets are checked.
+- Reload old tabs to receive `rs-visual-1`. Rollback is static-only; no database restore
+  is needed. Live authenticated data/source verification remains outside this release.
+
 ## 2026-11-11: RS entry-based policy activation (documentation-only completion)
 
 - After the compatible-code deployment below, the coordinator confirmed the separately

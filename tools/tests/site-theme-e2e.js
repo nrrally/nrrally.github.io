@@ -18,6 +18,13 @@ const sharedNrEvents = [
   { id: 'synthetic-ermelo', name: 'Synthetic INGCO Ermelo Rally', dates: '21 August 2026', venue: 'Ermelo' },
   { id: 'synthetic-trac', name: 'Synthetic TRAC N4 Rally', dates: '30 October 2026', venue: 'Dullstroom' }
 ];
+sharedNrEvents[0].links = {
+  results: 'https://example.com/synthetic-nr-results',
+  entryList: 'https://example.com/synthetic-nr-entry-list',
+  srs: 'https://example.com/synthetic-nr-srs',
+  noticeboard: 'https://example.com/synthetic-nr-noticeboard',
+  spectatorGuide: 'https://example.com/synthetic-nr-spectator-guide'
+};
 season.events.push(...sharedNrEvents);
 const people = F.copy(docs['data/people.json']);
 Object.assign(people.people.find(person => person.id === 'alex-test'), {
@@ -27,6 +34,7 @@ Object.assign(people.people.find(person => person.id === 'alex-test'), {
 people.people.push({ id: 'blake-example', name: 'Blake Example', aliases: [], bio: '', photo: '', links: {} });
 people.people.push({ id: 'reviewed-rs-driver', name: 'Reviewed RS driver', aliases: [] });
 people.people.push({ id: 'reviewed-rs-codriver', name: 'Reviewed RS co-driver', aliases: [] });
+people.people.push({ id: 'rs-launch-driver', name: 'Launch Example', aliases: [] });
 for (let i = 1; i <= 15; i++) {
   people.people.push({ id: 'rs-driver-' + i, name: 'Synthetic Driver ' + i, aliases: [], bio: '', photo: '', links: {} });
   people.people.push({ id: 'rs-codriver-' + i, name: 'Synthetic Co-driver ' + i, aliases: [], bio: '', photo: '', links: {} });
@@ -39,13 +47,14 @@ const rsEvents = [1, 2, 3, 4, 5].map(roundNumber => ({
   nrEventId: ({ 2: sharedNrEvents[0].id, 3: sharedNrEvents[1].id, 4: sharedNrEvents[2].id })[roundNumber]
 }));
 rsEvents.push({
-  id: 'synthetic-rs-undated', roundNumber: 6, name: 'Synthetic undated RS event', dates: '',
+  id: 'synthetic-rs-launch', name: 'Synthetic Launch Event', dates: '6 June 2026',
   rulesetConfirmed: true, rulesetEvidence: 'Synthetic SSR applicability',
   countsForChampionship: false, championshipEvidence: 'Synthetic event is explicitly outside the championship',
   doublePoints: false
 });
+rsEvents.unshift(rsEvents.pop());
 const rsResult = {
-  id: 'synthetic-rs-r2-results', eventId: rsEvents[1].id, title: 'Synthetic RS final classification',
+  id: 'synthetic-rs-r2-results', eventId: rsEvents.find(event => event.roundNumber === 2).id, title: 'Synthetic RS final classification',
   status: 'Final classification', source: { file: 'synthetic-rs.pdf', url: 'https://example.com/synthetic-rs.pdf' },
   finalityReview: { acceptedForScoring: true, evidence: 'Synthetic user-confirmed finality review.' },
   notes: ['Source footer: results are final pending post-event technical checks such as fuel testing.'],
@@ -73,6 +82,7 @@ entry.codriver = 'Synthetic Co-driver ' + (i + 1);
 rsResult.entries[0].driver = 'Alex Test';
 rsResult.entries[0].codriver = 'Blake Example';
 rsResult.entries[5].class = 'RS4';
+rsResult.entries[2].class = 'RS4';
 rsResult.entries[3].vehicle = 'Synthetic RS hatchback';
 rsResult.entries[1].driver = 'Same source name';
 rsResult.entries[1].codriver = 'Same source name';
@@ -81,17 +91,39 @@ rsResult.entries[1].identityReview = {
   evidence: 'Synthetic reviewer-confirmed distinct crew roles.'
 };
 season.rallyesport.results.push({
-  ...rsResult, id: 'synthetic-rs-r1-finality-review', eventId: rsEvents[0].id,
-  title: 'Synthetic user-reviewed classification', status: 'Provisional classification', nrRoundId: undefined,
+  ...rsResult, id: 'synthetic-rs-r1-finality-review', eventId: rsEvents.find(event => event.roundNumber === 1).id,
+  title: 'Synthetic provisional classification', status: 'Provisional classification', nrRoundId: undefined,
   stages: [{ id: 'ss1', label: 'SS1' }], notes: [],
   entries: rsResult.entries.map(entry => ({ ...entry, times: entry.times.slice(), stagePos: entry.stagePos.slice() }))
 });
 season.rallyesport.results[1].entries[3].class = 'RS4';
+season.rallyesport.results.push({
+  id: 'synthetic-rs-r3-provisional', eventId: rsEvents.find(event => event.roundNumber === 3).id,
+  title: 'Synthetic unfinalized classification', status: 'Provisional classification',
+  stages: [{ id: 'ss1', label: 'SS1' }],
+  entries: [{ car: '44', driver: 'Synthetic Driver 4', codriver: 'Synthetic Co-driver 4', class: 'RS4',
+    status: 'DNF', pos: null, classPos: null, times: [null], stagePos: [null], penalty: null, total: null },
+  { car: '43', driver: 'Synthetic Driver 3', codriver: 'Synthetic Co-driver 3', class: 'RS4',
+    status: 'DNS', pos: null, classPos: null, times: [null], stagePos: [null], penalty: null, total: null }]
+});
+season.rallyesport.results.push({
+  id: 'synthetic-rs-launch-result', eventId: rsEvents[0].id, title: 'Synthetic launch classification',
+  status: 'Final classification', source: { url: 'https://example.com/synthetic-rs-launch.pdf' },
+  stages: [{ id: 'launch-ss1', label: 'Launch SS1' }],
+  entries: [{ car: '99', driver: 'Launch Example', codriver: '', class: 'RS2', status: 'classified',
+    pos: 1, classPos: 1, times: ['00:01.00'], stagePos: [1], penalty: null, total: '00:01.00' }]
+});
 rsResult.entries[2].status = 'DNF';
 rsResult.entries[2].pos = null;
 rsResult.entries[2].classPos = null;
 rsResult.entries[2].total = null;
+rsResult.entries[2].class = 'RS4';
 const initialRsProjection = AI.projectPublic(season, people);
+initialRsProjection.rallyesport.events.forEach(event => {
+  const sourceEvent = rsEvents.find(row => row.id === event.id);
+  if (sourceEvent && typeof sourceEvent.countsForChampionship === 'boolean')
+    event.countsForChampionship = sourceEvent.countsForChampionship;
+});
 const initialRsData = F.copy(initialRsProjection.rallyesport);
 const bundle = { season: initialRsProjection, rounds: { R1: {
 ...source, entries: source.entries.map(e => ({ ...e, driver: 'Alex Test', codriver: 'Blake Example' }))
@@ -236,14 +268,14 @@ async function main() {
       }
     }
     const projectedScoring = initialRsProjection.rallyesport.scoring;
-    assert.equal(projectedScoring.results.find(row => row.eventId === rsEvents[1].id).status, 'ready');
-    assert.equal(projectedScoring.results.find(row => row.eventId === rsEvents[1].id).finalityBasis, 'user-confirmed');
+    assert.equal(projectedScoring.results.find(row => row.eventId === rsEvents.find(event => event.roundNumber === 2).id).status, 'ready');
+    assert.equal(projectedScoring.results.find(row => row.eventId === rsEvents.find(event => event.roundNumber === 2).id).finalityBasis, 'user-confirmed');
     const projectedDnf = projectedScoring.results.find(row => row.resultId === rsResult.id).entries.find(row => row.car === '3');
     assert.deepEqual([projectedDnf.driverPoints, projectedDnf.codriverPoints], [0, 0]);
     assert.deepEqual([projectedDnf.driverEligibility.status, projectedDnf.codriverEligibility.status],
       ['eligible', 'eligible']);
     assert.deepEqual([projectedDnf.driverEligibility.scoringClass, projectedDnf.codriverEligibility.scoringClass],
-      ['RS2', 'RS2']);
+      ['RS4', 'RS4']);
     assert.equal(initialRsProjection.rallyesport.results[0].entries[1].driver, 'Same source name');
     assert.equal(initialRsProjection.rallyesport.results[0].entries[1].codriver, 'Same source name');
     assert.equal(initialRsProjection.rallyesport.results[0].entries[1].identityReview, undefined);
@@ -281,7 +313,7 @@ async function main() {
         const rs0Standing = page.locator('table.data tbody tr').filter({ hasText: 'Alex Test' }).first();
         assert.match(await rs0Standing.innerText(), /—.*Alex Test.*RS0.*0/);
         const eligibleStanding = page.locator('table.data tbody tr').filter({ hasText: 'Reviewed RS driver' }).first();
-        assert.equal(await eligibleStanding.locator('td').nth(2).innerText(), 'RS2',
+        assert.equal(await eligibleStanding.locator('td').nth(2).locator('.cls').innerText(), 'RS2',
           'actual projected rows without scoringClass derive their class from the role-specific class table');
         assert.ok(!(await page.locator('main').innerText()).includes('RS2 / RS4'));
         assert.ok((await page.locator('main').innerText()).includes('RS0 Non-Scoring SSR 6.1'));
@@ -296,7 +328,7 @@ async function main() {
         assert.match(await page.locator('table.data tbody tr').filter({ hasText: 'Reviewed RS driver' }).innerText(), /RS2 \d+/);
         assert.match(await page.locator('table.data tbody tr').filter({ hasText: 'Synthetic Driver 4' }).innerText(), /RS4 \d+[\s\S]*RS2 \d+/);
         assert.match(await page.locator('table.data tbody tr').filter({ hasText: 'Alex Test' }).innerText(), /RS0 0/);
-        assert.match(await page.locator('table.data tbody tr').filter({ hasText: 'Synthetic Driver 3' }).innerText(), /RS2 0/);
+        assert.match(await page.locator('table.data tbody tr').filter({ hasText: 'Synthetic Driver 3' }).innerText(), /RS4 0/);
         await noOverflow();
         await page.getByRole('link', { name: 'RS4', exact: true }).click();
         await page.locator('.filters .seg a.on').filter({ hasText: /^RS4$/ }).waitFor();
@@ -389,7 +421,8 @@ async function main() {
         await visit('#/?leaders=rs&classes=rs&results=rs');
         const tiedChampText = await page.locator('.champ').innerText();
         assert.ok(tiedChampText.includes('Provisional RS driver leaders'));
-        assert.ok(tiedChampText.includes('RS Tie Driver A, RS Tie Driver B'));
+        assert.ok(tiedChampText.includes('RS Tie Driver A'));
+        assert.ok(tiedChampText.includes('RS Tie Driver B'));
         assert.ok(tiedChampText.includes('42 pts'));
         provisionalTables.overallDrivers = [];
         provisionalTables.overallCodrivers = [];
@@ -410,17 +443,36 @@ async function main() {
         const rsOnlyLeader = rsDriverCard.locator('.leader').filter({ hasText: 'Reviewed RS driver' }).first();
         assert.ok(await rsOnlyLeader.count(), 'RS-only competitors remain visible in the RS leader list');
         assert.equal(await rsOnlyLeader.locator('a[href*="/person/"][href*="competition=rs"]').count(), 1);
-        assert.deepEqual(await page.locator('.hero-stat b').allTextContents(), ['2 / 6', '6', '13', '2'],
+        assert.deepEqual(await page.locator('.hero-stat b').allTextContents(), ['4 / 6', '6', '13', '4'],
           'RS home retains the NR statistics layout using only RS data');
         await page.getByRole('heading', { name: 'RS class leaders · drivers' }).waitFor();
-        assert.ok((await page.locator('.home-rs-classes').innerText()).includes('Reviewed RS driver'));
+        const homeRsClassesText = await page.locator('.home-rs-classes').innerText();
+        assert.ok(homeRsClassesText.includes('Reviewed RS driver'), homeRsClassesText);
         await page.waitForFunction(() => document.querySelectorAll('.rs-event-card').length === 6);
         assert.equal(await page.locator('.rs-event-card').count(), 6);
         assert.ok((await page.locator('.rs-event-card').first().innerText()).includes('RS R1'));
         const sharedRsCard = page.locator('.rs-event-card').filter({ hasText: 'Synthetic RS R2' });
         assert.ok((await sharedRsCard.innerText()).includes('10–11 July 2026'),
           'a shared RS-only view can display the linked NR event date without assigning it as RS scoring evidence');
+        assert.ok((await page.locator('main').innerText()).includes('The 2026 rounds'));
+        const relatedLinks = sharedRsCard.locator('.rs-related-nr');
+        assert.ok((await relatedLinks.innerText()).includes('Related NR event links'));
+        assert.deepEqual(await relatedLinks.locator('a').allTextContents(),
+          ['Official results ↗', 'Entry list ↗', 'Supplementary regs ↗', 'Noticeboard ↗', 'Spectator guide ↗']);
+        assert.equal(await relatedLinks.locator('a[href="https://example.com/synthetic-nr-srs"]').count(), 1);
+        const nrLinkedWithoutLinks = page.locator('.rs-event-card').filter({ hasText: 'Synthetic RS R3' });
+        assert.equal(await nrLinkedWithoutLinks.locator('.rs-related-nr').count(), 0,
+          'an explicit NR event relationship without populated NR links renders no invented URLs');
         assert.equal(await page.locator('.event-card:not(.rs-event-card)').count(), 0);
+        assert.ok(await rsDriverCard.locator('.leader .who .cls').count(), 'RS driver leaders show their scored class labels');
+        assert.ok(await rsCodriverCard.locator('.leader .who .cls').count(), 'RS co-driver leaders show their scored class labels');
+        const roundsStarted = page.locator('.home-rs-classes .leader');
+        assert.ok((await roundsStarted.filter({ hasText: 'Synthetic Driver 3' }).innerText()).includes('2 rounds started'),
+          'an evidenced DNF counts once, while an additional DNS does not add a started round');
+        assert.ok((await roundsStarted.filter({ hasText: 'Synthetic Driver 4' }).innerText()).includes('Rounds started unavailable'),
+          'a DNF without source start evidence does not produce a fabricated total');
+        assert.equal(await page.locator('.home-rs-classes .leader').filter({ hasText: 'Launch Example' }).count(), 0,
+          'a non-scoring launch appearance is excluded from championship class leaders');
         const palette = await page.evaluate(() => {
           const css = getComputedStyle(document.documentElement);
           return { accent: css.getPropertyValue('--accent').trim(), category: css.getPropertyValue('--nr2'), good: css.getPropertyValue('--good') };
@@ -429,6 +481,10 @@ async function main() {
         await navigate(page, 'Standings');
         await page.getByRole('heading', { name: 'RS drivers', exact: true }).waitFor();
         assert.ok(!(await page.innerText('main')).includes('Minimum 1 starts'));
+        assert.equal(await page.locator('table.data thead th').first().innerText(), 'POS',
+          'RS standings use the NR position label');
+        assert.ok(await page.locator('table.data tbody .cls.RS2, table.data tbody .cls.RS4').count(),
+          'RS standings use the shared colour-coded class labels');
         await page.getByRole('link', { name: 'RS4', exact: true }).click();
         await page.locator('table.data tbody tr').filter({ hasText: 'Synthetic Driver 4' }).waitFor();
         await page.getByRole('link', { name: 'Co-drivers', exact: true }).click();
@@ -436,9 +492,10 @@ async function main() {
         await navigate(page, 'Crews');
         await page.getByRole('heading', { name: 'RS crews', exact: true }).waitFor();
         const unverifiedCrew = page.locator('#crewTable tbody tr').filter({ hasText: 'Synthetic Driver 6' });
-        assert.equal(await unverifiedCrew.locator('td').first().innerText(), 'Synthetic Driver 6');
-        assert.equal(await unverifiedCrew.locator('td').last().innerText(), 'RS0 · Non-Scoring*');
-        assert.ok((await page.locator('#crewTable thead').textContent()).includes('Championship status'));
+        assert.ok((await unverifiedCrew.locator('.rs-crew-identity').innerText()).includes('Synthetic Driver 6'));
+        assert.ok((await unverifiedCrew.locator('.rs-crew-class').innerText()).includes('RS0 · Non-Scoring*'));
+        assert.deepEqual(await page.locator('#crewTable thead th').allTextContents(),
+          ['Competitor', 'RS class / status', 'Driver standings', 'Co-driver standings', 'Events / championship rounds', 'Car(s)']);
         assert.ok(!(await page.locator('main').innerText()).includes('RS0 roles receive'));
         await page.getByRole('link', { name: 'Alex Test', exact: true }).click();
         await page.locator('.profile-head h1').filter({ hasText: 'Alex Test' }).waitFor();
@@ -847,7 +904,8 @@ async function main() {
     await page.getByRole('switch', { name: 'RallyeSport competition' }).click();
     await page.getByRole('heading', { name: 'Rounds & stage graphs', exact: true }).waitFor();
     assert.ok(page.url().includes('/rounds?competition=nr'), 'unmapped standalone result switches to NR rounds, not a guessed mapping');
-    const graphResult = bundle.season.rallyesport.results[0];
+    const standaloneRs = bundle.season.rallyesport;
+    const graphResult = standaloneRs.results[0];
     graphResult.nrRoundId = 'R1';
     graphResult.stages = [{ id: 'ss1', label: 'SS1', nrStage: 'SS1' }, { id: 'ss3', label: 'SS3', nrStage: 'SS3' }];
     graphResult.entries = [
@@ -861,14 +919,18 @@ async function main() {
     graphResult.classMappings = { '2WD': 'RS2', '4WD': 'RS4' };
     graphResult.classMappingEvidence = 'Synthetic event-specific category review';
     const mappedSourceBefore = F.copy(graphResult);
+    bundle.season.rallyesport = F.copy(initialRsData);
     for (const theme of ['light', 'dark']) {
       await page.evaluate(t => localStorage.setItem('nr-theme', t), theme);
       for (const width of [320, 390, 768, 1440]) {
         await page.setViewportSize({ width, height: 1000 });
         for (const hash of [
-          '#/rallyesport/synthetic-rs-result/classification',
-          '#/rallyesport/synthetic-rs-result/graph?cars=88,89',
-          '#/rallyesport/synthetic-rs-result/stages',
+          '#/2026/?competition=rs',
+          '#/2026/rounds?competition=rs',
+          '#/2026/standings?competition=rs',
+          '#/rallyesport/synthetic-rs-r2-results/classification',
+          '#/rallyesport/synthetic-rs-r2-results/graph?cars=1,6',
+          '#/rallyesport/synthetic-rs-r2-results/stages',
           '#/2026/crews?competition=rs',
           '#/2026/person/alex-test?competition=rs',
           '#/2026/person/blake-example?competition=rs'
@@ -877,17 +939,42 @@ async function main() {
           if (hash.includes('/classification')) await page.locator('.rs-source-notes summary').click();
           const text = await page.locator('main').textContent();
           assert.doesNotMatch(text, /\b[24]WD\b/, 'RS public surfaces use only the explicit mapped class labels');
-          if (!hash.includes('/person/blake-example')) assert.match(text, /RS2/);
-          if (!hash.includes('/person/alex-test')) assert.match(text, /RS4/);
+          if (!hash.includes('/person/blake-example')) assert.match(text, /RS2/, hash + ': ' + text);
+          if (!hash.includes('/person/')) assert.match(text, /RS4/);
           if (hash.includes('/graph')) {
             assert.match(await page.locator('.legend').innerText(), /RS2[\s\S]*RS4/);
             assert.equal(await page.locator('[data-quick="RS2"]').count(), 1);
             assert.equal(await page.locator('[data-quick="RS4"]').count(), 1);
           }
+          if (hash.includes('/rounds')) {
+            const winners = page.locator('main table.data').last();
+            assert.equal(await winners.locator('tbody tr').count(), 6, await page.locator('main').innerText());
+            assert.ok((await winners.innerText()).includes('Launch event'), await winners.innerText());
+            const r2Winner = winners.locator('tbody tr').filter({ hasText: 'Synthetic RS R2' });
+            assert.ok((await r2Winner.innerText()).includes('Pending technical checks'));
+            assert.ok(!(await r2Winner.innerText()).includes('Synthetic Driver 1'),
+              'a source note that withholds finality does not announce a round winner');
+            const r1Winner = winners.locator('tbody tr').filter({ hasText: 'Synthetic RS R1' });
+            assert.ok((await r1Winner.innerText()).includes('Alex Test / Blake Example'),
+              'the source-classified winner follows an accepted finality review, not championship points');
+            assert.ok((await r1Winner.innerText()).includes('Synthetic Driver 3'),
+              'class winners are derived from official class positions');
+            assert.ok((await winners.locator('tbody tr').filter({ hasText: 'Synthetic RS R3' }).innerText()).includes('Provisional classification'),
+              'unfinalized classifications do not announce a round winner');
+            const launchWinner = winners.locator('tbody tr').filter({ hasText: 'Synthetic Launch Event' });
+            assert.ok((await launchWinner.innerText()).includes('Launch event'));
+            assert.ok((await launchWinner.innerText()).includes('Launch Example'));
+            const upcoming = winners.locator('tbody tr').filter({ hasText: 'Synthetic RS R5' });
+            assert.ok((await upcoming.innerText()).includes('Not published'));
+            assert.ok(!(await upcoming.innerText()).includes('Synthetic Driver'),
+              'upcoming events do not acquire a fabricated winner');
+          }
+          if (hash.includes('/crews')) assert.equal(await page.locator('.rs-crews-table').count(), 1);
           await noOverflow();
         }
       }
     }
+    bundle.season.rallyesport = standaloneRs;
     assert.deepEqual(graphResult, mappedSourceBefore, 'browsing never rewrites source categories or mappings');
     await visit('#/rallyesport/synthetic-rs-result/classification');
     assert.ok(!(await page.locator('main').innerText()).includes('Championship class mapping'));
@@ -978,7 +1065,7 @@ async function main() {
     bundle.season.events[0].links.entryList = 'https://example.com/entries';
     await eventCount('1 NR Entries');
     assert.equal(await page.locator('.event-top a[href="https://example.com/entries"]').count(), 1);
-    assert.equal(await page.getByRole('link', { name: 'Entry list ↗', exact: true }).count(), 1);
+    assert.equal(await page.locator('.event-top a[href="https://example.com/entries"]').innerText(), 'Entry list ↗');
     bundle.season.events[0].links.entryList = 'https://example.com/another-entry-list';
     await eventCount('1 NR Entries');
     assert.equal(await page.locator('.event-top a[href="https://example.com/entries"]').count(), 1);

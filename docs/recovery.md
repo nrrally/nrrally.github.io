@@ -11,6 +11,33 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
+### Unreleased RS public visual parity (local work only)
+
+The current isolated public-UI work is based on
+`3e778f76178b2a0448cb3f764c4b32c12d6b536f`; it has not been committed, pushed or
+deployed. RS now follows the NR presentation for homepage class labels and starts,
+year-round wording, standings position/class labels, round winners and Crews layout.
+Related NR event links are read from the current public NR event only when its explicit
+ID matches the RS event's `nrEventId`; do not hardcode a link or treat NR results as RS
+results. The coordinator separately reported the verified TRAC N4 supplementary-regs
+link was added to the live NR record through its guarded audited workflow. This UI work
+does not access or modify Firebase/GCP or any live record.
+
+The coordinated static query version is `rs-visual-1` in the public, admin, disclaimer
+and privacy shells. Reload old tabs. Rollback is static-only: restore those matching
+shell versions and assets together; there is no corresponding data/schema migration.
+Synthetic public browser coverage passed at 320/390/768/1440 px in both themes, the RS
+entry-policy browser regression passed, all 41 RallyeSport unit checks and 18
+season-readiness checks passed. On 2026-11-11 the user authorized a normal non-force
+release to `origin/main` and waived an additional local review because the changes are
+cosmetic. Fresh `origin/main` still matches the reviewed base, and the existing keyring
+account's push permission was verified without token extraction or global authentication
+changes. At this recovery snapshot the commit, push and Pages verification are still
+pending; no PR, Firebase/GCP/data operation or provider change is authorized.
+See the release scope and pre-push record in
+[releases.md](releases.md#2026-11-11-authorized-rs-public-visual-parity-release-pre-push)
+and the cases in [testing.md](testing.md).
+
 ### RS entry-based policy activation: recovery state
 
 On 2026-11-11 the coordinator confirmed completion of the separately authorized 2026

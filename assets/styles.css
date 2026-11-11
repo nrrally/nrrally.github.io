@@ -455,6 +455,18 @@ table.data .s-name { inset-inline-start: 48px; }
   .round-switch { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
   .round-switch a { white-space: nowrap; }
 }
+.rs-related-nr { margin-top: 8px; }
+.rs-related-nr > .small { display: block; margin-bottom: 3px; }
+@media (max-width: 900px) {
+  .rs-crews-table table, .rs-crews-table tbody { display: block; }
+  .rs-crews-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .rs-crews-table tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; padding: 14px; border-block-end: 1px solid var(--line); }
+  .rs-crews-table tbody tr:last-child { border-block-end: 0; }
+  .rs-crews-table tbody td { display: block; min-width: 0; border: 0; padding: 0; text-align: start; overflow-wrap: anywhere; }
+  .rs-crews-table .rs-crew-identity, .rs-crews-table .rs-crew-class,
+  .rs-crews-table .rs-crew-stats, .rs-crews-table .rs-crew-cars { grid-column: 1 / -1; }
+  .rs-crews-table td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 3px; color: var(--muted); font-size: 10px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
+}
 
 table.data.compact th, table.data.compact td { padding: 8px 8px; }
 table.data td.veh { min-width: 120px; max-width: 170px; }

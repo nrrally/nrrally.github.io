@@ -487,6 +487,22 @@ NR-only, RS-only and explicitly shared calendar entries ordered by available dat
 without duplicating shared events or guessing undated order. A linked RS-only calendar
 view may display the linked NR event's exact date when RS dates are absent; that
 display-only fallback never writes an RS scoring date.
+
+The public RS parity regression extends `site-theme-e2e.js`: homepage driver and
+co-driver leaders carry their scored RS class badges. Class leaders count classified
+and evidenced-DNF starts, do not count DNS, mark an unproven DNF unavailable, and exclude
+the launch. Standings use the shared class badges and NR's "Pos" heading. Calendar checks
+cover the shared year heading, source links from an explicitly related NR event only, and
+no invented link block when the related NR event has no published links. The RS
+round-winners table uses source classifications, withholding winners for pending or
+unfinalized results and upcoming events while labelling the launch as non-scoring.
+Crews are checked for distinct-event counts and labelled narrow-screen cards. The
+full public theme runner exercises these routes at 320/390/768/1440 px in both themes;
+all provider requests remain synthetic/read-only. Run it with
+`node tools\tests\site-theme-e2e.js`. The separate `rs-entry-policy-e2e.js` and
+RallyeSport engine regressions remain required to confirm that presentation changes
+do not alter the 2026 entry-based policy, launch exclusion, or NR scoring.
+
 Synthetic RS identity regressions exercise private role review through public projection
 and model construction, checking distinct role IDs, unchanged printed names, omitted
 private evidence and unchanged NR results. Started-DNF regressions verify zero points

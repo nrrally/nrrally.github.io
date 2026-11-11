@@ -192,7 +192,8 @@ test('public RallyeSport pages show provisional cumulative tables and disclose u
   assert.equal(model.rallyesport.scoring.provisionalStandings.overallDrivers[0].scoringClass, undefined,
     'the real projected eligible standings row has no scoringClass property');
   api.rememberCompetition('rs');
-  assert.ok(api.viewRsStandings('driver', {}).html.includes('</td><td>RS2</td>'));
+  assert.ok(api.viewRsStandings('driver', {}).html.includes('class="cls RS2">RS2</span>'),
+    'RS scoring classes use the shared colour-coded badge');
   assert.ok(!page.includes('RS2 / RS4'));
 
   raw.events.push(event('second-ready-rs'));
@@ -207,18 +208,22 @@ test('public RallyeSport pages show provisional cumulative tables and disclose u
     assert.ok(row, name);
     return row.split('</tr>')[0];
   }
+  const hasClassTag = (row, cls) => row.includes('class="cls ' + cls + '">' + cls + '</span>');
   for (const role of ['driver', 'codriver']) {
     const name = role === 'driver' ? 'RS Driver ' : 'RS Co-driver ';
     const overall = api.viewRsStandings(role, {}).html;
-    assert.ok(scoringCell(overall, name + '1').includes('</td><td>RS2 + RS4</td>'),
+    const multiClassRow = scoringCell(overall, name + '1');
+    assert.ok(hasClassTag(multiClassRow, 'RS2') && hasClassTag(multiClassRow, 'RS4'),
       'multiple actual scoring classes are explicit, not a generic alternative');
-    assert.ok(scoringCell(overall, name + '2').includes('</td><td>RS4</td>'));
+    assert.ok(!multiClassRow.includes('RS2 + RS4'));
+    assert.ok(hasClassTag(scoringCell(overall, name + '2'), 'RS4'));
     const classView = api.viewRsStandings(role, { class: 'RS4' }).html;
-    assert.ok(scoringCell(classView, name + '1').includes('</td><td>RS4</td>'),
+    assert.ok(hasClassTag(scoringCell(classView, name + '1'), 'RS4'),
       'a class table shows only that class even for a multi-class competitor');
   }
   const listing = api.viewRallyeSport().html;
-  assert.ok(scoringCell(listing, 'RS Driver 1').includes('</td><td>RS2 + RS4</td>'));
+  const listedMultiClassRow = scoringCell(listing, 'RS Driver 1');
+  assert.ok(hasClassTag(listedMultiClassRow, 'RS2') && hasClassTag(listedMultiClassRow, 'RS4'));
   assert.ok(!listing.includes('RS2 / RS4'));
 });
 function entryList(entries, complete = true) {
@@ -475,7 +480,7 @@ test('RS crews and cross-season profiles use resolved RS identities and official
     }]
   }];
   const reviewedCrews = api.viewRsCrews().html, reviewedPerson = api.viewRsPerson('alex-test').html;
-  assert.ok(reviewedCrews.includes('<th>Championship status</th>'));
+  assert.ok(reviewedCrews.includes('<th>RS class / status</th>'));
   assert.ok(reviewedCrews.includes('RS0 · Non-Scoring*'));
   assert.ok(!reviewedCrews.includes('eligibility unverified'));
   assert.ok(reviewedPerson.includes('<th>RS class</th><th>Championship scoring</th>'));
