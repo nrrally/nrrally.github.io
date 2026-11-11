@@ -11,7 +11,39 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
-### Authorized RS entry-based compatible-code release
+### RS entry-based policy activation: recovery state
+
+On 2026-11-11 the coordinator confirmed completion of the separately authorized 2026
+data activation after compatible code was deployed. The coordinator reports fresh protected
+baseline/precommit backups, inventory/version preconditions, a synthetic transaction/conflict
+rehearsal and one atomic working-season/public-season/revision/attributed-History commit,
+labelled **GitHub Copilot (direct Firebase)**. Full readback matched the validated candidate;
+working/public scoring and independent before/after reference and crew-role audits agreed.
+NR inputs and calculations were unchanged. This documentation session did not access the
+database or independently repeat those private checks.
+
+The reviewed entry-based policy is now active: `rs-r1` is an unnumbered non-scoring
+**Launch Event**, and `rs-r2` through `rs-r5` display championship R1-R4. Championship
+driver/co-driver roles and tables contain no RS0. The confirmed launch crew alone has
+event-scoped effective RS0 with printed TEST evidence unchanged; no global identity
+exclusion is introduced. Upcoming R4 remains blocked without an invented classification;
+the four-round provisional championship gate and existing DNS/DNF rules are unchanged.
+Existing S2 Mine wording is retained. The coordinator also reports a live browser smoke
+pass at 390/1440 px using canonical static assets and read-only public data, with analytics
+disabled and private/write traffic blocked. It covered both provisional role standings,
+the scored R1-R3 columns (not the unscored upcoming R4), launch scope/RS0 and the absence
+of RS0 markers in the three championship classifications, without page errors.
+
+**Older-code-only rollback is now unsafe.** Restore matching private working/public
+backups atomically with current revision/History preconditions before reverting to a
+legacy-only runtime; never patch public points or remove policy markers in isolation.
+Use contract 2 assets together (`rs-entry-1`), retire old admin tabs, and review any
+restore/undo that would remove the policy. Private backup references, exact versions,
+History identifiers, crew identities and decision evidence remain outside public Git.
+See [the migration contract](data-model.md#entry-based-policy-migration) and
+[the activation record](releases.md#2026-11-11-rs-entry-based-policy-activation-documentation-only-completion).
+
+### Authorized RS entry-based compatible-code release (preceded activation)
 
 The isolated implementation starts from freshly fetched
 `7aed656766ff3ce9992601ae962d7c41a62284b6`. After implementation and synthetic

@@ -212,7 +212,7 @@ starter/DNF/DNS, points/order/tie and provisional championship gates remain unch
 Set the June launch event to **Event only; not a championship round**, remove its display
 round number, and clearly name it Launch Event. Display-number the four existing
 championship events R1-R4; do not rename stable event/result IDs or change NR links.
-See the exact proposed fields and operational constraints in
+See the exact rollout field contract and operational constraints in
 [the migration record](data-model.md#entry-based-policy-migration).
 Retain the original printed TEST evidence on the explicitly confirmed launch crew row,
 and add its **Private launch-only RS0 review evidence**. This marks both roles RS0 only

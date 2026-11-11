@@ -31,6 +31,49 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## 2026-11-11: RS entry-based policy activation (documentation-only completion)
+
+- After the compatible-code deployment below, the coordinator confirmed the separately
+  approved 2026 data migration completed. This entry records that coordinator's report,
+  not a new database read/write or independent private-data verification by this session.
+  The coordinator delegated a same-release documentation-only commit/normal non-force
+  `origin/main` push and Pages verification; no runtime/data/provider change is authorized
+  by this documentation follow-up.
+- The coordinator reports fresh protected baseline/precommit backups, inventory/version
+  guards, a successful synthetic transaction/conflict rehearsal and one atomic update of
+  the working season, regenerated public season, shared revision and attributed History,
+  labelled **GitHub Copilot (direct Firebase)**. Full endpoint readback matched the
+  validated candidate; working/public scoring and independent before/after reference
+  and championship driver/co-driver role audits agreed. NR remained unchanged.
+- `entry-based-2026-v1` is active. `rs-r1` is the unnumbered non-scoring Launch Event;
+  preserved IDs `rs-r2` through `rs-r5` display championship R1-R4. No championship role
+  is marked RS0, and RS0 standings tables are empty. The confirmed launch crew's RS0 review is
+  scoped to that event only, preserving printed TEST/timing evidence. No global
+  exclusion or fabricated membership verification is added.
+- Upcoming R4 remains blocked without an invented classification. The four-round
+  provisional gate, DNS/DNF, starters, finality, scales and tie rules stay unchanged.
+  Existing S2 Mine wording is retained.
+- The coordinator additionally reports a live browser smoke pass at 390/1440 px, using
+  canonical static assets and read-only public data with analytics disabled and
+  private/write traffic blocked. Both provisional role standings, scored R1-R3 columns,
+  launch scope/RS0 and the absence of RS0 markers in the three championship
+  classifications passed without page errors. The upcoming unscored R4 is appropriately
+  absent from scored-only columns. No runtime/data change was needed for this check.
+  Named totals and the private verification artifact are deliberately not reproduced here.
+- Private backups, exact revision/History identifiers, person/result identifiers,
+  account registers, membership evidence and decision provenance are not copied to Git.
+  The [migration contract](data-model.md#entry-based-policy-migration) and
+  [recovery state](recovery.md#rs-entry-based-policy-activation-recovery-state) now record
+  activation rather than leaving the rollout described only as proposed.
+- This push changes documentation only: no runtime/scoring behavior, query version,
+  guide edition, data, rules, analytics, permissions or provider settings. Prior runtime
+  validation remains applicable; review docs/privacy/links and whitespace. Guard freshly
+  fetched `origin/main` at `79c8b3d94dd1656e44619c766dfc1de3395f5c54`, use the approved
+  existing process-scoped credential helper without token extraction/global-auth changes,
+  then verify the exact resulting Pages SHA and unchanged canonical static bytes.
+  After activation an older-code rollback requires atomic restoration of the matching
+  private working/public backups first; a static rollback alone is unsafe.
+
 ## 2026-11-11: authorized RS entry-based compatible-code release
 
 - Base and freshly fetched `origin/main`:

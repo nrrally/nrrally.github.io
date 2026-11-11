@@ -366,9 +366,16 @@ merely by loading it:
   class/status/order/times and removing `launchNonScoringReview`. This marker drives
   effective RS0 presentation, never a championship result or global person exclusion.
 
-**Proposed 2026 database changes, not executed or authorized by this code task:**
+**2026 rollout mapping:**
 
-| Existing stable event ID | Proposed scope/display fields |
+The coordinator reported the separately authorized activation completed on 2026-11-11,
+after compatible code deployment, with atomic audited working/public/revision
+coordination and full readback. This documentation update performs no database access.
+Private identities, provenance, backup references and exact versions remain outside Git.
+The mapping and safeguards below remain the contract for recovery or any approved replay;
+they are not permission to repeat the migration. See [the activation record](releases.md#2026-11-11-rs-entry-based-policy-activation-documentation-only-completion).
+
+| Existing stable event ID | Scope/display fields |
 |---|---|
 | `rs-r1` | `countsForChampionship: false`; remove `roundNumber`; name clearly identifies the Willem Prinsloo 6 June **Launch Event** |
 | `rs-r2` | `countsForChampionship: true`; `roundNumber: 1`; retain GR Legends name/source |
