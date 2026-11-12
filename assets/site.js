@@ -398,7 +398,7 @@
     return '<p class="small muted">' + (scoring.status === 'ready' ? 'RS championship points.' :
       hasTables ? 'Provisional RS points · scored rounds only.' : 'RS points unavailable. ' + esc(scoring.reason || '')) + '</p>' +
       '<details class="notes rs-scoring-notes"><summary>Scoring notes</summary><div><p>' + esc(scoring.reason || '') + '</p>' +
-      (E.rallyeSportEntryPolicy(D.rallyesport) ? '<p>User-confirmed entry-based eligibility applies to drivers and co-drivers. Membership, licence and invitation do not exclude championship entrants. DNS and DNF start-evidence rules remain. This is not a printed SSR amendment. Non-scoring events remain in event history, not championship totals or round counts.</p>' : '') +
+      (E.rallyeSportEntryPolicy(D.rallyesport) ? '<p>User-confirmed entry-based eligibility applies to drivers and co-drivers. Membership, licence and invitation do not exclude championship entrants. Official classified/DNF status establishes a start; DNS excludes. This is not a printed SSR amendment. Non-scoring events remain in event history, not championship totals or round counts.</p>' : '') +
       (rallyeSportStarterMinimumNote(scoring, D.year) ? '<p class="small">' + esc(rallyeSportStarterMinimumNote(scoring, D.year)) + '</p>' : '') +
       (scoring.provisionalStandings && scoring.status !== 'ready' ? '<p>Provisional cumulative points: ready events only; blocked events are excluded, not scored as zero.</p>' : '') +
       ((scoring.excludedProvisionalEvents || []).length ? '<p class="small">Not scored: ' +

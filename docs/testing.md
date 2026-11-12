@@ -23,24 +23,21 @@ exact event/round links, unavailable or conflicting relationships and day metada
 provenance and unchanged scoring. The public theme suite checks linked and unlinked
 locations on Home, calendar and result views at its four widths and both themes.
 
-Public start-count regressions cover mixed established starts plus an unproven DNF
-across Home/class standings/Crews/profiles for both roles. Known starts remain a
-labelled lower bound, never unavailable or an invented exact total. Cases include
-uncertain-only, DNS, a non-scoring launch, zero-point/blocked snapshots, stage evidence,
-multiple cars and roles in one round, and legacy TEST role exclusion. Immutable
-models ensure no source/scoring mutation. The responsive suite checks `2+` and its
-accessible "At least" explanation across the shared public surfaces in both themes.
-Earlier tests explicitly expected all-or-nothing unavailability for mixed evidence;
-that expectation was the bug, not proof that lower-bound facts were absent.
-
-Shared discrepancy cases cover no-observation DNF, timed DNF, explicit first-stage
-retirement evidence, stage positions, numeric/formatted zero times, DNS, zero awards,
-positive NR completed stages, both roles, launch/history versus championship scope,
-source/scoring immutability and unchanged NR credited starts. Native red `!` disclosures
-are exercised with Enter/Space in responsive light/dark browser checks. These are
-uncertainty diagnostics, not DNS findings. No reviewed-no-start marker is implemented
-or activated in this display-only release; review/staleness tests belong to that
-separately approved compatible contract.
+Public start-count regressions implement the user's superseding source-authority
+decision: official classified/DNF counts, even without times; DNS excludes.
+Home/standings/Crews/profiles agree for both roles with exact counts and no missing-
+observation red `!` or lower bound. Unknown/nonexistent classifications stay honest;
+deduplication, launch exclusion, legacy TEST scope and zero-time/status precedence
+remain covered. Immutable models ensure display never fills in source timing.
+Superseded editorial no-time-DNF start assertions disappear from expanded notes
+without losing adjacent vehicle/observation text or changing stored snapshots.
+The scorer tests no-time DNF zeroes, unchanged starter minimum and conflict checks.
+New `source-status-v1` snapshots reject eligible DNF-null or DNS-number awards;
+legacy snapshots remain accepted unchanged without runtime private-rule guessing.
+Responsive public/admin/entry-policy suites cover both contexts at
+320/390/768/1440 px, light/dark. Actual anonymous-data policy simulations and live
+checks stay outside Git; fresh private controls and atomic activation are a separate
+coordinator operation. There is no reviewed-DNS schema or activation.
 
 The public-display and admin browser regressions also cover current-finality review:
 private evidence removal, source/status/row mutation invalidation, distinct NR/RS

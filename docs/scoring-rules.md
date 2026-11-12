@@ -104,7 +104,7 @@ decision or invitation confirmation.
 
 Only RS2/RS4 (including existing evidence-backed event-specific source-category mappings)
 are supported for championship entrants. DNS still has no start or points; an evidenced
-DNF still earns zero, an unproven DNF has unavailable points. Missing co-drivers get no
+DNF earns zero from its official source status, even with no stage observations. Missing co-drivers get no
 invented score. All existing finality, starter minimum, class order, points scales,
 double-points notice, tie and championship-finality rules remain in force. Four rounds
 therefore yield **provisional** cumulative points, never a final champion.
@@ -150,10 +150,13 @@ with the event/finality/points rules that remain unchanged under the revised pol
   review, not a claim that the published SSR text has changed, and it is not inherited
   by another year.
 - The applied minimum is for total starters at the event, not per competitor or class.
-  Started DNF rows earn no points but count as starters only when start evidence exists.
-  A no-time DNF is not proof of a start. The user-confirmed 2026 threshold counts all
-  source-evidenced starters, including TEST and invitational/RS0 entries; DNS does not
-  count. A TEST or DNF needs actual start evidence to count. A reviewed `starterCount`
+  Official classified/DNF rows count as starters, regardless of missing observations;
+  eligible DNF roles receive zero. The user explicitly directed the site to display
+  official participation statuses, not independently adjudicate whether a DNF should
+  have been DNS. DNS does not count, even if observations are present. Legacy
+  TEST still needs actual start evidence; entry-based championship TEST remains
+  unsupported. Invitational/RS0 membership exclusion is not a start exclusion.
+  A reviewed `starterCount`
   and evidence may establish a total only when it is consistent with known source-backed
   starters. No TEST ambiguity is used to infer a start.
 - A private, reviewed `membershipReview` is required before 2026 RS scoring. It is
@@ -181,12 +184,17 @@ with the event/finality/points rules that remain unchanged under the revised pol
   classification for scoring. A user-confirmed scoring decision does not rewrite the
   source heading, status, footer or notes and does not establish that technical checks
   were independently completed; UI summaries distinguish this basis and retain source
-  qualifications. A source-evidenced started DNF is published with zero event points
-  and counts as a starter under the user's explicit 2026 clarification. A DNF with no
-  row-level start evidence has unavailable (`null`) points, even when a separate event
-  count establishes the minimum; DNS remains unavailable and TEST/invitation rows remain
+  qualifications. Official DNF establishes a start and eligible zero event points,
+  even without recorded times. DNS remains unavailable and TEST/invitation rows remain
   non-scoring. Official rows remain published unchanged. SSR 7.4's finisher wording is blank, so no additional finisher
   rule or awards logic is inferred.
+
+The source-status mandate supersedes the earlier no-observation DNF uncertainty
+diagnostics and proposed anecdotal DNS correction. No participation-review override
+is implemented or activated. Missing timing remains missing in graphs; it does not
+erase an official DNF start or create a synthetic stage time. NR's existing ordinary
+DNF/DNS, credited identities, explicit MSA extra starts and minimum-start rules are
+unchanged. This is not a claim that the site adjudicates protests or amends SSRs.
 - A separate `currentFinalityReview` records an explicit user confirmation about the
   current classification, not merely permission to score it. It changes no event
   points or championship-finality gate; the original source qualification remains

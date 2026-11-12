@@ -285,6 +285,9 @@
     return !!(result && result.finalityReview && result.finalityReview.acceptedForScoring === true &&
       typeof result.finalityReview.evidence === 'string' && result.finalityReview.evidence.trim());
   }
+  function sourceStatusStarted(entry) {
+    return !!entry && (entry.status === 'classified' || entry.status === 'DNF');
+  }
   function dateOrdinal(value) {
     if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
     var time = Date.parse(value + 'T00:00:00Z');
@@ -563,7 +566,7 @@
       scoring = calculateRallyeSportScoring(data, season, people);
     } else if (publicProjection && data.scoring !== undefined) {
       scoring = compatiblePublishedRallyeSportScoring(data, data.scoring, season) ? data.scoring : {
-        status: 'invalid', reason: 'Published RS scoring is malformed or incompatible with its source results; review and republish.',
+        status: 'invalid', reason: 'Published RS scoring is malformed or incompatible with its source results or participation basis; review and republish.',
         results: [], standings: null, provisionalStandings: null
       };
     } else if (publicProjection) {
@@ -601,6 +604,8 @@
     if (!scoring || typeof scoring !== 'object' ||
       ['ready', 'blocked', 'incomplete', 'unconfigured', 'invalid'].indexOf(scoring.status) < 0 ||
        typeof scoring.reason !== 'string' || !Array.isArray(scoring.results)) return false;
+    if (scoring.participationBasis !== undefined &&
+      ['stage-evidence-v1', 'source-status-v1'].indexOf(scoring.participationBasis) < 0) return false;
     if (Object.prototype.hasOwnProperty.call(scoring, 'starterMinimum') && (!scoring.starterMinimum ||
       typeof scoring.starterMinimum !== 'object' || Array.isArray(scoring.starterMinimum) ||
       Object.keys(scoring.starterMinimum).some(function (key) { return ['minimum', 'basis'].indexOf(key) < 0; }) ||
@@ -652,6 +657,14 @@
               }) || (membershipRulesApply || entryPolicy) && (!validRallyeSportEligibility(entry.driverEligibility, entryPolicy) ||
                 (entry.codriverEligibility !== null && !validRallyeSportEligibility(entry.codriverEligibility, entryPolicy)));
           }) || new Set(row.entries.map(function (entry) { return String(entry.car); })).size !== cars.length) return false;
+          if (scoring.participationBasis === 'source-status-v1' && row.entries.some(function (score) {
+            var entry = source.entries.filter(function (entry) { return String(entry.car) === String(score.car); })[0];
+            return ['driver', 'codriver'].some(function (role) {
+              var eligibility = score[role + 'Eligibility'], points = score[role + 'Points'];
+              return entry.status === 'DNS' && points != null ||
+                entry.status === 'DNF' && entry[role] && eligibility && eligibility.status === 'eligible' && points !== 0;
+            });
+          })) return false;
         } else if (row.entries.length) return false;
       } else if (row.entries.length) return false;
     }
@@ -782,15 +795,12 @@
       }
       function starterProblem() {
         var knownStarters = (result.entries || []).filter(function (entry) {
-          return entry.status !== 'DNS' && (entry.status === 'classified' || hasStartEvidence(entry));
+          return sourceStatusStarted(entry) || entry.status === 'TEST' && hasStartEvidence(entry);
         }).length;
-        var unknownDnfStarts = (result.entries || []).filter(function (entry) { return entry.status === 'DNF' && !hasStartEvidence(entry); }).length;
         if (event.starterCount != null && (!Number.isInteger(event.starterCount) || event.starterCount < 0 ||
           !event.starterCountEvidence || event.starterCount < knownStarters)) return 'The reviewed event starter count is invalid, unsupported or conflicts with source-backed starter evidence.';
         if (event.starterCount != null && event.starterCount < starterMinimum.minimum)
           return 'The reviewed event starter count is below ' + starterMinimum.minimum + '; the event does not meet the configured 2026 RS starter threshold.';
-        if (event.starterCount == null && knownStarters < starterMinimum.minimum && unknownDnfStarts)
-          return 'The ' + starterMinimum.minimum + '-starter requirement cannot be confirmed: at least one DNF has no recorded start evidence. Add reviewed event starter-count evidence or source-backed start evidence.';
         if (event.starterCount == null && knownStarters < starterMinimum.minimum)
           return 'Fewer than ' + starterMinimum.minimum + ' source-backed starters, including TEST and invitational entries, are recorded; the event does not meet the configured 2026 RS starter threshold.';
         return '';
@@ -880,10 +890,10 @@
         var hasPointsResult = entry.status !== 'DNS';
         return { car: String(entry.car),
           driverPoints: driverEligibility.status !== 'eligible' ? hasPointsResult ? 0 : null :
-            entry.status === 'DNF' && hasStartEvidence(entry) && ['RS2', 'RS4'].indexOf(driverEligibility.scoringClass) >= 0 ? 0 :
+            entry.status === 'DNF' && ['RS2', 'RS4'].indexOf(driverEligibility.scoringClass) >= 0 ? 0 :
               entry.status === 'DNF' ? null : points.driver == null ? null : points.driver,
           codriverPoints: !entry.codriver ? null : codriverEligibility.status !== 'eligible' ? hasPointsResult ? 0 : null :
-            entry.status === 'DNF' && hasStartEvidence(entry) && ['RS2', 'RS4'].indexOf(codriverEligibility.scoringClass) >= 0 ? 0 :
+            entry.status === 'DNF' && ['RS2', 'RS4'].indexOf(codriverEligibility.scoringClass) >= 0 ? 0 :
               entry.status === 'DNF' ? null : points.codriver == null ? null : points.codriver,
           driverEligibility: driverEligibility, codriverEligibility: codriverEligibility };
       });
@@ -962,7 +972,7 @@
       reason = 'Points use the reviewed 2026 Clubman’s Sprint SSR scale; equal championship totals share a rank because season tie-breaks are unresolved.';
     }
     var provisionalStandings = status === 'ready' || !readyRows.length ? null : buildStandings(readyRows);
-    var scoring = { status: status, reason: reason, starterMinimum: starterMinimum,
+    var scoring = { status: status, reason: reason, starterMinimum: starterMinimum, participationBasis: 'source-status-v1',
       results: scoreRows, standings: standings,
       provisionalStandings: provisionalStandings,
       includedProvisionalEvents: provisionalStandings ? readyRows.map(function (row) { return row.eventId; }) : [],
@@ -1903,6 +1913,7 @@
     rallyeSportContractVersion: 2, rallyeSportClassOrderContractVersion: 1, buildRallyeSport: buildRallyeSport, calculateRallyeSportScoring: calculateRallyeSportScoring,
     sha256Text: sha256, rallyeSportClassOrderDigest: rallyeSportClassOrderDigest, rallyeSportClassOrder: rallyeSportClassOrder,
     currentFinalityDigest: currentFinalityDigest, currentFinalityAccepted: currentFinalityAccepted,
+    sourceStatusStarted: sourceStatusStarted,
     rallyeSportEntryPolicy: rallyeSportEntryPolicy, rallyeSportLaunchRS0: rallyeSportLaunchRS0,
     projectRallyeSport: projectRallyeSport, buildRallyeSportGraph: buildRallyeSportGraph, parseRallyeSportTime: parseRallyeSportTime, copyReviewedRallyeSportTimes: copyReviewedRallyeSportTimes,
     validateRallyeSport: validateRallyeSport,

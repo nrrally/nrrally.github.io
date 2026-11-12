@@ -2,6 +2,23 @@
 
 How to get a season or round's official data into the site correctly. Manual entry, deterministic PDF/spreadsheet import and optional AI preparation are all available.
 
+## Source participation statuses
+
+Display the official classification: classified/DNF counts as started, including
+DNF with no recorded stage observations; DNS excludes. The site does not re-adjudicate
+DNF as DNS from anecdotes or absent times and shows no missing-observation warnings.
+Keep original status/times/PDFs unchanged; missing graph observations remain missing.
+There is no reviewed-DNS control. NR credit/MSA extras and unrelated source-class/
+current-finality reviews remain independent.
+
+After compatible source-status code deployment, retire old admin tabs before
+regenerating RS scoring. Normal **Review & publish** produces a whole public
+snapshot with `participationBasis: source-status-v1`; existing private evidence can
+record the user's decision without new policy fields. Check explicit starter-count
+controls against source classified/DNF totals, without silently changing a conflicting
+authorized count. Legacy public scoring stays visible unchanged until the audited
+publication; do not manually patch public null awards. See [data-model.md](data-model.md).
+
 ## RallyeSport workspace and logic explorer
 
 Open **RallyeSport** in the existing signed-in admin:
@@ -307,12 +324,11 @@ This current-finality decision does not itself permit RS scoring or finalize a s
 
 Event points require either source-supported finality or an evidence-backed user
 finality review, the applicable 2026 RS event-starter minimum, applicable ruleset,
-championship-round and invitation inputs. A started DNF earns no points but counts as a
-starter when start evidence is present. A no-time DNF is not proof of a start; otherwise
-record a reviewed event starter count and its evidence. The 2026 six-starter review
-counts all source-evidenced starters, including TEST, invitation and RS0 entries; DNS
-does not count, and a TEST or DNF row still needs actual start evidence. `TEST` entries
-remain in source results and do not score.
+championship-round and invitation inputs. Official DNF establishes start and eligible
+zero points even without stage observations; DNS excludes. The 2026 six-starter review
+counts source classified/DNF, including invitation/RS0 entries. Legacy `TEST` still
+needs actual start evidence; entry-based championship TEST remains unsupported.
+A reviewed event count must not contradict source-status starters.
 Without a private `starterMinimumReview`, the published 2026 SSR V1's 15-starter
 minimum applies. The separate user-reported six-starter review is available only for
 2026 RallyeSport, requires provenance evidence, and must not be described as a written

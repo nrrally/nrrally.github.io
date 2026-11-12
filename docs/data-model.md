@@ -332,13 +332,27 @@ malformed or evidence-free record blocks scoring. The public projection strips t
 but its scoring snapshot retains the applied minimum and `basis` (`ssr-v1` or
 `user-reported-review`) for transparent display. Other years remain unconfigured.
 
-The 2026 profile gives a started DNF no championship points while counting it as a
-starter. A DNF counts as a proven start only with stage/start evidence or a reviewed
-event starter count. Under the user-reported 2026 six-starter review, the minimum counts
-all evidenced starters, including TEST, invitation and RS0 entries; DNS does not count.
-TEST and DNF rows need actual start evidence. `starterCount` is the reviewed total of
+The 2026 profile counts official classified/DNF as started; eligible DNF receives
+zero, regardless of stage observations. DNS does not count. Legacy TEST requires
+actual start evidence; invitation/RS0 eligibility exclusions do not erase a source
+start. Entry-based championship TEST remains unsupported. `starterCount` is the reviewed total of
 source-confirmed starters, with source evidence in `starterCountEvidence`, and cannot
 contradict the row-level evidenced count.
+
+New public scoring snapshots carry `participationBasis: "source-status-v1"`.
+`calculateRallyeSportScoring(data, season, people)` and the existing public projector
+emit it without new working policy/schema. A ready new-basis eligible DNF must have
+zero for each present role; DNS must retain null awards. Public compatibility rejects
+unknown bases and inconsistent new-basis row awards. Valid legacy snapshots with
+absent basis or explicit `stage-evidence-v1` remain unchanged/accepted during the
+code-first migration, avoiding a standings outage. The browser never reconstructs
+private rules or silently turns legacy null awards into zero. Regenerate the whole
+bundle from fresh working data through the matching projector and normal audited
+publication; preserve original rows and independent class-order/finality markers.
+Existing private `eligibilityPolicy.evidence` can retain the user's additional
+source-participation interpretation within its existing length limit; do not add
+a generic policy field just for History bookkeeping. No `participationReviews`
+field or anecdotal source-DNS override is supported.
 
 `membershipReview` is a private 2026-only **legacy** object on `season.rallyesport`
 (inactive for scoring when the reviewed entry-based policy below is selected):

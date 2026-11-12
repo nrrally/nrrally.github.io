@@ -219,7 +219,7 @@
         ], [source('assets/engine.js', 573, 582, 'event rule gates')]),
         node('Do source and review inputs allow scoring?', [
           branch('Unaccepted finality', 'Block event points; do not hide the source.', 'rs-finality'),
-          branch('Unknown status/category, incomplete classified position/total, duplicate cars, insufficient/unproven starters or legacy-only unknown invitation status', 'Block event points, never substitute zero for the blocked event. Entry-based policy does not require invitation confirmation.', 'rs-starters'),
+          branch('Unknown status/category, incomplete classified position/total, duplicate cars, insufficient starters or legacy-only unknown invitation status', 'Block event points, never substitute zero for the blocked event. Entry-based policy does not require invitation confirmation.', 'rs-starters'),
           branch('All gates pass', 'Check consistent official ordering, then independently rank eligible driver and co-driver roles.', 'rs-order')
         ], [source('assets/engine.js', 580, 616, 'source and starter gates')])
       ], ['rs-finality', 'rs-starters', 'rs-totals']),
@@ -233,23 +233,23 @@
         ], [source('assets/engine.js', 492, 512, 'starterMinimum selection')]),
         node('Who counts as a source-backed starter?', [
           branch('classified', 'Counts as a starter.'),
-          branch('DNF (or legacy TEST / invitational / RS0)', 'Counts when actual start evidence exists: a recorded stage time, printed stage position or explicit startEvidence. Membership exclusion is not a start exclusion. Entry-based championship TEST inputs are unsupported and block scoring.'),
-          branch('DNS', 'Never counts. A no-time/no-observation DNF or TEST is not proof of a start.')
+          branch('DNF / invitational / RS0', 'Official DNF counts as started, including without recorded times. Membership exclusion is not a start exclusion. Entry-based championship TEST inputs are unsupported and block scoring. Legacy TEST still needs actual start evidence.'),
+          branch('DNS', 'Never counts, regardless of recorded observations.')
         ], [source('assets/engine.js', 555, 572, 'hasStartEvidence / starterProblem')]),
         node('Is a reviewed event starter count supplied?', [
           branch('Yes', 'Require a non-negative integer plus evidence, no less than known source-backed starters and no greater than classification row count. A count below the threshold blocks scoring.'),
           branch('No and known starters meet threshold', 'Threshold passes from source rows.'),
-          branch('No and known starters are too few', 'Block. Distinguish an unproven DNF start from a known below-minimum event. Do not infer the missing starts.')
+          branch('No and source-status starters are too few', 'Block for the unchanged minimum. Do not invent missing classification rows or TEST starts.')
         ], [source('assets/engine.js', 559, 572, 'starterProblem'), source('assets/engine.js', 1133, 1137, 'starter count validation')]),
-        node('Does a reviewed total prove an individual DNF started?', [
-          branch('No', 'A total can satisfy the event threshold but does not create row-level start evidence. An eligible DNF without that evidence still has null points.', 'rs-points')
+        node('Does an official DNF need additional stage evidence?', [
+          branch('No', 'The source classification establishes the start. An eligible DNF receives zero points even without timing observations.', 'rs-points')
         ], [source('assets/engine.js', 644, 651, 'DNF points')])
       ], ['rs-members', 'rs-points', 'rs-events']),
     topic('rs-members', 'rs', 'RS person eligibility and private review evidence',
       'A reviewed entry-based policy replaces membership exclusions without rewriting historical membership evidence. No policy means the legacy membership workflow, not an automatic migration.',
       'Reviewed 2026-11-09 membership map keyed by stable profile ID; private provenance; membership status/basis; optional per-row reviewed identity.', [
         node('Does the season use the reviewed entry-based 2026 policy?', [
-          branch('entry-based-2026-v1, reviewed with private evidence', 'Both driver and co-driver qualify in RS2/RS4. Ignore membership, licence, invitation and season manual exclusions for scoring. Preserve private legacy evidence without marking it verified. DNS and DNF start-evidence rules still apply. This user decision is not a printed SSR amendment.', 'rs-roles'),
+          branch('entry-based-2026-v1, reviewed with private evidence', 'Both driver and co-driver qualify in RS2/RS4. Ignore membership, licence, invitation and season manual exclusions for scoring. Preserve private legacy evidence without marking it verified. Official classified/DNF establishes start; DNS excludes. This user decision is not a printed SSR amendment.', 'rs-roles'),
           branch('Malformed / unreviewed / unsupported policy', 'Invalid scoring; never fall back silently. Another year needs its own implemented policy.'),
           branch('Policy absent', 'The following membership-map branches describe legacy scoring only.')
         ], [{ path: 'assets/engine.js', start: 45, end: 65, symbol: 'Entry-based policy and launch classification', revision: 'main' }]),
@@ -324,15 +324,15 @@
       ], ['rs-events', 'rs-points', 'nr-finality']),
     topic('rs-points', 'rs', 'RS points, zero and unavailable are different',
       'RS awards class-scale points, not NR overall-plus-class. Overall Clubman totals reuse those points; they are not a second points allocation.',
-      'Ready event; independent role scoring position/class and eligibility; result status and row-level start evidence; doublePoints.', [
+      'Ready event; independent role scoring position/class and eligibility; official result status; doublePoints.', [
         node('Is the event ready to score?', [
           branch('No', 'No per-entry event score is established. Exclude this event from provisional totals; do not substitute zero.', 'rs-events'),
           branch('Yes, role classified and eligible', 'Class ranks 1-10 earn 15,12,10,8,7,6,5,4,3,2. Every rank from 11 onward earns 1. Multiply by 2 only for the supported explicit double-points case.'),
           branch('No co-driver', 'Co-driver eligibility/points are null, not a zero-point unnamed person.')
         ], [source('assets/engine.js', 479, 482, 'pointScale'), source('assets/engine.js', 617, 633, 'role awards'), source('assets/engine.js', 635, 652, 'row points')]),
         node('What does a non-classified or excluded role receive in a ready event?', [
-          branch('Eligible DNF with start evidence and supported class', 'Zero points, no scoring position; source-backed starter.'),
-          branch('Eligible DNF without start evidence / unsupported class', 'Null points. A separate event starter count cannot establish this individual\'s start.'),
+          branch('Eligible DNF with supported class', 'Zero points, no scoring position; official status establishes start even without stage observations.'),
+          branch('Unsupported class', 'No invented points; unresolved category semantics still block scoring.'),
           branch('DNS', 'Null points, never a start.'),
           branch('Legacy policy only: non-eligible / invitation / TEST with non-DNS source row', 'Zero championship points and no rank, shown as RS0. Entry-based policy ignores those exclusions; championship TEST inputs block rather than receiving zero.')
         ], [source('assets/engine.js', 635, 652, 'driverPoints / codriverPoints')]),
@@ -522,7 +522,7 @@
         node('What are common distinct missing states?', [
           branch('No entry coverage', 'Unknown participation, not zero.', 'nr-entries'),
           branch('No stage time / printed stage rank', 'Graph gap or unavailable metric, not 0 time or an inferred rank.', 'rs-graphs'),
-          branch('No scored RS event / eligible unproven DNF', 'Unavailable points, not zero.', 'rs-points'),
+          branch('No scored RS event', 'Unavailable points, not zero. A ready eligible official DNF has zero points.', 'rs-points'),
           branch('NR DNF', 'A real zero-point start, not absence.', 'nr-starts')
         ], [source('assets/engine.js', 193, 197, 'NR result statuses'), source('assets/engine.js', 635, 652, 'RS missing points')])
       ], ['shared-projection', 'shared-calendar']),

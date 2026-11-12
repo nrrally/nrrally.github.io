@@ -31,7 +31,56 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
-## Public participation diagnostics and RS known starts (deployed)
+## Source-authoritative participation (authorized release, pre-push)
+
+- The user explicitly superseded missing-observation warnings and the proposed
+  reviewed-DNS correction: display the official source classification, not an
+  anecdotal re-adjudication. Classified/DNF establishes start; DNS excludes.
+  Remove public red `!` diagnostics and DNF-only lower bounds/unavailability.
+  Keep genuine unknown-status states, launch exclusion, event/role uniqueness,
+  source times/rows and unrelated class-order/current-finality reviews intact.
+- Shared `sourceStatusStarted` drives RS adapter/scorer participation. Eligible
+  source DNF receives zero without recorded times and counts toward the unchanged
+  event starter minimum. NR scoring/credit/minimum rules are unchanged. Admin and
+  Logic explorer wording now match this scope; graphs never fill missing times.
+  Expanded source/row disclosures suppress only the superseded editorial assertions
+  that no-time DNF is not an assumed starter or its start is unestablished. Vehicle,
+  missing-time facts and adjacent text remain; stored notes and review digests do not change.
+- New projected scoring has `participationBasis: source-status-v1`, with public
+  DNF-zero/DNS-null coherence checks. Valid absent/stage-evidence legacy snapshots
+  remain accepted unchanged until separately audited whole-bundle publication;
+  no outage or public private-rule reconstruction. Unknown bases fail compatibility.
+  Existing private policy evidence can record the user instruction; no new working
+  schema or participation-review field is shipped.
+- All unreleased reviewed-DNS work was removed before any commit/push/deployment;
+  no participation activation happened. The older audit below remains historical,
+  not authority to question source DNF or correct a particular crew.
+- Anonymous public-only rehearsal reproduced the existing scoring snapshot exactly
+  under disclosed synthetic placeholders for already-ready private controls.
+  New semantics change six role awards null to zero, no cumulative points/ranks,
+  class tables, finality or event-readiness changes. Source starter counts increase
+  where official DNF previously lacked observations. The coordinator independently
+  confirmed fresh private counts and absence of conflicting championship controls.
+  Actual rows/evidence/counterfactual captures remain outside Git.
+- 152 targeted display/scoring/import/admin-logic/entry/season-readiness tests pass.
+  Responsive public-theme, admin-access and entry-policy browser suites pass both
+  contexts/four widths/light-dark, including exact DNF counts/no diagnostics,
+  preserved legacy snapshots and unchanged administration.
+  Anonymous actual-public local-runtime checks pass all eleven classifications and
+  both roles' Home/standings/Crews/profiles at 390/1440 px in both themes, with no
+  overflow or runtime errors. Source statuses and NR counts remain unchanged.
+- The ongoing user-directed live-fix request authorizes a guarded normal main code
+  push under the approved account, followed by exact Pages/assets/anonymous-public
+  verification. This session does no authenticated provider reads or data writes.
+  Coordinator alone activates regenerated scoring with fresh backup, source/control
+  comparison, atomic attributed History and version guards.
+  Four shells use `rs-visual-11`; retire old admin tabs before data activation.
+  No guide edition, analytics, provider configuration, source URL or vehicle change.
+  Before activation, static rollback is `504eeb7dd924fca8de7c72052e2f687abadc7991`.
+  After activation, preserve compatible code or separately authorize audited data
+  rollback; public Git cannot restore private data/evidence.
+
+## Public participation diagnostics and RS known starts (superseded release)
 
 - Investigation reproduced the actual published mismatch: two classified
   championship appearances and one no-observation DNF yielded a missing aggregate.

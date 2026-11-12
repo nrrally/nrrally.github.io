@@ -249,16 +249,17 @@ Calendar-only Home models retain the shared four statistic slots: known event/ro
 counts, unavailable driver/stage facts shown as `—`, and no fabricated leaders. Both
 contexts use the same empty state. With results, event/stage counts include
 non-scoring RS events, but championship round/driver figures exclude them; native
-scoring notes explain the scope. NR's credited starts and RS's evidence-based role
+scoring notes explain the scope. NR's credited starts and RS's source-status role
 starts remain distinct facts presented in the same field.
 
 RS Home, standings, Crews and profile start totals share `rsStartFacts` in
 `public-model.js`. It retains a count and lower-bound flag rather than discarding
-known starts when another appearance is uncertain. Classified rows and evidenced
-DNFs establish starts; DNS and launch do not. Role counts deduplicate championship
+known starts when another appearance has genuinely unknown classification status.
+Official classified/DNF rows establish starts regardless of stage observations;
+DNS and launch do not. Role counts deduplicate championship
 events per role; Crews deduplicates across roles, while profile totals retain their
 documented role-round scope. `2+` (accessible "At least 2 rounds started") means two
-proven starts with other unresolved appearances, not a guessed exact total.
+source-status starts with other unknown-status appearances, not a guessed exact total.
 An uncertain-only history stays unavailable. Scoring snapshots are not start evidence;
 zero or positive points are never used as a start proxy. NR credited-start semantics
 and legacy role exclusions are unchanged.
@@ -420,18 +421,22 @@ Everything else works on plain JSON documents and doesn't change. The data model
 For complete file/contract inventory, deployment/recovery and maintenance invariants start
 with [recovery.md](recovery.md). Update this architecture and affected docs/release records
 before every push that changes their described behavior.
-### Public participation diagnostics
+### Source-authoritative participation
 
-The shared read-only adapter flags a printed DNF when its public row has no stage
-time, stage position, positive NR completed-stage count or explicit start evidence.
-Zero is a valid observation; zero points are not start evidence. A native red `!`
-disclosure explains uncertainty on classifications, profile history and affected
-Home/standings/Crews start aggregates. It never rewrites DNF to DNS. Launch issues
-remain in event/history views, not championship aggregates. NR historical credits
-are unchanged and explicitly distinguished from observation-backed starts.
+The user's superseding decision removes no-observation DNF red `!` diagnostics
+from classification/history and aggregate public views. Shared pure
+`NREngine.sourceStatusStarted(entry)` is used by RS display facts and the working
+scorer: classified/DNF establishes start; DNS excludes. Timing/graphs stay untouched.
+NR's existing status/credit semantics, unrelated source/class-order/current-finality
+reviews, eligibility and sporting gates are preserved. No anecdotal DNS override
+or participation-review contract is shipped or activated.
+Expanded source/row disclosures omit only the old editorial assertions that
+no-time DNF is not an assumed starter or that a source-DNF start is unestablished;
+vehicle/missing-time facts and adjacent source text remain. Stored notes and
+source snapshot digests are unchanged.
 
-The existing RS projector removes private positive-start evidence; absent public
-observations cannot establish either DNS or a scoring error. This release adds no
-review marker, schema, admin input, projection or scoring change. A source-preserving
-reviewed-participation contract and its role/result scope require separate review
-before compatible code and an authorized backed-up, attributed data activation.
+The matching projector emits `scoring.participationBasis: "source-status-v1"`.
+Legacy snapshots remain accepted without reinterpretation until separate atomic
+publication; new-basis ready rows must have eligible DNF zeroes and DNS nulls.
+No browser reconstruction of private scoring settings or automatic data writes is
+permitted. See [data-model.md](data-model.md) for migration/compatibility.

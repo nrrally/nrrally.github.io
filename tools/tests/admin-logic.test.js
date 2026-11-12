@@ -123,8 +123,8 @@ test('explanations keep sensitive distinctions and are admin-only assets', () =>
   assert.match(text('nr-finality'), /regardless of source finality/);
   assert.match(text('nr-finality'), /does not establish a mismatch/);
   assert.match(text('rs-starters'), /No written amendment/);
-  assert.match(text('rs-starters'), /total can satisfy the event threshold/);
-  assert.match(text('rs-points'), /Null points/);
+  assert.match(text('rs-starters'), /official DNF need additional stage evidence/);
+  assert.match(text('rs-points'), /official status establishes start even without stage observations/);
   assert.match(text('rs-roles'), /Independently remove excluded co-drivers/);
   assert.match(text('rs-members'), /NOT non-membership assertions/);
   assert.match(text('rs-totals'), /Share rank/);

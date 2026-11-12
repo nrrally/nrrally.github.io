@@ -761,17 +761,10 @@ async function main() {
         const roundsStarted = page.locator('.home-classes .leader');
         assert.ok((await roundsStarted.filter({ hasText: 'Synthetic Driver 3' }).innerText()).includes('2 rounds started'),
           'an evidenced DNF counts once, while an additional DNS does not add a started round');
-        assert.ok((await roundsStarted.filter({ hasText: 'Synthetic Driver 4' }).innerText()).includes('At least 2 rounds started'),
-          'an uncertain DNF does not erase the two established starts or turn them into an exact total');
-        const participation = roundsStarted.filter({ hasText: 'Synthetic Driver 4' }).locator('.participation-alert');
-        assert.equal(await participation.count(), 1);
-        await participation.locator('summary').focus();
-        await page.keyboard.press('Enter');
-        assert.equal(await participation.getAttribute('open'), '');
-        assert.match(await participation.innerText(), /DNS or retirement before the first recorded time/);
+        assert.ok((await roundsStarted.filter({ hasText: 'Synthetic Driver 4' }).innerText()).includes('3 rounds started'),
+          'official DNF counts even when timing is missing');
+        assert.equal(await page.locator('.participation-alert').count(), 0);
         await noOverflow();
-        await page.keyboard.press('Space');
-        assert.equal(await participation.getAttribute('open'), null);
         assert.equal(await page.locator('.home-classes .leader').filter({ hasText: 'Launch Example' }).count(), 0,
           'a non-scoring launch appearance is excluded from championship class leaders');
         const palette = await page.evaluate(() => {
@@ -795,12 +788,11 @@ async function main() {
         await page.getByRole('link', { name: 'RS4', exact: true }).click();
         await page.locator('table.data tbody tr').filter({ hasText: 'Synthetic Driver 4' }).waitFor();
         const partialDriver = page.locator('table.data tbody tr').filter({ hasText: 'Synthetic Driver 4' });
-        assert.equal(await partialDriver.locator('td').last().locator(':scope > span[aria-label]').innerText(), '2+');
-        assert.match(await partialDriver.locator('td').last().locator(':scope > span[aria-label]').getAttribute('aria-label'), /At least 2 rounds started/);
-        assert.equal(await partialDriver.locator('.participation-alert').count(), 1);
+        assert.equal(await partialDriver.locator('td').last().innerText(), '3');
+        assert.equal(await partialDriver.locator('.participation-alert').count(), 0);
         await page.getByRole('link', { name: 'Co-drivers', exact: true }).click();
         await page.getByRole('heading', { name: 'Co-drivers', exact: true }).waitFor();
-        assert.equal(await page.locator('table.data tbody tr').filter({ hasText: 'Synthetic Co-driver 4' }).locator('td').last().locator(':scope > span[aria-label]').innerText(), '2+');
+        assert.equal(await page.locator('table.data tbody tr').filter({ hasText: 'Synthetic Co-driver 4' }).locator('td').last().innerText(), '3');
         await navigate(page, 'Crews');
         await page.getByRole('heading', { name: 'Crews', exact: true }).waitFor();
         const unverifiedCrew = page.locator('#crewTable tbody tr').filter({ hasText: 'Synthetic Driver 6' });
@@ -812,8 +804,8 @@ async function main() {
         assert.equal(await multiClassCrew.locator('.cls.RS2').count(), 1);
         assert.equal(await multiClassCrew.locator('.cls.RS4').count(), 1,
           'genuine multi-class crews retain both unique source classes without duplicating scoring badges');
-        assert.equal(await page.locator('#crewTable tbody tr').filter({ hasText: 'Synthetic Driver 4' }).locator('.rs-crew-starts > span[aria-label]').innerText(), '2+');
-        assert.equal(await page.locator('#crewTable tbody tr').filter({ hasText: 'Synthetic Driver 4' }).locator('.participation-alert').count(), 1);
+        assert.equal(await page.locator('#crewTable tbody tr').filter({ hasText: 'Synthetic Driver 4' }).locator('.rs-crew-starts').innerText(), '3');
+        assert.equal(await page.locator('#crewTable tbody tr').filter({ hasText: 'Synthetic Driver 4' }).locator('.participation-alert').count(), 0);
         assert.deepEqual(await page.locator('#crewTable thead th').allTextContents(),
           ['Competitor', 'Role', 'Class / status', 'Standings', 'Starts',
             'Events / championship rounds', 'Car(s)']);
@@ -821,8 +813,8 @@ async function main() {
           'the single footnote preserves the RS0 eligibility caveat');
         assert.ok(!(await page.locator('main').innerText()).includes('RS0 roles receive'));
         await page.getByRole('link', { name: 'Synthetic Driver 4', exact: true }).click();
-        assert.equal(await page.locator('.kpi').filter({ hasText: 'Starts' }).locator('b').innerText(), '2+');
-        assert.equal(await page.locator('.profile-history .participation-alert').count(), 1);
+        assert.equal(await page.locator('.kpi').filter({ hasText: 'Starts' }).locator('b').innerText(), '3');
+        assert.equal(await page.locator('.profile-history .participation-alert').count(), 0);
         await noOverflow();
         await navigate(page, 'Crews');
         await page.getByRole('link', { name: 'Alex Test', exact: true }).click();
@@ -908,10 +900,10 @@ async function main() {
           /Driver and co-driver each scored 0 championship points/);
         await visit('#/rallyesport/synthetic-rs-r3-provisional/classification');
         const uncertainRow = page.locator('tr[data-car="44"]');
-        assert.equal(await uncertainRow.locator('.participation-alert').count(), 1);
+        assert.equal(await uncertainRow.locator('.participation-alert').count(), 0);
         assert.equal(await page.locator('tr[data-car="43"] .participation-alert').count(), 0, 'DNS is not ambiguous');
-        await uncertainRow.locator('summary').focus(); await page.keyboard.press('Enter');
-        assert.match(await uncertainRow.innerText(), /participation is unresolved/);
+        assert.equal(await uncertainRow.locator('.rs-result-finish').innerText(), 'DNF');
+        assert.doesNotMatch(await uncertainRow.innerText(), /participation is unresolved/);
         await noOverflow();
         await visit('#/2026/rounds?competition=rs');
         assert.match(await page.locator('.event-card').filter({ hasText: 'Synthetic RS R2' }).locator('.meta').innerText(),

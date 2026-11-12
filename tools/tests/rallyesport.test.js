@@ -190,8 +190,8 @@ test('reviewed entry-based policy scores both roles without membership, licence,
     }
     assert.equal(row.entries[7].driverPoints, 0, 'evidenced DNF');
     assert.equal(row.entries[7].codriverPoints, 0);
-    assert.equal(row.entries[8].driverPoints, null, 'unproven DNF');
-    assert.equal(row.entries[8].codriverPoints, null);
+    assert.equal(row.entries[8].driverPoints, 0, 'source DNF');
+    assert.equal(row.entries[8].codriverPoints, 0);
     assert.equal(row.entries[9].driverPoints, null, 'DNS');
     assert.equal(row.entries[9].codriverPoints, null);
   }
@@ -567,7 +567,7 @@ test('equal season totals share a rank without a fabricated season tie-break ord
   assert.equal(first.rank, second.rank);
   assert.match(score.reason, /season tie-breaks are unresolved/);
 });
-test('source-evidenced started DNF publishes zero points and counts as a starter; unproven DNF, DNS and TEST stay distinct', () => {
+test('source DNF establishes start and zero points without observations; DNS and TEST stay distinct', () => {
   const f = fixture();
   f.result.entries[14].status = 'DNS';
   f.result.entries[14].pos = null;
@@ -596,13 +596,13 @@ test('source-evidenced started DNF publishes zero points and counts as a starter
   f.result.entries[14].total = null;
   score = eventScore(f);
   assert.equal(score.status, 'blocked');
-  assert.match(score.reason, /cannot be confirmed.*DNF has no recorded start evidence/);
+  assert.match(score.reason, /Fewer than 15/);
   f.event.starterCount = 15;
   f.event.starterCountEvidence = 'Synthetic official entry count';
   score = eventScore(f);
   assert.equal(score.status, 'ready');
-  assert.equal(score.entries[0].driverPoints, null);
-  assert.equal(score.entries[0].codriverPoints, null);
+  assert.equal(score.entries[0].driverPoints, 0);
+  assert.equal(score.entries[0].codriverPoints, 0);
   f.result.entries[0].startEvidence = 'Synthetic source-listed start';
   score = eventScore(f);
   assert.equal(score.entries[0].driverPoints, 0);
@@ -741,8 +741,8 @@ test('the evidence-backed 2026 six-starter review changes only the RS event thre
   const dnf = unknownDnf.result.entries[5];
   dnf.status = 'DNF';
   score = eventScore(unknownDnf);
-  assert.equal(score.status, 'blocked');
-  assert.match(score.reason, /6-starter requirement cannot be confirmed.*DNF has no recorded start evidence/);
+  assert.equal(score.status, 'ready', 'five classified plus official DNF meet six, even without times');
+  assert.equal(score.entries[5].driverPoints, 0);
   dnf.startEvidence = 'Synthetic source-listed start';
   score = eventScore(unknownDnf);
   assert.equal(score.status, 'ready');
@@ -862,7 +862,7 @@ test('starter-minimum review evidence fails closed and never configures another 
   assert.ok(E.validateRallyeSport(future.data, { year: 2027, events: [], rounds: [] }, {}, future.people)
     .some(issue => /supported only for the 2026 RallyeSport season/.test(issue.msg)));
 });
-test('started DNF zeroes survive the public scoring snapshot while unproven starts remain unavailable', () => {
+test('all source DNF zeroes survive projection; legacy snapshots remain compatible until versioned republish', () => {
   const f = fixture();
   f.result.entries[0].status = 'DNF';
   f.result.entries[0].pos = null;
@@ -883,8 +883,22 @@ test('started DNF zeroes survive the public scoring snapshot while unproven star
   f.event.starterCount = 15;
   f.event.starterCountEvidence = 'Synthetic source-backed event count';
   const unproven = AI.projectPublic({ ...F.season(2026), rallyesport: f.data }, f.people);
-  assert.equal(unproven.rallyesport.scoring.results[0].entries[0].driverPoints, null);
-  assert.equal(unproven.rallyesport.scoring.results[0].entries[0].codriverPoints, null);
+  assert.equal(unproven.rallyesport.scoring.participationBasis, 'source-status-v1');
+  assert.equal(unproven.rallyesport.scoring.results[0].entries[0].driverPoints, 0);
+  assert.equal(unproven.rallyesport.scoring.results[0].entries[0].codriverPoints, 0);
+  const load = season => E.buildSeason({ season, rounds: {}, people: f.people, publicProjection: true }).rallyesport.scoring;
+  const dnsConflict = structuredClone(unproven);
+  dnsConflict.rallyesport.results[0].entries[0].status = 'DNS';
+  assert.equal(load(dnsConflict).status, 'invalid', 'new basis cannot retain numeric points for source DNS');
+  const inconsistent = structuredClone(unproven);
+  inconsistent.rallyesport.scoring.results[0].entries[0].driverPoints = null;
+  assert.equal(load(inconsistent).status, 'invalid', 'new basis cannot retain an eligible DNF null');
+  delete inconsistent.rallyesport.scoring.participationBasis;
+  assert.equal(load(inconsistent).results[0].entries[0].driverPoints, null, 'legacy award is retained, not reinterpreted');
+  inconsistent.rallyesport.scoring.participationBasis = 'stage-evidence-v1';
+  assert.equal(load(inconsistent).results[0].entries[0].driverPoints, null);
+  inconsistent.rallyesport.scoring.participationBasis = 'unknown';
+  assert.equal(load(inconsistent).status, 'invalid');
 });
 test('a later DNF stage observation survives an earlier missing stage without filling the gap', () => {
   const f = fixture();

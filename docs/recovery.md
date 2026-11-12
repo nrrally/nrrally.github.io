@@ -11,7 +11,47 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
-### Participation diagnostics and RS known-start preservation (deployed)
+### Source-authoritative participation (authorized compatible release)
+
+The user's superseding instruction treats official classified/DNF as started and
+DNS as not started, rather than policing whether a no-time DNF should have been DNS.
+All missing-observation red `!` diagnostics are removed; RS source-DNF counts are
+exact across Home, standings, Crews and profiles. Missing observations in graphs
+remain missing. Genuinely unknown/unpublished classifications are not invented.
+NR's existing status/credit/minimum-start semantics, launch exclusion, role/event
+deduplication and unrelated class-order/current-finality reviews remain unchanged.
+Only superseded editorial no-time-DNF start assertions are omitted in source/row
+disclosures; adjacent vehicle/observation facts remain. Stored notes, PDFs and
+source review digests are retained.
+
+The unreleased reviewed-DNS schema/admin/projector implementation was completely
+discarded before commit/deployment; no participation/DNS activation occurred.
+The earlier audit/diagnostics section below is historical, not the current mandate.
+The shared working RS scorer now counts official DNF without timing and assigns
+eligible zero points. New snapshots carry `participationBasis: source-status-v1`;
+valid legacy absent/stage-evidence snapshots stay visible unchanged until atomic
+publication, avoiding an outage. The browser does not reinterpret legacy null awards
+or reconstruct private controls. New-basis DNF/DNS award coherence is enforced.
+
+Code deployment and data activation remain separate. Retire old admin tabs, take
+fresh protected backups and regenerate the whole public bundle with matching
+engine/projector, working/public/revision/attributed History and version conditions.
+Existing private policy evidence can retain this user decision within its current
+limit; no new policy/provenance schema is needed. The coordinator alone performs
+authorized private comparison/publication; this coding session uses anonymous
+public inputs only. Source rows, PDFs and existing review digests must stay identical.
+The public-only old-scorer rehearsal reproduced the published snapshot exactly;
+the new scorer changes six role awards from null to zero, no cumulative table/rank
+or readiness changes. Published source-status event starter totals remain above the
+unchanged threshold; fresh private controls must still be independently compared.
+
+All four shells coordinate `rs-visual-11`. Reload existing tabs. Before activation,
+static rollback to `504eeb7dd924fca8de7c72052e2f687abadc7991` restores diagnostics,
+not the user's current direction. After activation, rollback also needs separately
+authorized audited data rollback or compatible scoring code; Git does not restore
+private evidence/data. See the release ledger for actual deployment status.
+
+### Participation diagnostics and RS known-start preservation (superseded release)
 
 A display-adapter repair preserves known championship starts when another
 appearance has no established start evidence. The former exact-number-or-null contract
