@@ -11,7 +11,7 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
-### Participation diagnostics and RS known-start preservation (authorized release)
+### Participation diagnostics and RS known-start preservation (deployed)
 
 A display-adapter repair preserves known championship starts when another
 appearance has no established start evidence. The former exact-number-or-null contract
@@ -41,10 +41,17 @@ No reviewed-no-start marker, schema/projector change or data activation is inclu
 Those require reviewed role/result scope and separately authorized compatible code
 and backed-up atomic attributed publication. Conversation confirmation alone does
 not alter published records or other crew roles.
-The pre-release runtime is `c0748cc1285b46f255a36dea914e4e2d6bef9cf9` with documentation
-baseline `796c19ea49e4555c645aa2b8664ca24541ea35bc`. The four shells coordinate
-`rs-visual-10`; the authorized static release deploys them together with matching
-display scripts and styles. Static rollback needs no data restore. Existing tabs need reload.
+Runtime `698ebaefde032118924d0989ca3a773ae5cd0a23` deployed successfully; the exact
+Pages workflow/build SHA and live bytes of all shells, changed display scripts/styles
+and affected documentation matched Git. Anonymous actual-live checks covered all
+11 classifications / 12 generic flags and every affected identity's history, with
+both-context role tables/Crews and lower-bound Home/profile counts at 390/1440 px,
+light/dark. Native keyboard disclosures and narrow/wide captures were reviewed.
+The four shells coordinate `rs-visual-10` with matching display scripts/styles.
+Static rollback to pre-release documentation baseline
+`796c19ea49e4555c645aa2b8664ca24541ea35bc` (runtime
+`c0748cc1285b46f255a36dea914e4e2d6bef9cf9`, `rs-visual-9`) needs no data restore.
+Existing tabs need reload. This documentation follow-up changes no runtime or data.
 
 ### Current classification finality (deployed; activation verified by coordinator)
 

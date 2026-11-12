@@ -31,7 +31,7 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
-## Public participation diagnostics and RS known starts (authorized; pre-push)
+## Public participation diagnostics and RS known starts (deployed)
 
 - Investigation reproduced the actual published mismatch: two classified
   championship appearances and one no-observation DNF yielded a missing aggregate.
@@ -81,7 +81,28 @@ must be addressed; there is no automation that can infer approvals or certify pr
   deploy with matching shared display scripts/styles after fresh
   main/account/scope checks. Static rollback to current documentation baseline
   `796c19ea49e4555c645aa2b8664ca24541ea35bc` needs no database restoration.
-  Existing open tabs require reload. Exact live release verification remains pending.
+  Existing open tabs require reload.
+
+### Verified diagnostics deployment
+
+- Runtime `698ebaefde032118924d0989ca3a773ae5cd0a23` was normally pushed from exact
+  reviewed parent `796c19ea49e4555c645aa2b8664ca24541ea35bc` with approved process-scoped
+  account and changed-file guards. [Pages workflow](https://github.com/nrrally/nrrally.github.io/actions/runs/43268926260)
+  succeeded, and the Pages build API reported that exact revision as built.
+- All four canonical live shells, three changed runtime/style files and five affected
+  documentation files matched its exact Git bytes. Anonymous actual-live browser
+  checks passed at 390/1440 px, light/dark: all 11 classifications show exactly the
+  12 expected generic flags; both-context role tables/Crews and every affected
+  identity's history agree with the shared facts. The affected RS Home/profile and
+  numerical aggregates retain the two established starts as a labelled lower bound.
+  Enter/Space disclosures work without page overflow; narrow/wide captures were
+  visually reviewed. All writes, non-public requests and analytics were blocked.
+- This authorized docs-only follow-up persists deployment/recovery evidence. It
+  changes no runtime behavior, cache, source data, sporting rules, review contract,
+  provider, guide edition or analytics. The reviewed-no-start representation and
+  any role-scoped data activation remain separate; this release did not rewrite
+  historical DNF records. Normal main push uses fresh exact-parent/account/scope
+  guards, followed by exact Pages and live-file verification.
 
 ## Resolved classification finality display (deployed)
 
