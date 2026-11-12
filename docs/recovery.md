@@ -11,22 +11,34 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
-### Current classification finality (compatible code; activation separate)
+### Current classification finality (deployed; activation verified by coordinator)
 
 An evidence-backed `currentFinalityReview` is supported independently for each NR
 working round and RS working result. It labels an exact, snapshot-bound user decision;
 source wording, technical-check caveats, scoring and the championship gate remain
 unchanged. [The data model](data-model.md) gives the exact fields and helper signatures.
-The user confirmed TRAC finality, but this code release does not itself update data.
-The separately authorized coordinator must retire all old admin tabs, take fresh
-backups and update both NR round documents and the RS season result atomically with
-working/public/revision/attributed History coordination and version preconditions.
+The compatible code deployed as `7a9e1feacf9ddf8e820384f789a505936ea777f4`;
+Pages and the live shells/runtime assets were verified against that exact revision.
+The coordinator reports the separately authorized TRAC activation completed after the
+user confirmed all admin tabs closed. Fresh protected baseline/precommit backups and
+an isolated reviewed candidate preceded one guarded atomic update of the three working
+records, whole public bundle, revision and three attributed
+**GitHub Copilot (direct Firebase)** History entries. Inventory/version readback and
+the anonymous public endpoint matched. Only current-finality metadata changed;
+source status/notes/rows/links, RS class-order and scoring-finality reviews, NR standings
+and RS scoring remained unchanged. Coordinator read-only browser checks at narrow/wide
+widths confirmed final badges and user-confirmation notes on all three classifications,
+historical technical caveats inside source notes and valid RS calculated class positions.
+This documentation session performed no private reads or data writes.
+
+For future updates, retire all old admin tabs, take fresh backups and coordinate
+working/public/revision/attributed History atomically with version preconditions.
 Regenerate public data with the matching projector; do not directly patch public
 markers. Compare all three source snapshots and preserve the original notes and RS
 scoring and class-order review. Older admin code can leak private NR review evidence
 through its older projector; never publish from it after adding this field.
 
-Deploy matching engine/import/admin/display assets and all four `rs-visual-8` shells.
+Keep matching engine/import/admin/display assets and all four `rs-visual-8` shells.
 Before activation, static rollback is to `d1d25620d9f3c34532592e9e2a14d98151a4da4f`
 (`rs-visual-7`). After activation, older validators/projectors cannot safely handle
 the new fields: use compatible code or a separately authorized backed-up, audited

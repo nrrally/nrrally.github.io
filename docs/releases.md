@@ -44,7 +44,7 @@ must be addressed; there is no automation that can infer approvals or certify pr
   public bundle, revision and History, after this code is deployed and old admin tabs
   retired. No private provider reads or data writes were made by this code session.
   Old admin projection can expose NR private review evidence; do not use it after
-  activation. See [recovery.md](recovery.md#current-classification-finality-compatible-code-activation-separate).
+  activation. See [recovery.md](recovery.md#current-classification-finality-deployed-activation-verified-by-coordinator).
 - Synthetic Node display, scoring, import and admin-logic suites passed 119 tests.
   Intercepted public and admin browser regressions passed, including 320/390/768/1440
   px and light/dark. An anonymous read-only in-memory simulation of the current
@@ -60,6 +60,35 @@ must be addressed; there is no automation that can infer approvals or certify pr
 - Normal `origin/main` push is authorized after exact-parent/account/scope checks.
   Pages build and live-byte verification are pending deployment; this is not proof
   of the coordinator's later data activation.
+
+### Deployment and coordinator-confirmed activation
+
+- Compatible code `7a9e1feacf9ddf8e820384f789a505936ea777f4` deployed successfully;
+  [Pages workflow](https://github.com/nrrally/nrrally.github.io/actions/runs/43214987172)
+  and build reported that exact revision. All four live shells and five changed
+  runtime assets matched Git; cache token remains `rs-visual-8`.
+- The coordinator reports successful separately authorized activation after the user
+  confirmed admin tabs closed. Fresh protected full baseline/precommit backups and an
+  isolated reviewed candidate preceded an eight-write atomic guarded transaction:
+  three working records, regenerated whole public bundle, revision and three attributed
+  **GitHub Copilot (direct Firebase)** History entries. Complete inventory/version
+  readback and the anonymous public endpoint matched.
+- Only current-finality review metadata changed. Original source status, notes, rows
+  and links, RS class-order/scoring-finality reviews, NR standings and RS scoring
+  remained unchanged. Coordinator read-only live checks at 390/1440 px confirmed
+  final classification badges and user-confirmation notes, retained historical
+  technical caveats inside source notes and valid calculated RS class positions.
+  No vehicle enrichment or source URL correction was included. This records the
+  coordinator's verification, not independent technical clearance.
+- This authorized follow-up is documentation-only, normally to `origin/main` after
+  fresh exact-parent/account/scope checks. It changes no runtime behavior, cache token,
+  scoring, schema, projection, data, provider configuration, guide edition or analytics.
+  No new activation or data restore is authorized. Documentation diff review suffices;
+  Pages and live-file verification of this follow-up remain pending its push.
+  After activation, preserve compatible code and protected recovery artifacts; static
+  rollback alone cannot restore data and older projectors can expose private evidence.
+  Any data rollback needs separate authorization, fresh backup and atomic audited
+  working/public/revision/History coordination.
 
 ## RS linked venue and surface (authorized pre-push)
 
