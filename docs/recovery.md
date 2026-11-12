@@ -23,6 +23,12 @@ the superseded pending-check sentence is omitted from displayed source notes whi
 other text in the same note remains. Stored source records, PDFs and History remain
 unchanged. Unreviewed/stale results retain their caveats. This changes neither scoring
 nor the separate championship provisional gate.
+This display repair deployed as `c0748cc1285b46f255a36dea914e4e2d6bef9cf9`;
+exact Pages build and live shell/runtime bytes matched. Anonymous read-only checks
+at 390/1440 px confirmed ordinary final status and expanded notes without the
+superseded caveat on the reviewed classifications, while other footer text remains.
+Static rollback to `02118a5c3f631725d330789949f03cb2d8a3791e` restores the former
+qualified display without changing data.
 The compatible code deployed as `7a9e1feacf9ddf8e820384f789a505936ea777f4`;
 Pages and the live shells/runtime assets were verified against that exact revision.
 The coordinator reports the separately authorized TRAC activation completed after the
@@ -33,8 +39,9 @@ records, whole public bundle, revision and three attributed
 the anonymous public endpoint matched. Only current-finality metadata changed;
 source status/notes/rows/links, RS class-order and scoring-finality reviews, NR standings
 and RS scoring remained unchanged. Coordinator read-only browser checks at narrow/wide
-widths confirmed final badges and user-confirmation notes on all three classifications,
+widths at activation confirmed final badges and user-confirmation notes on all three classifications,
 historical technical caveats inside source notes and valid RS calculated class positions.
+The subsequent display repair above supersedes that presentation, not its stored history.
 This documentation session performed no private reads or data writes.
 
 For future updates, retire all old admin tabs, take fresh backups and coordinate

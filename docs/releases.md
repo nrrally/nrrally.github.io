@@ -31,7 +31,7 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
-## Resolved classification finality display (authorized pre-push)
+## Resolved classification finality display (deployed)
 
 - The user explicitly confirmed technical checks completed and requested ordinary
   unqualified final display. Valid source-bound current-finality reviews now display
@@ -53,8 +53,26 @@ must be addressed; there is no automation that can infer approvals or certify pr
   behavior. Complete diff/untracked scope and synchronized shell cache were reviewed.
   Anonymous read-only live checks reproduced the prior caveat on all three reviewed
   classifications at 390/1440 px, with analytics and non-public requests blocked.
-  Normal `origin/main` push is authorized after exact-parent/account/scope checks;
-  exact Pages/live-file verification remains pending deployment.
+  The normal `origin/main` push was authorized subject to exact-parent/account/scope
+  checks; its verified deployment outcome is recorded below.
+
+### Verified display deployment
+
+- Code `c0748cc1285b46f255a36dea914e4e2d6bef9cf9` was normally pushed from exact
+  reviewed parent `02118a5c3f631725d330789949f03cb2d8a3791e` with the approved
+  process-scoped account. [Pages workflow](https://github.com/nrrally/nrrally.github.io/actions/runs/43227966406)
+  succeeded; both workflow and Pages build API reported that exact code revision.
+- All four canonical live shells and both changed runtime scripts matched its Git
+  bytes. Anonymous read-only live checks at 390/1440 px confirmed ordinary final
+  status and no superseded caveat on the three reviewed classifications, including
+  expanded source notes. Other compound-note text remains. NR/RS Home, calendar,
+  winners and reviewed Sources disclosures no longer show the confirmation disclaimer.
+  Analytics and non-public/provider writes were blocked throughout.
+- This authorized docs-only follow-up records the outcome and updates recovery.
+  It changes no runtime behavior, cache token, source data, review contract, scoring,
+  provider, guide edition or analytics. Normal push follows fresh exact-parent/scope/
+  account checks; no data migration or rollback is included. Documentation review
+  suffices, with exact Pages/live-file checks after the follow-up push.
 
 ## Source-bound current finality (authorized compatible-code pre-push)
 
