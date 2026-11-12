@@ -20,12 +20,14 @@ function fixture() {
 function build(f, rounds = {}) {
   return E.buildSeason({ season: AI.projectPublic(f.season, f.people), rounds, people: f.people, publicProjection: true });
 }
-test('separate current-finality reviews preserve source caveats, scoring and reviewed class order', () => {
+test('valid current-finality reviews supersede only the displayed technical caveat without changing source or scoring', () => {
   const { f, raw } = fixture(), rs = f.data.results[3];
   raw.title = 'Synthetic NR final classification'; raw.status = 'Final Official Classification 1/1';
   raw.source = { file: 'synthetic-nr.pdf', url: 'https://example.com/nr.pdf' };
   raw.notes = ['Results are final pending post event technical checks such as fuel testing.'];
-  rs.notes.push('Results are final pending post-event technical checks such as fuel testing.');
+  raw.notes.push('Results are final pending post-event technical checks. Car 99 timebarred.');
+  raw.notes.push('Unrelated source note;');
+  rs.notes.push('Source footer: 9 classified and 2 not classified; results are final pending post-event technical checks such as fuel testing.');
   rs.classOrderReview = { version: 1, reviewed: true, digest: E.rallyeSportClassOrderDigest(rs),
     evidence: 'Synthetic class-order review' };
   const priorScore = E.calculateRallyeSportScoring(f.data, f.season, f.people);
@@ -57,20 +59,43 @@ test('separate current-finality reviews preserve source caveats, scoring and rev
   assert.equal(rsPublic.currentFinalityReview.evidence, undefined);
   assert.deepEqual(nrPublic.notes, raw.notes);
   assert.deepEqual(rsPublic.notes, rs.notes);
-  const model = build(f, { R1: nrPublic });
+  const model = freeze(build(f, { R1: nrPublic })), snapshot = JSON.stringify(model);
   for (const [mode, id] of [['nr', 'R1'], ['rs', rs.id]]) {
     const display = P.result(model, mode, id, 'classification');
     assert.equal(display.state, 'Final classification');
-    assert.match(display.finalityNote, /confirmed by user/);
-    assert.ok(display.notes.some(note => /pending post.?event technical checks/i.test(note)));
-    assert.match(C.resultShell(display, '').html, /Final status confirmed by user/);
-    assert.match(C.sources(P.sources(model, mode)).html, /Final status confirmed by user/);
+    assert.ok(display.currentFinalityConfirmed);
+    assert.doesNotMatch(display.graph.metrics[0].help, /not a certification/);
+    assert.ok(display.notes.every(note => !/pending post.?event technical checks/i.test(note)));
+    for (const html of [C.resultShell(display, C.resultClassification(display)).html, C.sources(P.sources(model, mode)).html,
+      C.calendar(P.calendar(model, mode), 0), C.winners(P.calendar(model, mode))]) {
+      assert.doesNotMatch(html, /confirmed by user|independent technical clearance|pending post.?event technical checks/i);
+    }
   }
+  assert.ok(P.result(model, 'rs', rs.id, 'classification').notes.includes('Source footer: 9 classified and 2 not classified'));
+  assert.ok(P.result(model, 'nr', 'R1', 'classification').notes.includes('Car 99 timebarred.'));
+  assert.ok(P.result(model, 'nr', 'R1', 'classification').notes.includes('Unrelated source note;'));
+  const personId = model.rallyesport.results[3].entries[0].driverId;
+  const person = P.profile([model], 'rs', personId);
+  const reviewedApps = person.seasons[0].row.apps.filter(app => app.eventId === rs.eventId);
+  assert.ok(reviewedApps.length && reviewedApps.every(app => app.currentFinalityConfirmed));
+  person.seasons[0].row.apps = reviewedApps;
+  const profileHtml = C.profile(person, '', person.seasons.map(season => season.charts.map(() => ''))).html;
+  assert.doesNotMatch(profileHtml, /technical.check notices|confirmed by user|independent technical clearance/i);
+  assert.equal(JSON.stringify(model), snapshot, 'display never rewrites source notes or review digest inputs');
   const changed = structuredClone(raw); changed.entries[0].pos = 42;
   assert.ok(E.validateRound(changed).some(issue => /current.finality review is invalid or stale/i.test(issue.msg)));
   assert.equal(AI.projectPublic(changed).currentFinalityReview, undefined);
   const stalePublic = structuredClone(nrPublic); stalePublic.entries[0].pos = 42;
-  assert.equal(P.result(build(f, { R1: stalePublic }), 'nr', 'R1', 'classification').finalityNote, '');
+  const staleDisplay = P.result(build(f, { R1: stalePublic }), 'nr', 'R1', 'classification');
+  assert.equal(staleDisplay.currentFinalityConfirmed, false);
+  assert.ok(staleDisplay.notes.some(note => /pending post.?event technical checks/i.test(note)));
+  assert.match(staleDisplay.graph.metrics[0].help, /not a certification/);
+  const staleRsPublic = AI.projectPublic(f.season, f.people);
+  staleRsPublic.rallyesport.results[3].source.file += '.changed';
+  const staleRsModel = E.buildSeason({ season: staleRsPublic, rounds: {}, people: f.people, publicProjection: true });
+  const staleRsDisplay = P.result(staleRsModel, 'rs', rs.id, 'classification');
+  assert.equal(staleRsDisplay.state, 'Pending technical checks');
+  assert.ok(staleRsDisplay.notes.some(note => /pending post.?event technical checks/i.test(note)));
   const changedRs = structuredClone(f.data); changedRs.results[3].source.file += '.changed';
   assert.ok(E.validateRallyeSport(changedRs, f.season, {}, f.people).some(issue => /current.finality review is invalid or stale/i.test(issue.msg)));
   assert.equal(E.projectRallyeSport(changedRs, f.season, f.people).results[3].currentFinalityReview, undefined);
@@ -372,7 +397,7 @@ test('calculated class positions have an accessible conditional note on classifi
   Object.assign(app, { classPos: 2, classPosCalculated: true });
   const profile = C.profile(person, '', person.seasons.map(season => season.charts.map(() => ''))).html;
   assert.match(profile, /aria-describedby="profile-class-position-note-0">2<span aria-hidden="true">\*<\/span>/);
-  assert.match(profile, /id="profile-class-position-note-0">.*Source finality and technical-check notices/);
+  assert.match(profile, /id="profile-class-position-note-0">.*For unresolved classifications, source finality and technical-check notices/);
 });
 test('reviewed source class order reaches both roles and classifications without changing scoring', () => {
   const { f, raw } = fixture();

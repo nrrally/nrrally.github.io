@@ -189,7 +189,9 @@ with the event/finality/points rules that remain unchanged under the revised pol
   rule or awards logic is inferred.
 - A separate `currentFinalityReview` records an explicit user confirmation about the
   current classification, not merely permission to score it. It changes no event
-  points or championship-finality gate; the original source qualification remains.
+  points or championship-finality gate; the original source qualification remains
+  stored, but a valid current-finality decision supersedes its pending-check sentence
+  in public display.
 - Official `TEST` rows and their printed order/status remain in event results, are
   excluded from championship points and appear at the bottom as RS0 Invitational, as
   SSR 6.1(a) specifies. Source-evidenced TEST starters do count toward the user-confirmed

@@ -1249,10 +1249,10 @@ async function main() {
         for (const hash of ['#/round/R1/classification?competition=nr',
           '#/rallyesport/synthetic-rs-r2-results/classification?competition=rs']) {
           await visit(hash);
-          assert.match(await page.locator('main').innerText(), /Final status confirmed by user/);
+          assert.doesNotMatch(await page.locator('main').innerText(), /confirmed by user|independent technical clearance/i);
           assert.match(await page.locator('.round-meta').innerText(), /Final classification/);
           await page.locator('.result-source-notes summary').click();
-          assert.match(await page.locator('.result-source-notes').innerText(), /pending post.?event technical checks/i);
+          assert.doesNotMatch(await page.locator('.result-source-notes').innerText(), /pending post.?event technical checks/i);
           await noOverflow();
         }
       }

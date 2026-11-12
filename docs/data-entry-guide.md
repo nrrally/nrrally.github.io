@@ -299,7 +299,9 @@ activate scoring finality on its own.
 For a separate explicit decision that a particular NR round or RS classification is
 now final, use **Current classification finality** on that result, enter private
 confirmation evidence and explicitly confirm the exact source snapshot. It does not
-change the source wording or imply independent technical clearance. Source or row
+rewrite stored source wording. Public display shows ordinary final status and omits
+the superseded pending-check sentence only while this review is valid; other source
+notes remain. Confirm checks are resolved before approving. Source or row
 edits make the review stale and block publication; review it again or remove it.
 This current-finality decision does not itself permit RS scoring or finalize a season.
 

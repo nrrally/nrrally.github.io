@@ -315,8 +315,11 @@ round's source/status/notes, stages and source rows; the RS digest reuses the ex
 class-order source snapshot. Source or row edits invalidate the review and block
 publication until reviewed again or removed. Public projection retains only version,
 confirmation and digest. The public model checks the snapshot before showing the
-confirmation. Printed status and notes remain unchanged; confirmation is not proof
-that technical checks were independently completed. This review does not change
+confirmation. Printed status and notes remain stored unchanged. Following the user's
+explicit confirmation that checks completed, a valid current-finality review presents
+ordinary final status without an extra user-confirmation disclaimer. The superseded
+pending-check sentence is suppressed only in display, retaining other compound-note
+text. Unreviewed or stale reviews preserve their source caveats. This review does not change
 points, the separate RS scoring-finality review, or championship finality. It is not
 a season-wide switch.
 

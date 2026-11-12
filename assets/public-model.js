@@ -206,7 +206,7 @@
    * @typedef {{driver:string,codriver:string}|null} Winner
    * @typedef {{id:string,label:string,event:string,date:string,dateIso:string,day:string,
    * scope:string,href:string|null,classificationHref:string|null,source:EventLink[],
-   * published:boolean,state:string,finalityNote:string,stages:number|null,classified:number|null,
+   * published:boolean,state:string,stages:number|null,classified:number|null,
    * entryNote:string,winner:Winner,classWinners:Object<string,Winner>}} RoundDisplay
    * @typedef {{id:string,name:string,badge:string,date:string,dateSource:string,sortDate:string,
    * venue:string,surface:string,venueSource?:string,surfaceSource?:string,scope:string,entryNote:string,links:EventLink[],
@@ -316,6 +316,11 @@
       return 'Final classification';
     return 'Finality unclear';
   }
+  function sourceNote(note, result) {
+    if (!result.currentFinalityConfirmed) return note;
+    var text = note.replace(/\bresults are final pending post[- ]event technical checks(?: such as fuel testing)?(?=[.!;]|$)[.!]?/gi, '');
+    return text === note ? note : text.replace(/^[\s;,]+|[\s;,]+$/g, '').replace(/^Source footer:\s*$/i, '').trim();
+  }
   function sourceWinner(result, mode, cls) {
     var entries = result.entries.filter(function (entry) {
       var effective = mode === 'nr' ? entry.cls : E.rallyeSportLaunchRS0(entry) ? 'RS0' :
@@ -346,8 +351,7 @@
       href: path ? href(model.year, mode, path + (mode === 'rs' ? '/graph' : '')) : null,
       classificationHref: result ? href(model.year, mode, path + '/classification') : null,
       source: result && result.source && result.source.url ? [{ url: result.source.url, label: 'Source' }] : [],
-      published: !!result, state: state, finalityNote: result && result.currentFinalityConfirmed ?
-        'Final status confirmed by user; source qualification retained, not independent technical clearance.' : '',
+      published: !!result, state: state,
       stages: result ? result.stages.length : null,
       classified: result ? result.entries.filter(function (entry) { return entry.status === 'classified'; }).length : null,
       entryNote: entryNote || '', winner: final ? sourceWinner(result, mode, '') : null, classWinners: {} };
@@ -638,7 +642,10 @@
     var events = mode === 'nr' ? model.events : model.rallyesport.events;
     var event = events.filter(function (event) { return event.id === raw.eventId; })[0] || { name: raw.eventId };
     var graph = { id: raw.id, name: event.name, timePrecision: 1, stages: [], labels: [],
-      entries: [], progression: {}, classes: [], metrics: RESULT_METRICS };
+      entries: [], progression: {}, classes: [], metrics: RESULT_METRICS.map(function (metric) {
+        return raw.currentFinalityConfirmed && metric.id === 'pos' ?
+          Object.assign({}, metric, { help: 'Position within this competition after each stage (stage times only). “Final” is the official classification, including penalties.' }) : metric;
+      }) };
     if (mode === 'nr') {
       graph.stages = raw.stages.slice(); graph.labels = raw.labels.slice(); graph.progression = raw.progression;
       graph.entries = raw.entries.map(function (entry) {
@@ -721,7 +728,7 @@
    * @typedef {{label:string,href:string,selected:boolean}} ResultNavigation
    * @typedef {{year:number,id:string,tab:string,name:string,published:boolean,scope:string,
    * date:string,dateSource:string,dateIso:string,day:string,venue:string,surface:string,venueSource:string,surfaceSource:string,
-   * stages:string[],state:string,finalityNote:string,roundCount:number,sourceTitle:string,sourceStatus:string,
+   * stages:string[],state:string,currentFinalityConfirmed:boolean,roundCount:number,sourceTitle:string,sourceStatus:string,
    * pointsLabel:string,pointsStatus:string,scoringBasis:string,scoringReason:string,
    * graph:ResultGraph|null,rows:ResultRow[],qualification:string,notes:string[],
    * navigation:ResultNavigation[],previous:string|null,next:string|null,
@@ -762,8 +769,7 @@
         event.roundNumber == null ? 'Championship round' : 'Round ' + event.roundNumber,
       date: dates.text, dateSource: dates.source, dateIso: mode === 'nr' ? dateIso((raw || meta).date) : dates.iso,
       day: mode === 'nr' ? (raw || meta).day || '' : '', venue: location.venue, surface: location.surface,
-      finalityNote: raw && raw.currentFinalityConfirmed ?
-        'Final status confirmed by user; source qualification retained, not independent technical clearance.' : '',
+      currentFinalityConfirmed: !!(raw && raw.currentFinalityConfirmed),
       venueSource: location.venueSource, surfaceSource: location.surfaceSource,
       stages: graph ? graph.stages.slice() : [], state: classification(raw, mode, null),
       roundCount: mode === 'nr' ? model.calendar.length : model.rallyesport.events.filter(function (event) { return event.countsForChampionship !== false; }).length,
@@ -797,7 +803,7 @@
     if (source.url || mode === 'nr' && event.links && event.links.results)
       display.sourceLinks.push({ label: 'Official source classification', url: source.url || event.links.results });
     if (source.pdf) display.sourceLinks.push({ label: 'Copy of the PDF', url: source.pdf });
-    display.notes = (raw.notes || []).slice();
+    display.notes = (raw.notes || []).map(function (note) { return sourceNote(note, raw); }).filter(Boolean);
     if (source.file) display.notes.unshift('Source: ' + source.file);
     if (event.countsForChampionship === false) display.notes.push('Non-scoring event: retained for event statistics, results and graphs; excluded from championship totals and round counts.');
     if (mode === 'rs') {
@@ -983,6 +989,7 @@
           href(model.year, mode, '/person/' + encodeURIComponent(entry[(app.role === 'driver' ? 'codriver' : 'driver') + 'Id'])) : null,
         vehicle: entry.vehicle || '',
         cls: displayClass, classPos: classPosition.value, classPosCalculated: classPosition.calculated,
+        currentFinalityConfirmed: !!result.currentFinalityConfirmed,
         classPosClass: classPosition.calculated && E.normClass(entry['class']) !== E.normClass(displayClass) ? entry['class'] : '',
         status: entry.status, pos: entry.pos,
         points: app.championshipRound && typeof app.points === 'number' ? app.points : null, credited: false,

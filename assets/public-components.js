@@ -26,9 +26,10 @@
       (row.classPosClass ? ' <span class="small muted">(sheet: ' + esc(row.classPosClass) + ')</span>' : '') +
       '</span>' : value(row.classPos);
   }
-  function classPositionNote(id) {
+  function classPositionNote(id, resolved) {
     return '<p class="small muted" id="' + esc(id) +
-      '">* Calculated from the reviewed source classification’s overall order within its printed class; not a championship scoring rank. Source finality and technical-check notices still apply.</p>';
+      '">* Calculated from the reviewed source classification’s overall order within its printed class; not a championship scoring rank.' +
+      (resolved ? '' : ' For unresolved classifications, source finality and technical-check notices still apply.') + '</p>';
   }
   function homePerson(row) {
     return '<a href="' + esc(row.href) + '"' +
@@ -161,8 +162,7 @@
       (row.published ? winnerText(row.winner) : '<b>' + esc(dateLabel(row.date) || 'Date to be confirmed') + '</b>') + '</span>' +
       '<span>' + esc([row.day, row.published ? row.stages + ' stage' + (row.stages === 1 ? '' : 's') : 'results not published yet',
         row.published ? row.classified + ' classified' : '', row.published ? row.state : ''].filter(Boolean).join(' · ')) +
-      '</span>' + (row.finalityNote ? '<span class="small muted">' + esc(row.finalityNote) + '</span>' : '') +
-      '<span class="small muted">' + esc(row.scope) + '</span>' +
+      '</span><span class="small muted">' + esc(row.scope) + '</span>' +
       '<span class="small muted">' + esc(row.entryNote || 'Round entries unavailable') + '</span></span>' +
       (row.published ? '<span class="go">Graph →</span>' :
         status === 'Date to be confirmed' ? '' : '<span class="go muted">' + esc(status) + '</span>') + '</' + tag + '>';
@@ -200,7 +200,6 @@
           display.classes.map(function (cls) { return '<td>' + winnerText(row.classWinners[cls]) + '</td>'; }).join('') +
           '<td><span class="badge ' + (row.state === 'Final classification' ? 'final' : 'prov') +
           '" aria-label="' + esc(row.state) + '">' + esc(row.state.replace(/ classification$/, '')) + '</span>' +
-          (row.finalityNote ? '<div class="small muted">' + esc(row.finalityNote) + '</div>' : '') +
           (row.classificationHref ? '<div>' + link(row.classificationHref, 'Classification →') + '</div>' : '') +
           sourceLinks(row.source) + '</td></tr>';
       }).join('') + '</tbody></table></div></div>';
@@ -306,7 +305,8 @@
       esc(display.sourceTitle) + '</b> · ' + esc(display.sourceStatus) + '</p>' + sourceLinks(display.sourceLinks) +
       '<p>' + esc(display.scoringBasis) + '</p><p>' + esc(display.scoringReason) + '</p><ul>' +
       display.notes.map(function (note) { return '<li>' + esc(note) + '</li>'; }).join('') +
-      '</ul><p>Live timing is not used. “Final” on a graph is the classification endpoint, not certification that a source is final.</p></div></details>';
+      '</ul><p>Live timing is not used.' + (display.currentFinalityConfirmed ? '' :
+        ' “Final” on a graph is the classification endpoint, not certification that a source is final.') + '</p></div></details>';
     if (display.participation) {
       var part = display.participation, unstarted = part.entries.filter(function (entry) {
         return !entry.recordedStart && !entry.recordedDNS && entry.status !== 'DNS';
@@ -355,7 +355,7 @@
           '<td class="num result-classpos" data-label="Class pos">' + classPosition(row, 'result-class-position-note') + '</td>' +
           '<td class="num result-points rs-result-points" data-label="Championship pts">' + resultPoints(row.points) + '</td></tr>';
       }).join('') + '</tbody></table></div>' +
-      (display.rows.some(function (row) { return row.classPosCalculated; }) ? classPositionNote('result-class-position-note') : '') +
+      (display.rows.some(function (row) { return row.classPosCalculated; }) ? classPositionNote('result-class-position-note', display.currentFinalityConfirmed) : '') +
       '<p class="small muted">' + esc(display.scoringBasis) +
       ' Official finish is separate from each person’s championship scoring. Missing times, stage counts and awards remain unavailable.</p>' +
       (display.awards.length ? '<details class="notes result-scoring-order rs-scoring-order"><summary>Championship scoring order</summary>' +
@@ -387,7 +387,6 @@
         display.pointsStatus === 'unavailable' ? 'prov' : '') + '">' +
       esc(display.pointsLabel) + '</span></div>' +
       (display.published ? '<p class="small muted result-scoring-status">' + esc(display.scoringBasis) + '</p>' : '') +
-      (display.finalityNote ? '<p class="small muted">' + esc(display.finalityNote) + '</p>' : '') +
       '</div><div class="hero-actions">' +
       (display.previous ? link(display.previous, '← Previous', 'btn') : '') + (display.next ? link(display.next, 'Next →', 'btn') : '') +
       link(display.links.rounds, 'All events', 'btn') + '</div></div>';
@@ -554,7 +553,8 @@
             (app.championship ? value(app.points) : 'Non-scoring event') + '</td><td>' +
             (app.graphHref ? link(app.graphHref, 'Graph →', 'go') : '—') + '</td></tr>';
         }).join('') + '</tbody></table></div>' +
-        (row.apps.some(function (app) { return app.classPosCalculated; }) ? classPositionNote('profile-class-position-note-' + index) : '') : '') + '</div>';
+        (row.apps.some(function (app) { return app.classPosCalculated; }) ? classPositionNote('profile-class-position-note-' + index,
+          row.apps.filter(function (app) { return app.classPosCalculated; }).every(function (app) { return app.currentFinalityConfirmed; })) : '') : '') + '</div>';
     });
     if (!display.seasons.length) html += '<div class="card empty">No published history for this competitor.</div>';
     if (display.note) html += '<p class="small muted">' + esc(display.note) + '</p>';
@@ -592,7 +592,7 @@
         return '<tr><td>' + link(result.tabs[1].href, esc(result.scope)) + '</td><td>' + esc(result.name) +
           '</td><td>' + esc(result.sourceTitle) + '</td><td><span class="badge ' +
           (result.state === 'Final classification' ? 'final' : 'prov') + '">' + esc(result.state) + '</span><br>' +
-          esc(result.sourceStatus) + (result.finalityNote ? '<div class="small muted">' + esc(result.finalityNote) + '</div>' : '') +
+          esc(result.sourceStatus) +
           '</td><td>' + sourceLinks(result.sourceLinks) + '</td></tr>';
       }).join('') + '</tbody></table></div>' +
       display.results.map(function (result) { return '<section class="section"><h2>' + esc(result.name) + '</h2>' +

@@ -31,6 +31,31 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## Resolved classification finality display (authorized pre-push)
+
+- The user explicitly confirmed technical checks completed and requested ordinary
+  unqualified final display. Valid source-bound current-finality reviews now display
+  Final classification without user-confirmation or technical-clearance disclaimers.
+  Only the superseded pending-check sentence is omitted from displayed notes; other
+  compound-note text remains. Stored records, original PDFs and History are unchanged.
+  Unreviewed, unresolved and stale-review records retain their qualifications.
+- This narrow static release changes no review contract, projector, scoring,
+  championship provisional gate, provider, source URL or vehicle data. No private
+  provider reads or data writes occurred. All four shells coordinate `rs-visual-9`; existing
+  tabs may require reload. The compatible activated-data baseline remains valid.
+  Static rollback to `02118a5c3f631725d330789949f03cb2d8a3791e` restores the prior
+  qualified display without data restoration. Guide edition and analytics are unchanged.
+- Synthetic display/scoring/import/admin-logic suites passed 119 tests
+  (`node --test tools/tests/public-display.test.js tools/tests/rallyesport.test.js
+  tools/tests/ai-import.test.js tools/tests/admin-logic.test.js`). Intercepted
+  `site-theme-e2e.js` passed NR/RS responsive checks at 320/390/768/1440 px in both
+  themes, including reviewed-final headers/disclosures and retained source/scoring
+  behavior. Complete diff/untracked scope and synchronized shell cache were reviewed.
+  Anonymous read-only live checks reproduced the prior caveat on all three reviewed
+  classifications at 390/1440 px, with analytics and non-public requests blocked.
+  Normal `origin/main` push is authorized after exact-parent/account/scope checks;
+  exact Pages/live-file verification remains pending deployment.
+
 ## Source-bound current finality (authorized compatible-code pre-push)
 
 - The user confirmed TRAC classifications final; this compatible-code release adds

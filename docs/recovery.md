@@ -15,8 +15,14 @@ No code task by itself permits a live export, direct write, push or deployment.
 
 An evidence-backed `currentFinalityReview` is supported independently for each NR
 working round and RS working result. It labels an exact, snapshot-bound user decision;
-source wording, technical-check caveats, scoring and the championship gate remain
+stored source wording, technical-check caveats, scoring and the championship gate remain
 unchanged. [The data model](data-model.md) gives the exact fields and helper signatures.
+The user subsequently confirmed the checks completed and requested ordinary final
+display. Valid current-finality reviews now show unqualified Final classification;
+the superseded pending-check sentence is omitted from displayed source notes while
+other text in the same note remains. Stored source records, PDFs and History remain
+unchanged. Unreviewed/stale results retain their caveats. This changes neither scoring
+nor the separate championship provisional gate.
 The compatible code deployed as `7a9e1feacf9ddf8e820384f789a505936ea777f4`;
 Pages and the live shells/runtime assets were verified against that exact revision.
 The coordinator reports the separately authorized TRAC activation completed after the
@@ -38,7 +44,7 @@ markers. Compare all three source snapshots and preserve the original notes and 
 scoring and class-order review. Older admin code can leak private NR review evidence
 through its older projector; never publish from it after adding this field.
 
-Keep matching engine/import/admin/display assets and all four `rs-visual-8` shells.
+Keep matching engine/import/admin/display assets and all four `rs-visual-9` shells.
 Before activation, static rollback is to `d1d25620d9f3c34532592e9e2a14d98151a4da4f`
 (`rs-visual-7`). After activation, older validators/projectors cannot safely handle
 the new fields: use compatible code or a separately authorized backed-up, audited

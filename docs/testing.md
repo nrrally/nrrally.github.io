@@ -25,7 +25,8 @@ locations on Home, calendar and result views at its four widths and both themes.
 
 The public-display and admin browser regressions also cover current-finality review:
 private evidence removal, source/status/row mutation invalidation, distinct NR/RS
-display, historical technical-check notes, unchanged RS scoring/class-order digest,
+display, superseded technical-check sentence suppression with compound-note text
+retention, unreviewed/stale caveats, unchanged RS scoring/class-order digest,
 and reversible admin confirmation. Responsive public checks cover both themes and all
 four widths; the synthetic decision is not evidence about a real event.
 

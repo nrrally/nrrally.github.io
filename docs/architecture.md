@@ -238,10 +238,10 @@ Missing fields may display labelled related NR event metadata, or metadata from 
 explicitly linked NR round, without modifying published data. Missing, duplicate or
 inconsistent links and conflicting or malformed day-specific values remain unavailable;
 names and dates never establish a relationship. Each field is resolved independently.
-An explicit source-bound current-finality review can separately label a classification
-as user-confirmed final, without rewriting the printed technical-check qualification
-or changing the scoring-finality or championship gates. Public projection strips the
-private evidence; stale source snapshots do not receive the confirmation.
+An explicit source-bound current-finality review presents ordinary final status and
+suppresses the superseded pending-check sentence in display only, preserving other
+compound-note text and the stored original. Scoring and championship gates are unchanged.
+Public projection strips private evidence; stale/unreviewed snapshots retain caveats.
 RS overrides only primary-accent tokens and the decorative hero track to blue in
 light/dark; NR stays red. Logos, series/category and success/warning colors remain.
 
