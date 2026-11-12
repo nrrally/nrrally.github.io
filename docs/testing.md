@@ -605,6 +605,29 @@ No unexpected requests, page errors or horizontal viewport overflow were accepte
 These are focused accessibility/interaction checks, not a complete WCAG audit or
 certification of live/private data. No provider access, data write or release occurs.
 
+## Compact standings, Crews and classification display
+
+The compact follow-up adds synthetic contracts for conditional accessible eligibility
+markers/footnotes, role-aware combined Crew standings, one deduplicated championship
+Starts count, and equal driver/co-driver points. Edge cases include multiple cars and
+roles in a round, NR multi-day rounds, RS launch exclusion, DNS-only and unsupported/
+unproven starts, unavailable identities, genuine zero points, unequal/missing awards,
+and RS0/non-scoring roles. Unknown data remains `—`; roles are merged only when both
+numeric awards are equal and neither has role-specific qualification.
+
+The targeted Node command passes **119/119**:
+
+```
+node --test tools\tests\public-display.test.js tools\tests\season-readiness.test.js tools\tests\rallyesport.test.js tools\tests\entry-participation.test.js tools\tests\getting-started.test.js tools\tests\analytics.test.js
+```
+
+`site-theme-e2e.js` passes at 320/390/768/1440px in light/dark and checks the actual
+standings, Crews and classification views, exact shared headers, ineligible-only
+asterisks and footnotes, keyboard/table focus, visual one-number equal points and
+accessible role labels. Navigation, revised RS entry-policy public/admin, AI Import
+and admin access browser suites also pass with synthetic intercepted data. No live
+provider or Firebase requests/writes are part of these checks.
+
 Synthetic RS identity regressions exercise private role review through public projection
 and model construction, checking distinct role IDs, unchanged printed names, omitted
 private evidence and unchanged NR results. Started-DNF regressions verify zero points

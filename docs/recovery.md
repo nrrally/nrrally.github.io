@@ -49,6 +49,19 @@ Git blobs. The successful Pages Actions run and deployment object still report t
 old base SHA; consult the release ledger for this metadata inconsistency and the
 independent byte evidence. Live data, sign-in and Firebase rules were not tested.
 
+### Compact public display follow-up (pending release)
+
+The current local follow-up starts from the verified deployed baseline
+`76d0c52ba4ada467b42129ecf4daa72713ec9733`. It adds conditional eligibility
+asterisks/footnotes, one role-aware Crew Standings field and evidence-based distinct
+Crew Starts, and single-number classification awards only for equal known role points.
+The four shells coordinate `rs-visual-4`; the deployed six-phase release remains
+`rs-visual-3` until this separately authorized release completes. No public data,
+scoring engine, projector, schema or provider is changed. Roll back this static
+follow-up to the baseline above; no database restore or data migration is needed.
+Existing tabs may require reload. See the latest pre-push and deployment record in
+[releases.md](releases.md#2026-11-12-compact-public-display-follow-up-pre-push).
+
 #### Historical phase 5 checkpoint
 
 The latest approved local phase 5 shares NR/RS result headers/navigation/tabs,

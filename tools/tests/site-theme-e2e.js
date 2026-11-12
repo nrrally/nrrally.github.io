@@ -139,13 +139,14 @@ const standingsParity = ['nr', 'rs'].map(mode => {
   const row = display.rows.find(row => !row.ineligible && row.classes.length === 1 && row.cells.some(cell => cell.points != null));
   const column = row.cells.findIndex(cell => cell.points != null);
   display.rows = [{ ...row, cells: [row.cells[column]] }];
+  display.ineligibleNote = undefined;
   display.columns = [{ ...display.columns[column], note: 'Synthetic shared qualification field.' }];
   return display;
 });
 const resultParity = ['nr', 'rs'].map(mode => {
   const display = P.result(standingsParityModel, mode, mode === 'nr' ? 'R1' : rsResult.id, 'classification');
   const row = display.rows.find(row => row.driver.href && row.codriver.href && row.points.every(role => !role.detailHelp && role.points != null));
-  display.rows = [row];
+  display.rows = [{ ...row, points: row.points.map(role => ({ ...role, points: 15, detailHelp: '' })) }];
   display.awards = display.awards.filter(award => award.car === row.car);
   return display;
 });
@@ -213,7 +214,22 @@ async function main() {
       assert.ok((await page.innerText('.site-disclosure')).includes('not this site'));
     };
     const noOverflow = async () => {
-      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+      const layout = await page.evaluate(() => ({
+        viewport: window.innerWidth, document: document.documentElement.scrollWidth,
+        offenders: Array.from(document.querySelectorAll('body *')).map(element => {
+          const box = element.getBoundingClientRect();
+          return { tag: element.tagName, className: String(element.className || ''), left: Math.round(box.left),
+            right: Math.round(box.right), width: Math.round(box.width), scroll: element.scrollWidth };
+        }).filter(element => element.right > window.innerWidth + 1).slice(0, 8)
+        ,chain: (() => { const out = []; let element = document.querySelector('.result-classification');
+          while (element) { const box = element.getBoundingClientRect(), style = getComputedStyle(element);
+            out.push([element.tagName, String(element.className || ''), Math.round(box.left), Math.round(box.right),
+              style.display, style.minWidth, style.overflowX]); element = element.parentElement; }
+          return out;
+        })()
+      }));
+      assert.equal(layout.document <= layout.viewport, true,
+        'no horizontal overflow at ' + page.url() + ': ' + JSON.stringify(layout));
       assert.equal(await page.evaluate(() => {
         const brand = document.querySelector('.brand-text'), controls = document.querySelector('.display-controls');
         if (!brand || !controls) return false;
@@ -269,9 +285,11 @@ async function main() {
         controls: Array.from(document.querySelectorAll('.filters nav, .page-head nav'),
           el => [el.getAttribute('aria-label'), el.querySelectorAll('[aria-current="page"]').length]),
         styles: ['.page-head', '.page-head h1', '.filters', '.standings-qualification', '.standings-scroll', '.standings-table',
-          '.standings-table .s-pos', '.standings-table .s-name', '.standing-qualifier', '.standing-classes',
+          '.standings-table .s-pos', '.standings-table .s-name', '.standings-eligibility-footnote', '.standing-classes',
           '.standing-round-name', '.standings-table .total', '.standings-table tbody td:last-child'].map(selector => {
-          const el = document.querySelector(selector), style = getComputedStyle(el);
+          const el = document.querySelector(selector);
+          if (!el) return [selector, null];
+          const style = getComputedStyle(el);
           return [selector, ...['display', 'padding', 'margin', 'gap', 'fontSize', 'fontWeight',
             'lineHeight', 'borderRadius', 'textAlign', 'position'].map(key => style[key])];
         })
@@ -731,14 +749,18 @@ async function main() {
         await page.getByRole('heading', { name: 'Crews', exact: true }).waitFor();
         const unverifiedCrew = page.locator('#crewTable tbody tr').filter({ hasText: 'Synthetic Driver 6' });
         assert.ok((await unverifiedCrew.locator('.rs-crew-identity').innerText()).includes('Synthetic Driver 6'));
-        assert.ok((await unverifiedCrew.locator('.rs-crew-class').innerText()).includes('RS0 · Non-Scoring*'));
+        assert.equal(await unverifiedCrew.locator('.rs-crew-identity .eligibility-mark').count(), 1,
+          'only the non-scoring competitor gets the subtle eligibility marker next to the name');
+        assert.ok((await unverifiedCrew.locator('.rs-crew-class').innerText()).includes('RS0 · Non-Scoring'));
         const multiClassCrew = page.locator('#crewTable tbody tr').filter({ hasText: 'Synthetic Driver 4' }).locator('.rs-crew-class');
         assert.equal(await multiClassCrew.locator('.cls.RS2').count(), 1);
         assert.equal(await multiClassCrew.locator('.cls.RS4').count(), 1,
           'genuine multi-class crews retain both unique source classes without duplicating scoring badges');
         assert.deepEqual(await page.locator('#crewTable thead th').allTextContents(),
-          ['Competitor', 'Role', 'Class / status', 'Driver standings', 'Co-driver standings', 'Starts',
-            'Events / championship rounds', 'Events entered (documented)', 'Car(s)']);
+          ['Competitor', 'Role', 'Class / status', 'Standings', 'Starts',
+            'Events / championship rounds', 'Car(s)']);
+        assert.ok((await page.locator('main').innerText()).includes('does not establish non-membership'),
+          'the single footnote preserves the RS0 eligibility caveat');
         assert.ok(!(await page.locator('main').innerText()).includes('RS0 roles receive'));
         await page.getByRole('link', { name: 'Alex Test', exact: true }).click();
         await page.locator('.profile-head h1').filter({ hasText: 'Alex Test' }).waitFor();
@@ -814,7 +836,10 @@ async function main() {
         assert.equal(await dnfRow.count(), 1);
         assert.equal(await dnfRow.locator('.rs-result-car').innerText(), '3');
         assert.equal(await dnfRow.locator('.rs-result-finish').innerText(), 'DNF');
-        assert.deepEqual(await dnfRow.locator('.rs-result-points b').allTextContents(), ['0', '0']);
+        assert.deepEqual(await dnfRow.locator('.rs-result-points b').allTextContents(), ['0'],
+          'equal known driver/co-driver DNF awards display once');
+        assert.match(await dnfRow.locator('.rs-result-points .result-points-equal').getAttribute('aria-label'),
+          /Driver and co-driver each scored 0 championship points/);
         await visit('#/rounds');
         assert.equal(await page.locator('.event-card').count(), 4, 'NR calendar includes NR events only');
         assert.deepEqual(await page.locator('.competition-badge').allTextContents(), ['NR', 'NR', 'NR', 'NR']);
@@ -1405,9 +1430,11 @@ async function main() {
     for (const hash of ['#/', '#/rounds', '#/round/R1/classification', '#/crews', '#/person/alex-test']) {
       await visit(hash);
       assert.ok(!(await page.innerText('main')).includes('Something went wrong'));
-      assert.equal(await page.getByText('Events entered (documented)', { exact: true }).count(), hash === '#/crews' ? 1 : 0);
-      if (hash === '#/crews') assert.equal(await page.locator('.directory-entries').first().innerText(), '—',
-        'legacy missing entry coverage keeps the common field without inventing zero');
+      assert.equal(await page.getByText('Events entered (documented)', { exact: true }).count(), 0);
+      if (hash === '#/crews') {
+        assert.equal(await page.getByRole('columnheader', { name: 'Starts', exact: true }).count(), 1);
+        assert.equal(await page.getByRole('columnheader', { name: 'Standings', exact: true }).count(), 1);
+      }
     }
     legacyEngine = false;
     const calendarBefore = F.copy(bundle.season.rounds), roundsBefore = bundle.rounds;

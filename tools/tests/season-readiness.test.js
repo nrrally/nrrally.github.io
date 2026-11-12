@@ -82,7 +82,9 @@ test('entry-based launch remains in public history/graphs but not championship c
   assert.deepEqual(Object.keys(points).sort(), ['rs-r2-classification', 'rs-r3-classification', 'rs-r4-classification', 'rs-r5-classification']);
   const championship = api.viewRallyeSport('rs-r2-classification', {}).html;
   assert.ok(!championship.includes('RS0'));
-  assert.match(championship, /D <b>15<\/b>/);
+  const firstChampionshipRow = championship.match(/<tr data-car="1">([\s\S]*?)<\/tr>/)[1];
+  assert.match(firstChampionshipRow, /class="result-points-equal" aria-label="Driver and co-driver each scored 15 championship points"/);
+  assert.equal((firstChampionshipRow.match(/<b aria-hidden="true">15<\/b>/g) || []).length, 1);
 });
 test('RS graphs use independent stage axes and cannot mix into NR graphs, even with legacy overlay queries', () => {
   const api = harness(), s = emptySeason();
@@ -526,7 +528,9 @@ test('RS crews and cross-season profiles use resolved RS identities and official
   }];
   const reviewedCrews = api.viewRsCrews().html, reviewedPerson = api.viewRsPerson('alex-test').html;
   assert.ok(reviewedCrews.includes('>Class / status</th>'));
-  assert.ok(reviewedCrews.includes('RS0 · Non-Scoring*'));
+  assert.match(reviewedCrews, /class="directory-identity rs-crew-identity"[^>]*><a[^>]*>Alex Test<\/a><span class="eligibility-mark"/);
+  assert.match(reviewedCrews, /id="crew-eligibility-note"/);
+  assert.ok(!reviewedCrews.includes('RS0 · Non-Scoring*'));
   assert.ok(!reviewedCrews.includes('eligibility unverified'));
   assert.ok(reviewedPerson.includes('>Class</th><th scope="col">Championship scoring</th>'));
   assert.ok(reviewedPerson.includes('Official position / finish'));

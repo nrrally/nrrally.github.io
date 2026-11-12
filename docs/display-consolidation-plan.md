@@ -5,12 +5,13 @@
 Assessment baseline: `5d45f8bfecc8cd828a04070dc19e062089073819` on main.
 The user subsequently approved implementation in phases, with identical consumption,
 fields, qualifying states, wording, layout and spacing across competitions, apart from
-their data and existing branding/colours. **Phases 1-6 are implemented locally** as
-described below, including the earlier RS featured Driver leader improvement.
-The final phase and whole-site audit are recorded below. There was no commit or release
-during implementation; the user has since explicitly authorized a code-only push to
-`main`. No provider access, data publication or schema migration is authorized. The
-optional Getting Started CTA rewrite remains unapproved.
+their data and existing branding/colours. **Phases 1-6 were released** in
+`87290a7384c4b65c1d7442111887558a7dc470b3`; deployment verification is recorded at
+`76d0c52ba4ada467b42129ecf4daa72713ec9733`. The independently approved compact-display
+follow-up is implemented locally at that deployed baseline and is recorded at the end
+of this document; it is not a new consolidation phase. No provider access, data
+publication or schema migration is authorized. The optional Getting Started CTA rewrite
+remains unapproved.
 
 The user's clarification governs the design: **shared style means text hierarchy,
 wording such as "Pos", and the structure of cards, rounds and calendars, not identical
@@ -737,7 +738,37 @@ errors or viewport overflow were accepted. This is not a full WCAG/live-data aud
 The full changed/untracked scope and static/test/doc diff were reviewed. Engine,
 projector, schema/public data, providers, analytics, guide and theme tokens are
 unchanged. No provider/Firebase access, data write, commit, push or deployment
-occurred. All six approved consolidation phases are complete locally, with no
+occurred. All six approved consolidation phases are complete and released, with no
 implementation blocker. Keep the coherent `rs-visual-3` modules/styles/four shells
-together; no data migration or database restore is needed. Release requires a new
-explicit instruction. No later implementation phase has been started.
+together in the deployed baseline; no data migration or database restore is needed.
+The approved compact-display follow-up below coordinates a new `rs-visual-4` token
+across all four shells. No later consolidation phase has been started.
+
+## Compact public display follow-up (separate user approval)
+
+The user requested a quieter eligibility cue, a denser Crews list and concise points
+in the shared classification:
+
+- Standings and Crews put a subtle accessible `*` after a competitor's name only when
+  at least one role is actually ineligible. One explanatory footnote appears at the
+  bottom only when such a row exists. Unknown, provisional or merely absent evidence
+  is not relabelled eligible or ineligible; NR retains its minimum-start explanation,
+  and RS0 retains the SSR 6.1/non-membership caveat.
+- Crews has one role-aware **Standings** cell and one **Starts** cell. Distinct,
+  established championship rounds count once across roles and cars. DNS does not
+  count; RS DNF requires start evidence; unknown DNF/status/identity coverage remains
+  `—`, not a fabricated zero. Entry counts stay in the model and historical details,
+  but are removed from the Crews presentation.
+- Classifications show equal driver/co-driver points once only when both values are
+  known numeric awards with no role-specific qualification. The accessible label
+  states that both roles earned that amount. Unequal, missing, blocked, non-scoring
+  and role-specific awards remain separate; zero remains a real value.
+
+This is presentation-only: no engine/scoring, public data, schema, provider, Firebase,
+or theme change. The four HTML shells coordinate `rs-visual-4`. No data migration is
+required; static rollback is to the preceding deployed `rs-visual-3` release and
+existing open tabs need a reload. Synthetic coverage includes multi-role/multi-car
+round deduplication, DNS-only unknown starts, eligibility footnote presence/absence,
+equal/unequal/zero/missing/non-scoring points, both themes, and 320/390/768/1440px.
+The full test command and release/deployment state are recorded in
+[testing.md](testing.md) and [releases.md](releases.md).

@@ -92,6 +92,44 @@ must be addressed; there is no automation that can infer approvals or certify pr
   truth, admin sign-in or Firebase rules. The requested live test remains with the
   user; no browser traffic, Firebase/GCP access or data writes were performed.
 
+## 2026-11-12: compact public display follow-up (pre-push)
+
+- The user explicitly requested a quieter eligibility marker, a single Crew
+  **Standings** and **Starts** column, removal of the displayed entry-count column,
+  and merging equal driver/co-driver points on result classifications. The user
+  authorized a normal push to live, with no local review requirement. Scope is this
+  code/documentation release to `origin/main`; no Firebase/data/provider writes.
+- Fresh `git fetch origin main` found `origin/main` exactly at
+  `76d0c52ba4ada467b42129ecf4daa72713ec9733`, matching this worktree's HEAD and the
+  prior verified deployment record. No unrelated changes or local commits were
+  present. The changed scope is the pure public display model/components/styles,
+  four cache-token shells, focused synthetic tests and directly related testing,
+  recovery and display-consolidation documentation. Commit must include the required
+  Copilot App coauthor trailer; only a normal non-force push is authorized.
+- Eligibility stars appear next to names only when the row has an actually
+  ineligible NR role or explicit RS0/non-scoring role. A single accessible footnote
+  follows the table only when needed; NR explains minimum starts and RS retains the
+  SSR 6.1/non-membership caveat. Unknown/unavailable evidence is not converted into
+  an eligibility claim. Crew starts count distinct established championship rounds
+  once across roles/cars; DNS does not count, RS DNF needs source evidence, and
+  unknown-only start coverage displays unavailable. Entries stay in the data model
+  but not in the Crew table. Equal role points collapse only when both values are
+  numeric and no role has special qualification; unequal, missing and non-scoring
+  values remain role-specific, including real zeroes. No engine/scoring/data/schema,
+  privacy, branding/theme or route change.
+- All four shells coordinate `rs-visual-4`. Rollback is static to
+  `76d0c52ba4ada467b42129ecf4daa72713ec9733` (`rs-visual-3`); no data migration or
+  database restore is needed. Old tabs may need reload. Validation: the targeted
+  synthetic Node command passes **119/119**; the public responsive/theme suite passes
+  at 320/390/768/1440px in light/dark; navigation, revised RS entry-policy,
+  AI-import and admin-access browser suites pass with synthetic intercepted data.
+  No live data, Firebase, analytics or provider traffic was used.
+- For the authorized push, select only the already user-approved
+  `michaelmullanya-1` account via a temporary scoped credential context; never expose
+  token material or change global auth/config. The exact commit SHA, Pages build and
+  canonical served-byte verification are pending. This pre-push entry is not proof
+  that the follow-up is live.
+
 ## Local only: approved display consolidation phase 6
 
 - The implementation completed as an unreleased phases 1-6 batch at unchanged local baseline

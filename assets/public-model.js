@@ -515,6 +515,9 @@
     }
     var selectedClass = display.classes.filter(function (cls) { return cls.id === display.selectedClass; })[0];
     if (selectedClass) note(selectedClass.description);
+    if (display.rows.some(function (row) { return row.ineligible; }))
+      display.ineligibleNote = mode === 'nr' ? '* Minimum starts not met.' :
+        '* RS0 Non-Scoring SSR 6.1: no championship rank or points; this does not establish non-membership.';
     ['driver', 'codriver'].forEach(function (other) {
       display.controls.roles.push({ label: other === 'driver' ? 'Drivers' : 'Co-drivers', selected: role === other,
         href: standingsHref(model, mode, other, display.selectedClass, display.showBreak) });
@@ -821,12 +824,34 @@
    * Null is unavailable. Unresolved RS source names have no invented profile URL.
    * @typedef {{id:string,name:string,href:string|null,roles:string[],classes:string[],
    * status:string,driver:Object|null,codriver:Object|null,starts:Array<number|null>,
-   * events:number,championshipEvents:number,entered:number|null,cars:string[],
+   * startsCount:number|null,events:number,championshipEvents:number,entered:number|null,cars:string[],
    * apps:Object[],entries:Object[]}} DirectoryRow
    */
+  function directoryStarts(model, mode, id) {
+    if (!id) return null;
+    var started = Object.create(null), uncertain = Object.create(null);
+    if (mode === 'nr') {
+      var person = (model.people || []).filter(function (row) { return row.id === id; })[0];
+      (person && person.apps || []).forEach(function (app) {
+        if (app.status === 'classified' || app.status === 'DNF') started[app.r] = true;
+        else if (app.status !== 'DNS') uncertain[app.r] = true;
+      });
+    } else {
+      rsAppearances(model, id, true).forEach(function (appearance) {
+        if (!appearance.championshipRound) return;
+        var resultId = appearance.result.id, entry = appearance.entry;
+        if (entry.status === 'classified' || entry.status === 'DNF' && hasStartEvidence(entry))
+          started[resultId] = true;
+        else if (entry.status !== 'DNS') uncertain[resultId] = true;
+      });
+    }
+    if (Object.keys(uncertain).some(function (roundId) { return !started[roundId]; })) return null;
+    var count = Object.keys(started).length;
+    return count || null;
+  }
   function directory(model, mode, profiles) {
     if (mode !== 'nr' && mode !== 'rs') throw new Error('Unsupported directory competition: ' + mode);
-    var people = {}, tables = mode === 'nr' ? model.standings :
+    var people = {}, sourceIneligible = Object.create(null), tables = mode === 'nr' ? model.standings :
       model.rallyesport.scoring.status === 'ready' ? model.rallyesport.scoring.standings : model.rallyesport.scoring.provisionalStandings;
     function person(key, id, name) {
       return people[key] || (people[key] = { id: id, name: profiles && profiles[id] ? profiles[id].name : name,
@@ -869,6 +894,8 @@
     });
     if (mode === 'rs') rsAppearances(model, null, true).forEach(function (app) {
       var row = person(app.key, app.id, app.name), entry = app.entry, result = app.result;
+      if (app.championshipRound && app.eligibility && app.eligibility.status !== 'eligible')
+        sourceIneligible[app.key] = true;
       var event = model.rallyesport.events.filter(function (event) { return event.id === result.eventId; })[0];
       row.apps.push({ eventId: result.eventId, event: event ? event.name : result.eventId,
         round: app.championshipRound ? event && event.roundNumber != null ? 'R' + event.roundNumber : 'Championship round' : 'Non-scoring event',
@@ -905,16 +932,25 @@
           role === 'driver' ? 'overallDrivers' : 'overallCodrivers'] || [];
         var standing = source.filter(function (value) { return value.id === row.id; })[0];
         row[role] = standing ? { rank: standing.rank, points: mode === 'nr' ? standing.total : standing.points,
+          ineligible: mode === 'nr' ? !standing.eligible : standing.rank == null,
           qualifier: mode === 'nr' ? standing.eligible ? 'Eligible' : 'Minimum starts not met' :
             model.rallyesport.scoring.status === 'ready' ? 'Published class points' : 'Provisional' } : null;
         row.starts[i] = mode === 'nr' ? standing ? standing.starts : 0 : row.id ? rsRoundsStarted(model, row.id, role) : null;
       });
-      row.status = apps.some(function (app) { return app.scoring.indexOf('Non-Scoring') >= 0; }) ? 'RS0 · Non-Scoring*' : '';
+      row.startsCount = directoryStarts(model, mode, row.id);
+      row.hasIneligible = !!(row.driver && row.driver.ineligible || row.codriver && row.codriver.ineligible ||
+        sourceIneligible[key]);
+      row.status = apps.some(function (app) { return app.scoring.indexOf('Non-Scoring') >= 0; }) ? 'RS0 · Non-Scoring' : '';
       return row;
     }).sort(function (a, b) { return a.name.localeCompare(b.name); });
     return { year: model.year, rows: rows,
-      basis: mode === 'nr' ? 'Classification roles, credited championship starts and documented entry lists are separate evidence.' :
-        'Published source roles and event appearances are separate from evidenced championship starts. Launch appearances do not count as championship starts.',
+      mode: mode,
+      ineligibleNote: rows.some(function (row) { return row.hasIneligible; }) ?
+        mode === 'nr' ? '* At least one driver or co-driver role is below the minimum starts.' :
+          '* RS0 Non-Scoring SSR 6.1: no championship rank or points; this does not establish non-membership.' : '',
+      basis: mode === 'nr' ?
+        'Starts count distinct recorded championship rounds once across credited roles; entries and DNS do not count.' :
+        'Starts count distinct source-evidenced championship rounds once across roles; launch and DNS do not count, and uncertain DNF evidence remains unavailable.',
       note: mode === 'rs' ? (E.rallyeSportEntryPolicy(model.rallyesport) ? '' : 'RS0 Non-Scoring SSR 6.1 · ') +
         ROLE_NOTE : 'Entries, printed roles and credited starts are independent; missing entry coverage is not zero.' };
   }

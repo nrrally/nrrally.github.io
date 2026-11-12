@@ -212,11 +212,12 @@
       }).join('') + (display.selectedClass ? '<th scope="col" class="num">Class pts</th>' : '') +
       '<th scope="col" class="num total d-only">Total</th><th scope="col" class="num">Rounds started</th></tr></thead><tbody>' +
       display.rows.map(function (row) {
-        var rowClass = row.ineligible ? 'inel' + (seenIneligible ? '' : ' sep') : '';
+        var rowClass = row.ineligible && !seenIneligible ? 'sep' : '';
         if (row.ineligible) seenIneligible = true;
         return '<tr class="' + rowClass + '" data-person="' + esc(row.id) + '"><td class="center sticky s-pos">' +
-          value(row.rank) + '</td><th scope="row" class="sticky s-name">' + person(row) +
-          '<span class="standing-qualifier small muted">' + esc(row.qualifier) + '</span></th>' +
+          value(row.rank) + '</td><th scope="row" class="sticky s-name"' +
+          (row.ineligible ? ' aria-describedby="standings-eligibility-note"' : '') + '>' + person(row) +
+          (row.ineligible ? '<span class="eligibility-mark" aria-hidden="true">*</span>' : '') + '</th>' +
           '<td class="num total m-only">' + value(row.points) + '</td><td class="standing-classes">' + classes(row) + '</td>' +
           (display.selectedClass ? '<td class="num">' + value(row.overallRank) + '</td>' : '') +
           row.cells.map(function (cell) {
@@ -229,7 +230,9 @@
           }).join('') + (display.selectedClass ? '<td class="num">' + value(row.classPoints) + '</td>' : '') +
           '<td class="num total d-only">' + value(row.points) + '</td><td class="num" title="' + esc(starts(row)) + '">' +
           value(row.starts) + '</td></tr>';
-      }).join('') + '</tbody></table></div>';
+      }).join('') + '</tbody></table></div>' + (display.ineligibleNote ?
+        '<p class="small muted standings-eligibility-footnote" id="standings-eligibility-note">' +
+        esc(display.ineligibleNote) + '</p>' : '');
   }
   function standings(display) {
     function controls(items, label) {
@@ -261,6 +264,18 @@
     var stopped = status !== 'classified';
     return '<span class="pos' + (stopped || position == null ? ' dnf' : position <= 3 ? ' p' + position : '') + '">' +
       (stopped ? esc(status) : value(position)) + '</span>';
+  }
+  function resultPoints(points) {
+    var driver = points.filter(function (item) { return item.role === 'driver'; })[0];
+    var codriver = points.filter(function (item) { return item.role === 'codriver'; })[0];
+    if (driver && codriver && typeof driver.points === 'number' && driver.points === codriver.points &&
+      !driver.detailHelp && !codriver.detailHelp)
+      return '<span class="result-points-equal" aria-label="Driver and co-driver each scored ' +
+        esc(driver.points) + ' championship points"><b aria-hidden="true">' + value(driver.points) + '</b></span>';
+    return points.map(function (item) {
+      return '<span aria-label="' + (item.role === 'driver' ? 'Driver' : 'Co-driver') + ' points">' +
+        (item.role === 'driver' ? 'D' : 'C') + ' <b>' + value(item.points) + '</b></span>';
+    }).join('');
   }
   function resultNotes(display) {
     var html = '<details class="notes result-source-notes rs-source-notes"><summary>Source &amp; scoring notes</summary><div><p><b>' +
@@ -314,10 +329,7 @@
           '<td class="num mono result-gap" data-label="Diff 1st">' + esc(row.gap) + '</td>' +
           '<td class="num mono result-previous" data-label="Diff prev">' + esc(row.previousGap) + '</td>' +
           '<td class="num result-classpos" data-label="Class pos">' + value(row.classPos) + '</td>' +
-          '<td class="num result-points rs-result-points" data-label="Championship pts">' + row.points.map(function (points) {
-            return '<span aria-label="' + (points.role === 'driver' ? 'Driver' : 'Co-driver') + ' points">' +
-              (points.role === 'driver' ? 'D' : 'C') + ' <b>' + value(points.points) + '</b></span>';
-          }).join('') + '</td></tr>';
+          '<td class="num result-points rs-result-points" data-label="Championship pts">' + resultPoints(row.points) + '</td></tr>';
       }).join('') + '</tbody></table></div><p class="small muted">' + esc(display.scoringBasis) +
       ' Official finish is separate from each person’s championship scoring. Missing times, stage counts and awards remain unavailable.</p>' +
       (display.awards.length ? '<details class="notes result-scoring-order rs-scoring-order"><summary>Championship scoring order</summary>' +
@@ -438,12 +450,13 @@
       '</p>' + (selected ? '</div>' : '');
   }
   function directory(display) {
-    var labels = ['Competitor', 'Role', 'Class / status', 'Driver standings', 'Co-driver standings', 'Starts',
-      'Events / championship rounds', 'Events entered (documented)', 'Car(s)'];
-    function standing(row) {
-      return row ? (row.rank == null ? '—' : 'P' + row.rank) + ' · ' + value(row.points) + ' pts' +
-        (row.qualifier ? '<span class="standing-qualifier">' + esc(row.qualifier) + '</span>' : '') : '—';
+    var labels = ['Competitor', 'Role', 'Class / status', 'Standings', 'Starts',
+      'Events / championship rounds', 'Car(s)'];
+    function standing(row, role) {
+      return row ? '<span class="crew-standing-role"><span class="crew-standing-role-label">' + role +
+        '</span> ' + (row.rank == null ? 'No rank' : 'P' + value(row.rank)) + ' · ' + value(row.points) + ' pts</span>' : '';
     }
+    var hasIneligible = display.rows.some(function (row) { return row.hasIneligible; });
     return { title: 'Crews', html: '<div class="page-head"><div><p class="eyebrow">' + display.rows.length +
       ' competitors in ' + display.year + '</p><h1>Crews</h1><p>Drivers and co-drivers documented in classifications and entry evidence.</p></div></div>' +
       '<p class="small muted">' + esc(display.basis) + '</p>' + (display.rows.length ?
@@ -451,19 +464,27 @@
       '<div class="table-wrap directory-table rs-crews-table" role="region" aria-label="Crews table" tabindex="0"><table class="data" id="crewTable"><thead><tr>' +
       labels.map(function (label) { return '<th scope="col">' + label + '</th>'; }).join('') + '</tr></thead><tbody>' +
       display.rows.map(function (row) {
+        var standings = [standing(row.driver, 'Driver'), standing(row.codriver, 'Co-driver')].filter(Boolean).join('') ||
+          '<span class="small muted">No championship standing</span>';
+        var identity = resultPerson(row) + (row.hasIneligible ?
+          '<span class="eligibility-mark" aria-hidden="true">*</span>' : '');
         var cells = [
-          resultPerson(row) + (!row.id ? '<div class="small muted">Source name; profile unresolved</div>' : ''),
+          identity + (!row.id ? '<div class="small muted">Source name; profile unresolved</div>' : ''),
           row.roles.length ? row.roles.map(function (role) { return role === 'driver' ? 'Driver' : 'Co-driver'; }).join(' &amp; ') : 'Listed',
           classes(row) + '<div class="small muted">' + esc(row.status) + '</div>',
-          standing(row.driver), standing(row.codriver), 'D ' + value(row.starts[0]) + ' · C ' + value(row.starts[1]),
+          standings, value(row.startsCount),
           row.events + ' event' + (row.events === 1 ? '' : 's') + ' · ' + row.championshipEvents + ' championship round' +
-            (row.championshipEvents === 1 ? '' : 's'), value(row.entered), esc(row.cars.join(', '))];
-        var names = ['identity', 'role', 'class', 'driver', 'codriver', 'starts', 'stats', 'entries', 'cars'];
+            (row.championshipEvents === 1 ? '' : 's'), esc(row.cars.join(', '))];
+        var names = ['identity', 'role', 'class', 'standings', 'starts', 'stats', 'cars'];
         return '<tr data-s="' + esc((row.name + ' ' + row.cars.join(' ')).toLowerCase()) + '">' +
           cells.map(function (cell, i) { return '<td class="directory-' + names[i] + ' rs-crew-' + names[i] +
-            '" data-label="' + esc(labels[i]) + '">' + cell + '</td>'; }).join('') + '</tr>';
+            '" data-label="' + esc(labels[i]) + '"' +
+            (i === 0 && row.hasIneligible ? ' aria-describedby="crew-eligibility-note"' : '') + '>' + cell + '</td>';
+        }).join('') + '</tr>';
       }).join('') + '</tbody></table></div>' : '<div class="card empty">No crews are documented for ' + display.year +
       '. Earlier participation is not a new-season entry; historical profiles remain available from archived seasons.</div>') +
+      (hasIneligible && display.ineligibleNote ? '<p class="small muted crew-eligibility-footnote" id="crew-eligibility-note">' +
+        esc(display.ineligibleNote) + '</p>' : '') +
       (display.note ? '<p class="small muted">' + esc(display.note) + '</p>' : '') };
   }
   function profile(display, header, charts) {

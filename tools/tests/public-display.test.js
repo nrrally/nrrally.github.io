@@ -33,12 +33,36 @@ test('directories preserve role evidence, distinct events, unique classes and un
   assert.equal(person.events, new Set(person.apps.map(app => app.eventId)).size);
   assert.equal(person.championshipEvents, new Set(person.apps.filter(app => app.championship).map(app => app.eventId)).size);
   assert.equal(person.starts[0], P.rsRoundsStarted(model, person.id, 'driver'));
+  assert.equal(person.startsCount, person.championshipEvents,
+    'distinct championship starts count once across roles and exclude the launch event');
   const unresolved = rs.rows.find(row => row.name === 'Unresolved source');
   assert.equal(unresolved.href, null);
   assert.deepEqual(unresolved.starts, [null, null]);
+  assert.equal(unresolved.startsCount, null);
   assert.equal(unresolved.entered, null, 'NR entry links do not establish an RS entry register');
   assert.ok(nr.rows.every(row => row.apps.every(app => !app.href.includes('/rallyesport/'))));
   assert.equal(JSON.stringify(model), before);
+});
+test('Crew starts stay unavailable for a DNS-only record rather than claiming zero starts', () => {
+  const { f, raw } = fixture(), entry = raw.entries[0];
+  entry.status = 'DNS'; entry.pos = null; entry.total = null; entry.stages = 0;
+  const model = build(f, { R1: raw }), row = P.directory(model, 'nr').rows.find(person => person.name === entry.driver);
+  assert.ok(row);
+  assert.equal(row.startsCount, null);
+});
+test('RS Crew starts require source evidence for a DNF, then count that round once', () => {
+  const { f } = fixture(), model = build(f), result = model.rallyesport.results[1], entry = result.entries[0];
+  model.rallyesport.results.forEach(round => round.entries.forEach(candidate => {
+    if (candidate.driverId === entry.driverId || candidate.codriverId === entry.driverId) candidate.status = 'DNS';
+  }));
+  entry.status = 'DNF'; entry.times = []; entry.stagePos = []; entry.startEvidence = '';
+  const unavailable = P.directory(model, 'rs').rows.find(person => person.id === entry.driverId);
+  assert.ok(unavailable);
+  assert.equal(unavailable.startsCount, null, 'an unproven DNF is not a start or a zero');
+
+  entry.startEvidence = 'Official source records a start';
+  const evidenced = P.directory(model, 'rs').rows.find(person => person.id === entry.driverId);
+  assert.equal(evidenced.startsCount, 1, 'source evidence establishes one championship-round start');
 });
 test('profile starts and awards stay unavailable for unproven DNF and blocked scoring rather than becoming zero', () => {
   const { f } = fixture(), model = build(f), result = model.rallyesport.results[1], entry = result.entries[0];
@@ -64,8 +88,10 @@ test('NR directories distinguish multi-day rounds, printed roles, credited roles
   assert.equal(person.apps[0].role, 'driver', 'the printed source role remains visible');
   assert.equal(person.apps[0].creditedRole, 'codriver');
   assert.match(person.apps[0].note, /Printed Driver; championship credit: Co-driver/);
+  assert.equal(person.startsCount, 2, 'same-event Day 1 and Day 2 starts remain separate rounds');
   const msa = display.rows.find(row => row.name === 'MSA Only');
   assert.deepEqual(msa.starts, [2, 0]);
+  assert.equal(msa.startsCount, 2, 'MSA-only credited starts are counted once across roles');
   assert.ok(msa.apps.every(app => !app.graphHref && app.note.includes('absent from this classification')));
   const profile = P.profile([model], 'nr', person.id);
   assert.equal(profile.stats.find(stat => stat[0] === 'Starts')[1], 2);
@@ -105,6 +131,37 @@ test('shared directories and profile history have identical equivalent-field str
     return html.match(/<div class="table-wrap profile-history"[\s\S]*?<\/table>/)[0];
   });
   assert.equal(shape(profiles[0]), shape(profiles[1]));
+});
+test('Crews combine role standings and count distinct round starts once across roles', () => {
+  const season = F.season(2026), people = F.docs()['data/people.json'], raw = F.payload('results', 2026).rounds[0];
+  season.minStarts = 3;
+  season.rounds.push({ ...season.rounds[0], id: 'R2', n: 2, day: 'Day 2' });
+  const base = raw.entries[0];
+  raw.entries = [
+    { ...base, car: '1', driver: 'Alex Test', codriver: 'Blake Example', pos: 1 },
+    { ...base, car: '2', driver: 'Blake Example', codriver: 'Alex Test', pos: 2 }
+  ];
+  const second = F.copy(raw);
+  const model = freeze(E.buildSeason({ season, rounds: { R1: raw, R2: second }, people }));
+  const display = P.directory(model, 'nr'), alex = display.rows.find(row => row.name === 'Alex Test');
+  assert.deepEqual(alex.starts, [2, 2], 'role-specific evidence remains available to other views');
+  assert.equal(alex.startsCount, 2, 'multiple cars and both roles in a round do not inflate the Crew count');
+  assert.equal(alex.hasIneligible, true);
+  const html = C.directory(display).html;
+  assert.equal((html.match(/<th scope="col">Standings<\/th>/g) || []).length, 1);
+  assert.match(html, /crew-standing-role-label">Driver<\/span> P\d+[^<]*<\/span><span class="crew-standing-role"><span class="crew-standing-role-label">Co-driver<\/span>/);
+  assert.doesNotMatch(html, /Driver standings|Co-driver standings|Events entered \(documented\)/);
+  assert.match(html, /aria-describedby="crew-eligibility-note"/);
+  assert.match(html, /id="crew-eligibility-note"/);
+  assert.equal((html.match(/class="eligibility-mark"/g) || []).length,
+    display.rows.filter(row => row.hasIneligible).length);
+
+  const eligibleSeason = F.copy(season);
+  eligibleSeason.minStarts = 0;
+  const eligible = C.directory(P.directory(E.buildSeason({ season: eligibleSeason,
+    rounds: { R1: raw, R2: second }, people }), 'nr')).html;
+  assert.doesNotMatch(eligible, /crew-eligibility-note|class="eligibility-mark"/,
+    'eligible lists do not get per-row qualifiers or an empty footnote');
 });
 test('Info keeps NR documents separate from explicit RS rules and labels shared site provenance', () => {
   const { f, raw } = fixture(), model = freeze(build(f, { R1: raw }));
@@ -171,6 +228,39 @@ test('result adapters preserve NR printed/credited identities, class-only awards
   const html = C.resultShell(display, C.resultClassification(display)).html;
   for (const text of ['Source Driver', 'Credited Driver', 'Synthetic credited identity.', 'sheet: OPEN', 'DNF', 'DNS']) assert.ok(html.includes(text), text);
   assert.equal(JSON.stringify(model), before);
+});
+test('classification points collapse equal known role awards but retain unequal, missing and non-scoring distinctions', () => {
+  function html(driver, codriver, driverHelp = '', codriverHelp = '') {
+    return C.resultClassification({ scoringBasis: 'Synthetic scoring basis', awards: [], rows: [{
+      car: '1', pos: 1, status: 'classified', driver: { name: 'Driver', href: null },
+      codriver: { name: 'Co-driver', href: null }, cls: 'RS2', classNote: '', vehicle: 'Car',
+      stages: 1, penalty: '—', total: '1:00.00', gap: '—', previousGap: '—', classPos: 1, credit: '',
+      points: [
+        { role: 'driver', points: driver, detail: 'RS2', detailHelp: driverHelp },
+        { role: 'codriver', points: codriver, detail: 'RS2', detailHelp: codriverHelp }
+      ]
+    }] });
+  }
+  const equal = html(15, 15);
+  assert.match(equal, /result-points-equal/);
+  assert.match(equal, /Driver and co-driver each scored 15 championship points/);
+  assert.equal((equal.match(/<b aria-hidden="true">15<\/b>/g) || []).length, 1);
+  assert.doesNotMatch(equal, />D <b|>C <b/);
+
+  const equalZero = html(0, 0);
+  assert.equal((equalZero.match(/<b aria-hidden="true">0<\/b>/g) || []).length, 1,
+    'zero is a known equal award, not missing data');
+  const unequal = html(12, 10);
+  assert.match(unequal, /aria-label="Driver points">D <b>12<\/b>/);
+  assert.match(unequal, /aria-label="Co-driver points">C <b>10<\/b>/);
+  const missing = html(0, null);
+  assert.match(missing, /aria-label="Driver points">D <b>0<\/b>/);
+  assert.match(missing, /aria-label="Co-driver points">C <b>—<\/b>/);
+  const nonScoring = html(0, 0, 'Non-scoring role', '');
+  assert.doesNotMatch(nonScoring, /result-points-equal/,
+    'an RS0/non-scoring zero is not presented as an earned equal award');
+  assert.match(nonScoring, /aria-label="Driver points">D <b>0<\/b>/);
+  assert.match(nonScoring, /aria-label="Co-driver points">C <b>0<\/b>/);
 });
 test('result gaps never skip a classified row with an unavailable official total', () => {
   const { f, raw } = fixture(), base = raw.entries[0];
@@ -366,6 +456,27 @@ test('standings preserve every NR role, award component, filtered overall order 
   assert.equal(JSON.stringify(model), before);
   assert.throws(() => P.standings(model, 'nr', 'invalid'), /Unsupported standings role/);
 });
+test('standings show one accessible asterisk and a conditional bottom footnote for actual ineligibility', () => {
+  const { f, raw } = fixture();
+  f.season.minStarts = 2;
+  const ineligible = P.standings(freeze(build(f, { R1: raw })), 'nr', 'driver');
+  assert.ok(ineligible.rows.some(row => row.ineligible));
+  assert.match(ineligible.ineligibleNote, /^\* Minimum starts not met\.$/);
+  const ineligibleHtml = C.standings(ineligible).html;
+  assert.equal((ineligibleHtml.match(/class="eligibility-mark"/g) || []).length,
+    ineligible.rows.filter(row => row.ineligible).length);
+  assert.match(ineligibleHtml, /aria-describedby="standings-eligibility-note"/);
+  assert.match(ineligibleHtml, /id="standings-eligibility-note"/);
+  assert.doesNotMatch(ineligibleHtml, /standing-qualifier/,
+    'qualification wording is not repeated in each row');
+
+  const { f: eligibleFixture, raw: eligibleRaw } = fixture();
+  eligibleFixture.season.minStarts = 0;
+  const eligible = P.standings(freeze(build(eligibleFixture, { R1: eligibleRaw })), 'nr', 'driver');
+  assert.ok(eligible.rows.every(row => !row.ineligible));
+  assert.equal(eligible.ineligibleNote, undefined);
+  assert.doesNotMatch(C.standings(eligible).html, /standings-eligibility-note|class="eligibility-mark"/);
+});
 test('NR countback, class-only awards, credited DNF, missing rounds and eligibility remain engine-owned', () => {
   const s = F.season(2026), first = F.payload('results', 2026).rounds[0], second = F.copy(first);
   s.minStarts = 2;
@@ -451,7 +562,8 @@ test('RS missing/blocked snapshots, legacy RS0 and standings-only people never g
   assert.equal(legacyDisplay.selectedClass, 'RS0');
   assert.ok(legacyDisplay.rows.length, 'legacy non-scoring table remains reachable');
   assert.ok(legacyDisplay.rows.every(row => row.rank == null && row.ineligible && row.points === 0));
-  assert.match(C.standings(legacyDisplay).html, /not a declaration of non-membership/);
+  assert.match(C.standings(legacyDisplay).html, /standings-eligibility-note/);
+  assert.match(C.standings(legacyDisplay).html, /does not establish non-membership/);
   const blocked = build(f), score = blocked.rallyesport.scoring;
   const resultId = score.results[0].resultId;
   score.results[0].status = 'blocked'; score.results[0].entries = [];
