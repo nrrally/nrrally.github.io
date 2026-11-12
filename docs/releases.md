@@ -62,6 +62,36 @@ must be addressed; there is no automation that can infer approvals or certify pr
   authorized push. Do not treat this pre-push record as proof of deployment. Record
   the exact resulting commit, Pages build, and live byte verification separately.
 
+### Deployment verification and documentation-only follow-up
+
+- The normal non-force push succeeded to `origin/main` at
+  `87290a7384c4b65c1d7442111887558a7dc470b3` using the user-approved existing
+  `michaelmullanyza-1` keyring account through an isolated temporary `GH_CONFIG_DIR`
+  and the standard `gh auth git-credential` helper. `origin/main` now points at this
+  exact SHA. The temporary auth selection is session-scoped and removed after
+  verification; no token was displayed or extracted, and no global auth/config was
+  changed.
+- The GitHub Pages builds API reports this exact commit with status `built`, created
+  `2026-11-12T04:38:17Z`, and no build error. The Pages Actions run `43156108073`
+  completed successfully, but its `head_sha` and the associated GitHub Pages
+  deployment object still report the prior base
+  `5d45f8bfecc8cd828a04070dc19e062089073819`. Treat that workflow/deployment SHA
+  metadata as inconsistent, not as evidence for the new commit. Independent canonical
+  delivery verification below confirms the deployed output is the release.
+- All eight changed canonical HTML/runtime files were downloaded from
+  `https://nrrally.co.za/` and hashed against their Git blobs at the release SHA:
+  `index.html`, `admin/index.html`, `disclaimer.html`, `privacy.html`,
+  `assets/site.js`, `assets/styles.css`, `assets/public-model.js` and
+  `assets/public-components.js`. Every blob matched byte-for-byte. The root/admin/
+  privacy/disclaimer routes and versioned new assets return HTTPS 200; `www` and
+  the default Pages hostname redirect to canonical HTTPS. The live root shell
+  references the coordinated `rs-visual-3` assets.
+- This deployed-byte verification record is a documentation-only follow-up: **no
+  runtime behavior, source data, scoring, schema, cache token, provider configuration,
+  permissions or guide edition changes.** It does not certify live competitor/source
+  truth, admin sign-in or Firebase rules. The requested live test remains with the
+  user; no browser traffic, Firebase/GCP access or data writes were performed.
+
 ## Local only: approved display consolidation phase 6
 
 - The implementation completed as an unreleased phases 1-6 batch at unchanged local baseline

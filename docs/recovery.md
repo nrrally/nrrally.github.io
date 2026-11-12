@@ -42,8 +42,12 @@ explicitly authorized the code-only `origin/main` release; see the pre-push
 approval record in [releases.md](releases.md#2026-11-12-authorized-six-phase-display-consolidation-release-pre-push).
 Keep the matching display modules, scripts,
 styles and four `rs-visual-3` shells together; rollback is static-only, with no
-database restore. Existing tabs do not automatically upgrade. The deployment has
-not yet been verified; this handover must not be read as proof it is live.
+database restore. Existing tabs do not automatically upgrade. The normal push and
+live static-byte verification are complete: Pages' build API reports the release
+commit built and all eight changed canonical shell/runtime files match that commit's
+Git blobs. The successful Pages Actions run and deployment object still report the
+old base SHA; consult the release ledger for this metadata inconsistency and the
+independent byte evidence. Live data, sign-in and Firebase rules were not tested.
 
 #### Historical phase 5 checkpoint
 
