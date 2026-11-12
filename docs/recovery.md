@@ -49,18 +49,38 @@ Git blobs. The successful Pages Actions run and deployment object still report t
 old base SHA; consult the release ledger for this metadata inconsistency and the
 independent byte evidence. Live data, sign-in and Firebase rules were not tested.
 
-### Compact public display follow-up (pending release)
+### Compact public display follow-up (deployed)
 
-The current local follow-up starts from the verified deployed baseline
-`76d0c52ba4ada467b42129ecf4daa72713ec9733`. It adds conditional eligibility
+The code-only follow-up deployed as
+`c6935762b109434aee57ae5d7ecf3c269509833e`, starting from the verified deployed
+baseline `76d0c52ba4ada467b42129ecf4daa72713ec9733`. It adds conditional eligibility
 asterisks/footnotes, one role-aware Crew Standings field and evidence-based distinct
 Crew Starts, and single-number classification awards only for equal known role points.
-The four shells coordinate `rs-visual-4`; the deployed six-phase release remains
-`rs-visual-3` until this separately authorized release completes. No public data,
-scoring engine, projector, schema or provider is changed. Roll back this static
-follow-up to the baseline above; no database restore or data migration is needed.
-Existing tabs may require reload. See the latest pre-push and deployment record in
-[releases.md](releases.md#2026-11-12-compact-public-display-follow-up-pre-push).
+The four shells coordinate `rs-visual-4`. Pages built that SHA and the changed live
+shells/runtime assets matched Git blobs. No public data, scoring engine, projector,
+schema or provider was changed. Roll back this static follow-up to the baseline above;
+no database restore or data migration is needed. Existing tabs may require reload.
+The [release record](releases.md#2026-11-12-compact-public-display-follow-up-deployed)
+contains exact verification details.
+
+### Home eligibility tidy-up (pending release)
+
+The local Home-only follow-up starts at deployed `c6935762b109434aee57ae5d7ecf3c269509833e`.
+It removes repeated eligibility labels from NR/RS Home leader/class cards and featured
+leaders, adds a subtle name-adjacent mark only for explicit ineligibility, and a single
+conditional explanatory note below the cards. Missing RS eligibility stays unmarked;
+the existing provisional status and scoring remain unchanged. Four shells coordinate
+`rs-visual-5`; static rollback is to `c6935762b109434aee57ae5d7ecf3c269509833e` and
+`rs-visual-4`. No database restore or data migration is needed; old tabs may need reload.
+
+A separate RS profile report was checked read-only on the live public site. The profile's
+R1-R3 Class pos values are unavailable, and the same entries' public event classification
+tables also render Class pos as `—`. The shared profile adapter copies `entry.classPos`
+from each public result, and the classification renderer consumes that same source-backed
+field; it does not drop a published position. No fallback or scoring-rank derivation is
+appropriate. Correcting this requires verified source positions and a separately
+authorized, reviewed data publication; this release does not access or modify Firebase.
+See the release ledger for scope and evidence.
 
 #### Historical phase 5 checkpoint
 

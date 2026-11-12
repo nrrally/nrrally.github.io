@@ -92,7 +92,7 @@ must be addressed; there is no automation that can infer approvals or certify pr
   truth, admin sign-in or Firebase rules. The requested live test remains with the
   user; no browser traffic, Firebase/GCP access or data writes were performed.
 
-## 2026-11-12: compact public display follow-up (pre-push)
+## 2026-11-12: compact public display follow-up (deployed)
 
 - The user explicitly requested a quieter eligibility marker, a single Crew
   **Standings** and **Starts** column, removal of the displayed entry-count column,
@@ -125,10 +125,68 @@ must be addressed; there is no automation that can infer approvals or certify pr
   AI-import and admin-access browser suites pass with synthetic intercepted data.
   No live data, Firebase, analytics or provider traffic was used.
 - For the authorized push, select only the already user-approved
-  `michaelmullanya-1` account via a temporary scoped credential context; never expose
-  token material or change global auth/config. The exact commit SHA, Pages build and
-  canonical served-byte verification are pending. This pre-push entry is not proof
-  that the follow-up is live.
+  `michaelmullanyza-1` account via a temporary scoped credential context; never expose
+  token material or change global auth/config. The normal push completed as
+  `c6935762b109434aee57ae5d7ecf3c269509833e`, with exact parent
+  `76d0c52ba4ada467b42129ecf4daa72713ec9733`; the worktree is clean and
+  `origin/main` matches the release. Pages Actions run `43162450583` succeeded for
+  that SHA and the Pages build API reported `built`. Live `index.html`,
+  `admin/index.html`, `disclaimer.html`, `privacy.html`, `assets/public-model.js`,
+  `assets/public-components.js` and `assets/styles.css` matched their Git blobs
+  byte-for-byte. No Firebase/data writes.
+
+## 2026-11-12: Home eligibility display follow-up (pre-push)
+
+- The user requests the same tidy eligibility presentation on Home as on Crews and
+  explicitly confirms **"push to live when done."** Scope is Home presentation,
+  focused tests and directly related documentation; publish normally to `main` only.
+  The preceding compact-display commit `c6935762b109434aee57ae5d7ecf3c269509833e`
+  (`rs-visual-4`) is the expected parent. No Firebase/data/provider writes, scoring,
+  source data, schema, rules or global authentication changes are included.
+- Shared NR/RS Home leader, co-driver, class and featured-leader cards no longer repeat
+  “Eligible” or “Minimum starts not met” labels. A subtle asterisk sits next to a
+  name only when the adapter has explicit ineligibility; one concise footnote appears
+  below all leader cards only when such a displayed row exists. NR preserves its
+  exact minimum-start meaning. Missing RS eligibility stays unmarked and is not
+  called eligible; provisional scoring disclosure, source eligibility reasons,
+  ranks, points, classes, starts, ties and distinct themes are unchanged. Cache tokens
+  are coordinated at `rs-visual-5` in the four HTML shells; rollback is static to
+  parent `c6935762b109434aee57ae5d7ecf3c269509833e` / `rs-visual-4`, with no data
+  rollback or migration. Existing tabs may need reload.
+- Focused synthetic tests cover explicit NR under-minimum and eligible states, conditional
+  single note, links/description semantics, role and tied leader cards, unknown RS
+  eligibility, and absence of repetitive labels. Featured leaders include all first-place
+  ties in footnote discovery, even when the tie exceeds the normal five-row list cap.
+  The targeted Node suite passes
+  **122/122**; the public responsive/theme browser suite passes at
+  320/390/768/1440px in light/dark, with Home accessibility/layout assertions; the
+  revised RS entry-policy public/admin suite also passes. Testing uses synthetic
+  intercepted data; no live result/data read is part of testing.
+- Separate read-only investigation of the reported RS profile class positions found
+  `—` for R1-R3 in both profile history and the corresponding public classification
+  tables. `public-model.js` copies `entry.classPos` into profile history; the result
+  adapter/component also use the published entry class position. Thus the shared
+  renderer is not dropping an available value: the public result records do not
+  supply it for those entries. This change intentionally does not infer a class
+  position from championship points/rank or edit/publish data. Correcting source
+  positions requires verified official-source evidence and a separately authorized,
+  guarded data publication. No competitor names or private data are committed here.
+- Before pushing, fetch and confirm `origin/main` still exactly equals the parent,
+  inspect full diff/status, commit with the required Copilot App coauthor trailer and
+  use only the already approved `michaelmullanyza-1` credential in a temporary scope.
+  The fresh fetch confirmed both `HEAD` and `origin/main` exactly equal the expected
+  parent `c6935762b109434aee57ae5d7ecf3c269509833e`, with no local commits ahead.
+  The reviewed change set is 13 expected files (Home model/component/style, four
+  coordinated shells, focused unit/browser tests and related display/testing/
+  recovery/release docs), with no unrelated/untracked files. The approved-account
+  gate initially stopped the release: an account lookup mistakenly used the misspelled
+  `michaelmullanya-1` and the inherited Git credential resolved to a different identity.
+  No push or global authentication change was made during that attempt. On resumption
+  the correctly spelled `michaelmullanyza-1` is available via the existing GitHub CLI
+  keyring when inherited token overrides are removed from the temporary process; the
+  GitHub API confirmed that identity. Repeat exact-parent and scope checks; use only
+  this temporary credential context and a normal non-force push. Pages SHA/build and
+  live changed-byte verification remain pending.
 
 ## Local only: approved display consolidation phase 6
 

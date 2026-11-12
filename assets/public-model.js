@@ -8,7 +8,7 @@
    * round contributions. A numeric zero is known; null is unavailable, never zero.
    * Adapters own sporting interpretation; components own wording and markup.
    * @typedef {{id:string,name:string,rank:number|null,points:number|null,
-   * classes:string[],starts:number|null,qualifier:string,
+   * classes:string[],starts:number|null,qualifier:string,ineligible:boolean,
    * href:string,bars:Array<{label:string,points:number|null,status:string}>}} HomeRow
    * @typedef {{available:boolean,provisional:boolean,basis:string,reason:string,scope:string}} HomeScoring
    * @typedef {{rounds:number|null,listedRounds:number|null,events:number|null,
@@ -17,6 +17,7 @@
    * @typedef {{year:number,competition:{id:string,name:string},description:string,
    * hasResults:boolean,scoring:HomeScoring,counts:HomeCounts,drivers:HomeRow[],
    * codrivers:HomeRow[],classes:HomeClass[],latestHref:string|null,
+   * ineligibleNote:string,
    * links:{standings:string,codriverStandings:string,calendar:string,info:string,
    * crews:string,guide:string}}} HomeDisplay
    */
@@ -104,12 +105,17 @@
       return { id: raw.id, name: raw.name, rank: rank == null ? raw.rank : rank,
         points: raw.total, classes: raw.cls ? [raw.cls] : [], starts: raw.starts,
         qualifier: raw.eligible ? 'Eligible' : 'Minimum starts not met',
+        ineligible: raw.eligible === false,
         href: href(model.year, 'nr', '/person/' + encodeURIComponent(raw.id)),
         bars: model.rounds.map(function (round) {
           var value = raw.rounds[round.id];
           return { label: 'R' + round.n, points: value ? value.pts : null,
             status: value ? value.status : 'No recorded start' };
         }) };
+    }
+    function eligibilityNote(rows) {
+      return rows.some(function (value) { return value.ineligible; }) ?
+        '* Minimum starts not met.' : '';
     }
     home.drivers = model.standings.drivers.map(function (raw) { return row(raw); });
     home.codrivers = model.standings.codrivers.map(function (raw) { return row(raw); });
@@ -121,6 +127,10 @@
         rows: model.standings.drivers.filter(function (raw) { return raw.cls === cls.id; })
           .map(function (raw, i) { return row(raw, i + 1); }) };
     });
+    home.ineligibleNote = eligibilityNote(home.drivers.slice(0, 5).concat(home.drivers.filter(function (row) {
+      return row.rank === 1;
+    }), home.codrivers.slice(0, 5), home.codrivers.filter(function (row) { return row.rank === 1; }),
+      home.classes.reduce(function (rows, cls) { return rows.concat(cls.rows.slice(0, 3)); }, [])));
     home.counts = { rounds: model.rounds.length, listedRounds: model.calendar.length,
       events: model.events.length, drivers: home.hasResults ? home.drivers.length : null,
       stages: home.hasResults ? model.rounds.reduce(function (sum, round) { return sum + round.stages.length; }, 0) : null };
@@ -155,6 +165,7 @@
       return { id: raw.id, name: raw.name, rank: raw.rank, points: raw.points, classes: classes,
         starts: hasRound ? rsRoundsStarted(model, raw.id, role) : null,
         qualifier: raw.eligibilityStatus === 'eligible' ? 'Eligible' : 'Scoring status unavailable',
+        ineligible: raw.eligibilityStatus != null && raw.eligibilityStatus !== 'eligible',
         href: href(model.year, 'rs', '/person/' + encodeURIComponent(raw.id)),
         bars: results.map(function (result) {
           var event = counted.filter(function (event) { return event.id === result.eventId; })[0], value = points[result.id];
@@ -169,6 +180,11 @@
         rows: (tables && tables.classDrivers[cls] || []).filter(function (raw) { return raw.rank != null; })
           .map(function (raw) { return row(raw, 'driver'); }) };
     });
+    var visibleRows = home.drivers.slice(0, 5).concat(home.drivers.filter(function (row) { return row.rank === 1; }),
+      home.codrivers.slice(0, 5), home.codrivers.filter(function (row) { return row.rank === 1; }),
+      home.classes.reduce(function (all, cls) { return all.concat(cls.rows.slice(0, 3)); }, []));
+    home.ineligibleNote = visibleRows.some(function (value) { return value.ineligible; }) ?
+      '* RS0 · Non-Scoring; this does not establish non-membership.' : '';
     home.counts = { rounds: results.length, listedRounds: counted.length, events: rs.events.length,
       drivers: tables ? home.drivers.length : null,
       stages: home.hasResults ? rs.results.reduce(function (sum, result) { return sum + result.stages.length; }, 0) : null };

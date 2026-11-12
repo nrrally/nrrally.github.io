@@ -20,6 +20,11 @@
     return row.starts == null ? 'Rounds started unavailable' : row.starts + ' round' + (row.starts === 1 ? '' : 's') + ' started';
   }
   function value(number) { return number == null ? '—' : esc(number); }
+  function homePerson(row) {
+    return '<a href="' + esc(row.href) + '"' +
+      (row.ineligible ? ' aria-describedby="home-eligibility-note"' : '') + '>' + esc(row.name) + '</a>' +
+      (row.ineligible ? '<span class="eligibility-mark" aria-hidden="true">*</span>' : '');
+  }
   function miniBars(row) {
     var max = Math.max.apply(null, [1].concat(row.bars.map(function (bar) { return bar.points == null ? 0 : bar.points; })));
     return '<div class="minibars" aria-label="Points per round">' + row.bars.map(function (bar) {
@@ -32,8 +37,8 @@
   function leaderRow(row) {
     return '<div class="leader"><span aria-label="Pos ' + value(row.rank) + '" class="pos' +
       (row.rank != null && row.rank <= 3 ? ' p' + row.rank : '') + '">' + value(row.rank) +
-      '</span><div class="who">' + person(row) + '<div>' + classes(row) + ' · ' + starts(row) +
-      '</div><div class="home-qualifier">' + esc(row.qualifier) + '</div></div><div class="pts">' +
+      '</span><div class="who">' + homePerson(row) + '<div>' + classes(row) + ' · ' + starts(row) +
+      '</div></div><div class="pts">' +
       value(row.points) + '<small>pts</small></div></div>';
   }
   function leaderCard(title, rows, href, basis, limit, classCard) {
@@ -49,7 +54,7 @@
     var html = '<div class="card champ"><p class="eyebrow">Driver leader' + (leaders.length > 1 ? 's' : '') +
       (home.scoring.provisional ? ' · provisional' : '') + '</p>';
     if (leaders.length) {
-      html += '<h3>' + leaders.map(person).join(', ') + '</h3><p>' + value(leaders[0].points) + ' points · ' +
+      html += '<h3>' + leaders.map(homePerson).join(', ') + '</h3><p>' + value(leaders[0].points) + ' points · ' +
         leaders.map(function (row) {
           return (leaders.length > 1 ? esc(row.name) + ': ' : '') + classes(row) + ' · ' + starts(row);
         }).join('; ');
@@ -60,7 +65,7 @@
     } else html += '<p>Driver leader unavailable.</p>';
     html += '<p class="small home-codriver">Co-driver leader' + (codrivers.length > 1 ? 's' : '') + ': ' +
       (codrivers.length ? codrivers.map(function (row) {
-        return '<b>' + person(row) + '</b> · ' + value(row.points) + ' pts · ' + classes(row) + ' · ' + starts(row);
+        return '<b>' + homePerson(row) + '</b> · ' + value(row.points) + ' pts · ' + classes(row) + ' · ' + starts(row);
       }).join('; ') : 'unavailable.') + '</p>';
     return html + '</div>';
   }
@@ -93,7 +98,9 @@
         leaderCard('Drivers', model.drivers, model.links.standings, '', 5) +
         leaderCard('Co-drivers', model.codrivers, model.links.codriverStandings, '', 5) + '</div></div>' +
         '<div class="section"><div class="section-head home-competition-head"><h2>Class leaders · drivers</h2></div><div class="grid home-classes">' +
-        model.classes.map(function (cls) { return leaderCard(cls.id, cls.rows, cls.href, cls.basis, 3, true); }).join('') + '</div></div>';
+        model.classes.map(function (cls) { return leaderCard(cls.id, cls.rows, cls.href, cls.basis, 3, true); }).join('') + '</div>' +
+        (model.ineligibleNote ? '<p class="small muted home-eligibility-footnote" id="home-eligibility-note">' +
+          esc(model.ineligibleNote) + '</p>' : '') + '</div>';
     }
     html += '<div class="section"><div class="section-head rounds-section-head"><h2>The ' + model.year + (hasResults ? ' rounds' : ' calendar') +
       '</h2>' + link(model.links.calendar, 'Full calendar →', 'go') + '</div>' + calendarHtml + '</div>';

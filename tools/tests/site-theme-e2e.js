@@ -143,6 +143,7 @@ const standingsParity = ['nr', 'rs'].map(mode => {
   display.columns = [{ ...display.columns[column], note: 'Synthetic shared qualification field.' }];
   return display;
 });
+bundle.season.minStarts = 2;
 const resultParity = ['nr', 'rs'].map(mode => {
   const display = P.result(standingsParityModel, mode, mode === 'nr' ? 'R1' : rsResult.id, 'classification');
   const row = display.rows.find(row => row.driver.href && row.codriver.href && row.points.every(role => !role.detailHelp && role.points != null));
@@ -421,6 +422,13 @@ async function main() {
           assert.equal(await page.locator('.hero > p').last().innerText(), published.site.tagline);
           assert.deepEqual(await page.locator('.hero-actions a').allTextContents(),
             ['Open the latest stage graph', 'Championship standings', 'Getting started in NR Rally']);
+          assert.equal(await page.locator('#home-eligibility-note').innerText(), '* Minimum starts not met.');
+          assert.ok(await page.locator('.leader a[aria-describedby="home-eligibility-note"]').count(),
+            'under-minimum names link to the single conditional Home footnote');
+          assert.ok(await page.locator('.leader a[aria-describedby="home-eligibility-note"] + .eligibility-mark[aria-hidden="true"]').count(),
+            'the visible asterisk is hidden from assistive technology while the link references its explanation');
+          assert.doesNotMatch((await page.locator('.leader').allInnerTexts()).join('\n'), /Eligible|Minimum starts not met/,
+            'qualification labels are not repeated on every Home leader row');
         }
         if (hash.startsWith('#/standings')) assert.equal(await page.locator('.page-head p').last().innerText(),
           'Published championship points and recorded round starts.');
@@ -608,6 +616,10 @@ async function main() {
         await page.getByRole('heading', { name: 'Drivers', exact: true }).waitFor();
         const rsChampCard = page.locator('.champ');
         assert.equal(await rsChampCard.locator('.eyebrow').innerText(), 'DRIVER LEADER · PROVISIONAL');
+        assert.equal(await page.locator('#home-eligibility-note').count(), 0,
+          'RS Home shows no eligibility footnote without an explicit ineligible ranked row');
+        assert.doesNotMatch((await page.locator('.leader').allInnerTexts()).join('\n'), /Eligible|Scoring status unavailable/,
+          'RS unknown/provisional status is not restated as a positive eligibility claim');
         assert.ok(await rsChampCard.locator('h3 a[href*="/person/"]').count(),
           'RS uses the same prominent linked driver heading as NR');
         assert.match(await rsChampCard.locator('h3 + p').innerText(), /\d+ points · RS[24][\s\S]*rounds? started[\s\S]*\d+ clear of /);

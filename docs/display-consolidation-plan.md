@@ -7,11 +7,11 @@ The user subsequently approved implementation in phases, with identical consumpt
 fields, qualifying states, wording, layout and spacing across competitions, apart from
 their data and existing branding/colours. **Phases 1-6 were released** in
 `87290a7384c4b65c1d7442111887558a7dc470b3`; deployment verification is recorded at
-`76d0c52ba4ada467b42129ecf4daa72713ec9733`. The independently approved compact-display
-follow-up is implemented locally at that deployed baseline and is recorded at the end
-of this document; it is not a new consolidation phase. No provider access, data
-publication or schema migration is authorized. The optional Getting Started CTA rewrite
-remains unapproved.
+`76d0c52ba4ada467b42129ecf4daa72713ec9733`. The separately approved compact Crews/
+Standings/classification follow-up is deployed in `c6935762b109434aee57ae5d7ecf3c269509833e`.
+The Home eligibility tidy-up is a small follow-up to that display work, not a new
+consolidation phase. No provider access, data publication or schema migration is
+authorized. The optional Getting Started CTA rewrite remains unapproved.
 
 The user's clarification governs the design: **shared style means text hierarchy,
 wording such as "Pos", and the structure of cards, rounds and calendars, not identical
@@ -763,12 +763,19 @@ in the shared classification:
   known numeric awards with no role-specific qualification. The accessible label
   states that both roles earned that amount. Unequal, missing, blocked, non-scoring
   and role-specific awards remain separate; zero remains a real value.
+- Home driver, co-driver and class leader cards use the same compact eligibility
+  treatment: no repeated “Eligible”/minimum-start labels, a subtle name-adjacent
+  marker only for explicit ineligibility, and one conditional footnote after the
+  complete leader area. NR under-minimum states retain their exact reason. Missing
+  RS eligibility is not converted into either an eligible claim or an ineligible mark;
+  section-level provisional status remains unchanged.
 
 This is presentation-only: no engine/scoring, public data, schema, provider, Firebase,
-or theme change. The four HTML shells coordinate `rs-visual-4`. No data migration is
-required; static rollback is to the preceding deployed `rs-visual-3` release and
+or theme change. The four HTML shells coordinate `rs-visual-5`. No data migration is
+required; static rollback is to the preceding deployed `rs-visual-4` release and
 existing open tabs need a reload. Synthetic coverage includes multi-role/multi-car
 round deduplication, DNS-only unknown starts, eligibility footnote presence/absence,
-equal/unequal/zero/missing/non-scoring points, both themes, and 320/390/768/1440px.
-The full test command and release/deployment state are recorded in
-[testing.md](testing.md) and [releases.md](releases.md).
+equal/unequal/zero/missing/non-scoring points, tied Home leaders, unknown RS
+eligibility, both themes, and 320/390/768/1440px. The full test command and
+release/deployment state are recorded in [testing.md](testing.md) and
+[releases.md](releases.md).

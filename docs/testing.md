@@ -615,7 +615,7 @@ unproven starts, unavailable identities, genuine zero points, unequal/missing aw
 and RS0/non-scoring roles. Unknown data remains `—`; roles are merged only when both
 numeric awards are equal and neither has role-specific qualification.
 
-The targeted Node command passes **119/119**:
+The targeted Node command passes **122/122**:
 
 ```
 node --test tools\tests\public-display.test.js tools\tests\season-readiness.test.js tools\tests\rallyesport.test.js tools\tests\entry-participation.test.js tools\tests\getting-started.test.js tools\tests\analytics.test.js
@@ -624,9 +624,12 @@ node --test tools\tests\public-display.test.js tools\tests\season-readiness.test
 `site-theme-e2e.js` passes at 320/390/768/1440px in light/dark and checks the actual
 standings, Crews and classification views, exact shared headers, ineligible-only
 asterisks and footnotes, keyboard/table focus, visual one-number equal points and
-accessible role labels. Navigation, revised RS entry-policy public/admin, AI Import
-and admin access browser suites also pass with synthetic intercepted data. No live
-provider or Firebase requests/writes are part of these checks.
+accessible role labels. It also checks the Home treatment across leader, co-driver,
+class and featured/tied rows, conditional note, accessible description, unknown RS
+eligibility and no repeated labels at all responsive widths and both themes.
+Navigation, revised RS entry-policy public/admin, AI Import and admin access browser
+suites also pass with synthetic intercepted data. No live provider or Firebase
+requests/writes are part of these checks.
 
 Synthetic RS identity regressions exercise private role review through public projection
 and model construction, checking distinct role IDs, unchanged printed names, omitted

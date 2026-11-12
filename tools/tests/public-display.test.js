@@ -720,6 +720,74 @@ test('one Home renderer has identical markup and wording for identical display f
     assert.doesNotMatch(html, /Full RS|RS tables|RS class leaders/);
   }
 });
+test('Home marks only explicit NR ineligibility and places one footnote after the leader cards', () => {
+  const season = F.season(2026), base = F.payload('results', 2026).rounds[0].entries[0];
+  season.minStarts = 2;
+  season.rounds.push({ ...season.rounds[0], id: 'R2', n: 2 });
+  const rows = [1, 2, 3].map(n => ({ ...base, car: String(n), driver: 'Driver ' + n, codriver: 'Co-driver ' + n,
+    class: 'OPEN', status: 'classified', pos: n, total: '00:0' + n, times: ['00:0' + n], stagePos: [n] }));
+  const r1 = { id: 'R1', status: 'Final classification', stages: ['SS1'], entries: rows };
+  const r2 = { ...F.copy(r1), entries: rows.map((row, i) => i === 0 ?
+    { ...row, status: 'DNS', pos: null, total: null, times: [null], stagePos: [null] } : { ...row }) };
+  const model = E.buildSeason({ season, rounds: { R1: r1, R2: r2 }, people: { people: [] } });
+  const home = P.nrHome(model), excluded = home.drivers.find(row => row.name === 'Driver 1');
+  assert.equal(excluded.ineligible, true, 'the adapter uses the explicit minimum-start result');
+  assert.equal(home.drivers.find(row => row.name === 'Driver 2').ineligible, false);
+  assert.equal(home.ineligibleNote, '* Minimum starts not met.');
+  const html = C.home(home, '').html;
+  assert.equal((html.match(/id="home-eligibility-note"/g) || []).length, 1);
+  assert.ok(html.indexOf('id="home-eligibility-note"') > html.indexOf('class="home-classes"'),
+    'one explanation follows the driver, co-driver and class leader cards');
+  assert.match(html, /<a href="#\/2026\/person\/driver-1\?competition=nr" aria-describedby="home-eligibility-note">Driver 1<\/a><span class="eligibility-mark" aria-hidden="true">\*<\/span>/);
+  assert.match(html, /<a href="#\/2026\/person\/driver-2\?competition=nr">Driver 2<\/a>(?!<span class="eligibility-mark")/);
+  assert.doesNotMatch(html, /Eligible|Minimum starts not met<\/div>/,
+    'qualification wording is not repeated in each row or presented as a positive eligibility claim');
+
+  const eligible = P.nrHome(E.buildSeason({ season: { ...season, minStarts: 0 },
+    rounds: { R1: r1, R2: r2 }, people: { people: [] } }));
+  assert.equal(eligible.ineligibleNote, '');
+  assert.doesNotMatch(C.home(eligible, '').html, /home-eligibility-note|class="eligibility-mark"/);
+
+  const tieBase = model.standings.drivers[1];
+  model.standings.drivers = Array.from({ length: 6 }, (_, index) => ({ ...tieBase,
+    id: 'tie-driver-' + index, name: 'Tie Driver ' + (index + 1), rank: 1, total: 42, eligible: index < 5 }));
+  const tied = P.nrHome(model), tiedHtml = C.home(tied, '').html;
+  assert.equal(tied.ineligibleNote, '* Minimum starts not met.',
+    'the footnote accounts for every tied featured leader, even beyond the five-row list cap');
+  assert.match(tiedHtml, /Tie Driver 6<\/a><span class="eligibility-mark" aria-hidden="true">\*<\/span>/);
+});
+test('Home ties and both leader roles mark only explicitly ineligible names accessibly', () => {
+  const { f } = fixture(), home = P.rsHome(build(f));
+  const tie = (row, name, ineligible) => ({ ...row, name, rank: 1, ineligible });
+  home.drivers = [tie(home.drivers[0], 'Tied Driver A', true), tie(home.drivers[1], 'Tied Driver B', true)];
+  home.codrivers = [tie(home.codrivers[0], 'Tied Co-driver', true), tie(home.codrivers[1], 'Unknown Co-driver', false)];
+  home.classes = [{ ...home.classes[0], rows: home.drivers }];
+  home.ineligibleNote = '* RS0 · Non-Scoring; this does not establish non-membership.';
+  const html = C.home(home, '').html, champ = C.champCard(home);
+  for (const name of ['Tied Driver A', 'Tied Driver B', 'Tied Co-driver'])
+    assert.match(champ, new RegExp('<a href="[^"]+" aria-describedby="home-eligibility-note">' + name +
+      '<\\/a><span class="eligibility-mark" aria-hidden="true">\\*<\\/span>'));
+  assert.match(champ, /Unknown Co-driver<\/a>(?!<span class="eligibility-mark")/,
+    'unknown eligibility is not implied by the mark');
+  assert.equal((html.match(/id="home-eligibility-note"/g) || []).length, 1);
+  assert.equal((html.match(/Tied Driver A<\/a><span class="eligibility-mark"/g) || []).length, 3,
+    'a tied leader receives the same compact cue in the featured card, list, and class card');
+  assert.doesNotMatch(html, /Eligible|Scoring status unavailable|Minimum starts not met<\/div>/);
+});
+test('RS Home leaves missing eligibility unlabelled and does not infer a positive state', () => {
+  const { f } = fixture(), model = build(f), tables = model.rallyesport.scoring.status === 'ready' ?
+    model.rallyesport.scoring.standings : model.rallyesport.scoring.provisionalStandings;
+  const source = tables.overallDrivers.find(row => row.rank != null);
+  assert.ok(source);
+  delete source.eligibilityStatus;
+  const home = P.rsHome(model), row = home.drivers.find(candidate => candidate.id === source.id);
+  assert.ok(row);
+  assert.equal(row.ineligible, false, 'missing eligibility metadata is not an ineligible finding');
+  assert.equal(home.ineligibleNote, '');
+  const html = C.home(home, '').html;
+  assert.doesNotMatch(html, /Eligible|Scoring status unavailable|home-eligibility-note|class="eligibility-mark"/,
+    'unknown eligibility gets neither repeated text nor a false positive/negative marker');
+});
 test('joint leaders, absent co-drivers, missing source history and true zero points have explicit shared states', () => {
   const { f } = fixture(), model = build(f), home = P.rsHome(model);
   assert.match(C.champCard(home), /Driver leaders · provisional/);

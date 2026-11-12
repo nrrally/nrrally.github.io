@@ -297,9 +297,9 @@ td.fastest { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); 
 .home-class-basis { margin: 0 0 12px; }
 .champ .home-codriver { margin-top: 12px; }
 .home-scoring-notes { margin-top: 8px; }
+.home-eligibility-footnote { margin-block: 8px 0; }
 .home-competition-head + .grid .who div { white-space: normal; overflow-wrap: anywhere; }
 .home-competition-head + .grid .who a, .champ h3 { overflow-wrap: anywhere; }
-.leader .who .home-qualifier { font-size: 11px; }
 
 /* event cards */
 .event-card { padding: 0; }
