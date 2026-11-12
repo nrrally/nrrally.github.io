@@ -31,6 +31,242 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## 2026-11-12: authorized six-phase display consolidation release (pre-push)
+
+- The user explicitly authorized **"push to live and ill test"** for the completed
+  six-phase NR/RS display consolidation. Scope is the reviewed code and documentation
+  in this worktree pushed normally to `origin/main`, followed by Pages/live static
+  verification. This is not authorization for Firebase/GCP/data/admin changes.
+- Fresh preflight fetch found `origin/main` exactly at
+  `5d45f8bfecc8cd828a04070dc19e062089073819`, the worktree HEAD and exact parent;
+  no main drift or local commits. Repository default branch is `main`. Worktree
+  changes are the consolidated static runtime, focused synthetic tests and related
+  docs listed in the reviewed diff; no user/unrelated paths. Commit must include the
+  required Copilot App coauthor trailer. Only a normal non-force push is permitted.
+- The final targeted command passes **114/114**:
+  `node --test tools\tests\public-display.test.js tools\tests\season-readiness.test.js tools\tests\rallyesport.test.js tools\tests\entry-participation.test.js tools\tests\getting-started.test.js tools\tests\analytics.test.js`.
+  Full public responsive/theme, navigation, revised entry-policy public/admin and
+  AI-import browser suites pass. Eighty local synthetic captures were checked;
+  representative new views inspected. `node --check` passes for both display
+  modules and `site.js`; `git diff --check` is clean. No test provider writes.
+- Code and operational behavior: shared NR/RS display adapters/components across
+  six approved phases. Preserves independent data/scoring and colours, source
+  ownership, guide edition/CTA, role/start/launch/finality semantics and privacy.
+  The historical `/rallyesport` aggregate compatibility route remains. No scoring,
+  engine, projector, public data/schema or provider change; no data migration or
+  database restore. Cache tokens are coordinated at `rs-visual-3` in `index.html`,
+  `admin/index.html`, `disclaimer.html` and `privacy.html`. Rollback is the prior
+  static revision; active tabs may need reload. Live/private data correctness,
+  sign-in and deployed Firebase rules are not certified by these synthetic tests.
+- Pages workflow/result and served canonical asset checks are **pending** until the
+  authorized push. Do not treat this pre-push record as proof of deployment. Record
+  the exact resulting commit, Pages build, and live byte verification separately.
+
+## Local only: approved display consolidation phase 6
+
+- The implementation completed as an unreleased phases 1-6 batch at unchanged local baseline
+  `5d45f8bfecc8cd828a04070dc19e062089073819`. Approval covers phase 6 implementation
+  and final public audit only. No commit, push, deployment, provider access or data
+  publication is authorized by this phase.
+- Added pure directory, explicit cross-season profile, Sources and Info adapters
+  and one component family for both contexts. Replaced the remaining normal page
+  renderers with thin aliases; removed obsolete render helpers. Crews now shares
+  nine fields, search and mobile cards; profiles share eight KPI slots, role charts
+  and twelve-field history. Missing fields remain honestly unavailable, not absent.
+  Fixed responsive grid rows overriding search's hidden state.
+- Preserves unique/multiple classes, canonical/unresolved identities, printed versus
+  credited roles, MSA-only/no-graph starts, role/car appearances versus unique role-
+  round starts, two NR rounds at one event, launch visibility/exclusion, DNS/DNF,
+  blocked/missing/zero awards and source precision/finality. No scoring calculation
+  changed. Source pages preserve MSA confirmation/edition and pending site-calculated
+  qualifications, own rules/notes and private-commentary exclusion.
+- Info retains published RS source metadata during the existing load through a
+  title/URL/date/version whitelist; no additional read or schema. NR documents are
+  not relabelled as RS regulations. Shared site editorial copy, channels/contacts
+  and references are explicitly NR context. Guide reference edition and CTA remain
+  unchanged. Related NR links, including SRS, remain dynamic and source-owned.
+- 114/114 targeted synthetic tests pass, including seven new phase 6 contracts.
+  Full public responsive/theme, navigation, revised entry-policy public/admin and
+  AI-import browser suites pass. Four widths, both themes, exact equivalent
+  directory/history structure, real fields/styles, search/focus/identity/history,
+  source/doc ownership and legacy missing-data regressions are covered. Eighty
+  synthetic captures were checked outside Git; representative new screens inspected.
+  Complete static/test/doc diff and untracked scope reviewed; no live certification.
+- Whole-site audit found no remaining normal NR/RS parallel page renderer.
+  Historical `/rallyesport` without an ID intentionally keeps its aggregate
+  compatibility frame and explanatory facts around six shared standings tables
+  and shared calendar. Optional retirement is deferred, not silently redirected.
+  Admin operational surfaces and a future third league's verified sporting adapter
+  remain outside this public-display implementation.
+- Updated plan/index, architecture, lifecycle, testing and recovery. No engine,
+  projector, public data/schema, provider, analytics, guide or theme-token changes.
+  No Firebase/live read/write, commit, push or deployment. The matching
+  `rs-visual-3` modules/styles/four shells remain one unreleased static batch;
+  rollback restores those together, without a data migration/database restore.
+  Retire old tabs before a future approved release/data publish. All six phases
+  were implemented locally before the subsequent 2026-11-12 release authorization;
+  no implementation blockers remained.
+
+## Local only: approved display consolidation phase 5 (prior checkpoint)
+
+- Continues the unreleased phases 1-4 batch at unchanged baseline
+  `5d45f8bfecc8cd828a04070dc19e062089073819`. Approval covers phase 5 implementation
+  only, not phase 6, commit, push, deployment, provider access or data publication.
+- Added explicit read-only result/graph contracts and one shared result shell,
+  twelve-field classification/card layout, award/source disclosures, graph
+  controls/legend/line policy and full/selected stage tables. Existing result,
+  historical/yearless and legacy routes remain supported. Tabs now retain car and
+  metric choices consistently in NR as in RS. Legacy RS overview event listings
+  reuse the shared calendar; its six cumulative tables remain shared.
+- Preserves NR engine-owned credited identities/classes/overall awards and RS source
+  order, independent class-role awards, published final totals/penalty strings,
+  hundredths and event mappings. Source finality/technical holds remain separate
+  from points availability. Missing timing/totals/ranks are not invented; missing
+  previous totals cannot create a Diff prev or winner claim. Launch has results/
+  timing but no championship awards. Related NR sources/dates remain labelled and
+  dynamic; no hardcoded TRAC link.
+- 107 targeted synthetic tests pass. Full public browser suite passes in both
+  contexts at 320/390/768/1440px, light/dark, with exact common DOM/layout, keyboard,
+  filter, legend, tooltip, tab/query, source, launch, future and sparse timing
+  regressions. Navigation, entry-policy public/admin and AI-import browser suites
+  pass. Local presentation captures pass without unexpected requests/page errors/
+  overflow; representative result/graph/stage screenshots were inspected outside Git.
+  Full static diff and changed/untracked scope were reviewed.
+- Updated plan, architecture, lifecycle, testing, recovery and index. No engine,
+  projector, schema/public data, provider, analytics, guide or theme-token changes.
+  No Firebase/live read/write or live certification. Matching `rs-visual-3` scripts,
+  styles and four shells stay one unreleased static batch; rollback needs those
+  together, no data migration/database restore. Retire old tabs before a future
+  release/data publish. Phase 6 has not started; no implementation blockers remain.
+
+## Local only: approved display consolidation phase 4 (prior checkpoint)
+
+- Continues the unreleased phases 1-3 batch at unchanged baseline
+  `5d45f8bfecc8cd828a04070dc19e062089073819`. The user approved phase 4 implementation
+  only, not phase 5, a commit, push, deployment, provider access or data publication.
+- Added explicit read-only standings contracts/adapters reusing Home scoring/row
+  facts. Both main NR/RS driver/co-driver role/class pages and all six legacy RS
+  cumulative tables now share one page/table composition. Existing routes, aliases,
+  source classification links and `pts=split` remain supported. Result-detail/event
+  scoring tables and Crews/profile summaries remain later-phase work.
+- Common centered Pos, Competitor/Class/round/Total/Rounds started fields, class-view
+  Overall pos/Class pts, visible scoring qualification, accessible headers/caption,
+  sticky/mobile columns, keyboard scroll and native active filters. Neutral **Points
+  breakdown** replaces the misleading RS "Overall + class split" wording in both
+  contexts; NR role switches now retain breakdown like RS.
+- NR engine countback, eligibility, awards/class-only points, MSA credits and
+  confirmations remain authoritative. RS published role/class ranks, joint places,
+  class-only totals, revised/legacy eligibility, four-round provisional gate and
+  launch exclusion remain intact. Missing/blocked values and unknown starts never
+  become zero; an empty points table does not claim no source starts. Future
+  results/links are not invented. Existing colours are unchanged.
+- 97 targeted synthetic Node tests pass, including exact semantic and equivalent-
+  contract structural checks and all six legacy cumulative slots. Navigation and
+  revised entry-policy public/admin browser suites pass. The full public suite passes and covers
+  both contexts, 320/390/768/1440px, light/dark, DOM/computed-layout equivalence,
+  keyboard scrolling, role/class/display links and existing public regressions.
+  NR/RS Standings screenshots at 390/1440px were visually inspected outside Git.
+- Updated the phase plan, architecture, lifecycle, testing, recovery and index.
+  No engine/scoring/projector, public data/schema, guide, analytics, provider or theme
+  token changes. No Firebase/live data access or live verification. All shells retain
+  the coherent unreleased `rs-visual-3` token; restore matching scripts/styles/shells
+  together, with no data migration or database restore. Open tabs do not auto-upgrade.
+
+## Local only: approved display consolidation phase 3 (prior checkpoint)
+
+- Continues the unreleased phases 1-2 batch at unchanged baseline
+  `5d45f8bfecc8cd828a04070dc19e062089073819`. The coordinator relayed explicit phase 3
+  implementation scope only. No commit/push/deployment, provider access, data write
+  or subsequent phase is authorized.
+- Extended the pure public model with calendar/event/round/winner contracts and
+  NR/RS adapters. One component path now renders Home and Rounds calendars, Info's
+  event section and the Rounds winners table. Removed duplicate calendar/winner
+  markup; kept result-detail/graph/stage, standings and other Info content out of
+  this phase. Common metadata/entry availability, labels, badges and responsive
+  row policy retain existing competition theme tokens.
+- Explicit decisions: chronological parents, dated before undated, stable source ties,
+  published NR child order; labelled related NR date context never assigns an RS
+  day; separate own/related NR URL groups; dynamic SRS inheritance by exact
+  `nrEventId`, no copied NR classification; no invented missing result URLs, dates,
+  stage totals or winners. Combined explicit mappings and standalone events survive.
+  Source-backed class winners retain mapping/order semantics; full crew names and
+  common finality badges replace NR abbreviations. NR provisional/unclear winner
+  claims are now withheld without changing their accessible classifications/scoring.
+- All 91 targeted synthetic Node tests pass. Full public theme, navigation and RS
+  entry-policy public/admin browser suites pass. Shared event-card DOM and computed
+  layout match at 320/390/768/1440px in light/dark; existing date, entry-coverage,
+  source/finality and other-page regressions pass. Synthetic Rounds screenshots at
+  390/1440px were visually inspected; captures remain outside Git. All external
+  traffic was intercepted, with no writes.
+- Updated phase plan, architecture, recovery, testing and documentation index.
+  Unchanged engine, scorer/public projection, analytics, guide, data/schema and
+  provider configuration. No Firebase access, live verification or TRAC URL read.
+  The coherent unreleased batch keeps `rs-visual-3` in all four shells; restore
+  matching modules/styles/shells together for static-only rollback, with no data
+  migration/restore. Old open tabs do not automatically upgrade.
+
+## Local only: approved display consolidation phases 1-2 (prior checkpoint)
+
+- Baseline remains `5d45f8bfecc8cd828a04070dc19e062089073819`. The user approved
+  incremental implementation of identical NR/RS consumption, fields, wording and
+  layout apart from data and existing branding/colours. This authorizes phases 1-2
+  locally, not a commit, push, deployment, provider access or data publication.
+- Added `assets/public-model.js` with explicit pure Home contracts/adapters and
+  extracted existing RS appearance/start/contribution facts for reuse. Added
+  `assets/public-components.js` with the one Home hero/stat/status/leader/class-card
+  presentation. The NR/RS Home copies in `site.js` are removed in favor of `homeView`;
+  the RS compatibility wrapper is only a delegate. The earlier local Driver leader
+  improvement is incorporated into the shared card.
+- Meaningful product decisions: common neutral season kicker/headline and labels;
+  same four stat slots even before results (unknown driver/stage facts show `—`);
+  RS championship round count excludes launch while events/stages retain it; same
+  qualification/scoring disclosure and responsive grid; truthful class ranking bases;
+  direct role/class standings links; observed-maximum bar scaling, known DNF zeros
+  vs unavailable gaps. Exact facts/limits and the next phases are in the phase record.
+  Distinct NR/RS colours and guide CTA/content remain unchanged.
+- Phase 3 has not started: calendar section/link composition is shared but existing
+  competition-specific event-card internals remain. Standings, result/stage pages,
+  Crews/profiles and Info remain for later phases. No engine/scoring, public projection/
+  schema, raw data, source URL, analytics, provider configuration or season creation.
+- Passed 86 targeted Node tests (public-display, season-readiness, RallyeSport,
+  entry-participation, Getting Started, analytics), `site-theme-e2e.js` with NR/RS DOM/wording/
+  computed layout equality at 320/390/768/1440px in light/dark, keyboard navigation
+  via `navigation-e2e.js`, and `rs-entry-policy-e2e.js`. All external traffic was
+  intercepted; runtimes/fixtures remain synthetic and dependencies outside Git.
+- Updated architecture, lifecycle, testing, recovery, documentation index and
+  consolidation phase record. Coordinated local shell token remains `rs-visual-3`,
+  including the two new public scripts before `site.js`. Restore matching scripts,
+  styles and all four shells together for static-only rollback. Old tabs do not
+  upgrade automatically. No release or data rollback operation was performed.
+
+## Earlier local checkpoint: RS featured leader and consolidation assessment
+
+- Baseline: `5d45f8bfecc8cd828a04070dc19e062089073819`. The user requested an immediate
+  local RS Driver leader visual fix and an in-depth consolidation assessment/plan.
+  Shared style explicitly means layout/wording, not unifying NR and RS colours.
+  No commit, push, deployment, larger refactor or provider/data access is authorized.
+- `assets/site.js` now composes the RS featured card with NR's existing `.champ`
+  hierarchy: Driver leader/provisional eyebrow, prominent linked names, class-only
+  points, role-specific evidence-based starts, sole-leader margin, existing round
+  bars and co-driver line underneath. Ties are not arbitrarily broken and do not
+  select a driver chart. Standings-only identities show unavailable starts.
+  NR rendering/scoring, RS policy/scores, themes and branding are unchanged.
+- Added/updated focused synthetic rendering/browser assertions. Passed
+  `node --test tools\tests\season-readiness.test.js tools\tests\rallyesport.test.js`
+  (60 tests: 19 rendering/readiness, 41 RS),
+  `node tools\tests\site-theme-e2e.js` and
+  `node tools\tests\rs-entry-policy-e2e.js` (four widths, light/dark, both contexts).
+  Runtime dependencies remain outside Git. No live service or private data was used.
+- Added `docs/display-consolidation-plan.md` with file-level evidence, root causes,
+  contracts, six migration phases, invariants, verification, tradeoffs and approval
+  boundaries; linked it from the documentation index and architecture/recovery docs.
+  Only the immediate card fix is implemented; the plan is not a consolidation release.
+- Prepared coordinated `rs-visual-3` query tokens across index/admin/disclaimer/privacy.
+  No schema/data migration, Firebase/GCP operation, provider configuration, guide
+  edition or analytics change. Rollback restores matching static shells/assets only;
+  old tabs require reload. Any future push requires fresh drift/scope checks and
+  explicit new authorization. The deployed `rs-visual-2` release remains unchanged.
+
 ## 2026-11-11: authorized RS parity repair
 
 - After live testing the recent public parity release, the user directly reported that

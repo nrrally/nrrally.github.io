@@ -240,7 +240,7 @@ async function main() {
     assert.ok((await publicPage.innerText('main')).includes('15'));
     await publicPage.goto(base + '/index.html#/2027/round/R1/classification');
     await publicPage.waitForSelector('.round-meta');
-    assert.ok((await publicPage.innerText('.round-meta')).includes('Provisional sheet'));
+    assert.ok((await publicPage.innerText('.round-meta')).includes('Provisional classification'));
     assert.ok((await publicPage.innerText('main')).includes('1 documented round entries'));
     await publicPage.goto(base + '/index.html#/person/alex-test'); await publicPage.waitForSelector('.profile-head');
     assert.ok((await publicPage.innerText('main')).includes('1 events entered'));
@@ -249,7 +249,7 @@ async function main() {
     unclearBundle.rounds.R1.status = 'Classification'; unclearBundle.rounds.R1.finalityUnclear = true;
     set('public/season_2027', { json: { stringValue: JSON.stringify(unclearBundle) } });
     await publicPage.goto(base + '/index.html#/2027/round/R1/classification'); await publicPage.reload(); await publicPage.waitForSelector('.round-meta');
-    assert.ok((await publicPage.innerText('.round-meta')).includes('Classification finality unclear'));
+    assert.ok((await publicPage.innerText('.round-meta')).includes('Finality unclear'));
     assert.ok(!(await publicPage.innerText('.round-meta')).includes('Final classification'));
     await publicPage.goto(base + '/index.html#/2027/rounds'); await publicPage.reload();
     await publicPage.waitForSelector('main table');

@@ -91,9 +91,11 @@ After Create season, the app opens **Events & calendar**:
 
 With a published season and no classifications:
 
-- Home keeps Calendar, Regulations & info and Getting started actions. It reports only
-  nonzero **Events listed** and **Rounds listed** from supplied calendar records, not
-  drivers scored, stage totals, leaders, entrants or completeness of the programme.
+- Home keeps Calendar, Regulations & info and Getting started actions, and the same
+  four statistic slots in both competitions: **Rounds with results**, **Events**,
+  **Drivers scored**, **Recorded special stages**. Supplied calendar counts are known;
+  absent driver/stage facts show `—`, not invented zeros or programme completeness.
+  No leaders are fabricated before classifications exist.
 - Missing event metadata stays blank. Empty events/round allocations and empty
   documents have explanatory messages, not fabricated URLs, days or zero-stage claims.
 - No entry list means no event-entry summary. An empty partial list also has no
@@ -118,8 +120,56 @@ The homepage's populated statistics are labelled **Rounds with results** and
 **Recorded special stages**: neither measures events that ran without a published
 classification or a planned stage programme. The existing computed-driver count remains
 about the site standings, not total championship membership.
+RS round counts exclude non-scoring launch events; event/stage counts retain them.
+Both contexts show a shared scoring disclosure explaining their own scope and
+qualifications, not a second competition-specific Home layout.
+
+Standings also share one page/table contract in the local phase 4 batch. Both contexts
+retain role/class/breakdown when navigating, use the same empty states and expose
+round starts only where established for that role. A future result is not a table
+column; a blocked RS contribution is unavailable, not zero. NR class filters retain
+overall ordering/awards, while RS class filters retain independent published ranks
+and class-only totals. This is display consolidation, not a new season ruleset.
+See the [phase record](display-consolidation-plan.md#completed-locally-phase-4).
+
+The local phase 5 result shell/classification/graph/stage presentation is also shared.
+NR credited identities/classes and overall/class awards remain engine-owned; RS
+official positions/totals remain source facts, with separate independent role/class
+awards. Source finality or pending technical checks are not replaced by points
+availability. Launch keeps event results/timing but no championship awards. Missing
+stage counts/times/totals remain unavailable; printed RS finals/penalties and
+hundredths are retained. Related NR source links/dates remain labelled context,
+not an RS result or scoring-day assignment. No season data migration is required.
+See the [result inventory and decisions](display-consolidation-plan.md#completed-locally-phase-5).
+
+The local phase 6 batch shares Crews, cross-season profiles, Sources and Info too.
+Directory event counts are distinct events; championship-round counts distinguish
+NR's two rounds at one event from one RS championship event. Profile appearances
+count role/car records, not unique starts. Starts use authoritative NR role credits
+or evidenced RS role-round starts; unresolved DNF remains unavailable, DNS and launch
+do not create championship starts, and multiple cars cannot inflate RS starts.
+Printed roles and credited roles remain distinct; MSA-only starts are explicitly
+marked and cannot acquire a fabricated graph. Entry-only history stays separate.
+
+Info reads NR season documents only in NR and the already-published RS ruleset source
+edition only in RS. Its display-only metadata whitelist adds no read or schema.
+Global site editorial text, contacts, channels and documents remain explicitly
+Northern Regions site context, not RS regulations or representatives. Getting Started's
+edition and existing CTA are unchanged. Calendar-only, missing coverage and archived
+profiles retain the common fields with honest unavailable states, not copied entries
+or invented results. No annual data migration is needed for display consolidation.
+See the [final public surface audit](display-consolidation-plan.md#completed-locally-phase-6).
 
 ## Calendar status and date boundaries
+
+Home, Rounds and Info's event section share one calendar adapter/component path in
+both competitions. Parents are chronological, known dates before undated, with stable
+source order for ties; NR round/day children retain their published order. A non-scoring
+launch remains visible in chronological context. RS can inherit missing parent date
+context and event links only through an exact NR event relationship. **Related NR
+event dates/links** are labelled as such; they do not assign an RS scoring day, copy
+NR entry totals or convert NR results into RS classifications. SRS destinations are
+read from current event data, never embedded in the code.
 
 Round dates are date-only ISO `YYYY-MM-DD`, not timestamps. The renderer requires both
 the exact format and a real Gregorian date (including leap-day validation); browser

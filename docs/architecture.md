@@ -26,10 +26,19 @@ Hosting and data use two providers, with optional public analytics and no applic
 
 ## Parts
 
+The public NR/RS presentation shares one SPA shell. Home, calendar/round/winner
+overviews, cumulative standings, results, Crews, profiles, Sources and Info now use
+explicit read-only competition adapters and shared presentation.
+The [display consolidation assessment and phase record](display-consolidation-plan.md)
+maps those paths, contracts and migration boundaries. Phases 1-6 are implemented
+locally, not released. Independent scoring/projection models and colour tokens remain.
+
 | Part | Files | What it does |
 |---|---|---|
 | Engine | `assets/engine.js` | Pure functions shared by the site, admin and Node tools: NR and independent RS models/scoring, reviewed stage-time snapshot copying, RS graph progressions, checks, and existing importers. No browser or network code. See [data-entry-guide.md](data-entry-guide.md). |
 | Public site | `index.html`, `assets/site.js`, `assets/styles.css`, `assets/display-context.js` | A single-page app. Reads `public/site`, `public/people` and `public/season_<year>` through the Firestore REST API, then calls `NREngine.buildSeason`. A shared NR/RS preference selects independent views and graph axes, never mixed series. |
+| Public display facts | `assets/public-model.js` | Pure NR/RS Home, calendar, standings, result/graph, directory, cross-season profile, Sources and Info adapters. Explicit availability, printed/credited identities and roles, ranks/totals, independent awards, role-round starts, role/car appearances, entry coverage and source ownership remain separate facts. Profiles take explicit loaded models, never temporarily switch global seasons. Graph progressions delegate to the unchanged engine. No DOM, sporting recomputation or provider access. |
+| Shared public presentation | `assets/public-components.js` | One component family for every normal NR/RS public route: Home, calendar/winners, standings, result shell/classification/graph controls/stages, Crews, profiles, Sources and Info. Shared fields, wording and responsive/focus policy; data determines availability, source disclosures and award components, not another league renderer. SVG drawing, photos, head-to-head and mounted interactions remain shared in `site.js`. Existing colours stay distinct. The legacy RS aggregate landing retains its compatibility composition of six shared tables/calendar and RS-specific explanatory facts, not a second current page system. |
 | Getting started | `assets/getting-started.js` | Bundled original guide, independent of results/database state. Maintainer edition metadata and dated sources support annual review separately from season cutover; no edition badge is rendered. |
 | Active-rally notice | `assets/rally-notice.js`, `assets/rally-notice.css`, `disclaimer.html` | Reads only `public/site`; shares that initial promise with the results app. Native full-page yellow modal, followed by a sticky compact reminder after bypass. Not loaded by the admin. |
 | Optional analytics & privacy | `assets/analytics.js`, `privacy.html` | Shares the public site settings promise, validates GA4 settings and sends manual sanitized pageviews after rendering. Dedicated static privacy notice and persistent browser opt-out; never loaded by admin. |
@@ -220,7 +229,12 @@ do not include NR results. Empty RS seasons never borrow NR leaders/results.
 RS overrides only primary-accent tokens and the decorative hero track to blue in
 light/dark; NR stays red. Logos, series/category and success/warning colors remain.
 
-Calendar-only models display known events/rounds without result statistics or leaders.
+Calendar-only Home models retain the shared four statistic slots: known event/round
+counts, unavailable driver/stage facts shown as `—`, and no fabricated leaders. Both
+contexts use the same empty state. With results, event/stage counts include
+non-scoring RS events, but championship round/driver figures exclude them; native
+scoring notes explain the scope. NR's credited starts and RS's evidence-based role
+starts remain distinct facts presented in the same field.
 Missing-round cards/pages use strict date-only dates compared with South African UTC+02:00
 calendar days; scheduled-today/past-awaiting-results are not live-event assertions.
 Missing entry summaries are suppressed, while evidenced complete zero, partial counts and

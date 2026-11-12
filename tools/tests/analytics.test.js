@@ -43,7 +43,7 @@ test('privacy is a dedicated static page, linked from Info/footer, not a popup o
   assert.ok(!read('index.html').includes('id="analyticsToggle"'));
   assert.ok(!read('disclaimer.html').includes('id="analyticsToggle"'));
   assert.ok(!admin.includes('assets/analytics.js'));
-  assert.equal((site.match(/href="privacy.html"/g) || []).length, 2);
+  assert.equal(((site + read('assets/public-components.js')).match(/href="privacy.html"/g) || []).length, 2);
   const versions = ['index.html', 'privacy.html', 'disclaimer.html', 'admin/index.html'].flatMap(file =>
     [...read(file).matchAll(/assets\/(?:styles\.css|rally-notice\.(?:css|js)|analytics\.js|engine\.js|site\.js|ai-import\.js|admin\.(?:css|js))\?v=([^"]+)/g)].map(m => m[1]));
   assert.equal(new Set(versions).size, 1);

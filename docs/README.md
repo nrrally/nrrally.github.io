@@ -54,6 +54,7 @@ Results come only from official classification PDFs, never from live timing. NR 
 - [releases.md](releases.md): mandatory before-every-push checklist, baseline and local release/validation record.
 - [data-entry-guide.md](data-entry-guide.md): how to load a round's results correctly, how the import and its checks work, and the judgement calls.
 - [architecture.md](architecture.md): the parts, how data flows, the security model, and what to change to move platforms.
+- [display-consolidation-plan.md](display-consolidation-plan.md): NR/RS assessment and completed local phases 1-6: shared Home/calendar/winners, standings, results/graphs/stages, Crews/profiles and Sources/Info through read-only adapters. Includes the whole-site audit and compatibility boundaries; sporting rules and colours stay distinct. Release requires separate approval.
 - [firestore.rules](firestore.rules): the database's access rules, to paste into the Firebase console.
 - [data-model.md](data-model.md): every data file and field.
 - [scoring-rules.md](scoring-rules.md): how points, classes, eligibility, ties and stage graphs are calculated.

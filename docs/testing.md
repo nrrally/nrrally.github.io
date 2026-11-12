@@ -264,7 +264,7 @@ its chart, zero points and selected-car graph; unsupported points are not render
 An additional synthetic R2/R4-only appearance scenario preserves car numbers with no RS
 vehicle and proves the NR vehicle is never borrowed. Optional source vehicles are validated,
 projected and edited in the synthetic admin regression without changing scores.
-`RS_PRESENTATION_SCREENSHOT_DIR` saves NR/RS Home, Classification and Profile captures
+`RS_PRESENTATION_SCREENSHOT_DIR` saves NR/RS Home, Rounds, Classification and Profile captures
 at 1440/390 px outside Git. Set `RS_PRESENTATION_CAPTURE_ONLY=1` for captures only; that is
 not a full-suite result. These use the same local server and intercepted synthetic requests.
 The same graph UI is exercised for all six metrics, car selection, Top 5/All/Clear/class
@@ -506,6 +506,104 @@ Run it with
 `node tools\tests\site-theme-e2e.js`. The separate `rs-entry-policy-e2e.js` and
 RallyeSport engine regressions remain required to confirm that presentation changes
 do not alter the 2026 entry-based policy, launch exclusion, or NR scoring.
+
+The approved local display-consolidation phases 1-2 replace both Home markup paths with
+one renderer. `public-display.test.js` adds seven focused adapter/component contracts,
+covering immutable independent facts, real multi-class membership, source-evidenced
+starts without repeated-car inflation, unknown vs zero, missing published snapshots,
+identical presentation for identical facts, ties/missing roles, escaped text, scoped
+links and accessible gap/zero chart labels. `season-readiness.test.js` keeps the
+featured heading/points/classes/starts/bar/co-driver regression and checks calendar-
+only four-stat placeholders without invented scores. Run:
+`node --test tools\tests\public-display.test.js tools\tests\season-readiness.test.js tools\tests\rallyesport.test.js tools\tests\entry-participation.test.js tools\tests\getting-started.test.js tools\tests\analytics.test.js`
+(114 tests after phase 6).
+
+`site-theme-e2e.js` compares fixed Home DOM/wording and computed display, padding,
+margin, gap, typography and alignment across NR/RS at all four widths and both themes,
+excluding deliberately distinct colours. It checks keyboard scoring disclosures,
+real role/class links, launch exclusion from championship round counts, and known/
+missing/provisional/empty facts. Run it plus `navigation-e2e.js` and
+`rs-entry-policy-e2e.js`; source classification, graphs and later-page regressions
+remain in those suites. The [phase record](display-consolidation-plan.md) describes
+the remaining calendar and later-page work, which is not part of phases 1-2.
+
+Phase 3 adds five calendar contracts to that same test file: exact common calendar/
+Rounds HTML from equivalent NR/RS adapter facts; stable date-first ordering and strict
+invalid/undated/month-only handling; dynamic own/related link ownership and no guessed
+RS dates/results; NR multi-day and combined-mode explicit mapping including misleading
+RS IDs; and source/mapped class winners, ties, DNS, technical/finality holds and
+upcoming unavailable values. Home, Rounds and Info's event section share calendar
+output. The theme suite compares actual NR/RS event-card DOM, computed typography,
+padding/margins/gaps/alignment and responsive column count at 320/390/768/1440 in
+light/dark, excluding data-dependent geometry and deliberately distinct colours.
+Existing future/today/past/unknown-day, source link, winner, launch and two-day entry
+coverage regressions remain active. `navigation-e2e.js` and `rs-entry-policy-e2e.js`
+also cover the unchanged route/theme/policy behavior with synthetic providers only.
+
+Phase 4 adds six standings contracts: exact NR engine order/countback/eligibility,
+class-only and filtered-overall components; authoritative RS overall/class ranks and
+ties; both roles and real multi-class entries; known zero/recorded versus unproven DNF;
+unavailable starts; legacy RS0; launch/future column exclusion; missing/blocked versus
+ready/four-round provisional snapshots; source starts without class points;
+immutability, public facts, escaping and exact
+common markup for equivalent contracts. The VM test explicitly covers all six legacy
+RS cumulative tables. Existing scoring suites remain unchanged and required.
+
+The public theme suite compares equivalent NR/RS standings rows/round fields for
+common headings, DOM/headers/field slots, computed typography/spacing, centered Pos
+and sticky/mobile policy at 320/390/768/1440px in light/dark, excluding theme colours
+and genuine data-dependent geometry. It exercises table focus/keyboard horizontal
+scroll, native active controls, both competitions' class/role/breakdown preservation,
+back/reload and visible provisional/MSA qualifications. Optional presentation captures
+now include Standings. Navigation and RS entry-policy public/admin checks remain
+required; no live provider read/write is part of these tests.
+
+Phase 5 adds nine result contracts and a VM missing-total comparison regression:
+NR printed/credited identities, class-only/no-credit/DNF/DNS awards; RS independent
+class-role ranks, printed hundredths and technical holds; exact shared shell/
+classification/control/stage structure; independent sparse axes and every engine
+metric; launch/pending/blocked states; historical tab/query/source ownership;
+missing stages with printed positions and stages named Final; escaping/privacy;
+and unavailable immediately previous totals without losing a known leader gap.
+
+The full public suite compares equivalent result headers, fields, DOM and computed
+spacing/responsive policy in both contexts at 320/390/768/1440px in light/dark.
+It exercises keyboard car/class/metric controls, legend highlighting, source
+disclosures, focusable tables, car/metric retention through every tab, tooltips
+(including a source stage named Final), shared line style and unchanged RS
+hundredths/independent axes. Run the targeted command above plus
+`node tools\tests\site-theme-e2e.js`, `node tools\tests\navigation-e2e.js`,
+`node tools\tests\rs-entry-policy-e2e.js` and `node tools\tests\ai-import-e2e.js`.
+All pass locally with synthetic intercepted providers. Optional
+`RS_PRESENTATION_SCREENSHOT_DIR` captures Home/Rounds/Standings/results/graphs/stages/
+profiles at 390/1440px in both themes; `RS_PRESENTATION_CAPTURE_ONLY=1` stops after
+checking those captures for overflow, unexpected requests and page errors.
+Keep screenshots/dependencies outside Git. These checks do not certify live data.
+
+Phase 6 adds seven focused contracts for directory/profile/Sources/Info facts:
+unique multi-class badges and unresolved source identities; unproven DNF/blocked
+awards versus zero; NR two-day event/round counts, printed versus credited roles and
+MSA-only starts; immutable cross-season roles without global context switching;
+exact equivalent directory/history structure; explicit document ownership; and
+source finality, pending/confirmed MSA qualifications, notes and privacy. Existing
+entry-only, unusual-identity, archived-source, missing-role, DNS/DNF and legacy
+cached-engine regressions remain active. Missing coverage keeps the common field
+with an unavailable value rather than removing it or supplying zero.
+
+The public browser suite now compares actual Crews/profile/Sources/Info fields,
+scoped headers and computed spacing/typography/layout at 320/390/768/1440px in
+light/dark. It exercises labelled search (including no matches on mobile grids),
+keyboard focus on scrollable regions, canonical identity links/escaping, archived
+profiles, source/finality badges, RS-only rules ownership and the unchanged guide
+CTA. Full public, navigation, revised entry-policy public/admin and AI-import suites
+pass on the completed runtime, with synthetic intercepted providers only.
+The targeted command passes **114/114**. Eighty synthetic presentation captures
+cover twenty NR/RS routes at 390/1440px in both themes; representative Crews,
+profile, Sources and Info screens were inspected outside Git. Capture mode now
+includes Crews/Sources/Info; long Crews captures use the viewport for legibility.
+No unexpected requests, page errors or horizontal viewport overflow were accepted.
+These are focused accessibility/interaction checks, not a complete WCAG audit or
+certification of live/private data. No provider access, data write or release occurs.
 
 Synthetic RS identity regressions exercise private role review through public projection
 and model construction, checking distinct role IDs, unchanged printed names, omitted

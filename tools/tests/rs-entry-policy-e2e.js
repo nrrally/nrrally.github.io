@@ -94,7 +94,7 @@ async function main() {
       assert.ok(!await page.locator('table').innerText().then(text => text.includes('RS0')));
       await visit('#/2026/person/synthetic-driver-1?competition=rs');
       assert.match(await page.locator('main').innerText(), /45 pts/);
-      assert.match(await page.locator('main').innerText(), /Championship appearances/);
+      assert.ok((await page.locator('.kpi span').allTextContents()).includes('Championship appearances'));
       assert.match(await page.locator('main').innerText(), /Synthetic Launch Event/);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       await visit('#/rallyesport/eligibility', true);
