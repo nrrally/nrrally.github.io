@@ -76,11 +76,10 @@ the existing provisional status and scoring remain unchanged. Four shells coordi
 The deployment verification is recorded in the release ledger, separately from the
 deployed code commit's pre-push record.
 
-A separate RS profile report was checked read-only on the live public site. The profile's
-R1-R3 Class pos values are unavailable, and the same entries' public event classification
-tables also render Class pos as `—`. The shared profile adapter copies `entry.classPos`
-from each public result, and the classification renderer consumes that same source-backed
-field; it does not drop a published position. The official sheets do not print separate
+A separate RS profile report was checked read-only before the class-order release.
+R1-R3 Class pos values were unavailable in profiles and event classifications.
+The prior profile and classification adapters displayed `entry.classPos` from each public
+result; they did not drop a published position. The official sheets do not print separate
 class positions. A calculated source-class order must be distinguished from a printed
 position and from role-specific championship scoring, and requires a review tied to
 the exact source and classification snapshot. NR's existing engine already calculates
@@ -95,14 +94,23 @@ prints it; it does not mean the numbered car is unknown. The existing explicit N
 reuse operation copies reviewed stage times only, not vehicles. Source-backed vehicle
 correction or a separately reviewed vehicle-copy workflow is outside this change.
 
-The user approved compatible validation and reviewed R1-R3 publication, but this code
-work must not access private provider data or perform the activation. The coordinator
-must separately obtain a fresh private backup and use the audited Review & publish
-workflow with current revision/preconditions and user attribution, after deploying and
-verifying compatible code. Retire old admin tabs before any review or publication.
+The user approved compatible validation and reviewed R1-R3 publication. The compatible
+code was deployed and verified before activation. The coordinator reports that, after
+the user confirmed old admin tabs were closed, fresh protected baseline and precommit
+backups were made and the reviewed activation was committed atomically with working,
+public, revision and attributed History updates. Readback matched; scoring, NR data,
+source rows and finality were unchanged. The coordinator also verified a public profile
+and all three classifications at narrow and wide widths after activation. This documentation
+session did not access private provider data or perform that activation.
+
+For any later review or publication, retire old admin tabs, obtain a fresh backup and
+use the audited workflow with current revision/preconditions and user attribution.
 Review every source and public row, including statuses and categories; do not infer
-completeness from contiguous positions. Preserve all printed
-finality and technical-check notices, and do not change scoring.
+completeness from contiguous positions. Preserve printed finality and technical-check
+notices. Source or row changes invalidate the marker; inspect and renew the review
+before publishing. Old admin validators may reject existing review fields: restore
+compatible code or use a separately authorized, backed-up audited data migration.
+Static rollback alone does not remove published markers or restore database data.
 
 Public source checks found the following source-identity complication: the current
 R1 source URL ending `ClubProvisionalv2.pdf` returns 404; the Sportity noticeboard's
@@ -122,9 +130,9 @@ These counts are source evidence to reconcile, not a generic completeness heuris
 The R1 amended provisional has 12 classified and four DNF rows. Anonymous read-only
 comparison of all three current published snapshots against those exact sheets matched
 every car number, printed class, overall position and DNF/DNS status: 16, 20 and 19
-rows respectively. This finding is limited to that public snapshot and those fields;
-the activating reviewer must repeat the comparison against the then-current working
-and public data, document their own complete-source examination, and stop on drift.
+rows respectively. That finding was limited to the public snapshot and those fields.
+The coordinator reports independently repeating the source and working/public
+comparison before activation; future reviewers must repeat it and stop on drift.
 
 #### Historical phase 5 checkpoint
 

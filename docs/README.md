@@ -26,6 +26,8 @@ are described in [the schema/migration record](data-model.md#entry-based-policy-
 After the compatible-code release, the coordinator reported the separately authorized
 audited 2026 policy activation completed on 2026-11-11. See the release ledger and recovery
 entry for that confirmation and the now-required paired data/code rollback sequence.
+The coordinator also reported the separately authorized reviewed RS source class-order
+activation on 2026-11-12; see [recovery.md](recovery.md) for its boundaries and rollback.
 
 Results come only from official classification PDFs, never from live timing. NR standings, points and stage graphs are calculated in the visitor's browser from raw NR results each time a page loads; NR does not store derived scoring snapshots. RallyeSport is a separate competition: its validated scoring snapshots are stored with the published RS data and never feed NR standings or statistics.
 

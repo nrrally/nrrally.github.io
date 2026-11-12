@@ -68,6 +68,36 @@ must be addressed; there is no automation that can infer approvals or certify pr
   scope, account and staged-diff checks. Pages build and live static-byte verification
   are pending until the push; this record is not proof of deployment.
 
+### Deployment, activation and documentation-only follow-up
+
+- The compatible code was normally pushed and the Pages build and workflow completed
+  for that exact code revision. The four live shells and changed runtime assets matched
+  their Git blobs; the coordinated cache token remains `rs-visual-6`.
+- The coordinator reports that the user-confirmed closed admin tabs, fresh protected
+  full baseline and immediate precommit backups preceded the separately authorized
+  activation. Complete source classifications were reviewed against fresh working and
+  public rows, with source-file hashes checked. A synthetic transaction rehearsal
+  covered conflicts, isolation and readback. The single atomic operation updated the
+  working/public documents, revision and attributed History; inventory and public
+  readback matched. Private review evidence was not published.
+- Coordinator verification reports unchanged scoring, NR data, source rows and
+  finality; no vehicle enrichment or source-link correction. Read-only public browser
+  checks covered a profile and the three classifications at narrow and wide widths.
+  The existing R1 broken source link remains a separately reviewed correction. A future
+  source or row edit invalidates its review, and old admin tabs must remain retired.
+- This authorized follow-up pushes only these documentation records, normally to
+  `origin/main` after exact-parent, account, clean-scope and staged-diff guards. It
+  changes no runtime behavior, cache token, scoring, schema, provider or data; no
+  additional activation or restore is authorized. The guide reference edition and
+  analytics behavior remain unchanged. Documentation-only changes have no test suite;
+  review the diff and verify Pages after the push. Deployment of this follow-up is
+  pending until independently confirmed.
+- For recovery after activation, preserve the compatible code and protected backups.
+  Static rollback alone neither removes the review fields nor restores data; older
+  validators may reject them. Any data rollback or marker removal needs separate
+  authorization, fresh backup, attribution and atomic working/public/revision/History
+  coordination. Git alone cannot recover the private evidence or backups.
+
 ## 2026-11-12: authorized six-phase display consolidation release (pre-push)
 
 - The user explicitly authorized **"push to live and ill test"** for the completed
