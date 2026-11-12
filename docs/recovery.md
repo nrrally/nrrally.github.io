@@ -63,15 +63,18 @@ no database restore or data migration is needed. Existing tabs may require reloa
 The [release record](releases.md#2026-11-12-compact-public-display-follow-up-deployed)
 contains exact verification details.
 
-### Home eligibility tidy-up (pending release)
+### Home eligibility tidy-up (deployed)
 
-The local Home-only follow-up starts at deployed `c6935762b109434aee57ae5d7ecf3c269509833e`.
+The Home-only follow-up deployed as `a5e30374cf2958d4d3e69eb0ef22b304705ce148`,
+starting at deployed `c6935762b109434aee57ae5d7ecf3c269509833e`.
 It removes repeated eligibility labels from NR/RS Home leader/class cards and featured
 leaders, adds a subtle name-adjacent mark only for explicit ineligibility, and a single
 conditional explanatory note below the cards. Missing RS eligibility stays unmarked;
 the existing provisional status and scoring remain unchanged. Four shells coordinate
 `rs-visual-5`; static rollback is to `c6935762b109434aee57ae5d7ecf3c269509833e` and
 `rs-visual-4`. No database restore or data migration is needed; old tabs may need reload.
+The deployment verification is recorded in the release ledger, separately from the
+deployed code commit's pre-push record.
 
 A separate RS profile report was checked read-only on the live public site. The profile's
 R1-R3 Class pos values are unavailable, and the same entries' public event classification

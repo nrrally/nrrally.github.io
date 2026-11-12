@@ -188,6 +188,24 @@ must be addressed; there is no automation that can infer approvals or certify pr
   this temporary credential context and a normal non-force push. Pages SHA/build and
   live changed-byte verification remain pending.
 
+### Home eligibility deployment verification
+
+The approved account `michaelmullanyza-1` pushed commit
+`a5e30374cf2958d4d3e69eb0ef22b304705ce148` normally to `main` from the exact
+expected parent. Pages run `43184792632` succeeded for that commit and the Pages
+build API reported `built` for it. All four live shells and the changed model,
+component and stylesheet matched the commit's Git blobs byte-for-byte; the shells
+carry `rs-visual-5`. No Firebase or data writes were made.
+
+The separately authorized follow-up push records that verified deployment in this
+ledger and recovery guide only; site behavior, runtime assets, data and recovery
+procedure do not change. Approval is limited to these two documentation files and a
+normal push from parent `a5e30374cf2958d4d3e69eb0ef22b304705ce148`. Rollback is
+the preceding commit if needed, with no database operation. Verification: inspect the
+two-file diff and whitespace, confirm exact parent and clean staged scope, and verify
+the Pages workflow for the resulting commit. This documentation record is not itself
+proof that the documentation-only push deployed.
+
 ## Local only: approved display consolidation phase 6
 
 - The implementation completed as an unreleased phases 1-6 batch at unchanged local baseline
