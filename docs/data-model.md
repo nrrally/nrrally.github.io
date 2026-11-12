@@ -305,6 +305,21 @@ disclosure. A source heading that looks final but its own notes say technical ch
 pending is not treated as independently cleared; it needs this explicit review before
 event scoring.
 
+An optional, separate `currentFinalityReview` on an NR working round or an RS working
+result records an explicit later user confirmation that this exact classification is
+currently final. It has `version: 1`, `confirmedFinal: true`, `digest`, and nonempty
+private `evidence` (at most 1000 characters, no controls). Generate the digest with
+`NREngine.currentFinalityDigest(result, 'nr'|'rs')`; validate with
+`NREngine.currentFinalityAccepted(result, mode, true)`. The NR digest covers the
+round's source/status/notes, stages and source rows; the RS digest reuses the existing
+class-order source snapshot. Source or row edits invalidate the review and block
+publication until reviewed again or removed. Public projection retains only version,
+confirmation and digest. The public model checks the snapshot before showing the
+confirmation. Printed status and notes remain unchanged; confirmation is not proof
+that technical checks were independently completed. This review does not change
+points, the separate RS scoring-finality review, or championship finality. It is not
+a season-wide switch.
+
 The published 2026 SSR V1 text states a 15-starter event minimum. With no
 `starterMinimumReview`, the engine applies that baseline. The optional review is
 2026-RS-only and accepts exactly `minimum: 6`, explicit `reviewed: true`, and required

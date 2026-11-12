@@ -130,6 +130,45 @@
       return 'sha256:' + sha256(JSON.stringify(canonical));
     } catch (e) { return null; }
   }
+  function currentFinalityDigest(result, mode) {
+    if (!result || ['id', 'title', 'status'].some(function (key) {
+      return typeof result[key] !== 'string' || !result[key].trim();
+    }) || !result.source || typeof result.source !== 'object' || Array.isArray(result.source) ||
+      !['file', 'url', 'description'].some(function (key) {
+        return typeof result.source[key] === 'string' && !!result.source[key].trim();
+      }) || !Array.isArray(result.entries) || !result.entries.length) return null;
+    if (mode === 'rs') return rallyeSportClassOrderDigest(result);
+    if (mode !== 'nr') return null;
+    function canonical(value) {
+      if (value === null || typeof value === 'string' || typeof value === 'boolean' ||
+        typeof value === 'number' && isFinite(value)) return value;
+      if (Array.isArray(value)) return value.map(canonical);
+      if (value && typeof value === 'object') {
+        var out = Object.create(null);
+        Object.keys(value).sort().forEach(function (key) { out[key] = canonical(value[key]); });
+        return out;
+      }
+      throw new Error('Unsupported classification value');
+    }
+    try {
+      var snapshot = ['nr-current-finality-v1'];
+      ['id', 'title', 'status', 'source', 'notes', 'stages', 'entries', 'extraStarts'].forEach(function (key) {
+        snapshot.push(Object.prototype.hasOwnProperty.call(result, key) ? [key, canonical(result[key])] : [key]);
+      });
+      return 'sha256:' + sha256(JSON.stringify(snapshot));
+    } catch (e) { return null; }
+  }
+  function currentFinalityAccepted(result, mode, requireEvidence) {
+    var review = result && result.currentFinalityReview;
+    if (!review || typeof review !== 'object' || Array.isArray(review) ||
+      Object.keys(review).some(function (key) { return ['version', 'confirmedFinal', 'digest', 'evidence'].indexOf(key) < 0; }) ||
+      review.version !== 1 || review.confirmedFinal !== true || typeof review.digest !== 'string' ||
+      !/^sha256:[0-9a-f]{64}$/.test(review.digest) ||
+      (requireEvidence || Object.prototype.hasOwnProperty.call(review, 'evidence')) &&
+        (typeof review.evidence !== 'string' || !review.evidence.trim() || review.evidence.length > 1000 || /[\u0000-\u001f\u007f]/.test(review.evidence))) return false;
+    var digest = currentFinalityDigest(result, mode);
+    return !!digest && review.digest === digest;
+  }
   function rallyeSportClassOrder(result) {
     function unavailable(reason) { return { status: 'unavailable', reason: reason, entries: [] }; }
     var review = result && result.classOrderReview, digest = rallyeSportClassOrderDigest(result);
@@ -386,6 +425,7 @@
       return {
         id: meta.id, n: n, eventId: meta.eventId, day: meta.day || '', date: meta.date || '',
         title: raw.title || '', status: raw.status || '', provisional: /provisional/i.test(raw.status || ''), finalityUnclear: !!raw.finalityUnclear,
+        currentFinalityConfirmed: currentFinalityAccepted(raw, 'nr', !opts.publicProjection),
         notes: raw.notes || [], source: raw.source || {}, stages: S, labels: labels, entries: ents, progression: prog,
         extraStarts: extra, confirmed: !!confirmed[meta.id]
       };
@@ -538,6 +578,7 @@
       events: (data.events || []).map(function (event) { return Object.assign({}, event); }),
       results: (data.results || []).map(function (result) {
         return Object.assign({}, result, {
+          currentFinalityConfirmed: currentFinalityAccepted(result, 'rs', !publicProjection),
           classOrder: rallyeSportClassOrder(result),
           stages: (result.stages || []).map(function (stage) { return Object.assign({}, stage); }),
           entries: (result.entries || []).map(function (entry) {
@@ -950,6 +991,12 @@
     });
     projected.results = (projected.results || []).map(function (result) {
       delete result.finalityReview;
+      if (Object.prototype.hasOwnProperty.call(result, 'currentFinalityReview')) {
+        if (currentFinalityAccepted(result, 'rs', true)) result.currentFinalityReview = {
+          version: 1, confirmedFinal: true, digest: result.currentFinalityReview.digest
+        };
+        else delete result.currentFinalityReview;
+      }
       if (result.classOrderReview) result.classOrderReview = {
         version: result.classOrderReview.version, reviewed: result.classOrderReview.reviewed, digest: result.classOrderReview.digest
       };
@@ -1223,7 +1270,7 @@
     });
     (data.results || []).forEach(function (result, i) {
       var label = 'result ' + (i + 1);
-      if (!object(result, label, ['id', 'eventId', 'title', 'status', 'nrRoundId', 'stages', 'source', 'notes', 'entries', 'classMappings', 'classMappingEvidence', 'finalityReview', 'classOrderReview'])) return;
+      if (!object(result, label, ['id', 'eventId', 'title', 'status', 'nrRoundId', 'stages', 'source', 'notes', 'entries', 'classMappings', 'classMappingEvidence', 'finalityReview', 'currentFinalityReview', 'classOrderReview'])) return;
       id(result.id, label); id(result.eventId, label + ' eventId');
       if (knownResults[result.id]) error(label + ' duplicates result ID ' + result.id + '.');
       knownResults[result.id] = true;
@@ -1237,6 +1284,8 @@
         if (result.finalityReview.acceptedForScoring !== true) error(label + ' finality review must explicitly accept the source for scoring.');
         text(result.finalityReview.evidence, label + ' finality review evidence', true, 1000);
       }
+      if (Object.prototype.hasOwnProperty.call(result, 'currentFinalityReview') && !currentFinalityAccepted(result, 'rs', true))
+        error(label + ' current-finality review is invalid or stale.');
       if (result.nrRoundId != null && result.nrRoundId !== '') {
         if (!nrRounds[result.nrRoundId]) error(label + ' links to an unknown NR round.');
         else if (event && event.nrEventId && event.nrEventId !== nrRounds[result.nrRoundId].eventId) error(label + ' NR round does not belong to its explicitly linked NR event.');
@@ -1472,6 +1521,8 @@
     opts = opts || {};
     var issues = [], S = raw.stages || [];
     function add(level, msg, row) { issues.push({ level: level, msg: msg, row: row }); }
+    if (Object.prototype.hasOwnProperty.call(raw, 'currentFinalityReview') && !currentFinalityAccepted(raw, 'nr', true))
+      add('error', 'Current-finality review is invalid or stale.');
     if (!S.length) add('error', 'No stages listed for this round.');
     var cars = {}, positions = {};
     (raw.entries || []).forEach(function (r, i) {
@@ -1851,6 +1902,7 @@
   var api = { analyticsContractVersion: 1, validateAnalytics: validateAnalytics,
     rallyeSportContractVersion: 2, rallyeSportClassOrderContractVersion: 1, buildRallyeSport: buildRallyeSport, calculateRallyeSportScoring: calculateRallyeSportScoring,
     sha256Text: sha256, rallyeSportClassOrderDigest: rallyeSportClassOrderDigest, rallyeSportClassOrder: rallyeSportClassOrder,
+    currentFinalityDigest: currentFinalityDigest, currentFinalityAccepted: currentFinalityAccepted,
     rallyeSportEntryPolicy: rallyeSportEntryPolicy, rallyeSportLaunchRS0: rallyeSportLaunchRS0,
     projectRallyeSport: projectRallyeSport, buildRallyeSportGraph: buildRallyeSportGraph, parseRallyeSportTime: parseRallyeSportTime, copyReviewedRallyeSportTimes: copyReviewedRallyeSportTimes,
     validateRallyeSport: validateRallyeSport,

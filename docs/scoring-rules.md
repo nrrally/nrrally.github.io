@@ -187,6 +187,9 @@ with the event/finality/points rules that remain unchanged under the revised pol
   count establishes the minimum; DNS remains unavailable and TEST/invitation rows remain
   non-scoring. Official rows remain published unchanged. SSR 7.4's finisher wording is blank, so no additional finisher
   rule or awards logic is inferred.
+- A separate `currentFinalityReview` records an explicit user confirmation about the
+  current classification, not merely permission to score it. It changes no event
+  points or championship-finality gate; the original source qualification remains.
 - Official `TEST` rows and their printed order/status remain in event results, are
   excluded from championship points and appear at the bottom as RS0 Invitational, as
   SSR 6.1(a) specifies. Source-evidenced TEST starters do count toward the user-confirmed

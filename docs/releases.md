@@ -31,6 +31,36 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## Source-bound current finality (authorized compatible-code pre-push)
+
+- The user confirmed TRAC classifications final; this compatible-code release adds
+  separate per-result, evidence-backed current-finality review for NR and RS. Public
+  displays label the user decision while retaining original source status and caveats.
+  The existing RS scoring acceptance is distinct. An exact-snapshot digest prevents
+  stale decisions, and private review evidence is removed by public projection. No
+  championship-finality gate, scoring, source records or class-order digest changes.
+- The coordinator will separately perform the authorized fresh-backed-up and attributed
+  atomic data update, including both NR working rounds, the RS season, regenerated
+  public bundle, revision and History, after this code is deployed and old admin tabs
+  retired. No private provider reads or data writes were made by this code session.
+  Old admin projection can expose NR private review evidence; do not use it after
+  activation. See [recovery.md](recovery.md#current-classification-finality-compatible-code-activation-separate).
+- Synthetic Node display, scoring, import and admin-logic suites passed 119 tests.
+  Intercepted public and admin browser regressions passed, including 320/390/768/1440
+  px and light/dark. An anonymous read-only in-memory simulation of the current
+  published three source snapshots preserved their historical technical caveats,
+  RS scoring and class-order digest. This is not a data publication or independent
+  verification of technical clearance.
+- Deploy all four `rs-visual-8` shells with matching engine, importer, admin and display
+  scripts. Before activation, static rollback is `d1d25620d9f3c34532592e9e2a14d98151a4da4f`
+  (`rs-visual-7`); after activation older projectors/validators are incompatible and a
+  separately approved audited data rollback or compatible code is required. Existing
+  tabs must be retired before activation. Guide edition, analytics, provider
+  configuration, vehicle data and source URLs remain unchanged.
+- Normal `origin/main` push is authorized after exact-parent/account/scope checks.
+  Pages build and live-byte verification are pending deployment; this is not proof
+  of the coordinator's later data activation.
+
 ## RS linked venue and surface (authorized pre-push)
 
 - The user authorized this narrow display fix and a normal live push. RS Home/calendar

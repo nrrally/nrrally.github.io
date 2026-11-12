@@ -296,6 +296,13 @@ external technical checks have cleared. Select the separate finality review befo
 entering its evidence; the evidence field is disabled otherwise, and editing it cannot
 activate scoring finality on its own.
 
+For a separate explicit decision that a particular NR round or RS classification is
+now final, use **Current classification finality** on that result, enter private
+confirmation evidence and explicitly confirm the exact source snapshot. It does not
+change the source wording or imply independent technical clearance. Source or row
+edits make the review stale and block publication; review it again or remove it.
+This current-finality decision does not itself permit RS scoring or finalize a season.
+
 Event points require either source-supported finality or an evidence-backed user
 finality review, the applicable 2026 RS event-starter minimum, applicable ruleset,
 championship-round and invitation inputs. A started DNF earns no points but counts as a

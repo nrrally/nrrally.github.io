@@ -23,6 +23,12 @@ exact event/round links, unavailable or conflicting relationships and day metada
 provenance and unchanged scoring. The public theme suite checks linked and unlinked
 locations on Home, calendar and result views at its four widths and both themes.
 
+The public-display and admin browser regressions also cover current-finality review:
+private evidence removal, source/status/row mutation invalidation, distinct NR/RS
+display, historical technical-check notes, unchanged RS scoring/class-order digest,
+and reversible admin confirmation. Responsive public checks cover both themes and all
+four widths; the synthetic decision is not evidence about a real event.
+
 Unit checks cover both roles, absent roster decisions, unchanged source/private evidence,
 RS2/RS4 ranks/points, evidenced and unproven DNF, DNS, absent co-driver, three-ready/four-
 counted provisional totals, all-four-ready still provisional, launch timing retention,

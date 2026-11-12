@@ -20,6 +20,61 @@ function fixture() {
 function build(f, rounds = {}) {
   return E.buildSeason({ season: AI.projectPublic(f.season, f.people), rounds, people: f.people, publicProjection: true });
 }
+test('separate current-finality reviews preserve source caveats, scoring and reviewed class order', () => {
+  const { f, raw } = fixture(), rs = f.data.results[3];
+  raw.title = 'Synthetic NR final classification'; raw.status = 'Final Official Classification 1/1';
+  raw.source = { file: 'synthetic-nr.pdf', url: 'https://example.com/nr.pdf' };
+  raw.notes = ['Results are final pending post event technical checks such as fuel testing.'];
+  rs.notes.push('Results are final pending post-event technical checks such as fuel testing.');
+  rs.classOrderReview = { version: 1, reviewed: true, digest: E.rallyeSportClassOrderDigest(rs),
+    evidence: 'Synthetic class-order review' };
+  const priorScore = E.calculateRallyeSportScoring(f.data, f.season, f.people);
+  const before = build(f, { R1: AI.projectPublic(raw) });
+  assert.equal(P.result(before, 'rs', rs.id, 'classification').state, 'Pending technical checks');
+  for (const [result, mode] of [[raw, 'nr'], [rs, 'rs']]) {
+    result.currentFinalityReview = { version: 1, confirmedFinal: true,
+      digest: E.currentFinalityDigest(result, mode), evidence: 'Synthetic explicit final confirmation' };
+    assert.ok(E.currentFinalityAccepted(result, mode, true));
+    const invalid = structuredClone(result); invalid.currentFinalityReview.evidence = '';
+    assert.equal(E.currentFinalityAccepted(invalid, mode, true), false);
+    for (const edit of [review => { review.version = 2; }, review => { review.confirmedFinal = false; },
+      review => { review.unexpected = true; }, review => { delete review.evidence; }]) {
+      const bad = structuredClone(result); edit(bad.currentFinalityReview);
+      assert.equal(E.currentFinalityAccepted(bad, mode, true), false);
+    }
+    for (const mutate of [
+      r => r.status += ' amended', r => r.source.file += '.amended',
+      r => r.notes.push('Synthetic amended note'), r => r.entries[0].pos = 42
+    ]) {
+      const changed = structuredClone(result); mutate(changed);
+      assert.equal(E.currentFinalityAccepted(changed, mode, true), false);
+    }
+  }
+  assert.equal(E.rallyeSportClassOrderDigest(rs), rs.classOrderReview.digest);
+  assert.deepEqual(E.calculateRallyeSportScoring(f.data, f.season, f.people), priorScore);
+  const nrPublic = AI.projectPublic(raw), rsPublic = AI.projectPublic(f.season, f.people).rallyesport.results.find(r => r.id === rs.id);
+  assert.equal(nrPublic.currentFinalityReview.evidence, undefined);
+  assert.equal(rsPublic.currentFinalityReview.evidence, undefined);
+  assert.deepEqual(nrPublic.notes, raw.notes);
+  assert.deepEqual(rsPublic.notes, rs.notes);
+  const model = build(f, { R1: nrPublic });
+  for (const [mode, id] of [['nr', 'R1'], ['rs', rs.id]]) {
+    const display = P.result(model, mode, id, 'classification');
+    assert.equal(display.state, 'Final classification');
+    assert.match(display.finalityNote, /confirmed by user/);
+    assert.ok(display.notes.some(note => /pending post.?event technical checks/i.test(note)));
+    assert.match(C.resultShell(display, '').html, /Final status confirmed by user/);
+    assert.match(C.sources(P.sources(model, mode)).html, /Final status confirmed by user/);
+  }
+  const changed = structuredClone(raw); changed.entries[0].pos = 42;
+  assert.ok(E.validateRound(changed).some(issue => /current.finality review is invalid or stale/i.test(issue.msg)));
+  assert.equal(AI.projectPublic(changed).currentFinalityReview, undefined);
+  const stalePublic = structuredClone(nrPublic); stalePublic.entries[0].pos = 42;
+  assert.equal(P.result(build(f, { R1: stalePublic }), 'nr', 'R1', 'classification').finalityNote, '');
+  const changedRs = structuredClone(f.data); changedRs.results[3].source.file += '.changed';
+  assert.ok(E.validateRallyeSport(changedRs, f.season, {}, f.people).some(issue => /current.finality review is invalid or stale/i.test(issue.msg)));
+  assert.equal(E.projectRallyeSport(changedRs, f.season, f.people).results[3].currentFinalityReview, undefined);
+});
 test('directories preserve role evidence, distinct events, unique classes and unresolved source identities', () => {
   const { f, raw } = fixture();
   f.data.results[2].entries[0].class = 'RS4';

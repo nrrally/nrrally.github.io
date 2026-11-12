@@ -20,9 +20,9 @@ workingPeople.people.push(
 const nrRound = { id: 'R1', title: 'Synthetic NR classification', status: 'Final Official Classification',
   stages: ['SS1', 'SS2'], source: { file: 'nr.pdf', url: 'https://example.com/nr.pdf' }, notes: [], entries: [
     { car: '1', driver: 'Alex Test', codriver: 'Blake Example', class: 'OPEN', status: 'classified', pos: 1,
-      times: ['01:10.0', null], total: '02:30.0', pen: null },
+      times: ['01:10.0', null], stagePos: [null, null], total: '02:30.0', pen: null },
     { car: '3', driver: 'Casey Match', codriver: 'Drew Match', class: 'OPEN', status: 'classified', pos: 2,
-      times: ['02:00.0', '03:00.0'], total: '05:00.0', pen: null }
+      times: ['02:00.0', '03:00.0'], stagePos: [null, null], total: '05:00.0', pen: null }
   ] };
 workingSeason.rallyesport = {
   ruleset: { code: 'clubman-sprint-2026-v1', year: 2026,
@@ -231,6 +231,20 @@ async function main() {
     await page.getByRole('link', { name: 'RallyeSport', exact: true }).first().click();
     await page.locator('.rs-work-nav').waitFor();
     assert.deepEqual(await draftBackup(), originalDraft, 'browsing every rule and RS landing preserves the entire working dataset');
+    for (const route of ['#/results/R1', '#/rallyesport/events/synthetic-rs-event/source']) {
+      await visit(route);
+      await page.getByLabel('Private confirmation evidence').fill('Synthetic explicit final confirmation');
+      await page.getByRole('button', { name: 'Confirm current finality' }).click();
+      await page.getByText('Current-finality review matches this snapshot.').waitFor();
+      const backup = await draftBackup();
+      const record = route.startsWith('#/results/') ? backup['data/seasons/2026/rounds/R1.json'] :
+        backup['data/seasons/2026/season.json'].rallyesport.results[0];
+      assert.equal(record.currentFinalityReview.confirmedFinal, true);
+      assert.equal(record.currentFinalityReview.evidence, 'Synthetic explicit final confirmation');
+      await visit(route);
+      await page.getByRole('button', { name: 'Remove current-finality review' }).click();
+    }
+    assert.deepEqual(await draftBackup(), originalDraft, 'reversible finality reviews do not mutate source or scoring data');
     for (const scheme of ['light', 'dark']) {
       await page.emulateMedia({ colorScheme: scheme });
       await page.evaluate(theme => document.documentElement.setAttribute('data-theme', theme), scheme);

@@ -340,6 +340,12 @@
   function projectPublic(value, people) {
     var result = clone(value);
     if (value._aiImport && Array.isArray(value.entries)) result.finalityUnclear = needsFinalityReview(value.status) && !/provisional/i.test(value.status);
+    if (Array.isArray(value.entries) && Object.prototype.hasOwnProperty.call(value, 'currentFinalityReview')) {
+      if (E.currentFinalityAccepted(value, 'nr', true)) result.currentFinalityReview = {
+        version: 1, confirmedFinal: true, digest: value.currentFinalityReview.digest
+      };
+      else delete result.currentFinalityReview;
+    }
     if (value.rallyesport && typeof E.projectRallyeSport === 'function') result.rallyesport = E.projectRallyeSport(value.rallyesport, value, people || { people: [] });
     delete result._aiImport;
     return result;

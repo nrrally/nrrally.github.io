@@ -11,6 +11,27 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
+### Current classification finality (compatible code; activation separate)
+
+An evidence-backed `currentFinalityReview` is supported independently for each NR
+working round and RS working result. It labels an exact, snapshot-bound user decision;
+source wording, technical-check caveats, scoring and the championship gate remain
+unchanged. [The data model](data-model.md) gives the exact fields and helper signatures.
+The user confirmed TRAC finality, but this code release does not itself update data.
+The separately authorized coordinator must retire all old admin tabs, take fresh
+backups and update both NR round documents and the RS season result atomically with
+working/public/revision/attributed History coordination and version preconditions.
+Regenerate public data with the matching projector; do not directly patch public
+markers. Compare all three source snapshots and preserve the original notes and RS
+scoring and class-order review. Older admin code can leak private NR review evidence
+through its older projector; never publish from it after adding this field.
+
+Deploy matching engine/import/admin/display assets and all four `rs-visual-8` shells.
+Before activation, static rollback is to `d1d25620d9f3c34532592e9e2a14d98151a4da4f`
+(`rs-visual-7`). After activation, older validators/projectors cannot safely handle
+the new fields: use compatible code or a separately authorized backed-up, audited
+data rollback. Git alone does not recover the database or private evidence.
+
 ### RS linked venue and surface (authorized release)
 
 The public display can fill missing RS venue and surface independently from an

@@ -53,7 +53,7 @@
   }
 
   /* ------------------------------------------------------------------ state: the working copy of /data */
-  function newState() { return { mode: null, user: null, docs: {}, bins: {}, meta: {}, rev: null, admins: null, empty: false, photoCache: {}, dropPublic: [], year: null, open: {}, imp: null, history: null, lastCommit: null, rsClassOrderDrafts: {} }; }
+  function newState() { return { mode: null, user: null, docs: {}, bins: {}, meta: {}, rev: null, admins: null, empty: false, photoCache: {}, dropPublic: [], year: null, open: {}, imp: null, history: null, lastCommit: null, rsClassOrderDrafts: {}, finalityDrafts: {} }; }
   var A = newState(), sessionVersion = 0;
   function clearSession() { sessionVersion++; A = newState(); }
   function checkSession(version, user) {
@@ -583,6 +583,29 @@
   function fileIn(fn, accept, text) { return '<label class="btn file-btn"><input type="file" class="sr-only" accept="' + accept + '" data-k="' + K(fn) + '">' + text + '</label>'; }
   function fld(lbl, control, help, cls) { return '<label class="fld' + (cls ? ' ' + cls : '') + '"><span class="fl">' + lbl + '</span>' + control + (help ? '<small>' + help + '</small>' : '') + '</label>'; }
   function btn(fn, text, cls, attrs) { return '<button type="button" class="btn' + (cls ? ' ' + cls : '') + '" data-act="' + ACT(fn) + '"' + (attrs ? ' ' + attrs : '') + '>' + text + '</button>'; }
+  function currentFinalityControl(result, mode) {
+    var key = A.year + ':' + mode + ':' + result.id;
+    var draft = A.finalityDrafts[key];
+    if (draft === undefined) draft = result.currentFinalityReview && result.currentFinalityReview.evidence || '';
+    var valid = E.currentFinalityAccepted(result, mode, true);
+    return '<div class="card"><h4>Current classification finality</h4><p class="small">Record only an explicit confirmation that this exact classification is now final. This is separate from permission to score; it does not establish that technical checks were independently completed. Source wording and notes remain unchanged. Source or row edits invalidate the review.</p>' +
+      '<p class="small">' + (valid ? 'Current-finality review matches this snapshot.' : result.currentFinalityReview ? 'Current-finality review is invalid or stale; publishing is blocked.' : 'No current-finality review.') + '</p>' +
+      fld('Private confirmation evidence', area(function (v) { A.finalityDrafts[key] = v; }, draft, 'rows="2" maxlength="1000"'),
+        'Record the explicit decision, not private competitor data.') +
+      '<div class="actions">' + btn(function () {
+        var evidence = A.finalityDrafts[key];
+        if (evidence === undefined) evidence = draft;
+        var candidate = { version: 1, confirmedFinal: true, digest: E.currentFinalityDigest(result, mode), evidence: evidence };
+        if (!E.currentFinalityAccepted(Object.assign({}, result, { currentFinalityReview: candidate }), mode, true))
+          throw new Error('Provide valid confirmation evidence and a complete source classification before confirming finality.');
+        if (!window.confirm('Confirm that the user has explicitly declared this exact classification final? The printed source and any technical-check caveat remain unchanged.')) return;
+        result.currentFinalityReview = candidate;
+        delete A.finalityDrafts[key]; render();
+      }, 'Confirm current finality', 'tiny') +
+      (result.currentFinalityReview !== undefined ? btn(function () {
+        delete result.currentFinalityReview; delete A.finalityDrafts[key]; render();
+      }, 'Remove current-finality review', 'tiny ghost') : '') + '</div></div>';
+  }
   function toast(msg, kind) {
     var box = document.getElementById('toasts');
     if (!box) { box = document.createElement('div'); box.id = 'toasts'; box.className = 'toasts'; box.setAttribute('role', 'status'); document.body.appendChild(box); }
@@ -1119,6 +1142,7 @@
       fld('Notes shown with this round', area(function (v) { raw.notes = lines(v); }, (raw.notes || []).join('\n'), 'rows="3"'), 'One per line — for example remarks printed on the sheet.', 'span2') +
       '<div class="fld span2">' + check(function (v) { var i = msa.confirmedRounds.indexOf(id); if (v && i < 0) msa.confirmedRounds.push(id); if (!v && i >= 0) msa.confirmedRounds.splice(i, 1); }, msa.confirmedRounds.indexOf(id) >= 0, 'Points for this round match the published MSA standings') + '<small>Tick once MSA\'s standings include this round and agree. Unticked rounds show as “points calculated”.</small></div>' +
       '</div><datalist id="dl-status"><option value="Final Official Classification"><option value="Provisional Official Classification"></datalist></div>';
+    html += currentFinalityControl(raw, 'nr');
     html += '<div class="card" id="valCard"><h3>Checks</h3><div id="val"></div></div>';
     html += resultsGrid(raw);
     html += extraStartsCard(raw);
@@ -1802,7 +1826,7 @@
           fld('Source file/title', input(function (v) { result.source.file = v; }, result.source.file || '', 'maxlength="200"')) +
           fld('Source description', input(function (v) { result.source.description = v; }, result.source.description || '', 'maxlength="1000"'), 'For an attached/private source without a public URL, identify the document without entering a local path.') +
           fld('Official source URL', input(function (v) { result.source.url = v; }, result.source.url || '', 'type="url" maxlength="2000"'), 'HTTPS source for this exact classification.', 'span2') +
-          '</div><h4>Source class-order review</h4><p class="small">Examine the complete classification and every source row, including printed classes, statuses and positions. This permits display-only class positions, not scoring or a change to source finality. Source or row edits invalidate the review. Evidence is private; an amended source may be identified here without changing the stored URL.</p>' +
+          '</div>' + currentFinalityControl(result, 'rs') + '<h4>Source class-order review</h4><p class="small">Examine the complete classification and every source row, including printed classes, statuses and positions. This permits display-only class positions, not scoring or a change to source finality. Source or row edits invalidate the review. Evidence is private; an amended source may be identified here without changing the stored URL.</p>' +
           '<p class="small" id="rsClassOrderStatus">' + esc(classOrder.status === 'ready' ? 'Reviewed snapshot matches.' : classOrder.reason) + '</p>' +
           fld('Private source examination evidence', area(function (v) { A.rsClassOrderDrafts[reviewKey] = v; }, reviewDraft, 'rows="2" maxlength="1000" id="rsClassOrderEvidence"'), 'Identify the examined source and completeness evidence; do not include private competitor data.') +
           '<div class="actions">' + btn(function () {

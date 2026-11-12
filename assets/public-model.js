@@ -206,7 +206,7 @@
    * @typedef {{driver:string,codriver:string}|null} Winner
    * @typedef {{id:string,label:string,event:string,date:string,dateIso:string,day:string,
    * scope:string,href:string|null,classificationHref:string|null,source:EventLink[],
-   * published:boolean,state:string,stages:number|null,classified:number|null,
+   * published:boolean,state:string,finalityNote:string,stages:number|null,classified:number|null,
    * entryNote:string,winner:Winner,classWinners:Object<string,Winner>}} RoundDisplay
    * @typedef {{id:string,name:string,badge:string,date:string,dateSource:string,sortDate:string,
    * venue:string,surface:string,venueSource?:string,surfaceSource?:string,scope:string,entryNote:string,links:EventLink[],
@@ -304,6 +304,7 @@
   }
   function classification(result, mode, score) {
     if (!result) return 'Not published';
+    if (result.currentFinalityConfirmed === true) return 'Final classification';
     if (mode === 'rs' && (result.notes || []).some(function (note) {
       return /results are final pending post[- ]event technical checks/i.test(note);
     })) return 'Pending technical checks';
@@ -345,7 +346,9 @@
       href: path ? href(model.year, mode, path + (mode === 'rs' ? '/graph' : '')) : null,
       classificationHref: result ? href(model.year, mode, path + '/classification') : null,
       source: result && result.source && result.source.url ? [{ url: result.source.url, label: 'Source' }] : [],
-      published: !!result, state: state, stages: result ? result.stages.length : null,
+      published: !!result, state: state, finalityNote: result && result.currentFinalityConfirmed ?
+        'Final status confirmed by user; source qualification retained, not independent technical clearance.' : '',
+      stages: result ? result.stages.length : null,
       classified: result ? result.entries.filter(function (entry) { return entry.status === 'classified'; }).length : null,
       entryNote: entryNote || '', winner: final ? sourceWinner(result, mode, '') : null, classWinners: {} };
     classes.forEach(function (cls) { row.classWinners[cls] = final ? sourceWinner(result, mode, cls) : null; });
@@ -718,7 +721,7 @@
    * @typedef {{label:string,href:string,selected:boolean}} ResultNavigation
    * @typedef {{year:number,id:string,tab:string,name:string,published:boolean,scope:string,
    * date:string,dateSource:string,dateIso:string,day:string,venue:string,surface:string,venueSource:string,surfaceSource:string,
-   * stages:string[],state:string,roundCount:number,sourceTitle:string,sourceStatus:string,
+   * stages:string[],state:string,finalityNote:string,roundCount:number,sourceTitle:string,sourceStatus:string,
    * pointsLabel:string,pointsStatus:string,scoringBasis:string,scoringReason:string,
    * graph:ResultGraph|null,rows:ResultRow[],qualification:string,notes:string[],
    * navigation:ResultNavigation[],previous:string|null,next:string|null,
@@ -759,6 +762,8 @@
         event.roundNumber == null ? 'Championship round' : 'Round ' + event.roundNumber,
       date: dates.text, dateSource: dates.source, dateIso: mode === 'nr' ? dateIso((raw || meta).date) : dates.iso,
       day: mode === 'nr' ? (raw || meta).day || '' : '', venue: location.venue, surface: location.surface,
+      finalityNote: raw && raw.currentFinalityConfirmed ?
+        'Final status confirmed by user; source qualification retained, not independent technical clearance.' : '',
       venueSource: location.venueSource, surfaceSource: location.surfaceSource,
       stages: graph ? graph.stages.slice() : [], state: classification(raw, mode, null),
       roundCount: mode === 'nr' ? model.calendar.length : model.rallyesport.events.filter(function (event) { return event.countsForChampionship !== false; }).length,

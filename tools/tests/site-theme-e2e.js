@@ -1233,6 +1233,31 @@ async function main() {
       await visit('#/rounds');
       assert.equal(await page.locator('main table .badge').innerText(), expected);
     }
+    const savedNrFinality = F.copy(bundle.rounds.R1);
+    bundle.rounds.R1.status = 'Final Official Classification';
+    bundle.rounds.R1.notes = ['Results are final pending post event technical checks.'];
+    bundle.rounds.R1.currentFinalityReview = { version: 1, confirmedFinal: true,
+      digest: E.currentFinalityDigest(bundle.rounds.R1, 'nr') };
+    bundle.season.rallyesport = F.copy(initialRsData);
+    const reviewedRs = bundle.season.rallyesport.results.find(result => result.id === rsResult.id);
+    reviewedRs.currentFinalityReview = { version: 1, confirmedFinal: true,
+      digest: E.currentFinalityDigest(reviewedRs, 'rs') };
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(t => localStorage.setItem('nr-theme', t), theme);
+      for (const width of [320, 390, 768, 1440]) {
+        await page.setViewportSize({ width, height: 1000 });
+        for (const hash of ['#/round/R1/classification?competition=nr',
+          '#/rallyesport/synthetic-rs-r2-results/classification?competition=rs']) {
+          await visit(hash);
+          assert.match(await page.locator('main').innerText(), /Final status confirmed by user/);
+          assert.match(await page.locator('.round-meta').innerText(), /Final classification/);
+          await page.locator('.result-source-notes summary').click();
+          assert.match(await page.locator('.result-source-notes').innerText(), /pending post.?event technical checks/i);
+          await noOverflow();
+        }
+      }
+    }
+    bundle.rounds.R1 = savedNrFinality;
     bundle.season.rallyesport = {
       ruleset: { code: 'clubman-sprint-2026-v1', year: 2026 },
       events: [{ id: 'synthetic-rs', name: 'Synthetic RS-only event', dates: 'Synthetic date' }],

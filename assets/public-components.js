@@ -161,7 +161,8 @@
       (row.published ? winnerText(row.winner) : '<b>' + esc(dateLabel(row.date) || 'Date to be confirmed') + '</b>') + '</span>' +
       '<span>' + esc([row.day, row.published ? row.stages + ' stage' + (row.stages === 1 ? '' : 's') : 'results not published yet',
         row.published ? row.classified + ' classified' : '', row.published ? row.state : ''].filter(Boolean).join(' · ')) +
-      '</span><span class="small muted">' + esc(row.scope) + '</span>' +
+      '</span>' + (row.finalityNote ? '<span class="small muted">' + esc(row.finalityNote) + '</span>' : '') +
+      '<span class="small muted">' + esc(row.scope) + '</span>' +
       '<span class="small muted">' + esc(row.entryNote || 'Round entries unavailable') + '</span></span>' +
       (row.published ? '<span class="go">Graph →</span>' :
         status === 'Date to be confirmed' ? '' : '<span class="go muted">' + esc(status) + '</span>') + '</' + tag + '>';
@@ -199,6 +200,7 @@
           display.classes.map(function (cls) { return '<td>' + winnerText(row.classWinners[cls]) + '</td>'; }).join('') +
           '<td><span class="badge ' + (row.state === 'Final classification' ? 'final' : 'prov') +
           '" aria-label="' + esc(row.state) + '">' + esc(row.state.replace(/ classification$/, '')) + '</span>' +
+          (row.finalityNote ? '<div class="small muted">' + esc(row.finalityNote) + '</div>' : '') +
           (row.classificationHref ? '<div>' + link(row.classificationHref, 'Classification →') + '</div>' : '') +
           sourceLinks(row.source) + '</td></tr>';
       }).join('') + '</tbody></table></div></div>';
@@ -385,6 +387,7 @@
         display.pointsStatus === 'unavailable' ? 'prov' : '') + '">' +
       esc(display.pointsLabel) + '</span></div>' +
       (display.published ? '<p class="small muted result-scoring-status">' + esc(display.scoringBasis) + '</p>' : '') +
+      (display.finalityNote ? '<p class="small muted">' + esc(display.finalityNote) + '</p>' : '') +
       '</div><div class="hero-actions">' +
       (display.previous ? link(display.previous, '← Previous', 'btn') : '') + (display.next ? link(display.next, 'Next →', 'btn') : '') +
       link(display.links.rounds, 'All events', 'btn') + '</div></div>';
@@ -589,7 +592,8 @@
         return '<tr><td>' + link(result.tabs[1].href, esc(result.scope)) + '</td><td>' + esc(result.name) +
           '</td><td>' + esc(result.sourceTitle) + '</td><td><span class="badge ' +
           (result.state === 'Final classification' ? 'final' : 'prov') + '">' + esc(result.state) + '</span><br>' +
-          esc(result.sourceStatus) + '</td><td>' + sourceLinks(result.sourceLinks) + '</td></tr>';
+          esc(result.sourceStatus) + (result.finalityNote ? '<div class="small muted">' + esc(result.finalityNote) + '</div>' : '') +
+          '</td><td>' + sourceLinks(result.sourceLinks) + '</td></tr>';
       }).join('') + '</tbody></table></div>' +
       display.results.map(function (result) { return '<section class="section"><h2>' + esc(result.name) + '</h2>' +
         resultNotes(result) + '</section>'; }).join('');
