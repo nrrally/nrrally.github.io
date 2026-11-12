@@ -245,6 +245,31 @@ Absent/empty means not recorded, not an NR-derived vehicle. It is validated, ret
 the public projection and displayed in results/profiles without affecting any score.
 Existing rows need no migration or inferred enrichment. Older admin validators must not
 be used after adding this field; see the local compatibility record in [releases.md](releases.md).
+
+Optional `classOrderReview` is a private working-result object with `version: 1`,
+`reviewed: true`, `digest: "sha256:<64 lowercase hex characters>"`, and nonempty
+private `evidence` (up to 1000 characters, without control characters). The public
+projection retains only version, reviewed flag and digest, not evidence. The digest is
+an integrity check, not a signature or proof that a review actually happened.
+`rallyeSportClassOrderDigest` hashes a version-tagged, typed canonical JSON snapshot
+of result ID, event ID, title, status, NR round association, source file/URL/description,
+notes, stage identities/labels/mappings and ordered public source row fields (car,
+printed crew/class/vehicle/status, position/class position, times, stage positions,
+penalty, total and notes). Missing and null are distinct. It deliberately excludes
+private reviewer/identity/time evidence and scoring-only decisions. The literal stored
+source URL is bound; changing it invalidates a review.
+
+The review is accepted only when the digest matches, source identity is present,
+all rows have unique cars and known RS2/RS4 source classes and supported statuses,
+classified positions are positive, unique and contiguous, non-classified rows have
+no positions, and any printed class positions agree with the within-source-class
+overall order. A human must still verify complete source coverage: these mechanical
+checks do not establish completeness. The helper uses printed class, independent of
+scoring mappings or role eligibility. Printed positions stay printed; missing class
+positions become visibly marked calculations in profiles and classifications only
+when the reviewed snapshot matches. Unknown, changed, tied, conflicting or unsupported
+snapshots receive no calculated positions; absent review preserves legacy behavior.
+No scoring, source finality or technical-check status is changed.
 RS2 and RS4 are the only configured championship classes. Other printed categories and
 their rows remain in event results but block that event's scoring until supported;
 they are never dropped or silently mapped to a championship class. `TEST` is preserved

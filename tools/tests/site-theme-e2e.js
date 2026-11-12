@@ -151,6 +151,17 @@ const resultParity = ['nr', 'rs'].map(mode => {
   display.awards = display.awards.filter(award => award.car === row.car);
   return display;
 });
+const reviewFixture = F.revisedRallyeSport();
+const reviewResult = reviewFixture.data.results[1];
+reviewResult.entries[0].classPos = null;
+reviewResult.notes.push('Results are final pending post-event technical checks');
+reviewResult.classOrderReview = { version: 1, reviewed: true,
+  digest: E.rallyeSportClassOrderDigest(reviewResult), evidence: 'Synthetic complete source review' };
+const reviewModel = E.buildSeason({ season: AI.projectPublic(reviewFixture.season, reviewFixture.people),
+  rounds: {}, people: reviewFixture.people, publicProjection: true });
+const reviewDisplay = P.result(reviewModel, 'rs', reviewResult.id, 'classification');
+const reviewProfiles = ['driverId', 'codriverId'].map(role =>
+  P.profile([reviewModel], 'rs', reviewModel.rallyesport.results[1].entries[0][role]));
 const errors = [], unexpected = [];
 let databaseDown = false;
 let configured = true, seasonDelay = 0, scriptDelay = 0;
@@ -494,6 +505,22 @@ async function main() {
         }
         assert.deepEqual(resultPresentations[1], resultPresentations[0],
           'actual NR/RS result adapters share exact header wording, row structure, tabs, responsive layout and computed typography/spacing');
+        await page.evaluate(display => {
+          document.querySelector('main').innerHTML = window.NRPublicComponents.resultShell(display,
+            window.NRPublicComponents.resultClassification(display)).html;
+        }, reviewDisplay);
+        assert.equal(await page.locator('.result-classpos [aria-describedby="result-class-position-note"]').count(), 1);
+        assert.match(await page.locator('#result-class-position-note').innerText(), /reviewed source classification/);
+        await noOverflow();
+        for (const profile of reviewProfiles) {
+          await page.evaluate(display => {
+            document.querySelector('main').innerHTML = window.NRPublicComponents.profile(display, '',
+              display.seasons.map(season => season.charts.map(() => ''))).html;
+          }, profile);
+          assert.equal(await page.locator('[aria-describedby="profile-class-position-note-0"]').count(), 1);
+          assert.match(await page.locator('#profile-class-position-note-0').innerText(), /not a championship scoring rank/);
+          await noOverflow();
+        }
         await visit('#/standings?class=OPEN&pts=split&competition=nr');
         await page.getByRole('link', { name: 'Co-drivers', exact: true }).click();
         await page.getByRole('heading', { name: 'Co-drivers', exact: true }).waitFor();

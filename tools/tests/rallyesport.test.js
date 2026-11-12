@@ -4,6 +4,113 @@ const { test } = require('node:test');
 const E = require('../../assets/engine.js');
 const AI = require('../../assets/ai-import.js');
 const F = require('./ai-fixtures.js');
+const crypto = require('node:crypto');
+
+function attest(result, evidence = 'Synthetic full source examination') {
+  result.classOrderReview = { version: 1, reviewed: true, digest: E.rallyeSportClassOrderDigest(result), evidence };
+}
+test('synchronous SHA-256 agrees with standard and UTF-8 vectors', () => {
+  assert.equal(E.sha256Text(''), 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+  assert.equal(E.sha256Text('abc'), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+  for (const text of ['é🏁中文', '\ud800', ...[55, 56, 63, 64, 65, 1000].map(n => 'a'.repeat(n))]) {
+    assert.equal(E.sha256Text(text), crypto.createHash('sha256').update(text, 'utf8').digest('hex'));
+  }
+});
+test('review binds raw source and every source row while public projection omits evidence', () => {
+  const f = fixture();
+  f.result.entries[0].codriver = '';
+  f.result.entries[0].identityReview = { codriverId: 'codriver-1', evidence: 'Synthetic identity review' };
+  f.result.entries[1].classPos = null;
+  f.result.source.url = 'https://example.com/broken.pdf';
+  attest(f.result);
+  const before = E.calculateRallyeSportScoring(f.data, { year: 2026 }, f.people);
+  assert.deepEqual(E.validateRallyeSport(f.data, F.season(2026), {}, f.people), []);
+  const order = E.rallyeSportClassOrder(f.result);
+  assert.equal(order.status, 'ready');
+  assert.deepEqual(order.entries.slice(0, 2).map(row => [row.classPos, row.kind]), [[1, 'printed'], [2, 'calculated']]);
+  const projected = E.projectRallyeSport(f.data, { year: 2026 }, f.people);
+  assert.equal(projected.results[0].classOrderReview.evidence, undefined);
+  assert.equal(projected.results[0].source.url, 'https://example.com/broken.pdf');
+  assert.equal(E.rallyeSportClassOrder(projected.results[0]).status, 'ready');
+  const built = E.buildRallyeSport(projected, f.people, { year: 2026 }, true);
+  assert.deepEqual(built.results[0].classOrder, order);
+  assert.equal(built.results[0].entries[0].codriver, 'Co-driver 1');
+  assert.equal(E.rallyeSportClassOrder(built.results[0]).status, 'unavailable', 'never verify normalized rows against the source digest');
+  assert.deepEqual(E.calculateRallyeSportScoring(f.data, { year: 2026 }, f.people), before);
+  const mutations = [
+    r => r.id += 'x', r => r.eventId += 'x', r => r.title += 'x', r => r.status += 'x',
+    r => r.source.file += 'x', r => r.source.url += 'x', r => r.source.description = 'amended',
+    r => r.nrRoundId = 'nr-x', r => r.notes.push('source note'),
+    r => r.stages[0].id += 'x', r => r.stages[0].label += 'x', r => r.stages[0].nrStage = 'SS1',
+    r => r.entries[0].car += 'x', r => r.entries[0].driver += 'x', r => r.entries[0].codriver = 'name',
+    r => r.entries[0].class = 'RS4', r => r.entries[0].status = 'DNF',
+    r => r.entries[0].pos = 2, r => r.entries[0].classPos = null, r => r.entries[0].vehicle = 'Synthetic car',
+    r => r.entries[0].times[0] = '00:02.00', r => r.entries[0].stagePos[0] = 2,
+    r => r.entries[0].total = '00:02.00', r => r.entries[0].penalty = '00:01.00',
+    r => r.entries[0].notes = ['source note'], r => r.entries.reverse()
+  ];
+  for (const mutate of mutations) {
+    const changed = structuredClone(f.result); mutate(changed);
+    assert.notEqual(E.rallyeSportClassOrderDigest(changed), f.result.classOrderReview.digest);
+    assert.equal(E.rallyeSportClassOrder(changed).status, 'unavailable');
+    const data = structuredClone(f.data); data.results[0] = changed;
+    assert.ok(E.validateRallyeSport(data, F.season(2026), {}, f.people).some(issue => /class-order review.*stale/.test(issue.msg)));
+  }
+  const privateChanges = structuredClone(f.result);
+  privateChanges.entries[0].identityReview.evidence = 'Different private evidence';
+  privateChanges.entries[0].startEvidence = 'Private start evidence';
+  privateChanges.entries[0].timeEvidence = [{ kind: 'private' }];
+  assert.equal(E.rallyeSportClassOrderDigest(privateChanges), f.result.classOrderReview.digest);
+  delete f.result.classOrderReview;
+  assert.equal(E.rallyeSportClassOrder(f.result).status, 'unavailable');
+  assert.deepEqual(E.validateRallyeSport(f.data, F.season(2026), {}, f.people), []);
+});
+test('printed class ordering is independent of scoring mappings and role eligibility', () => {
+  const f = fixture();
+  for (const entry of f.result.entries) entry.classPos = null;
+  f.result.entries[1].class = 'RS4';
+  f.result.entries[3].class = 'RS4';
+  f.result.classMappings = { RS4: 'RS2' };
+  f.data.nonScoringPeople = ['driver-1'];
+  attest(f.result);
+  assert.deepEqual(E.rallyeSportClassOrder(f.result).entries.slice(0, 5).map(x => x.classPos), [1, 1, 2, 2, 3]);
+  assert.ok(E.rallyeSportClassOrder(f.result).entries.every(x => x.kind === 'calculated'));
+  f.result.entries[3].classPos = 3;
+  attest(f.result);
+  assert.equal(E.rallyeSportClassOrder(f.result).status, 'unavailable');
+});
+test('review rejects ambiguous or contradictory source order and malformed attestations', () => {
+  const cases = [
+    r => { r.entries[1].pos = r.entries[0].pos; },
+    r => { r.entries[1].pos = null; },
+    r => { r.entries[1].pos = 20; },
+    r => { r.entries[0].class = 'UNKNOWN'; },
+    r => { r.entries[0].status = 'TEST'; },
+    r => { r.entries[0].classPos = 2; },
+    r => { r.entries[0].status = 'DNF'; },
+    r => { r.entries[1].car = r.entries[0].car; }
+  ];
+  for (const change of cases) {
+    const f = fixture(); change(f.result); attest(f.result);
+    assert.equal(E.rallyeSportClassOrder(f.result).status, 'unavailable');
+    assert.ok(E.validateRallyeSport(f.data, F.season(2026), {}, f.people).some(issue => /class-order review/.test(issue.msg)));
+  }
+  const f = fixture();
+  f.result.entries[14].status = 'DNF'; f.result.entries[14].pos = null; f.result.entries[14].classPos = null;
+  f.result.entries[13].status = 'DNS'; f.result.entries[13].pos = null; f.result.entries[13].classPos = null;
+  attest(f.result);
+  assert.deepEqual(E.rallyeSportClassOrder(f.result).entries.slice(-2).map(x => [x.classPos, x.kind]), [[null, null], [null, null]]);
+  for (const change of [
+    r => r.reviewed = false, r => r.version = 2, r => r.digest = 'sha256:bad',
+    r => r.evidence = '', r => r.unexpected = 'private'
+  ]) {
+    const copy = structuredClone(f.data); change(copy.results[0].classOrderReview);
+    assert.equal(E.rallyeSportClassOrder(copy.results[0]).status, 'unavailable');
+    assert.ok(E.validateRallyeSport(copy, F.season(2026), {}, f.people).some(issue => /class-order review/.test(issue.msg)));
+  }
+  const noEvidence = structuredClone(f.data); delete noEvidence.results[0].classOrderReview.evidence;
+  assert.ok(E.validateRallyeSport(noEvidence, F.season(2026), {}, f.people).some(issue => /class-order review evidence/.test(issue.msg)));
+});
 
 const ruleset = {
   code: 'clubman-sprint-2026-v1', year: 2026,

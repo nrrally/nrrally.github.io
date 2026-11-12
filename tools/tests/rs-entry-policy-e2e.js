@@ -113,6 +113,18 @@ async function main() {
       assert.deepEqual(await status.locator('option').allTextContents(), ['classified', 'DNF', 'DNS']);
       assert.equal(await page.getByText('Invitation status', { exact: true }).count(), 0);
     }
+    await visit('#/rallyesport/events/rs-r2/source', true);
+    await page.getByLabel('Private source examination evidence').fill('Synthetic complete source review');
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: 'Confirm complete source examination' }).click();
+    assert.equal(await page.locator('#rsClassOrderStatus').innerText(), 'Reviewed snapshot matches.');
+    await page.getByLabel('Official source URL').fill('https://example.com/changed-source.pdf');
+    await page.evaluate(() => { location.hash = '#/rallyesport/checks'; });
+    await page.getByRole('heading', { name: 'Validation before publishing' }).waitFor();
+    assert.match(await page.locator('.adm-main').innerText(), /class-order review.*stale/i);
+    await page.evaluate(() => { location.hash = '#/rallyesport/events/rs-r2/source'; });
+    await page.getByRole('button', { name: 'Remove class-order review' }).click();
+    assert.equal(await page.locator('#rsClassOrderStatus').innerText(), 'No valid class-order review.');
     await visit('#/rallyesport/setup', true);
     await page.locator('.fld').filter({
       has: page.locator('.fl').filter({ hasText: /^Private entry-based policy evidence$/ })

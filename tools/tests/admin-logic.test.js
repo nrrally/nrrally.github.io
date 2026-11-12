@@ -24,12 +24,36 @@ function harness(engine = E) {
   const context = { window, location, document: { getElementById: () => ROOT }, console, setTimeout, clearTimeout };
   const code = fs.readFileSync(path.join(root, 'assets', 'admin.js'), 'utf8');
   vm.runInNewContext(code.slice(0, code.indexOf('  /* ------------------------------------------------------------------ boot */')) +
-    'window.testAdmin = { A, viewRallyeSport, viewLogic, changes, workingDocs, publicDocs, publishIssues, entryContractError }; })();', context);
+    'window.testAdmin = { A, viewRallyeSport, viewLogic, changes, workingDocs, publicDocs, publishIssues, entryContractError, binds, acts, setRender: function (fn) { render = fn; } }; })();', context);
   const api = window.testAdmin;
   for (const [key, obj] of Object.entries(docs)) api.A.docs[key] = { orig: E.prettyJson(obj) + '\n', obj, deleted: false };
   api.A.year = 2026; api.A.mode = 'live'; api.A.user = { email: 'admin@example.com' };
-  return { api, location };
+  return { api, location, window };
 }
+test('class-order review needs evidence and an explicit complete-source confirmation', () => {
+  const { api, location, window } = harness();
+  location.hash = '#/rallyesport/events/rs-only/source';
+  api.setRender(() => {});
+  const result = api.workingDocs()['data/seasons/2026/season.json'].rallyesport.results[0];
+  const originalUrl = result.source.url, html = api.viewRallyeSport();
+  const evidenceKey = html.match(/<textarea data-k="([^"]+)"[^>]*id="rsClassOrderEvidence"/)[1];
+  const confirmKey = html.match(/<button[^>]*data-act="([^"]+)"[^>]*id="rsClassOrderConfirm"/)[1];
+  assert.equal(result.classOrderReview, undefined);
+  assert.throws(() => api.acts[confirmKey](), /evidence/);
+  api.binds[evidenceKey]('Synthetic complete amended source');
+  window.confirm = () => false;
+  api.acts[confirmKey]();
+  assert.equal(result.classOrderReview, undefined);
+  window.confirm = message => { assert.match(message, /complete source and every classification row/); return true; };
+  api.acts[confirmKey]();
+  assert.equal(result.classOrderReview.evidence, 'Synthetic complete amended source');
+  assert.equal(E.rallyeSportClassOrder(result).status, 'ready');
+  assert.equal(result.source.url, originalUrl);
+  result.source.url = 'https://example.com/corrected.pdf';
+  assert.equal(E.rallyeSportClassOrder(result).status, 'unavailable');
+  assert.match(api.viewRallyeSport(), /stale/);
+  assert.match(harness({ ...E, rallyeSportClassOrderContractVersion: 0 }).api.entryContractError(), /RallyeSport scripts are missing or out of date/);
+});
 test('catalogue is a closed source-linked graph with explicit branch outcomes', () => {
   const ids = catalogue.topics.map(topic => topic.id), seen = new Set(ids);
   assert.equal(seen.size, ids.length);

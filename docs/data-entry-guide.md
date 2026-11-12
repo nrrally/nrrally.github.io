@@ -228,6 +228,19 @@ The remaining legacy membership/invitation/TEST instructions below apply only wh
 entry-based policy is absent; the source-preservation and event-readiness procedures
 apply to both workflows.
 
+For an authorized display-only source class-order review, first retire older admin tabs
+and take a fresh backup. Under **RallyeSport → Events & results → Classification
+source**, examine the complete exact official source against every result row, including
+printed category, overall position and non-classified status. Contiguous positions or
+a row count alone do not prove completeness; stop for missing, ambiguous or conflicting
+source data. Enter private examination evidence, then explicitly select **Confirm
+complete source examination** and confirm the declaration. This creates a digest of
+the current source snapshot; it does not edit positions, change scoring, or accept
+finality. Review the working/public changes and use the normal attributed, revision-guarded
+**Review & publish** workflow. A later source or row edit invalidates the review and
+blocks publication until it is removed or reviewed again. Do not copy the marker to
+another result. See the [recovery record](recovery.md) for the R1 source URL discrepancy.
+
 Use **RallyeSport** in the admin for RS seasons. It is intentionally a separate event
 and classification editor, not another NR class. Creating an RS event does not require
 an NR calendar event or round. Record the official event name/dates, exact classification

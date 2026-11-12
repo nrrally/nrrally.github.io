@@ -610,7 +610,9 @@
       graph.entries = raw.entries.map(function (entry) {
         var points = byCar[String(entry.car)] || {}, driver = points.driverEligibility || launchEligibility(entry);
         var codriver = points.codriverEligibility || (entry.codriver ? launchEligibility(entry) : null);
-        return { car: String(entry.car), status: entry.status, pos: entry.pos, classPos: entry.classPos,
+        var classPosition = rsClassPosition(raw, entry);
+        return { car: String(entry.car), status: entry.status, pos: entry.pos, classPos: classPosition.value,
+          classPosCalculated: classPosition.calculated,
           driver: entry.driver, codriver: entry.codriver, driverId: entry.driverId, codriverId: entry.codriverId,
           vehicle: entry.vehicle, cls: resultClass(raw, entry), printedClass: entry['class'],
           seriesKey: 'RS:' + raw.id + ':' + entry.car,
@@ -655,6 +657,11 @@
   }
   function resultPerson(entry, role) {
     return { name: entry[role] || '—', href: entry[role + 'Href'] || null };
+  }
+  function rsClassPosition(result, entry) {
+    var review = result.classOrder, row = review && review.status === 'ready' &&
+      review.entries.filter(function (candidate) { return candidate.car === entry.car; })[0];
+    return { value: row ? row.classPos : entry.classPos, calculated: !!row && row.kind === 'calculated' };
   }
   /**
    * ResultDisplay owns only public source/award/navigation facts; all HTML belongs
@@ -759,8 +766,10 @@
       var original = raw.entries.filter(function (row) { return String(row.car) === entry.car; })[0], points = byCar[entry.car] || {};
       var row = { car: entry.car, pos: entry.pos, status: entry.status, driver: resultPerson(entry, 'driver'),
         codriver: resultPerson(entry, 'codriver'), cls: entry.cls, printedClass: entry.printedClass,
-        classNote: mode === 'nr' && entry.printedClass !== entry.cls ? 'sheet: ' + entry.printedClass : '',
-        classPos: entry.classPos, vehicle: entry.vehicle || '', stages: entry.stagesCompleted == null ? null : entry.stagesCompleted,
+        classNote: (mode === 'nr' || entry.classPosCalculated) && entry.printedClass !== entry.cls ? 'sheet: ' + entry.printedClass : '',
+        classPos: entry.classPos, classPosCalculated: !!entry.classPosCalculated,
+        classPosClass: entry.classPosCalculated && E.normClass(entry.printedClass) !== E.normClass(entry.cls) ? entry.printedClass : '',
+        vehicle: entry.vehicle || '', stages: entry.stagesCompleted == null ? null : entry.stagesCompleted,
         penalty: mode === 'nr' ? entry.pen == null ? '—' : E.fmtTime(entry.pen) : original.penalty || '—',
         total: mode === 'nr' ? entry.status === 'classified' ? entry.total == null ? '—' : E.fmtTime(entry.total, true) : entry.status : original.total || '—',
         gap: '—', previousGap: '—', credit: '', notes: (entry.notes || []).slice(), points: [] };
@@ -910,6 +919,7 @@
     });
     if (mode === 'rs') rsAppearances(model, null, true).forEach(function (app) {
       var row = person(app.key, app.id, app.name), entry = app.entry, result = app.result;
+      var classPosition = rsClassPosition(result, entry), displayClass = resultClass(result, entry);
       if (app.championshipRound && app.eligibility && app.eligibility.status !== 'eligible')
         sourceIneligible[app.key] = true;
       var event = model.rallyesport.events.filter(function (event) { return event.id === result.eventId; })[0];
@@ -920,7 +930,9 @@
         partnerHref: entry[(app.role === 'driver' ? 'codriver' : 'driver') + 'Known'] ?
           href(model.year, mode, '/person/' + encodeURIComponent(entry[(app.role === 'driver' ? 'codriver' : 'driver') + 'Id'])) : null,
         vehicle: entry.vehicle || '',
-        cls: resultClass(result, entry), classPos: entry.classPos, status: entry.status, pos: entry.pos,
+        cls: displayClass, classPos: classPosition.value, classPosCalculated: classPosition.calculated,
+        classPosClass: classPosition.calculated && E.normClass(entry['class']) !== E.normClass(displayClass) ? entry['class'] : '',
+        status: entry.status, pos: entry.pos,
         points: app.championshipRound && typeof app.points === 'number' ? app.points : null, credited: false,
         scoring: !app.championshipRound && !app.eligibility ? 'Non-scoring event' : scoringText(app.eligibility),
         note: app.eligibility && app.eligibility.status !== 'eligible' ? ROLE_NOTE : '',

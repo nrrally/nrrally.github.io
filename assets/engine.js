@@ -42,6 +42,149 @@
   function normName(n) { return String(n || '').replace(/[_\s]+/g, ' ').trim(); }
   function keyName(n) { return normName(n).normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
   function normClass(c) { return String(c || '').replace(/\s+/g, '').toUpperCase(); }
+  // Synchronous SHA-256 (FIPS 180-4); the engine is shared by browsers and Node.
+  function sha256(text) {
+    var bytes = [], i, j;
+    for (i = 0; i < text.length; i++) {
+      var c = text.charCodeAt(i);
+      if (c >= 0xd800 && c <= 0xdbff && i + 1 < text.length && text.charCodeAt(i + 1) >= 0xdc00 && text.charCodeAt(i + 1) <= 0xdfff) {
+        c = 0x10000 + ((c - 0xd800) << 10) + (text.charCodeAt(++i) - 0xdc00);
+      } else if (c >= 0xd800 && c <= 0xdfff) c = 0xfffd;
+      if (c < 0x80) bytes.push(c);
+      else if (c < 0x800) bytes.push(0xc0 | c >>> 6, 0x80 | c & 63);
+      else if (c < 0x10000) bytes.push(0xe0 | c >>> 12, 0x80 | c >>> 6 & 63, 0x80 | c & 63);
+      else bytes.push(0xf0 | c >>> 18, 0x80 | c >>> 12 & 63, 0x80 | c >>> 6 & 63, 0x80 | c & 63);
+    }
+    var bitLength = bytes.length * 8;
+    bytes.push(0x80);
+    while (bytes.length % 64 !== 56) bytes.push(0);
+    var high = Math.floor(bitLength / 0x100000000), low = bitLength >>> 0;
+    for (i = 3; i >= 0; i--) bytes.push(high >>> (i * 8) & 255);
+    for (i = 3; i >= 0; i--) bytes.push(low >>> (i * 8) & 255);
+    var h = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+    var k = [0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+      0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+      0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+      0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+      0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+      0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+      0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+      0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+    function rotr(x, n) { return x >>> n | x << (32 - n); }
+    for (var offset = 0; offset < bytes.length; offset += 64) {
+      var w = new Array(64);
+      for (i = 0; i < 16; i++) {
+        j = offset + i * 4;
+        w[i] = (bytes[j] << 24 | bytes[j + 1] << 16 | bytes[j + 2] << 8 | bytes[j + 3]) >>> 0;
+      }
+      for (i = 16; i < 64; i++) {
+        var s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ w[i - 15] >>> 3;
+        var s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ w[i - 2] >>> 10;
+        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+      }
+      var a = h[0], b = h[1], d = h[3], e = h[4], f = h[5], g = h[6], x = h[7], cc = h[2];
+      for (i = 0; i < 64; i++) {
+        var t1 = (x + (rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)) + (e & f ^ ~e & g) + k[i] + w[i]) >>> 0;
+        var t2 = ((rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)) + (a & b ^ a & cc ^ b & cc)) >>> 0;
+        x = g; g = f; f = e; e = (d + t1) >>> 0; d = cc; cc = b; b = a; a = (t1 + t2) >>> 0;
+      }
+      [a,b,cc,d,e,f,g,x].forEach(function (value, n) { h[n] = (h[n] + value) >>> 0; });
+    }
+    return h.map(function (value) { return ('00000000' + value.toString(16)).slice(-8); }).join('');
+  }
+  function rallyeSportClassOrderDigest(result) {
+    if (!result || typeof result !== 'object' || !result.source || typeof result.source !== 'object' ||
+      Array.isArray(result.source) || !Array.isArray(result.entries)) return null;
+    function scalar(v) {
+      if (v === null) return ['null'];
+      if (typeof v === 'string') return ['string', v];
+      if (typeof v === 'number' && isFinite(v)) return ['number', v];
+      throw new Error('Unsupported source value');
+    }
+    function field(obj, key, listItem) {
+      if (!Object.prototype.hasOwnProperty.call(obj, key)) return ['missing'];
+      var v = obj[key];
+      if (v === null) return ['null'];
+      if (listItem) {
+        if (!Array.isArray(v)) throw new Error('Invalid source list');
+        return ['list', v.map(listItem)];
+      }
+      return scalar(v);
+    }
+    try {
+      var canonical = ['rs-class-order-v1',
+        ['id', 'eventId', 'title', 'status', 'nrRoundId'].map(function (key) { return field(result, key); }),
+        ['file', 'url', 'description'].map(function (key) { return field(result.source, key); }),
+        field(result, 'notes', scalar),
+        field(result, 'stages', function (stage) {
+          if (!stage || typeof stage !== 'object' || Array.isArray(stage)) throw new Error('Invalid stage');
+          return ['id', 'label', 'nrStage'].map(function (key) { return field(stage, key); });
+        }),
+        result.entries.map(function (entry) {
+          if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error('Invalid row');
+          return [
+            ['car', 'driver', 'codriver', 'class', 'vehicle', 'status', 'pos', 'classPos', 'penalty', 'total'].map(function (key) { return field(entry, key); }),
+            ['times', 'stagePos', 'notes'].map(function (key) { return field(entry, key, scalar); })
+          ];
+        })];
+      return 'sha256:' + sha256(JSON.stringify(canonical));
+    } catch (e) { return null; }
+  }
+  function rallyeSportClassOrder(result) {
+    function unavailable(reason) { return { status: 'unavailable', reason: reason, entries: [] }; }
+    var review = result && result.classOrderReview, digest = rallyeSportClassOrderDigest(result);
+    if (!review || typeof review !== 'object' || Array.isArray(review) ||
+      Object.keys(review).some(function (key) { return ['version', 'reviewed', 'digest', 'evidence'].indexOf(key) < 0; }) ||
+      review.version !== 1 || review.reviewed !== true || typeof review.digest !== 'string' ||
+      !/^sha256:[0-9a-f]{64}$/.test(review.digest) ||
+      (Object.prototype.hasOwnProperty.call(review, 'evidence') && (typeof review.evidence !== 'string' || !review.evidence.trim()))) {
+      return unavailable('No valid class-order review.');
+    }
+    if (!digest || review.digest !== digest) return unavailable('Class-order review is stale or source is malformed.');
+    if (['id', 'eventId', 'title', 'status'].some(function (key) { return typeof result[key] !== 'string' || !result[key].trim(); }) ||
+      ['file', 'url', 'description'].some(function (key) { return result.source[key] != null && typeof result.source[key] !== 'string'; }) ||
+      !['file', 'url', 'description'].some(function (key) { return typeof result.source[key] === 'string' && !!result.source[key].trim(); })) {
+      return unavailable('Source identity or printed status is missing.');
+    }
+    if (!result.entries.length) return unavailable('Classification has no rows.');
+    var cars = Object.create(null), positions = Object.create(null), classes = Object.create(null), output = [];
+    for (var i = 0; i < result.entries.length; i++) {
+      var row = result.entries[i], cls = normClass(row['class']);
+      if (typeof row.car !== 'string' || !row.car.trim() || cars[row.car] ||
+        typeof row.driver !== 'string' || !row.driver.trim() ||
+        (row.codriver != null && typeof row.codriver !== 'string') ||
+        typeof row['class'] !== 'string' || ['RS2', 'RS4'].indexOf(cls) < 0) return unavailable('Unknown class or invalid crew row.');
+      cars[row.car] = true;
+      if (['classified', 'DNF', 'DNS'].indexOf(row.status) < 0) return unavailable('Unresolved source status.');
+      if (row.status !== 'classified') {
+        if (row.pos != null || row.classPos != null) return unavailable('Non-classified row has a position.');
+        output.push({ car: row.car, classPos: null, kind: null });
+        continue;
+      }
+      if (!Number.isInteger(row.pos) || row.pos < 1 || positions[row.pos] ||
+        (row.classPos != null && (!Number.isInteger(row.classPos) || row.classPos < 1))) {
+        return unavailable('Missing, duplicate or invalid position.');
+      }
+      positions[row.pos] = true;
+      classes[cls] = classes[cls] || [];
+      classes[cls].push({ row: row, index: i });
+      output.push(null);
+    }
+    var classNames = Object.keys(classes);
+    if (!classNames.length) return unavailable('Classification has no classified rows.');
+    for (var p = 1; p <= Object.keys(positions).length; p++) {
+      if (!positions[p]) return unavailable('Missing overall classification position.');
+    }
+    for (var k = 0; k < classNames.length; k++) {
+      var sorted = classes[classNames[k]].sort(function (a, b) { return a.row.pos - b.row.pos; });
+      for (var n = 0; n < sorted.length; n++) {
+        var item = sorted[n], rank = n + 1;
+        if (item.row.classPos != null && item.row.classPos !== rank) return unavailable('Printed class position contradicts source order.');
+        output[item.index] = { car: item.row.car, classPos: rank, kind: item.row.classPos == null ? 'calculated' : 'printed' };
+      }
+    }
+    return { status: 'ready', reason: '', entries: output };
+  }
   function rallyeSportScoringClass(result, entry) {
     if (rallyeSportLaunchRS0(entry)) return 'RS0';
     var printedClass = normClass(entry && entry['class']);
@@ -395,6 +538,7 @@
       events: (data.events || []).map(function (event) { return Object.assign({}, event); }),
       results: (data.results || []).map(function (result) {
         return Object.assign({}, result, {
+          classOrder: rallyeSportClassOrder(result),
           stages: (result.stages || []).map(function (stage) { return Object.assign({}, stage); }),
           entries: (result.entries || []).map(function (entry) {
             var driver = rallyeSportEntryPerson(idx, entry, 'driver'), codriver = rallyeSportEntryPerson(idx, entry, 'codriver');
@@ -806,6 +950,9 @@
     });
     projected.results = (projected.results || []).map(function (result) {
       delete result.finalityReview;
+      if (result.classOrderReview) result.classOrderReview = {
+        version: result.classOrderReview.version, reviewed: result.classOrderReview.reviewed, digest: result.classOrderReview.digest
+      };
       result.entries = (result.entries || []).map(function (entry) {
         var review = entry.identityReview;
         if (review && (review.driverId || review.codriverId)) {
@@ -1076,7 +1223,7 @@
     });
     (data.results || []).forEach(function (result, i) {
       var label = 'result ' + (i + 1);
-      if (!object(result, label, ['id', 'eventId', 'title', 'status', 'nrRoundId', 'stages', 'source', 'notes', 'entries', 'classMappings', 'classMappingEvidence', 'finalityReview'])) return;
+      if (!object(result, label, ['id', 'eventId', 'title', 'status', 'nrRoundId', 'stages', 'source', 'notes', 'entries', 'classMappings', 'classMappingEvidence', 'finalityReview', 'classOrderReview'])) return;
       id(result.id, label); id(result.eventId, label + ' eventId');
       if (knownResults[result.id]) error(label + ' duplicates result ID ' + result.id + '.');
       knownResults[result.id] = true;
@@ -1143,6 +1290,13 @@
         }
       });
       if (!Array.isArray(result.entries)) { error(label + ' entries must be a list.'); return; }
+      if (Object.prototype.hasOwnProperty.call(result, 'classOrderReview')) {
+        if (object(result.classOrderReview, label + ' class-order review', ['version', 'reviewed', 'digest', 'evidence'])) {
+          text(result.classOrderReview.evidence, label + ' class-order review evidence', true, 1000);
+          var classOrder = rallyeSportClassOrder(result);
+          if (classOrder.status !== 'ready') error(label + ' class-order review is invalid or stale: ' + classOrder.reason);
+        }
+      }
       var cars = Object.create(null), idx = peopleIndex(people);
       result.entries.forEach(function (entry, n) {
         var row = label + ' row ' + (n + 1);
@@ -1695,7 +1849,8 @@
   }
 
   var api = { analyticsContractVersion: 1, validateAnalytics: validateAnalytics,
-    rallyeSportContractVersion: 2, buildRallyeSport: buildRallyeSport, calculateRallyeSportScoring: calculateRallyeSportScoring,
+    rallyeSportContractVersion: 2, rallyeSportClassOrderContractVersion: 1, buildRallyeSport: buildRallyeSport, calculateRallyeSportScoring: calculateRallyeSportScoring,
+    sha256Text: sha256, rallyeSportClassOrderDigest: rallyeSportClassOrderDigest, rallyeSportClassOrder: rallyeSportClassOrder,
     rallyeSportEntryPolicy: rallyeSportEntryPolicy, rallyeSportLaunchRS0: rallyeSportLaunchRS0,
     projectRallyeSport: projectRallyeSport, buildRallyeSportGraph: buildRallyeSportGraph, parseRallyeSportTime: parseRallyeSportTime, copyReviewedRallyeSportTimes: copyReviewedRallyeSportTimes,
     validateRallyeSport: validateRallyeSport,

@@ -31,6 +31,43 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## 2026-11-12: RS reviewed source class positions (pre-push)
+
+- The user approved the compatible validation, display and reviewed R1-R3 publication
+  and authorized a normal push to live. This release contains only static code, tests
+  and documentation. No private Firebase/provider access, provider configuration,
+  source correction or database write is authorized for this session. Reviewed data
+  activation is a separate, user-approved coordinator operation after this code is
+  deployed, with fresh backup, attribution, History and revision preconditions.
+- RS classification and both role profiles display calculated source-class positions
+  only for a complete, explicitly reviewed, exact matching snapshot. A conditional
+  accessible footnote distinguishes them from printed positions and championship
+  scoring; mapped source classes are identified. Ties, unreviewed/changed sources,
+  unsupported categories or contradictory positions are not calculated. Existing
+  printed positions, NR scoring, RS scores, source finality and technical-check notices
+  remain unchanged. No vehicle/model enrichment or R1 broken-source URL change is made.
+- The working `classOrderReview` version 1 stores a SHA-256 source/row snapshot digest
+  and private review evidence; projection publishes only the version, flag and digest.
+  Stale or malformed reviews block admin publication. The digest is an integrity guard,
+  not proof of reviewer identity or source completeness. [Recovery](recovery.md)
+  documents the public source comparison, the R1 stored/working URL distinction and
+  mandatory independent activation review. No existing records are auto-migrated.
+- Targeted synthetic Node suites for RallyeSport, admin logic, display, season readiness,
+  entries and AI import passed 147 tests. Public browser theme, admin-access and RS
+  entry-policy browser suites passed at 320/390/768/1440 px in both themes with
+  intercepted synthetic providers. Runtime syntax and `git diff --check` passed.
+  These checks do not certify live permissions or any future data publication.
+- Keep all four shells on `rs-visual-6`, with matching engine, admin and display files;
+  retire old admin tabs before activating markers. Before any activation, static
+  rollback is to `6e0916b4b4c1e7e114ec7f63932bac4791506f87`. Once markers exist,
+  old admin validators may reject them; restore compatible code or use a separately
+  approved, backed-up audited data migration rather than assuming static rollback
+  removes them. No database restoration is part of this release. The guide edition,
+  analytics behavior and provider configuration are unchanged.
+- Planned destination is `origin/main`, normally and non-force after fresh exact-parent,
+  scope, account and staged-diff checks. Pages build and live static-byte verification
+  are pending until the push; this record is not proof of deployment.
+
 ## 2026-11-12: authorized six-phase display consolidation release (pre-push)
 
 - The user explicitly authorized **"push to live and ill test"** for the completed

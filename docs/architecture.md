@@ -30,8 +30,8 @@ The public NR/RS presentation shares one SPA shell. Home, calendar/round/winner
 overviews, cumulative standings, results, Crews, profiles, Sources and Info now use
 explicit read-only competition adapters and shared presentation.
 The [display consolidation assessment and phase record](display-consolidation-plan.md)
-maps those paths, contracts and migration boundaries. Phases 1-6 are implemented
-locally, not released. Independent scoring/projection models and colour tokens remain.
+maps those paths, contracts and migration boundaries. Phases 1-6 were released;
+independent scoring/projection models and colour tokens remain.
 
 | Part | Files | What it does |
 |---|---|---|
@@ -174,6 +174,13 @@ projection. NR's statistics and histories never consume RS values. RS profile li
 reviewed stable identities and RS-only history across offered seasons. Unresolved crew
 names remain visible without fabricated person links or name-based identity merging.
 Profiles describe source/classified appearances, not inferred championship starts.
+RS classifications and profiles may additionally show a marked calculated class
+position from the printed source-class order when an explicit complete-source review
+matches its versioned SHA-256 snapshot. The engine verifies the public snapshot before
+normalizing crew identities; adapters consume that verified result and preserve printed
+positions. The public digest is an integrity guard, not reviewer authentication.
+Private review evidence is removed by projection; missing or stale reviews never yield
+calculated positions. This display contract does not alter scoring or source finality.
 
 RS contract 2 adds an explicit reviewed 2026 entry-based eligibility policy; absence
 keeps legacy scoring. It bypasses membership/licence/invitation/manual exclusions

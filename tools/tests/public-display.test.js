@@ -302,6 +302,71 @@ test('RS result facts retain source order, independent class-role ranks, printed
   assert.doesNotMatch(JSON.stringify(display), /Do not forward|identityReview|classMappingEvidence/);
   assert.equal(JSON.stringify(model), before);
 });
+test('calculated class positions have an accessible conditional note on classification and profile', () => {
+  const { f } = fixture(), model = build(f), result = model.rallyesport.results[1];
+  const display = P.result(model, 'rs', result.id, 'classification');
+  Object.assign(display.rows[0], { classPos: 2, classPosCalculated: true });
+  const html = C.resultClassification(display);
+  assert.match(html, /aria-describedby="result-class-position-note">2<span aria-hidden="true">\*<\/span>/);
+  assert.match(html, /id="result-class-position-note">.*Calculated.*not a championship scoring rank/);
+  display.rows[0].classPosCalculated = false;
+  assert.doesNotMatch(C.resultClassification(display), /result-class-position-note/);
+
+  const person = P.profile([model], 'rs', result.entries[0].driverId);
+  const app = person.seasons[0].row.apps.find(app => app.eventId === result.eventId);
+  Object.assign(app, { classPos: 2, classPosCalculated: true });
+  const profile = C.profile(person, '', person.seasons.map(season => season.charts.map(() => ''))).html;
+  assert.match(profile, /aria-describedby="profile-class-position-note-0">2<span aria-hidden="true">\*<\/span>/);
+  assert.match(profile, /id="profile-class-position-note-0">.*Source finality and technical-check notices/);
+});
+test('reviewed source class order reaches both roles and classifications without changing scoring', () => {
+  const { f, raw } = fixture();
+  const results = f.data.results.slice(1, 4);
+  results.forEach((result, index) => {
+    result.entries[0].classPos = null;
+    result.entries[1].classPos = null;
+    result.entries[6].classPos = null;
+    result.classMappings = { RS4: 'RS2' };
+    if (index === 0) result.status = 'Provisional classification';
+    if (index === 2) result.notes.push('Results are final pending post-event technical checks');
+    result.classOrderReview = { version: 1, reviewed: true,
+      digest: E.rallyeSportClassOrderDigest(result), evidence: 'Synthetic complete source review' };
+  });
+  const score = E.calculateRallyeSportScoring(f.data, f.season, f.people);
+  const model = freeze(build(f, { R1: raw }));
+  assert.deepEqual(E.calculateRallyeSportScoring(f.data, f.season, f.people), score);
+  for (const result of model.rallyesport.results.slice(1, 4)) {
+    const display = P.result(model, 'rs', result.id, 'classification');
+    for (const [car, position, calculated] of [['1', 1, true], ['2', 2, true], ['3', 3, false],
+      ['7', 1, true], ['8', null, false]]) {
+      const row = display.rows.find(entry => entry.car === car);
+      assert.equal(row.classPos, position);
+      assert.equal(row.classPosCalculated, calculated);
+    }
+    const mapped = display.rows.find(entry => entry.car === '7');
+    assert.equal(mapped.classPosClass, 'RS4');
+    assert.match(C.resultClassification(display), /sheet: RS4/);
+    for (const role of ['driver', 'codriver']) {
+      const person = P.profile([model], 'rs', result.entries[0][role + 'Id']);
+      const app = person.seasons[0].row.apps.find(entry => entry.eventId === result.eventId);
+      assert.equal(app.classPos, 1);
+      assert.equal(app.classPosCalculated, true);
+    }
+    const mappedProfile = P.profile([model], 'rs', result.entries[6].driverId);
+    const mappedApp = mappedProfile.seasons[0].row.apps.find(entry => entry.eventId === result.eventId);
+    assert.equal(mappedApp.classPosClass, 'RS4');
+    assert.match(C.profile(mappedProfile, '', mappedProfile.seasons.map(season => season.charts.map(() => ''))).html,
+      /sheet: RS4/);
+  }
+  assert.equal(P.result(model, 'rs', model.rallyesport.results[1].id, 'classification').state, 'Provisional classification');
+  assert.equal(P.result(model, 'rs', model.rallyesport.results[3].id, 'classification').state, 'Pending technical checks');
+  const nr = P.result(model, 'nr', model.rounds[0].id, 'classification');
+  assert.ok(nr.rows.every(row => !row.classPosCalculated));
+
+  f.data.results[1].entries[0].pos = 2;
+  const stale = build(f);
+  assert.equal(P.result(stale, 'rs', stale.rallyesport.results[1].id, 'classification').rows[0].classPos, null);
+});
 test('shared result shell, classification, filters and both stage tables have identical common markup', () => {
   const { f, raw } = fixture(), source = f.data.results[1];
   raw.stages = source.stages.map(stage => stage.label || stage.id);

@@ -53,7 +53,7 @@
   }
 
   /* ------------------------------------------------------------------ state: the working copy of /data */
-  function newState() { return { mode: null, user: null, docs: {}, bins: {}, meta: {}, rev: null, admins: null, empty: false, photoCache: {}, dropPublic: [], year: null, open: {}, imp: null, history: null, lastCommit: null }; }
+  function newState() { return { mode: null, user: null, docs: {}, bins: {}, meta: {}, rev: null, admins: null, empty: false, photoCache: {}, dropPublic: [], year: null, open: {}, imp: null, history: null, lastCommit: null, rsClassOrderDrafts: {} }; }
   var A = newState(), sessionVersion = 0;
   function clearSession() { sessionVersion++; A = newState(); }
   function checkSession(version, user) {
@@ -102,7 +102,9 @@
       return 'Analytics scripts are missing or out of date. Refresh this page with Ctrl+Shift+R before restoring or publishing; nothing has been published.';
     }
     if (E.rallyeSportContractVersion !== 2 || typeof E.validateRallyeSport !== 'function' || typeof E.projectRallyeSport !== 'function' ||
-      typeof E.rallyeSportEntryPolicy !== 'function' || typeof E.rallyeSportLaunchRS0 !== 'function') {
+      typeof E.rallyeSportEntryPolicy !== 'function' || typeof E.rallyeSportLaunchRS0 !== 'function' ||
+      E.rallyeSportClassOrderContractVersion !== 1 || typeof E.rallyeSportClassOrder !== 'function' ||
+      typeof E.rallyeSportClassOrderDigest !== 'function') {
       return 'RallyeSport scripts are missing or out of date. Refresh this page with Ctrl+Shift+R before restoring or publishing; nothing has been published.';
     }
     if (!E || E.rallyNoticeContractVersion !== 1 || typeof E.validateActiveRally !== 'function' || typeof E.nrcDestination !== 'function') {
@@ -1745,6 +1747,9 @@
       var stages = result ? result.stages || [] : [];
       var nrRaw = result && result.nrRoundId ? rawRound(result.nrRoundId, A.year) : null;
       var scoreRow = result && (scoring.results || []).filter(function (row) { return row.resultId === result.id; })[0];
+      var reviewKey = A.year + ':' + (result && result.id), reviewDraft = A.rsClassOrderDrafts[reviewKey];
+      if (reviewDraft === undefined) reviewDraft = result && result.classOrderReview && result.classOrderReview.evidence || '';
+      var classOrder = result && typeof E.rallyeSportClassOrder === 'function' ? E.rallyeSportClassOrder(result) : { status: 'unavailable', reason: 'Engine needs refresh.' };
       var sourceCategories = Object.create(null);
       (result && result.entries || []).forEach(function (entry) {
         var category = String(entry['class'] || '').replace(/\s+/g, '').toUpperCase();
@@ -1797,7 +1802,28 @@
           fld('Source file/title', input(function (v) { result.source.file = v; }, result.source.file || '', 'maxlength="200"')) +
           fld('Source description', input(function (v) { result.source.description = v; }, result.source.description || '', 'maxlength="1000"'), 'For an attached/private source without a public URL, identify the document without entering a local path.') +
           fld('Official source URL', input(function (v) { result.source.url = v; }, result.source.url || '', 'type="url" maxlength="2000"'), 'HTTPS source for this exact classification.', 'span2') +
-          '</div><div class="form-grid">' +
+          '</div><h4>Source class-order review</h4><p class="small">Examine the complete classification and every source row, including printed classes, statuses and positions. This permits display-only class positions, not scoring or a change to source finality. Source or row edits invalidate the review. Evidence is private; an amended source may be identified here without changing the stored URL.</p>' +
+          '<p class="small" id="rsClassOrderStatus">' + esc(classOrder.status === 'ready' ? 'Reviewed snapshot matches.' : classOrder.reason) + '</p>' +
+          fld('Private source examination evidence', area(function (v) { A.rsClassOrderDrafts[reviewKey] = v; }, reviewDraft, 'rows="2" maxlength="1000" id="rsClassOrderEvidence"'), 'Identify the examined source and completeness evidence; do not include private competitor data.') +
+          '<div class="actions">' + btn(function () {
+            requireEntryContract();
+            var evidence = A.rsClassOrderDrafts[reviewKey];
+            if (evidence === undefined) evidence = reviewDraft;
+            if (typeof evidence !== 'string' || !evidence.trim() || evidence.length > 1000 || /[\u0000-\u001f\u007f]/.test(evidence)) throw new Error('Provide private source examination evidence before confirming.');
+            var digest = E.rallyeSportClassOrderDigest(result);
+            var candidate = { version: 1, reviewed: true, digest: digest, evidence: evidence };
+            var checked = E.rallyeSportClassOrder(Object.assign({}, result, { classOrderReview: candidate }));
+            if (checked.status !== 'ready') throw new Error('Cannot review this class order: ' + checked.reason);
+            if (!window.confirm('I examined the complete source and every classification row, including printed class, status and positions. Confirm this exact source and row snapshot?')) return;
+            result.classOrderReview = candidate;
+            delete A.rsClassOrderDrafts[reviewKey];
+            render();
+          }, 'Confirm complete source examination', 'tiny', 'id="rsClassOrderConfirm"') +
+          (result.classOrderReview !== undefined ? btn(function () {
+            delete result.classOrderReview;
+            delete A.rsClassOrderDrafts[reviewKey];
+            render();
+          }, 'Remove class-order review', 'tiny ghost', 'id="rsClassOrderRemove"') : '') + '</div><div class="form-grid">' +
           (Object.keys(sourceCategories).length ? Object.keys(sourceCategories).map(function (category) {
             return fld('Scoring class for printed ' + esc(sourceCategories[category]), select(function (v) {
               result.classMappings = result.classMappings || {};

@@ -631,6 +631,23 @@ Navigation, revised RS entry-policy public/admin, AI Import and admin access bro
 suites also pass with synthetic intercepted data. No live provider or Firebase
 requests/writes are part of these checks.
 
+For calculated RS source-class positions, test the reviewed snapshot contract with
+synthetic results only. Exercise source and row edits, incomplete reviews, printed versus
+calculated positions, ties, missing or ambiguous source categories, DNS/DNF and
+conflicting official positions. Check the same value and accessible conditional
+explanation in result classification and profile history without using points or
+role-specific eligibility. A provisional source and a final source pending technical
+checks must retain their original notices. Responsive checks must cover both themes
+and narrow and wide layouts. Absence of review must preserve legacy unavailable states.
+The targeted Node suites exercise the canonical SHA-256 vectors, private-evidence
+projection, source/row invalidation, both roles and three independently reviewed
+synthetic rounds, mapped classes, printed positions, missing/non-classified rows,
+legacy snapshots and unchanged scoring. The public browser runner checks described-by
+footnotes in both role profiles and classifications at 320/390/768/1440 px, light and
+dark. The RS admin browser runner confirms the explicit review, then changes a source
+and verifies the stale-review publication error before removing it. All data and
+provider responses in these runners are synthetic.
+
 Synthetic RS identity regressions exercise private role review through public projection
 and model construction, checking distinct role IDs, unchanged printed names, omitted
 private evidence and unchanged NR results. Started-DNF regressions verify zero points

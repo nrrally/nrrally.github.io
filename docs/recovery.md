@@ -80,10 +80,51 @@ A separate RS profile report was checked read-only on the live public site. The 
 R1-R3 Class pos values are unavailable, and the same entries' public event classification
 tables also render Class pos as `—`. The shared profile adapter copies `entry.classPos`
 from each public result, and the classification renderer consumes that same source-backed
-field; it does not drop a published position. No fallback or scoring-rank derivation is
-appropriate. Correcting this requires verified source positions and a separately
-authorized, reviewed data publication; this release does not access or modify Firebase.
-See the release ledger for scope and evidence.
+field; it does not drop a published position. The official sheets do not print separate
+class positions. A calculated source-class order must be distinguished from a printed
+position and from role-specific championship scoring, and requires a review tied to
+the exact source and classification snapshot. NR's existing engine already calculates
+class order within its scored NR class; the RS gap reflects different data paths, not
+an inherent inability to calculate from RS sources. The reviewed-snapshot guard is
+an additional requirement for this approved RS display and is not an existing NR
+per-result attestation.
+
+RS car numbers and vehicle descriptions are separate source fields. Empty RS `vehicle`
+means the make/model was not recorded even when the independent RS source sheet
+prints it; it does not mean the numbered car is unknown. The existing explicit NR
+reuse operation copies reviewed stage times only, not vehicles. Source-backed vehicle
+correction or a separately reviewed vehicle-copy workflow is outside this change.
+
+The user approved compatible validation and reviewed R1-R3 publication, but this code
+work must not access private provider data or perform the activation. The coordinator
+must separately obtain a fresh private backup and use the audited Review & publish
+workflow with current revision/preconditions and user attribution, after deploying and
+verifying compatible code. Retire old admin tabs before any review or publication.
+Review every source and public row, including statuses and categories; do not infer
+completeness from contiguous positions. Preserve all printed
+finality and technical-check notices, and do not change scoring.
+
+Public source checks found the following source-identity complication: the current
+R1 source URL ending `ClubProvisionalv2.pdf` returns 404; the Sportity noticeboard's
+amended provisional source uses `ClubProvisonalv2.pdf`. Its order differs from the
+earlier signed final source. Do not silently substitute either source or promote R1's
+finality. For R1, a review without source correction must explicitly record the working
+noticeboard document and the broken stored URL discrepancy in private review evidence;
+the snapshot must bind the actual unchanged stored URL, not pretend it is the working
+URL. If the stored URL changes later, the review must be renewed. R2's official sheet
+is final; R3's final sheet explicitly remains pending post-event technical checks.
+Source URL correction is a separately reviewed data change and is not included here.
+Evidence: [R1 noticeboard and amended provisional](https://webapp.sportity.com/event/NRC2026/119aa2b0-25f8-4ac1-b221-ae2a9509e91e),
+[R2 source](https://nrcsa.co.za/uploads/public-results/public-results-1787478941259-f0617396e5b52c62.pdf),
+and [R3 source](https://nrcsa.co.za/uploads/public-results/public-results-1793517444397-32a5c67c5b92d1f1.pdf).
+The R2 sheet reports 14 classified and six non-classified; R3 reports 16 and three.
+These counts are source evidence to reconcile, not a generic completeness heuristic.
+The R1 amended provisional has 12 classified and four DNF rows. Anonymous read-only
+comparison of all three current published snapshots against those exact sheets matched
+every car number, printed class, overall position and DNF/DNS status: 16, 20 and 19
+rows respectively. This finding is limited to that public snapshot and those fields;
+the activating reviewer must repeat the comparison against the then-current working
+and public data, document their own complete-source examination, and stop on drift.
 
 #### Historical phase 5 checkpoint
 

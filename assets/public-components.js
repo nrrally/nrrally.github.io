@@ -20,6 +20,16 @@
     return row.starts == null ? 'Rounds started unavailable' : row.starts + ' round' + (row.starts === 1 ? '' : 's') + ' started';
   }
   function value(number) { return number == null ? '—' : esc(number); }
+  function classPosition(row, noteId) {
+    return row.classPosCalculated ? '<span aria-describedby="' + esc(noteId) + '">' +
+      value(row.classPos) + '<span aria-hidden="true">*</span>' +
+      (row.classPosClass ? ' <span class="small muted">(sheet: ' + esc(row.classPosClass) + ')</span>' : '') +
+      '</span>' : value(row.classPos);
+  }
+  function classPositionNote(id) {
+    return '<p class="small muted" id="' + esc(id) +
+      '">* Calculated from the reviewed source classification’s overall order within its printed class; not a championship scoring rank. Source finality and technical-check notices still apply.</p>';
+  }
   function homePerson(row) {
     return '<a href="' + esc(row.href) + '"' +
       (row.ineligible ? ' aria-describedby="home-eligibility-note"' : '') + '>' + esc(row.name) + '</a>' +
@@ -335,9 +345,11 @@
           '<td class="num mono result-total rs-result-total" data-label="Official total"><b>' + esc(row.total) + '</b></td>' +
           '<td class="num mono result-gap" data-label="Diff 1st">' + esc(row.gap) + '</td>' +
           '<td class="num mono result-previous" data-label="Diff prev">' + esc(row.previousGap) + '</td>' +
-          '<td class="num result-classpos" data-label="Class pos">' + value(row.classPos) + '</td>' +
+          '<td class="num result-classpos" data-label="Class pos">' + classPosition(row, 'result-class-position-note') + '</td>' +
           '<td class="num result-points rs-result-points" data-label="Championship pts">' + resultPoints(row.points) + '</td></tr>';
-      }).join('') + '</tbody></table></div><p class="small muted">' + esc(display.scoringBasis) +
+      }).join('') + '</tbody></table></div>' +
+      (display.rows.some(function (row) { return row.classPosCalculated; }) ? classPositionNote('result-class-position-note') : '') +
+      '<p class="small muted">' + esc(display.scoringBasis) +
       ' Official finish is separate from each person’s championship scoring. Missing times, stage counts and awards remain unavailable.</p>' +
       (display.awards.length ? '<details class="notes result-scoring-order rs-scoring-order"><summary>Championship scoring order</summary>' +
       '<p class="small muted">' + esc(display.scoringBasis) + '</p><div class="table-wrap"><table class="data"><thead><tr>' +
@@ -530,10 +542,11 @@
               '<span class="note-mark" title="' + esc(app.note) + '">*</span>' : '') +
             '</td><td>' + resultPerson({ name: app.partner || '—', href: app.partnerHref }) + '</td><td>' + esc(app.vehicle || 'Not recorded') +
             '</td><td>' + classes({ classes: app.cls ? [app.cls] : [] }) + '</td><td>' + esc(app.scoring) +
-            '</td><td>' + value(app.pos) + ' · ' + esc(app.status) + '</td><td>' + value(app.classPos) + '</td><td>' +
+            '</td><td>' + value(app.pos) + ' · ' + esc(app.status) + '</td><td>' + classPosition(app, 'profile-class-position-note-' + index) + '</td><td>' +
             (app.championship ? value(app.points) : 'Non-scoring event') + '</td><td>' +
             (app.graphHref ? link(app.graphHref, 'Graph →', 'go') : '—') + '</td></tr>';
-        }).join('') + '</tbody></table></div>' : '') + '</div>';
+        }).join('') + '</tbody></table></div>' +
+        (row.apps.some(function (app) { return app.classPosCalculated; }) ? classPositionNote('profile-class-position-note-' + index) : '') : '') + '</div>';
     });
     if (!display.seasons.length) html += '<div class="card empty">No published history for this competitor.</div>';
     if (display.note) html += '<p class="small muted">' + esc(display.note) + '</p>';
