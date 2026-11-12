@@ -31,7 +31,41 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
-## Source-authoritative participation (authorized release, pre-push)
+## Source-authoritative participation deployment and activation (documentation follow-up)
+
+- Runtime `a0efbecd33eb382010c54680674195fbb37eecd2` deployed by guarded normal
+  main push. Pages built that exact revision; canonical bytes of all four shells,
+  seven changed runtime/style assets and seven affected documents matched Git.
+  Cache coordination is `rs-visual-11`.
+- Anonymous actual-live checks passed all eleven NR/RS classifications, expanded
+  source notes, both-role Home/standings/profiles and Crews at 390/1440 px,
+  light/dark: exact source-status starts, no superseded participation warnings,
+  unchanged printed statuses and no overflow/errors. Valid legacy scoring remained
+  continuously available before the separate data activation.
+- The coordinator reports completed activation after confirmation that Admin tabs
+  were closed: fresh protected full baseline/precommit backups, repeated complete
+  inventory/version guards, isolated candidate/rehearsal and one atomic guarded
+  working-season/public-season/revision/attributed
+  **GitHub Copilot (direct Firebase)** History transaction. Complete protected
+  readback and the anonymous public endpoint matched the reviewed candidate.
+  Existing private policy evidence was retained with the user mandate appended;
+  public change was exactly the source-status basis plus six eligible DNF role
+  awards from null to zero. Private/public scoring matched. No source rows,
+  statuses, observations, notes, existing review digests, NR data, cumulative RS
+  tables/ranks or readiness changed. No DNS overrides were ever activated.
+- The coordinator's live read-only mobile/desktop checks confirmed exact start
+  counts, printed DNF retained with zero championship points and no warnings.
+  This coding session independently compared the entire anonymous public bundle
+  to its preserved baseline: only the basis and six awards changed; NR model
+  standings and exact source-derived RS starts remained consistent.
+- This authorized follow-up records deployment/recovery only; no runtime, scoring,
+  source data, guide edition, analytics or provider configuration changes.
+  It does not authorize or perform a data write. The code-first recovery and
+  compatible rollback requirements below still apply. Before deploying older
+  incompatible code, restore the paired working/public backup through a separately
+  authorized audited guarded rollback; a Git-only rollback is insufficient.
+
+## Source-authoritative participation (deployed compatible code)
 
 - The user explicitly superseded missing-observation warnings and the proposed
   reviewed-DNS correction: display the official source classification, not an
@@ -77,7 +111,8 @@ must be addressed; there is no automation that can infer approvals or certify pr
   Four shells use `rs-visual-11`; retire old admin tabs before data activation.
   No guide edition, analytics, provider configuration, source URL or vehicle change.
   Before activation, static rollback is `504eeb7dd924fca8de7c72052e2f687abadc7991`.
-  After activation, preserve compatible code or separately authorize audited data
+  After activation, preserve compatible code. Before deploying older incompatible
+  code, separately authorize an audited guarded paired working/public data
   rollback; public Git cannot restore private data/evidence.
 
 ## Public participation diagnostics and RS known starts (superseded release)

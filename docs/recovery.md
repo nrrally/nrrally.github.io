@@ -11,7 +11,7 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
-### Source-authoritative participation (authorized compatible release)
+### Source-authoritative participation (deployed; activation verified by coordinator)
 
 The user's superseding instruction treats official classified/DNF as started and
 DNS as not started, rather than policing whether a no-time DNF should have been DNS.
@@ -47,9 +47,30 @@ unchanged threshold; fresh private controls must still be independently compared
 
 All four shells coordinate `rs-visual-11`. Reload existing tabs. Before activation,
 static rollback to `504eeb7dd924fca8de7c72052e2f687abadc7991` restores diagnostics,
-not the user's current direction. After activation, rollback also needs separately
-authorized audited data rollback or compatible scoring code; Git does not restore
-private evidence/data. See the release ledger for actual deployment status.
+not the user's current direction. Activation is now complete. Retain compatible
+scoring code; before deploying older incompatible code, restore the paired
+working/public backup through a separately authorized audited guarded rollback.
+Git does not restore private evidence/data.
+Runtime `a0efbecd33eb382010c54680674195fbb37eecd2` is deployed: exact Pages SHA
+and canonical shell/runtime/document bytes matched. Anonymous actual-live checks
+confirmed both-context/role starts and all eleven classifications, expanded notes
+without superseded warnings, unchanged printed statuses and retained legacy
+standings at 390/1440 px, light/dark, without overflow/errors.
+
+The coordinator reports completed activation with Admin tabs closed, fresh
+protected baseline/precommit backups, repeated full inventory/version guards,
+isolated reviewed candidate/rehearsal and one atomic working/public/revision/
+attributed **GitHub Copilot (direct Firebase)** History transaction. Protected
+complete readback and the public endpoint matched. The existing private policy
+evidence retained its text with the user mandate appended. Public change was
+exactly `source-status-v1` plus six eligible DNF role awards from null to zero;
+private/public scoring matched. Source records/notes, current-finality/class-order
+digests, NR data and cumulative RS standings/readiness were unchanged. No DNS
+overrides were activated. Coordinator live checks confirmed exact starts,
+printed DNF with zero championship points and no superseded warning. This coding
+session's independent anonymous whole-bundle comparison confirmed the exact
+limited diff and unchanged NR standings. Detailed private evidence remains in the
+protected recovery package, not Git.
 
 ### Participation diagnostics and RS known-start preservation (superseded release)
 
