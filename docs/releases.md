@@ -31,6 +31,58 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## Public participation diagnostics and RS known starts (authorized; pre-push)
+
+- Investigation reproduced the actual published mismatch: two classified
+  championship appearances and one no-observation DNF yielded a missing aggregate.
+  `rsRoundsStarted` discarded the known count if any DNF was unresolved;
+  `directoryStarts` repeated this, and profile aggregation propagated the null.
+  Published round points were independent and remained visible. Previous unit/browser
+  tests explicitly asserted the all-or-nothing behavior; shared rendering could not
+  recover facts the adapters had discarded.
+- One shared `rsStartFacts` now preserves the known count plus lower-bound flag for
+  Home, standings, Crews and profiles. Positive lower bounds show `2+`/accessible
+  "At least 2 rounds started"; exact counts remain plain and uncertain-only inputs
+  stay unavailable. Role/round deduplication, cross-role Crews scope, profile role-round
+  scope, launch/DNS exclusions and legacy role exclusions are preserved. No scoring,
+  engine, schema, projector, source data, provider, guide edition or analytics change.
+  NR's existing credited non-DNS starts remain unchanged; they use different
+  historical semantics, not an independent RS start-evidence check.
+- Anonymous read-only live pages reproduced the former aggregate bug before coding.
+  Complete public evidence/inventory remains outside Git; no actual records,
+  identities or capture data were added as fixtures.
+- The user authorized releasing the combined generic discrepancy diagnostic and
+  lower-bound correction. Shared NR/RS native red `!` disclosures identify printed
+  DNFs without public start observations in classification/history and affected
+  aggregate starts. Timed/evidenced DNF, valid zero observations and DNS are not
+  flagged; launch remains event-only. Original statuses and NR credited scoring
+  stay unchanged. No timing absence is treated as DNS.
+- Audit covered every advertised published season (currently one): 11 classifications,
+  195 crew records / 390 role records, 54 DNFs. Twelve lack published observations:
+  eight NR, four RS including launch, affecting 20 identities. The remaining 42
+  have times. Eight inspected official PDFs support the eleven championship records'
+  DNF/zero-stage/blank-observation representation; the launch has no public source
+  URL. No definitive DNS or source/public status inconsistency was established.
+  Complete public evidence/inventory remains outside Git; no personal fixtures added.
+- Existing RS projection strips private positive-start evidence. The public warning
+  means unresolved public evidence, not proof of no start or incorrect scoring.
+  A reviewed-no-start contract and exact role/result scope were proposed separately;
+  no schema/admin/projector/scoring or data activation is bundled in this release.
+  Conversation confirmation does not silently rewrite rows or extend to partners.
+- Targeted display/scoring/import/admin-logic suites passed 123 tests.
+  `site-theme-e2e.js` and `rs-entry-policy-e2e.js` passed at 320/390/768/1440 px,
+  light/dark. Actual anonymous-data local-runtime checks passed all 11 classifications,
+  exactly 12 generic flags, both-context driver/co-driver aggregate tables, Crews
+  and every affected identity's history. Home/profile/Crews/standings preserve the
+  known lower bound at 390/1440 px in both themes; native disclosures support
+  Enter/Space without page overflow. Published inputs/scoring stayed unchanged.
+  All writes, non-public requests and analytics were blocked.
+  Four shells coordinate `rs-visual-10`;
+  deploy with matching shared display scripts/styles after fresh
+  main/account/scope checks. Static rollback to current documentation baseline
+  `796c19ea49e4555c645aa2b8664ca24541ea35bc` needs no database restoration.
+  Existing open tabs require reload. Exact live release verification remains pending.
+
 ## Resolved classification finality display (deployed)
 
 - The user explicitly confirmed technical checks completed and requested ordinary

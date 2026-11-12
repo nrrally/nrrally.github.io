@@ -251,6 +251,18 @@ contexts use the same empty state. With results, event/stage counts include
 non-scoring RS events, but championship round/driver figures exclude them; native
 scoring notes explain the scope. NR's credited starts and RS's evidence-based role
 starts remain distinct facts presented in the same field.
+
+RS Home, standings, Crews and profile start totals share `rsStartFacts` in
+`public-model.js`. It retains a count and lower-bound flag rather than discarding
+known starts when another appearance is uncertain. Classified rows and evidenced
+DNFs establish starts; DNS and launch do not. Role counts deduplicate championship
+events per role; Crews deduplicates across roles, while profile totals retain their
+documented role-round scope. `2+` (accessible "At least 2 rounds started") means two
+proven starts with other unresolved appearances, not a guessed exact total.
+An uncertain-only history stays unavailable. Scoring snapshots are not start evidence;
+zero or positive points are never used as a start proxy. NR credited-start semantics
+and legacy role exclusions are unchanged.
+
 Missing-round cards/pages use strict date-only dates compared with South African UTC+02:00
 calendar days; scheduled-today/past-awaiting-results are not live-event assertions.
 Missing entry summaries are suppressed, while evidenced complete zero, partial counts and
@@ -408,3 +420,18 @@ Everything else works on plain JSON documents and doesn't change. The data model
 For complete file/contract inventory, deployment/recovery and maintenance invariants start
 with [recovery.md](recovery.md). Update this architecture and affected docs/release records
 before every push that changes their described behavior.
+### Public participation diagnostics
+
+The shared read-only adapter flags a printed DNF when its public row has no stage
+time, stage position, positive NR completed-stage count or explicit start evidence.
+Zero is a valid observation; zero points are not start evidence. A native red `!`
+disclosure explains uncertainty on classifications, profile history and affected
+Home/standings/Crews start aggregates. It never rewrites DNF to DNS. Launch issues
+remain in event/history views, not championship aggregates. NR historical credits
+are unchanged and explicitly distinguished from observation-backed starts.
+
+The existing RS projector removes private positive-start evidence; absent public
+observations cannot establish either DNS or a scoring error. This release adds no
+review marker, schema, admin input, projection or scoring change. A source-preserving
+reviewed-participation contract and its role/result scope require separate review
+before compatible code and an authorized backed-up, attributed data activation.

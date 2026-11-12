@@ -596,3 +596,13 @@ a.doc:hover { border-color: var(--line-2); color: inherit; }
   .season-sel select { padding: 6px 26px 6px 10px; font-size: 13px; }
 }
 @media (max-width: 760px) { .season-sel, .season-pill { order: 1; } .display-controls { order: 2; margin-inline-start:auto; } }
+.participation-alert{display:inline-block;position:relative;vertical-align:middle;text-align:left;white-space:normal;max-width:100%;margin-left:.35rem;font-size:.8rem}
+.participation-alert>summary{display:inline-flex;align-items:center;justify-content:center;min-width:24px;min-height:24px;border:2px solid currentColor;border-radius:50%;color:var(--participation-ink,#b42318);font-weight:800;cursor:pointer;list-style:none}
+.participation-alert>summary::-webkit-details-marker{display:none}
+.participation-alert>summary:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.participation-alert .participation-explanation{position:relative;width:min(22rem,65vw);max-width:100%;padding:.6rem;white-space:normal;overflow-wrap:anywhere;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px;font-weight:normal;line-height:1.5}
+.participation-explanation p{margin:.2rem 0 .6rem}
+.leader .who:has(.participation-alert[open]){overflow:visible}
+.leader .who .participation-explanation{white-space:normal;overflow:visible;text-overflow:clip}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--participation-ink:#ff9b94}}
+:root[data-theme="dark"]{--participation-ink:#ff9b94}

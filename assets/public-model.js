@@ -6,9 +6,10 @@
   /**
    * Home rows use stable identity/role, published rank, points, classes, starts and
    * round contributions. A numeric zero is known; null is unavailable, never zero.
+   * startsLowerBound preserves established starts when other appearances are unresolved.
    * Adapters own sporting interpretation; components own wording and markup.
    * @typedef {{id:string,name:string,rank:number|null,points:number|null,
-   * classes:string[],starts:number|null,qualifier:string,ineligible:boolean,
+   * classes:string[],starts:number|null,startsLowerBound:boolean,qualifier:string,ineligible:boolean,
    * href:string,bars:Array<{label:string,points:number|null,status:string}>}} HomeRow
    * @typedef {{available:boolean,provisional:boolean,basis:string,reason:string,scope:string}} HomeScoring
    * @typedef {{rounds:number|null,listedRounds:number|null,events:number|null,
@@ -32,6 +33,36 @@
       (entry && entry.times || []).some(function (value) { return value != null && value !== ''; }) ||
       (entry && entry.stagePos || []).some(function (value) { return value != null && value !== ''; });
   }
+  function participationIssue(entry, mode) {
+    if (!entry || entry.status !== 'DNF' || hasStartEvidence(entry) ||
+      mode === 'nr' && Number(entry.stagesCompleted == null ? entry.stages : entry.stagesCompleted) > 0) return '';
+    return 'Source says DNF, but the public record contains no stage observation or start confirmation. ' +
+      'It could be DNS or retirement before the first recorded time; participation is unresolved.' +
+      (mode === 'nr' ? ' NR championship credits are unchanged.' : '');
+  }
+  function participationIssues(model, mode, id, role) {
+    if (!id) return [];
+    var issues = [], results = mode === 'nr' ? model.rounds : model.rallyesport.results;
+    results.forEach(function (result) {
+      var event = mode === 'rs' && model.rallyesport.events.filter(function (event) { return event.id === result.eventId; })[0];
+      if (mode === 'rs' && (!event || event.countsForChampionship === false)) return;
+      result.entries.forEach(function (entry) {
+        if (!['driver', 'codriver'].some(function (key) {
+          if (role && role !== key) return false;
+          if (mode !== 'nr') return entry[key + 'Id'] === id;
+          return (!role && entry[key + 'Id'] === id) ||
+            !(key === 'codriver' && entry.noCreditCodriver) &&
+            entry[key === 'driver' ? 'champDriverId' : 'champCodriverId'] === id;
+        })) return;
+        var message = participationIssue(entry, mode);
+        if (message) issues.push({ label: (mode === 'nr' ? 'R' + result.n :
+          (event.roundNumber == null ? '' : 'R' + event.roundNumber + ' · ') + event.name) +
+          ' · #' + entry.car, message: message,
+          href: href(model.year, mode, (mode === 'nr' ? '/round/' : '/rallyesport/') + encodeURIComponent(result.id) + '/classification') });
+      });
+    });
+    return issues;
+  }
   function rsAppearances(model, id, includeUnresolved) {
     var all = [], rs = model.rallyesport;
     rs.results.forEach(function (result) {
@@ -54,15 +85,24 @@
     });
     return all;
   }
-  function rsRoundsStarted(model, id, role) {
+  /** Optional role selects role-round starts; omitted role deduplicates all crew roles. */
+  function rsStartFacts(model, id, role) {
+    if (!id) return { count: null, lowerBound: false };
     var started = Object.create(null), uncertain = Object.create(null);
     rsAppearances(model, id, true).forEach(function (appearance) {
-      if (!appearance.championshipRound || appearance.role !== role) return;
-      var resultId = appearance.result.id, entry = appearance.entry;
-      if (entry.status === 'classified' || entry.status === 'DNF' && hasStartEvidence(entry)) started[resultId] = true;
-      else if (entry.status === 'DNF') uncertain[resultId] = true;
+      if (!appearance.championshipRound || role && appearance.role !== role) return;
+      var roundId = appearance.result.eventId, entry = appearance.entry;
+      if (entry.status === 'classified' || entry.status === 'DNF' && hasStartEvidence(entry)) started[roundId] = true;
+      // Legacy TEST is excluded from role starts, not evidence of an exact crew total.
+      else if (entry.status === 'DNF' || !role && entry.status !== 'DNS') uncertain[roundId] = true;
     });
-    return Object.keys(uncertain).some(function (id) { return !started[id]; }) ? null : Object.keys(started).length;
+    var lowerBound = Object.keys(uncertain).some(function (roundId) { return !started[roundId]; });
+    var count = Object.keys(started).length;
+    return { count: lowerBound && !count ? null : count, lowerBound: lowerBound };
+  }
+  function rsRoundsStarted(model, id, role) {
+    // This count is a minimum when rsStartFacts reports unresolved appearances.
+    return rsStartFacts(model, id, role).count;
   }
   function rsPersonRoundPoints(model, id, role, cls) {
     var points = Object.create(null);
@@ -101,9 +141,10 @@
       reason: pending.length ? 'Awaiting championship confirmation: ' + pending.map(function (round) { return 'R' + round.n; }).join(', ') + '.' : '',
       scope: 'Starts include recorded championship credits. Entries and DNS do not create starts.'
     };
-    function row(raw, rank) {
+    function row(raw, rank, role) {
       return { id: raw.id, name: raw.name, rank: rank == null ? raw.rank : rank,
-        points: raw.total, classes: raw.cls ? [raw.cls] : [], starts: raw.starts,
+        points: raw.total, classes: raw.cls ? [raw.cls] : [], starts: raw.starts, startsLowerBound: false,
+        startIssues: participationIssues(model, 'nr', raw.id, role),
         qualifier: raw.eligible ? 'Eligible' : 'Minimum starts not met',
         ineligible: raw.eligible === false,
         href: href(model.year, 'nr', '/person/' + encodeURIComponent(raw.id)),
@@ -117,15 +158,15 @@
       return rows.some(function (value) { return value.ineligible; }) ?
         '* Minimum starts not met.' : '';
     }
-    home.drivers = model.standings.drivers.map(function (raw) { return row(raw); });
-    home.codrivers = model.standings.codrivers.map(function (raw) { return row(raw); });
+    home.drivers = model.standings.drivers.map(function (raw) { return row(raw, null, 'driver'); });
+    home.codrivers = model.standings.codrivers.map(function (raw) { return row(raw, null, 'codriver'); });
     home.classes = model.classes.filter(function (cls) {
       return !cls.classOnly || model.standings.drivers.some(function (raw) { return raw.cls === cls.id; });
     }).map(function (cls) {
       return { id: cls.id, basis: 'Overall standings filtered by class.',
         href: href(model.year, 'nr', '/standings', { 'class': cls.id }),
         rows: model.standings.drivers.filter(function (raw) { return raw.cls === cls.id; })
-          .map(function (raw, i) { return row(raw, i + 1); }) };
+          .map(function (raw, i) { return row(raw, i + 1, 'driver'); }) };
     });
     home.ineligibleNote = eligibilityNote(home.drivers.slice(0, 5).concat(home.drivers.filter(function (row) {
       return row.rank === 1;
@@ -161,9 +202,10 @@
       var hasRound = rsAppearances(model, raw.id, true).some(function (appearance) {
         return appearance.championshipRound && appearance.role === role;
       });
-      var points = rsPersonRoundPoints(model, raw.id, role);
+      var points = rsPersonRoundPoints(model, raw.id, role), starts = rsStartFacts(model, raw.id, role);
       return { id: raw.id, name: raw.name, rank: raw.rank, points: raw.points, classes: classes,
-        starts: hasRound ? rsRoundsStarted(model, raw.id, role) : null,
+        starts: hasRound ? starts.count : null, startsLowerBound: hasRound && starts.lowerBound,
+        startIssues: participationIssues(model, 'rs', raw.id, role),
         qualifier: raw.eligibilityStatus === 'eligible' ? 'Eligible' : 'Scoring status unavailable',
         ineligible: raw.eligibilityStatus != null && raw.eligibilityStatus !== 'eligible',
         href: href(model.year, 'rs', '/person/' + encodeURIComponent(raw.id)),
@@ -508,7 +550,9 @@
             var value = raw.rounds[round.id];
             if (value) row.classPoints += value.c;
             return cell(value, 'No recorded championship start', value && (value.status === 'DNF' ? 'DNF' : value.o + '+' + value.c),
-              value && (value.status === 'DNF' ? 'DNF (started, 0 points)' +
+              value && (value.status === 'DNF' ? (row.startIssues.some(function (issue) {
+                return issue.href === href(model.year, mode, '/round/' + encodeURIComponent(round.id) + '/classification');
+              }) ? 'DNF (NR credited round; start evidence unresolved)' : 'DNF (started, 0 points)') +
                 (value.msaOnly ? ' — start recorded by MSA; car not on the sheet' : '') :
                 value.pos + ' overall (' + value.o + ') + ' + value.classPos + ' in ' + value.cls + ' (' + value.c + ') · car ' + value.car));
           });
@@ -545,10 +589,12 @@
         var appearances = known ? [] : rsAppearances(model, raw.id, true);
         var byRound = rsPersonRoundPoints(model, raw.id, role, display.selectedClass);
         var overallRow = overall.filter(function (row) { return row.id === raw.id; })[0];
+        var starts = rsStartFacts(model, raw.id, role);
+        var hasRound = appearances.some(function (item) { return item.championshipRound && item.role === role; });
         var row = Object.assign({}, known || {
           id: raw.id, name: raw.name, classes: [], bars: [],
-          starts: appearances.some(function (item) { return item.championshipRound && item.role === role; }) ?
-            rsRoundsStarted(model, raw.id, role) : null,
+          starts: hasRound ? starts.count : null, startsLowerBound: hasRound && starts.lowerBound,
+          startIssues: participationIssues(model, 'rs', raw.id, role),
           href: href(model.year, mode, '/person/' + encodeURIComponent(raw.id))
         });
         row.rank = raw.rank; row.points = raw.points;
@@ -830,7 +876,8 @@
         vehicle: entry.vehicle || '', stages: entry.stagesCompleted == null ? null : entry.stagesCompleted,
         penalty: mode === 'nr' ? entry.pen == null ? '—' : E.fmtTime(entry.pen) : original.penalty || '—',
         total: mode === 'nr' ? entry.status === 'classified' ? entry.total == null ? '—' : E.fmtTime(entry.total, true) : entry.status : original.total || '—',
-        gap: '—', previousGap: '—', credit: '', notes: (entry.notes || []).slice(), points: [] };
+        gap: '—', previousGap: '—', credit: '', notes: (entry.notes || []).slice(), points: [],
+        participationIssue: participationIssue(original, mode) };
       if (entry.status === 'classified' && entry.total != null) {
         if (first && entry !== first) row.gap = '+' + resultTime(Number((entry.total - first.total).toFixed(graph.timePrecision)), graph.timePrecision);
         if (previous && previous.total != null) row.previousGap = '+' + resultTime(Number((entry.total - previous.total).toFixed(graph.timePrecision)), graph.timePrecision);
@@ -906,31 +953,26 @@
    * Directory/profile facts are role records, not interchangeable entry/start counts.
    * Null is unavailable. Unresolved RS source names have no invented profile URL.
    * @typedef {{id:string,name:string,href:string|null,roles:string[],classes:string[],
-   * status:string,driver:Object|null,codriver:Object|null,starts:Array<number|null>,
-   * startsCount:number|null,events:number,championshipEvents:number,entered:number|null,cars:string[],
+   * status:string,driver:Object|null,codriver:Object|null,starts:Array<number|null>,startsLowerBound:boolean[],
+   * startsCount:number|null,startsCountLowerBound:boolean,events:number,championshipEvents:number,entered:number|null,cars:string[],
    * apps:Object[],entries:Object[]}} DirectoryRow
    */
   function directoryStarts(model, mode, id) {
-    if (!id) return null;
-    var started = Object.create(null), uncertain = Object.create(null);
-    if (mode === 'nr') {
-      var person = (model.people || []).filter(function (row) { return row.id === id; })[0];
-      (person && person.apps || []).forEach(function (app) {
-        if (app.status === 'classified' || app.status === 'DNF') started[app.r] = true;
-        else if (app.status !== 'DNS') uncertain[app.r] = true;
-      });
-    } else {
-      rsAppearances(model, id, true).forEach(function (appearance) {
-        if (!appearance.championshipRound) return;
-        var resultId = appearance.result.id, entry = appearance.entry;
-        if (entry.status === 'classified' || entry.status === 'DNF' && hasStartEvidence(entry))
-          started[resultId] = true;
-        else if (entry.status !== 'DNS') uncertain[resultId] = true;
-      });
+    if (!id) return { count: null, lowerBound: false };
+    if (mode === 'rs') {
+      var facts = rsStartFacts(model, id);
+      return { count: facts.count || null, lowerBound: facts.lowerBound };
     }
-    if (Object.keys(uncertain).some(function (roundId) { return !started[roundId]; })) return null;
+    var started = Object.create(null), uncertain = Object.create(null);
+    var person = (model.people || []).filter(function (row) { return row.id === id; })[0];
+    (person && person.apps || []).forEach(function (app) {
+      if (app.status === 'classified' || app.status === 'DNF') started[app.r] = true;
+      else if (app.status !== 'DNS') uncertain[app.r] = true;
+    });
+    if (Object.keys(uncertain).some(function (roundId) { return !started[roundId]; }))
+      return { count: null, lowerBound: false };
     var count = Object.keys(started).length;
-    return count || null;
+    return { count: count || null, lowerBound: false };
   }
   function directory(model, mode, profiles) {
     if (mode !== 'nr' && mode !== 'rs') throw new Error('Unsupported directory competition: ' + mode);
@@ -939,7 +981,7 @@
     function person(key, id, name) {
       return people[key] || (people[key] = { id: id, name: profiles && profiles[id] ? profiles[id].name : name,
         href: id ? href(model.year, mode, '/person/' + encodeURIComponent(id)) : null,
-        roles: [], classes: [], status: '', driver: null, codriver: null, starts: [null, null],
+        roles: [], classes: [], status: '', driver: null, codriver: null, starts: [null, null], startsLowerBound: [false, false],
         events: 0, championshipEvents: 0, entered: null, cars: [], apps: [], entries: [] });
     }
     if (mode === 'nr') model.people.forEach(function (raw) {
@@ -964,6 +1006,7 @@
           creditedRole: app.credited ? app.credited === 'co-driver' ? 'codriver' : 'driver' : null,
           partner: app.partner, partnerHref: partnerId ? href(model.year, mode, '/person/' + encodeURIComponent(partnerId)) : null,
           vehicle: app.vehicle || '', cls: app.cls, classPos: app.classPos,
+          participationIssue: participationIssue(entry, mode),
           status: app.status, pos: app.pos, points: app.pts, credited: !!app.credited,
           scoring: app.credited ? 'Credited championship role' : 'Printed role; championship credit assigned elsewhere',
           note: app.msaOnly ? 'Start recorded in the MSA standings; car absent from this classification.' :
@@ -990,6 +1033,7 @@
         vehicle: entry.vehicle || '',
         cls: displayClass, classPos: classPosition.value, classPosCalculated: classPosition.calculated,
         currentFinalityConfirmed: !!result.currentFinalityConfirmed,
+        participationIssue: participationIssue(entry, mode),
         classPosClass: classPosition.calculated && E.normClass(entry['class']) !== E.normClass(displayClass) ? entry['class'] : '',
         status: entry.status, pos: entry.pos,
         points: app.championshipRound && typeof app.points === 'number' ? app.points : null, credited: false,
@@ -1022,9 +1066,13 @@
           ineligible: mode === 'nr' ? !standing.eligible : standing.rank == null,
           qualifier: mode === 'nr' ? standing.eligible ? 'Eligible' : 'Minimum starts not met' :
             model.rallyesport.scoring.status === 'ready' ? 'Published class points' : 'Provisional' } : null;
-        row.starts[i] = mode === 'nr' ? standing ? standing.starts : 0 : row.id ? rsRoundsStarted(model, row.id, role) : null;
+        var starts = mode === 'rs' && row.id ? rsStartFacts(model, row.id, role) : null;
+        row.starts[i] = mode === 'nr' ? standing ? standing.starts : 0 : starts ? starts.count : null;
+        row.startsLowerBound[i] = !!(starts && starts.lowerBound);
       });
-      row.startsCount = directoryStarts(model, mode, row.id);
+      var starts = directoryStarts(model, mode, row.id);
+      row.startsCount = starts.count; row.startsCountLowerBound = starts.lowerBound;
+      row.startIssues = participationIssues(model, mode, row.id);
       row.hasIneligible = !!(row.driver && row.driver.ineligible || row.codriver && row.codriver.ineligible ||
         sourceIneligible[key]);
       row.status = apps.some(function (app) { return app.scoring.indexOf('Non-Scoring') >= 0; }) ? 'RS0 · Non-Scoring' : '';
@@ -1037,7 +1085,7 @@
           '* RS0 Non-Scoring SSR 6.1: no championship rank or points; this does not establish non-membership.' : '',
       basis: mode === 'nr' ?
         'Starts count distinct recorded championship rounds once across credited roles; entries and DNS do not count.' :
-        'Starts count distinct source-evidenced championship rounds once across roles; launch and DNS do not count, and uncertain DNF evidence remains unavailable.',
+        'Starts count distinct source-evidenced championship rounds once across roles; launch and DNS do not count. + means at least this many starts; other recorded appearances have unresolved start evidence.',
       note: mode === 'rs' ? (E.rallyeSportEntryPolicy(model.rallyesport) ? '' : 'RS0 Non-Scoring SSR 6.1 · ') +
         ROLE_NOTE : 'Entries, printed roles and credited starts are independent; missing entry coverage is not zero.' };
   }
@@ -1065,7 +1113,10 @@
     var all = [], starts = 0, unknownStarts = false;
     seasons.forEach(function (season) {
       all = all.concat(season.row.apps);
-      season.row.starts.forEach(function (value) { if (value == null) unknownStarts = true; else starts += value; });
+      season.row.starts.forEach(function (value, index) {
+        if (value == null || season.row.startsLowerBound[index]) unknownStarts = true;
+        if (value != null) starts += value;
+      });
     });
     var scored = mode === 'nr' ? all.filter(function (app) { return app.credited && app.status !== 'DNS'; }) : all;
     var finishes = scored.filter(function (app) { return app.status === 'classified'; });
@@ -1073,8 +1124,10 @@
     var stagePositions = scored.reduce(function (out, app) { return out.concat(app.stagePos); }, []);
     var roles = Array.from(new Set(seasons.reduce(function (out, season) { return out.concat(season.row.roles); }, [])));
     return { name: publicProfile ? publicProfile.name : seasons[0].row.name, roles: roles, seasons: seasons,
+      startsLowerBound: mode === 'rs' && unknownStarts && starts > 0,
+      startIssues: seasons.reduce(function (issues, season) { return issues.concat(season.row.startIssues); }, []),
       stats: [
-        ['Starts', unknownStarts ? null : starts], ['Event appearances', all.length],
+        ['Starts', unknownStarts && (mode !== 'rs' || !starts) ? null : starts], ['Event appearances', all.length],
         ['Championship appearances', all.filter(function (app) { return app.championship; }).length],
         ['Finishes', finishes.length], ['Best result', positions.length ? E.ord(Math.min.apply(null, positions)) : null],
         ['Recorded 1st places', positions.length === finishes.length ? positions.filter(function (pos) { return pos === 1; }).length : null],
@@ -1083,7 +1136,8 @@
           stagePositions.filter(function (pos) { return pos === 1; }).length : scored.length ? null : 0]],
       basis: (mode === 'nr' ? 'Finish and win statistics use credited championship roles.' :
         'Finish and win statistics use published source roles, including non-scoring events.') +
-        ' Appearances count role/car records, not unique starts. Starts are evidenced championship role-round starts. Entries and DNS do not create starts.',
+        ' Appearances count role/car records, not unique starts. Starts are evidenced championship role-round starts. Entries and DNS do not create starts.' +
+        (mode === 'rs' ? ' + means at least this many starts; other recorded appearances have unresolved start evidence.' : ''),
       note: mode === 'rs' ? (models.some(function (model) { return !E.rallyeSportEntryPolicy(model.rallyesport); }) ?
         'RS0 Non-Scoring SSR 6.1 · ' : '') + ROLE_NOTE :
         'Printed and credited roles can differ; recorded starts and results use their own evidence.' };
@@ -1140,7 +1194,8 @@
     orderedResultEntries: orderedResultEntries,
     rsStarterMinimumNote: rsStarterMinimumNote, calendar: calendar, eventLinks: eventLinks,
     rsEventDate: rsEventDate, hasStartEvidence: hasStartEvidence,
-    rsAppearances: rsAppearances, rsRoundsStarted: rsRoundsStarted, rsPersonRoundPoints: rsPersonRoundPoints };
+    rsAppearances: rsAppearances, rsStartFacts: rsStartFacts, rsRoundsStarted: rsRoundsStarted, rsPersonRoundPoints: rsPersonRoundPoints,
+    participationIssue: participationIssue, participationIssues: participationIssues };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.NRPublicModel = api;
 })(typeof window !== 'undefined' ? window : globalThis);

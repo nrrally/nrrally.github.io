@@ -17,9 +17,27 @@
     }).join(' ') : '<span class="small muted">Class unavailable</span>';
   }
   function starts(row) {
-    return row.starts == null ? 'Rounds started unavailable' : row.starts + ' round' + (row.starts === 1 ? '' : 's') + ' started';
+    return row.starts == null ? 'Rounds started unavailable' : (row.startsLowerBound ? 'At least ' : '') +
+      row.starts + ' round' + (row.starts === 1 ? '' : 's') + ' started' +
+      (row.startsLowerBound ? '; other recorded appearances have unresolved start evidence' : '');
   }
   function value(number) { return number == null ? '—' : esc(number); }
+  function startValue(count, lowerBound) {
+    return lowerBound && count != null ? '<span aria-label="' +
+      esc(starts({ starts: count, startsLowerBound: true })) + '">' + value(count) + '+</span>' : value(count);
+  }
+  function participationNotice(issues) {
+    if (!issues || !issues.length) return '';
+    return '<details class="participation-alert"><summary aria-label="Participation discrepancy; expand explanation">' +
+      '<span aria-hidden="true">!</span></summary><div class="participation-explanation">' +
+      issues.map(function (issue) {
+        return '<p>' + (issue.label ? '<b>' + esc(issue.label) + '</b> · ' : '') + esc(issue.message) +
+          (issue.href ? ' ' + link(issue.href, 'Classification →') : '') + '</p>';
+      }).join('') + '</div></details>';
+  }
+  function rowParticipationNotice(row) {
+    return participationNotice(row.participationIssue ? [{ message: row.participationIssue }] : []);
+  }
   function classPosition(row, noteId) {
     return row.classPosCalculated ? '<span aria-describedby="' + esc(noteId) + '">' +
       value(row.classPos) + '<span aria-hidden="true">*</span>' +
@@ -49,7 +67,7 @@
     return '<div class="leader"><span aria-label="Pos ' + value(row.rank) + '" class="pos' +
       (row.rank != null && row.rank <= 3 ? ' p' + row.rank : '') + '">' + value(row.rank) +
       '</span><div class="who">' + homePerson(row) + '<div>' + classes(row) + ' · ' + starts(row) +
-      '</div></div><div class="pts">' +
+      '</div>' + participationNotice(row.startIssues) + '</div><div class="pts">' +
       value(row.points) + '<small>pts</small></div></div>';
   }
   function leaderCard(title, rows, href, basis, limit, classCard) {
@@ -78,7 +96,11 @@
       (codrivers.length ? codrivers.map(function (row) {
         return '<b>' + homePerson(row) + '</b> · ' + value(row.points) + ' pts · ' + classes(row) + ' · ' + starts(row);
       }).join('; ') : 'unavailable.') + '</p>';
-    return html + '</div>';
+    return html + participationNotice(leaders.concat(codrivers).reduce(function (issues, row) {
+      return issues.concat(row.startIssues || []);
+    }, []).filter(function (issue, index, issues) {
+      return issues.findIndex(function (other) { return other.href === issue.href && other.label === issue.label; }) === index;
+    })) + '</div>';
   }
   function home(model, calendarHtml) {
     var counts = model.counts, hasResults = model.hasResults;
@@ -252,7 +274,7 @@
               cell.points === 0 && cell.status === 'DNF' ? '<span class="dnf-cell">DNF</span>' : value(cell.points)) + '</td>';
           }).join('') + (display.selectedClass ? '<td class="num">' + value(row.classPoints) + '</td>' : '') +
           '<td class="num total d-only">' + value(row.points) + '</td><td class="num" title="' + esc(starts(row)) + '">' +
-          value(row.starts) + '</td></tr>';
+          startValue(row.starts, row.startsLowerBound) + participationNotice(row.startIssues) + '</td></tr>';
       }).join('') + '</tbody></table></div>' + (display.ineligibleNote ?
         '<p class="small muted standings-eligibility-footnote" id="standings-eligibility-note">' +
         esc(display.ineligibleNote) + '</p>' : '');
@@ -275,7 +297,10 @@
       esc(display.scoring.reason || 'No additional qualification recorded.') +
       '</p><details class="notes standings-notes"><summary>Scoring notes</summary><div><p>' +
       esc(display.scoring.reason || status + '.') + '</p><p>' + esc(display.scoring.scope) + '</p>' +
-      '<p>Rounds started counts recorded championship starts for this role across classes. — means unavailable or no recorded contribution, never an assumed zero. A recorded DNF scores 0 only where established by the scoring data. Round cells describe their source status. † marks a round qualification.</p>' +
+      '<p>Rounds started counts recorded championship starts for this role across classes.' +
+      (display.rows.some(function (row) { return row.startsLowerBound && row.starts != null; }) ?
+        ' + means at least this many starts; other recorded appearances have unresolved start evidence.' : '') +
+      ' — means unavailable or no recorded contribution, never an assumed zero. A recorded DNF scores 0 only where established by the scoring data. Round cells describe their source status. † marks a round qualification.</p>' +
       display.notes.map(function (note) {
         return '<p>' + esc(note.text) + (note.links.length ? ' ' + note.links.map(function (item) {
           return /^#\//.test(item.url) ? link(item.url, esc(item.label)) : sourceLinks([item]);
@@ -344,7 +369,7 @@
           '<td class="result-crew rs-result-crew"><div class="crew">' + role(row.driver, 'driver') + role(row.codriver, 'codriver') +
           (row.credit ? '<span class="co">' + esc(row.credit) + '</span>' : '') +
           '<span class="small muted">Official finish: <span class="result-finish rs-result-finish">' + esc(row.status) +
-          '</span></span></div></td><td class="result-class rs-result-class" data-label="Class">' + classes({ classes: row.cls ? [row.cls] : [] }) +
+          '</span></span>' + rowParticipationNotice(row) + '</div></td><td class="result-class rs-result-class" data-label="Class">' + classes({ classes: row.cls ? [row.cls] : [] }) +
           (row.classNote ? '<span class="small muted result-printed-class">' + esc(row.classNote) + '</span>' : '') +
           '</td><td class="result-vehicle" data-label="Car">' + esc(row.vehicle || '—') + '</td>' +
           '<td class="num result-stagecount" data-label="Stages">' + value(row.stages) + '</td>' +
@@ -498,7 +523,7 @@
           identity + (!row.id ? '<div class="small muted">Source name; profile unresolved</div>' : ''),
           row.roles.length ? row.roles.map(function (role) { return role === 'driver' ? 'Driver' : 'Co-driver'; }).join(' &amp; ') : 'Listed',
           classes(row) + '<div class="small muted">' + esc(row.status) + '</div>',
-          standings, value(row.startsCount),
+          standings, startValue(row.startsCount, row.startsCountLowerBound) + participationNotice(row.startIssues),
           row.events + ' event' + (row.events === 1 ? '' : 's') + ' · ' + row.championshipEvents + ' championship round' +
             (row.championshipEvents === 1 ? '' : 's'), esc(row.cars.join(', '))];
         var names = ['identity', 'role', 'class', 'standings', 'starts', 'stats', 'cars'];
@@ -515,8 +540,9 @@
   }
   function profile(display, header, charts) {
     var html = header + '<div class="kpis">' + display.stats.map(function (stat) {
-      return '<div class="kpi"><b>' + value(stat[1]) + '</b><span>' + esc(stat[0]) + '</span></div>';
-    }).join('') + '</div><p class="small muted">' + esc(display.basis) + '</p>';
+      return '<div class="kpi"><b>' + (stat[0] === 'Starts' ? startValue(stat[1], display.startsLowerBound) : value(stat[1])) +
+        '</b><span>' + esc(stat[0]) + '</span></div>';
+    }).join('') + '</div>' + participationNotice(display.startIssues) + '<p class="small muted">' + esc(display.basis) + '</p>';
     display.seasons.forEach(function (season, index) {
       var row = season.row;
       html += '<div class="section season-block"><div class="section-head"><h2>' + season.year + ' season</h2>' +
@@ -549,7 +575,7 @@
               '<span class="note-mark" title="' + esc(app.note) + '">*</span>' : '') +
             '</td><td>' + resultPerson({ name: app.partner || '—', href: app.partnerHref }) + '</td><td>' + esc(app.vehicle || 'Not recorded') +
             '</td><td>' + classes({ classes: app.cls ? [app.cls] : [] }) + '</td><td>' + esc(app.scoring) +
-            '</td><td>' + value(app.pos) + ' · ' + esc(app.status) + '</td><td>' + classPosition(app, 'profile-class-position-note-' + index) + '</td><td>' +
+            '</td><td>' + value(app.pos) + ' · ' + esc(app.status) + rowParticipationNotice(app) + '</td><td>' + classPosition(app, 'profile-class-position-note-' + index) + '</td><td>' +
             (app.championship ? value(app.points) : 'Non-scoring event') + '</td><td>' +
             (app.graphHref ? link(app.graphHref, 'Graph →', 'go') : '—') + '</td></tr>';
         }).join('') + '</tbody></table></div>' +

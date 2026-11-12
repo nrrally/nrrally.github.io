@@ -145,8 +145,10 @@ of per-league visual exceptions that recreates two renderers behind one function
   rounds. Partial standings are not final awards, and an excluded round is not zero.
 - Retain launch results, event stats, profiles and graphs; exclude the launch from
   championship points, rounds and starts. Its non-scoring label remains visible.
-- RS starts are per person, role and distinct championship result: classified or
-  evidenced DNF counts; DNS does not. An unproven DNF yields an unavailable total.
+- RS starts are per person, role and distinct championship event: classified or
+  evidenced DNF counts; DNS does not. An unproven DNF leaves the exact total unknown,
+  but must not erase known starts: show a lower bound with `+`/accessible "At least"
+  when some starts are established; uncertain-only histories stay unavailable.
   Multiple cars/roles do not inflate one role's count. Standings-only data must not
   manufacture a zero-start history.
 - Do not conflate source classification finality, score readiness, person eligibility
@@ -516,7 +518,7 @@ helpers. It never writes, recalculates sporting awards or repairs a missing snap
   source classifications. Unsupported season rules remain unavailable.
 - Starts are role-specific championship starts across classes in both views, not
   class-only starts or entries. NR retains established credits; RS retains evidence
-  checks, per-result deduplication and honest unknowns. A standings-only identity or
+  checks, per-round deduplication and honest lower bounds/unknowns. A standings-only identity or
   an unresolved DNF does not become zero starts. Launch never supplies a championship
   column, total or start, while its source results/history remain reachable.
 - Known zero, recorded DNF and missing contributions remain distinct. Ordinary cells
@@ -779,3 +781,13 @@ equal/unequal/zero/missing/non-scoring points, tied Home leaders, unknown RS
 eligibility, both themes, and 320/390/768/1440px. The full test command and
 release/deployment state are recorded in [testing.md](testing.md) and
 [releases.md](releases.md).
+### Shared participation uncertainty
+
+Printed no-observation DNFs now share one generic public diagnostic rather than
+special-casing a competitor. Classifications/history retain source status and expose
+an accessible red `!`; championship aggregate counts link to affected classifications.
+Positive known RS starts remain a labelled lower bound. NR existing credited-round
+semantics are unchanged, with uncertainty disclosed rather than silently rescored.
+Launch remains event-only. A missing public observation is not a DNS finding, and
+private positive-start evidence is not exposed by the existing projector. Reviewed
+DNS representation/activation remains separately reviewed work, not this release.

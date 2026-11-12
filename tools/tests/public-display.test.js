@@ -144,15 +144,136 @@ test('RS Crew starts require source evidence for a DNF, then count that round on
   const evidenced = P.directory(model, 'rs').rows.find(person => person.id === entry.driverId);
   assert.equal(evidenced.startsCount, 1, 'source evidence establishes one championship-round start');
 });
-test('profile starts and awards stay unavailable for unproven DNF and blocked scoring rather than becoming zero', () => {
+test('known RS starts survive an unresolved DNF consistently across Home, standings, Crews and profile', () => {
+  const { f } = fixture();
+  Object.assign(f.data.results[2].entries[0], {
+    status: 'DNF', pos: null, classPos: null, times: [null], stagePos: [null], total: null
+  });
+  const model = freeze(build(f)), before = JSON.stringify(model);
+  for (const role of ['driver', 'codriver']) {
+    const id = 'synthetic-' + role + '-1';
+    const home = P.home(model, 'rs'), homeRow = home[role === 'driver' ? 'drivers' : 'codrivers'].find(row => row.id === id);
+    const standings = P.standings(model, 'rs', role, { class: 'RS2' }), row = standings.rows.find(row => row.id === id);
+    const directory = P.directory(model, 'rs'), crew = directory.rows.find(row => row.id === id);
+    const profile = P.profile([model], 'rs', id);
+    for (const value of [homeRow, row]) {
+      assert.equal(value.starts, 3, 'three established starts are not erased by a fourth uncertain appearance');
+      assert.equal(value.startsLowerBound, true, 'three is a lower bound, not a fabricated exact total');
+      assert.equal(value.startIssues.length, 1);
+    }
+    assert.equal(crew.startsCount, 3);
+    assert.equal(crew.startsCountLowerBound, true);
+    assert.equal(profile.stats.find(stat => stat[0] === 'Starts')[1], 3);
+    assert.equal(profile.startsLowerBound, true);
+    assert.equal(crew.startIssues.length, 1);
+    assert.equal(profile.startIssues.length, 1);
+    const result = P.result(model, 'rs', f.data.results[2].id, 'classification');
+    assert.ok(result.rows[0].participationIssue);
+    for (const html of [C.home(home, '').html, C.standings(standings).html,
+      C.directory(directory).html, C.resultClassification(result),
+      C.profile(profile, '', profile.seasons.map(season => season.charts.map(() => ''))).html]) {
+      assert.match(html, /<details class="participation-alert"><summary aria-label="Participation discrepancy; expand explanation">/);
+      assert.match(html, /public record contains no stage observation or start confirmation/);
+    }
+    assert.match(C.home(home, '').html, /At least 3 rounds started/);
+    assert.match(C.standings(standings).html, /aria-label="At least 3 rounds started[^"]*">3\+<\/span>/);
+    assert.match(C.directory(directory).html, /At least 3 rounds started/);
+    assert.match(C.profile(profile, '', profile.seasons.map(season => season.charts.map(() => ''))).html,
+      /At least 3 rounds started/);
+    assert.equal(row.cells[1].points, null, 'the uncertain DNF is still not an awarded zero');
+  }
+  assert.equal(JSON.stringify(model), before, 'display facts never change scoring or source records');
+});
+test('participation diagnostics distinguish absence of observations from timed/evidenced DNF, DNS and zero awards', () => {
+  for (const mode of ['nr', 'rs']) {
+    const noTime = { status: 'DNF', times: [null, ''], stagePos: [null], stages: 0 };
+    assert.match(P.participationIssue(noTime, mode), /DNS or retirement/);
+    for (const edit of [
+      { times: [0] }, { times: ['00:00.0'] }, { times: ['01:23.4'] }, { stagePos: [4] },
+      { startEvidence: 'Synthetic reviewed first-stage retirement' }, { status: 'DNS' }, { status: 'classified' }
+    ]) assert.equal(P.participationIssue({ ...noTime, ...edit }, mode), '');
+    assert.ok(P.participationIssue({ ...noTime, driverPoints: 0 }, mode), 'zero awards do not prove a start');
+  }
+  assert.equal(P.participationIssue({ status: 'DNF', stagesCompleted: 1 }, 'nr'), '',
+    'positive printed completed stages can establish an NR start without stored observations');
+  assert.equal(P.participationIssue(undefined, 'nr'), '');
+});
+test('participation flags cover NR credited and printed history without changing credits, and exclude launch from RS aggregates', () => {
+  const { f, raw } = fixture();
+  Object.assign(raw.entries[0], { status: 'DNF', pos: null, stages: 0, times: [null], stagePos: [null], total: null });
+  const model = build(f, { R1: raw }), before = JSON.stringify(model);
+  const entry = model.rounds[0].entries[0], id = entry.driverId;
+  assert.equal(P.home(model, 'nr').drivers.find(row => row.id === id).startIssues.length, 1);
+  const nr = P.standings(model, 'nr', 'driver', {}).rows.find(row => row.id === id);
+  assert.equal(nr.starts, 1, 'NR historic credits are not reinterpreted');
+  assert.match(nr.cells[0].description, /NR credited round; start evidence unresolved/);
+  assert.doesNotMatch(nr.cells[0].description, /DNF \(started/);
+  assert.match(P.directory(model, 'nr').rows.find(row => row.id === id).apps[0].participationIssue, /credits are unchanged/);
+  assert.ok(P.result(model, 'nr', 'R1', 'classification').rows.find(row => row.car === entry.car).participationIssue);
+  assert.equal(JSON.stringify(model), before);
+  raw.entries[0].credit = { driver: raw.entries[0].codriver, noCodriver: true };
+  const credited = build(f, { R1: raw }), shifted = credited.rounds[0].entries[0];
+  assert.equal(P.participationIssues(credited, 'nr', shifted.driverId, 'driver').length, 0,
+    'a printed driver without driver credit cannot flag an unrelated credited driver total');
+  assert.equal(P.participationIssues(credited, 'nr', shifted.champDriverId, 'driver').length, 1);
+  assert.equal(P.participationIssues(credited, 'nr', shifted.champCodriverId, 'codriver').length, 0,
+    'no-credit co-driver does not acquire a credited-role anomaly');
+  const launch = model.rallyesport.results[0], launchEntry = launch.entries[0];
+  Object.assign(launchEntry, { status: 'DNF', times: [], stagePos: [], startEvidence: '' });
+  assert.ok(P.result(model, 'rs', launch.id, 'classification').rows[0].participationIssue);
+  assert.equal(P.participationIssues(model, 'rs', launchEntry.driverId).length, 0,
+    'non-scoring launch uncertainty cannot pollute championship starts');
+  const crew = P.directory(model, 'rs').rows.find(row => row.id === launchEntry.driverId);
+  assert.ok(crew.apps.find(app => !app.championship).participationIssue);
+  assert.equal(crew.startIssues.length, 0);
+});
+test('profile known starts survive blocked scoring and an unproven DNF without inventing awards', () => {
   const { f } = fixture(), model = build(f), result = model.rallyesport.results[1], entry = result.entries[0];
   entry.status = 'DNF'; entry.times = []; entry.stagePos = []; entry.startEvidence = '';
   const score = model.rallyesport.scoring.results.find(score => score.resultId === result.id);
   score.status = 'blocked';
   const display = P.profile([freeze(model)], 'rs', entry.driverId);
-  assert.equal(display.stats.find(stat => stat[0] === 'Starts')[1], null);
+  assert.equal(display.stats.find(stat => stat[0] === 'Starts')[1], 3);
+  assert.equal(display.startsLowerBound, true);
   assert.equal(display.seasons[0].row.apps.find(app => app.car === entry.car && app.href.includes(result.id)).points, null);
   assert.equal(display.seasons[0].charts[0].row.rounds[result.id], undefined);
+});
+test('RS start facts deduplicate round/role evidence and never use awards or launch as a start proxy', () => {
+  const { f } = fixture(), model = build(f), id = 'synthetic-driver-1';
+  const rounds = model.rallyesport.results.slice(1);
+  rounds.forEach(result => {
+    const entry = result.entries[0];
+    Object.assign(entry, { status: 'DNF', times: [], stagePos: [], startEvidence: '' });
+    const score = model.rallyesport.scoring.results.find(row => row.resultId === result.id);
+    if (score) score.entries.find(row => row.car === entry.car).driverPoints = result === rounds[0] ? 15 : 0;
+  });
+  assert.deepEqual(P.rsStartFacts(model, id, 'driver'), { count: null, lowerBound: true },
+    'neither positive/zero awards nor a classified launch proves any championship start');
+  Object.assign(rounds[0].entries[0], { times: ['00:00.0'] });
+  assert.deepEqual(P.rsStartFacts(model, id, 'driver'), { count: 1, lowerBound: true });
+  rounds[0].entries.push({ ...rounds[0].entries[0], car: 'second-car', times: [] });
+  rounds[0].entries.push({ ...rounds[0].entries[0], car: 'second-role',
+    driverId: 'synthetic-driver-2', codriverId: id, codriverKnown: true });
+  assert.deepEqual(P.rsStartFacts(model, id), { count: 1, lowerBound: true },
+    'multiple cars/roles in a proven round do not add starts or uncertainty to that round');
+  assert.equal(P.rsStartFacts(model, id, 'codriver').count, 1);
+  const uncertain = rounds[1].entries[0];
+  rounds[1].entries.push({ ...uncertain, car: 'other-role', status: 'classified',
+    driverId: 'synthetic-driver-2', codriverId: id, codriverKnown: true });
+  assert.deepEqual(P.rsStartFacts(model, id), { count: 2, lowerBound: true },
+    'crew count can use proven other-role evidence without upgrading the driver role');
+  assert.equal(P.rsStartFacts(model, id, 'driver').count, 1);
+  Object.assign(uncertain, { stagePos: [5] });
+  rounds.slice(2).forEach(result => { result.entries[0].status = 'DNS'; });
+  assert.deepEqual(P.rsStartFacts(model, id, 'driver'), { count: 2, lowerBound: false },
+    'source evidence resolves the bound; DNS never adds a start');
+  assert.equal(P.directory(model, 'rs').rows.find(row => row.id === id).startsCount, 2);
+  rounds[2].entries[0].status = 'TEST';
+  assert.deepEqual(P.rsStartFacts(model, id, 'driver'), { count: 2, lowerBound: false },
+    'legacy TEST rows remain excluded from championship role starts');
+  assert.deepEqual(P.rsStartFacts(model, id), { count: 2, lowerBound: true },
+    'an unresolved legacy source appearance cannot erase known crew starts or certify an exact total');
+  assert.deepEqual(P.rsStartFacts(model, '', 'driver'), { count: null, lowerBound: false });
 });
 test('NR directories distinguish multi-day rounds, printed roles, credited roles and MSA-only starts', () => {
   const season = F.season(2026), raw = F.payload('results', 2026).rounds[0], people = F.docs()['data/people.json'];
@@ -726,7 +847,8 @@ test('standings distinguish unsupported DNF starts, future columns and ready ver
   const uncertain = freeze(build(f));
   for (const role of ['driver', 'codriver']) {
     const row = P.standings(uncertain, 'rs', role).rows.find(row => row.id === 'synthetic-' + role + '-1');
-    assert.equal(row.starts, null, 'earlier scored appearances do not resolve a later unproven DNF');
+    assert.equal(row.starts, 3, 'earlier established starts remain a known minimum');
+    assert.equal(row.startsLowerBound, true, 'the later unproven DNF does not become a start');
     assert.equal(row.cells[1].points, null, 'unproven DNF points are not a known zero');
   }
   const future = P.standings(freeze(build(F.revisedRallyeSport(false))), 'rs', 'driver');

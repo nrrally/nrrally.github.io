@@ -23,6 +23,25 @@ exact event/round links, unavailable or conflicting relationships and day metada
 provenance and unchanged scoring. The public theme suite checks linked and unlinked
 locations on Home, calendar and result views at its four widths and both themes.
 
+Public start-count regressions cover mixed established starts plus an unproven DNF
+across Home/class standings/Crews/profiles for both roles. Known starts remain a
+labelled lower bound, never unavailable or an invented exact total. Cases include
+uncertain-only, DNS, a non-scoring launch, zero-point/blocked snapshots, stage evidence,
+multiple cars and roles in one round, and legacy TEST role exclusion. Immutable
+models ensure no source/scoring mutation. The responsive suite checks `2+` and its
+accessible "At least" explanation across the shared public surfaces in both themes.
+Earlier tests explicitly expected all-or-nothing unavailability for mixed evidence;
+that expectation was the bug, not proof that lower-bound facts were absent.
+
+Shared discrepancy cases cover no-observation DNF, timed DNF, explicit first-stage
+retirement evidence, stage positions, numeric/formatted zero times, DNS, zero awards,
+positive NR completed stages, both roles, launch/history versus championship scope,
+source/scoring immutability and unchanged NR credited starts. Native red `!` disclosures
+are exercised with Enter/Space in responsive light/dark browser checks. These are
+uncertainty diagnostics, not DNS findings. No reviewed-no-start marker is implemented
+or activated in this display-only release; review/staleness tests belong to that
+separately approved compatible contract.
+
 The public-display and admin browser regressions also cover current-finality review:
 private evidence removal, source/status/row mutation invalidation, distinct NR/RS
 display, superseded technical-check sentence suppression with compound-note text

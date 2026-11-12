@@ -11,6 +11,41 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
+### Participation diagnostics and RS known-start preservation (authorized release)
+
+A display-adapter repair preserves known championship starts when another
+appearance has no established start evidence. The former exact-number-or-null contract
+discarded all known starts as soon as one DNF was uncertain; the Crews aggregation
+duplicated that decision and profiles propagated it. Shared markup did not repair
+that loss of information, and previous regression expectations endorsed it.
+The new shared start facts carry a count and lower-bound flag to Home, standings,
+Crews and profiles: positive lower bounds display `2+`/accessible "At least 2",
+exact values remain plain numbers and uncertain-only histories remain unavailable.
+NR credited starts, RS scoring, data/projection contracts and launch/DNS exclusions
+are unchanged. No provider writes or private reads are needed.
+The user authorized the combined generic public discrepancy diagnostic and starts
+repair. A red native keyboard-accessible `!` explains no-observation DNF uncertainty
+on classification/history and affected aggregate counts in both contexts. Source
+DNF and NR historical championship credits remain unchanged; launch issues are event
+history only. No absence of timing is converted to DNS.
+All advertised seasons were audited through anonymous published records: currently
+one season, 11 classifications, 195 crew records / 390 role records, 54 DNF records.
+Twelve have no published start observation (8 NR, 4 RS, including one non-scoring
+launch; 20 distinct public identities). The other 42 DNFs have times. Eight official
+PDFs covering the 11 championship cases retain DNF/zero stages/blank observations;
+the launch's source has no public URL. No definite DNS follows from those sheets.
+Retained public captures/PDFs and the detailed actionable inventory stay outside Git.
+Private RS positive-start evidence is stripped by the existing projector, so public
+diagnostics cannot independently settle such reviews or establish a scoring error.
+No reviewed-no-start marker, schema/projector change or data activation is included.
+Those require reviewed role/result scope and separately authorized compatible code
+and backed-up atomic attributed publication. Conversation confirmation alone does
+not alter published records or other crew roles.
+The pre-release runtime is `c0748cc1285b46f255a36dea914e4e2d6bef9cf9` with documentation
+baseline `796c19ea49e4555c645aa2b8664ca24541ea35bc`. The four shells coordinate
+`rs-visual-10`; the authorized static release deploys them together with matching
+display scripts and styles. Static rollback needs no data restore. Existing tabs need reload.
+
 ### Current classification finality (deployed; activation verified by coordinator)
 
 An evidence-backed `currentFinalityReview` is supported independently for each NR
