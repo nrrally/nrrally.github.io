@@ -147,6 +147,11 @@
     return !isNaN(parsed) && parsed.toISOString().slice(0, 10) === date ? parsed.toLocaleDateString('en-ZA',
       { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : date;
   }
+  function locationField(display, field, unavailable) {
+    var value = display[field], source = display[field + 'Source'];
+    return '<span>' + esc(value || unavailable) +
+      (value && source && source !== 'event' ? ' <span class="small muted">· ' + esc(source) + '</span>' : '') + '</span>';
+  }
   function roundRow(row, now) {
     var tag = row.href ? 'a' : 'div';
     var status = scheduledStatus(row.dateIso, now);
@@ -166,8 +171,8 @@
       '"><div class="event-top"><div class="event-topline"><h3>' + esc(event.name) +
       '</h3><span class="competition-badge">' + esc(event.badge) + '</span></div><div class="meta"><span>' +
       esc(dateLabel(event.date) || 'Date to be confirmed') + (event.date && event.dateSource !== 'event' ? ' · ' + esc(event.dateSource) : '') +
-      '</span><span>' + esc(event.venue || 'Venue unavailable') + '</span><span>' + esc(event.surface || 'Surface unavailable') +
-      '</span></div><p class="small event-scope">' + esc(event.scope) + '</p><div class="small muted event-entries">' +
+      '</span>' + locationField(event, 'venue', 'Venue unavailable') + locationField(event, 'surface', 'Surface unavailable') +
+      '</div><p class="small event-scope">' + esc(event.scope) + '</p><div class="small muted event-entries">' +
       esc(event.entryNote || 'Event entries unavailable') + '</div>' + eventLinkGroups(event) +
       '</div><div class="event-rounds">' + (event.rounds.length ? event.rounds.map(function (row) { return roundRow(row, now); }).join('') :
         '<div class="event-round upcoming"><span class="w"><span>No rounds added yet</span></span></div>') + '</div></div>';
@@ -370,7 +375,7 @@
       esc(display.scope) + (display.day ? ' · ' + esc(display.day) : '') + '</p><h1>' + esc(display.name) + '</h1><div class="round-meta">' +
       (display.date ? '<span>' + esc(dateLabel(display.date)) + (display.dateSource !== 'event' ? ' · ' + esc(display.dateSource) : '') + '</span>' :
         display.published ? '<span>Date to be confirmed</span>' : '') +
-      '<span>' + esc(display.venue || 'Venue unavailable') + '</span><span>' + esc(display.surface || 'Surface unavailable') + '</span>' +
+      locationField(display, 'venue', 'Venue unavailable') + locationField(display, 'surface', 'Surface unavailable') +
       '<span>' + display.roundCount + ' listed championship rounds</span>' +
       '<span>' + (display.published ? display.stages.length + ' stage' + (display.stages.length === 1 ? '' : 's') +
         (display.stages.length ? ' (' + esc(display.stages[0]) + (display.stages.length > 1 ? '–' + esc(display.stages[display.stages.length - 1]) : '') + ')' : '') :

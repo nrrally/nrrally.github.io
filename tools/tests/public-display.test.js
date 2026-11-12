@@ -958,6 +958,72 @@ test('explicit relationships inherit dynamic NR links and date context, never NR
   assert.equal(adapted.date, 'July 2026');
   assert.equal(adapted.sortDate, '', 'a month alone does not invent a day');
 });
+test('RS location uses only explicit unambiguous NR event or round links, preserving own values', () => {
+  const { f } = fixture(), model = build(f);
+  model.raw = F.copy(f.season);
+  const event = model.rallyesport.events[1], result = model.rallyesport.results[1];
+  const nr = model.events[0], nrRound = model.raw.rounds[0];
+  nr.venue = 'Synthetic NR venue'; nr.surface = 'Gravel';
+  event.nrEventId = nr.id; result.nrRoundId = nrRound.id;
+  const before = JSON.stringify(model);
+  function location() {
+    const calendar = P.calendar(model, 'rs').events.find(row => row.id === event.id);
+    const detail = P.result(model, 'rs', result.id, 'classification');
+    assert.deepEqual([calendar.venue, calendar.surface, calendar.venueSource, calendar.surfaceSource],
+      [detail.venue, detail.surface, detail.venueSource, detail.surfaceSource]);
+    return calendar;
+  }
+  let loc = location();
+  assert.deepEqual([loc.venue, loc.surface, loc.venueSource, loc.surfaceSource],
+    ['Synthetic NR venue', 'Gravel', 'Related NR event', 'Related NR event']);
+  assert.match(C.calendar(P.calendar(model, 'rs'), 0), /Synthetic NR venue.*Related NR event/);
+  assert.match(C.resultShell(P.result(model, 'rs', result.id, 'classification'), '').html, /Gravel.*Related NR event/);
+  assert.equal(JSON.stringify(model), before, 'display fallback does not mutate the season or scoring');
+  event.venue = 'Synthetic RS venue'; event.surface = 'Tarmac';
+  loc = location();
+  assert.deepEqual([loc.venue, loc.surface, loc.venueSource, loc.surfaceSource],
+    ['Synthetic RS venue', 'Tarmac', 'event', 'event']);
+  delete event.surface;
+  loc = location();
+  assert.deepEqual([loc.venue, loc.surface, loc.venueSource, loc.surfaceSource],
+    ['Synthetic RS venue', 'Gravel', 'event', 'Related NR event'], 'fields use independent precedence');
+  delete event.venue; delete event.surface; delete event.nrEventId;
+  assert.equal(location().venue, 'Synthetic NR venue', 'explicit NR round resolves its owning event');
+  result.nrRoundId = 'unknown-round';
+  assert.equal(location().venue, '');
+  delete result.nrRoundId;
+  event.name = nr.name; event.dates = nr.dates;
+  assert.equal(location().venue, '', 'matching names or dates do not create a relationship');
+  event.nrEventId = 'unknown-event';
+  assert.equal(location().surface, '');
+  event.nrEventId = nr.id;
+  result.nrRoundId = 'different-event-round';
+  model.calendar.push({ id: 'different-event-round', eventId: 'other-event' });
+  assert.equal(location().venue, '', 'conflicting explicit event and round links fail closed');
+  delete result.nrRoundId;
+  nrRound.surface = 'Tarmac';
+  loc = location();
+  assert.equal(loc.surface, '', 'conflicting day-specific surface is not silently selected');
+  assert.equal(loc.venue, 'Synthetic NR venue', 'a conflict in one field does not hide the other');
+  result.nrRoundId = nrRound.id;
+  delete nr.surface;
+  loc = location();
+  assert.equal(loc.surface, 'Tarmac');
+  assert.equal(loc.surfaceSource, 'Related NR round', 'an exact linked round may supply its own value');
+  nrRound.surface = 42;
+  assert.equal(location().surface, '', 'malformed day-specific metadata is not inferred');
+  nrRound.surface = 'Gravel';
+  nr.surface = 'Gravel';
+  const future = { ...event, id: 'synthetic-future' };
+  model.rallyesport.events.push(future);
+  assert.equal(P.calendar(model, 'rs').events.find(row => row.id === future.id).surface, 'Gravel',
+    'a linked event can supply location before any RS classification exists');
+  model.rallyesport.results.push({ ...result, id: 'duplicate-result' });
+  assert.equal(location().venue, '', 'multiple RS classifications cannot select a round implicitly');
+  model.rallyesport.results.pop();
+  model.events.push({ ...nr });
+  assert.equal(location().venue, '', 'duplicate NR event identities remain ambiguous');
+});
 test('NR multi-day parents, RS launch and combined mapping keep distinct source children and safe links', () => {
   const { f } = fixture(), model = build(f);
   model.calendar.push({ ...model.calendar[0], id: 'R2', n: 2, date: '', day: 'Day 2' });

@@ -31,6 +31,27 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## RS linked venue and surface (authorized pre-push)
+
+- The user authorized this narrow display fix and a normal live push. RS Home/calendar
+  and result headers show independently missing venue and surface from uniquely and
+  explicitly related NR event/round metadata, labelled as related NR information.
+  RS-owned fields take precedence; ambiguous, missing or conflicting day-specific
+  evidence remains unavailable. No name/date matching or data mutation is used.
+- Synthetic `node --test tools\tests\public-display.test.js tools\tests\rallyesport.test.js`
+  passed 90 tests, covering precedence, links, conflicts, provenance and unchanged scoring.
+  `node tools\tests\site-theme-e2e.js` passed with intercepted synthetic providers at
+  320/390/768/1440 px in both themes. These checks do not certify live data or provider
+  configuration.
+- Keep the four shells on `rs-visual-7` with their matching display modules. Static
+  rollback is to `cd278b5eb0e4a223d83a2964e829c15b25da611d` (`rs-visual-6`); existing
+  tabs may require reload. No data migration or database restore is needed.
+- This release changes no sporting calculations, source links, vehicle data, schema,
+  projection, provider configuration, guide edition or analytics behavior. It makes
+  no Firebase/data writes; the separately identified R1 source URL is unchanged.
+  Target is `origin/main`, after fresh exact-parent, scoped-account and diff checks.
+  Pages and live-byte verification remain pending until deployment.
+
 ## 2026-11-12: RS reviewed source class positions (pre-push)
 
 - The user approved the compatible validation, display and reviewed R1-R3 publication

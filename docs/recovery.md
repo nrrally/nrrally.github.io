@@ -11,6 +11,17 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
+### RS linked venue and surface (authorized release)
+
+The public display can fill missing RS venue and surface independently from an
+unambiguous explicitly linked NR event or round, with visible source labels. RS-owned
+values win; conflicting day metadata, invalid or missing links remain unavailable.
+This changes presentation only, not season records, scoring or source associations.
+Deploy the four `rs-visual-7` shells with matching public display assets. Static rollback
+is to `cd278b5eb0e4a223d83a2964e829c15b25da611d` and `rs-visual-6`; no data restore
+is needed. Existing browser tabs may require reload. See the release ledger for
+validation and deployment status.
+
 ### Display consolidation phases 1-6
 
 The approved final phase shares Crews, cross-season profiles, Sources and Info

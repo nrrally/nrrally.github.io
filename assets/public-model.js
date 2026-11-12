@@ -209,7 +209,7 @@
    * published:boolean,state:string,stages:number|null,classified:number|null,
    * entryNote:string,winner:Winner,classWinners:Object<string,Winner>}} RoundDisplay
    * @typedef {{id:string,name:string,badge:string,date:string,dateSource:string,sortDate:string,
-   * venue:string,surface:string,scope:string,entryNote:string,links:EventLink[],
+   * venue:string,surface:string,venueSource?:string,surfaceSource?:string,scope:string,entryNote:string,links:EventLink[],
    * related:Array<{label:string,links:EventLink[]}>,rounds:RoundDisplay[]}} EventDisplay
    * @typedef {{year:number,classes:string[],events:EventDisplay[]}} CalendarDisplay
    */
@@ -260,6 +260,47 @@
       return { text: date.text, iso: date.iso, source: 'Related NR event dates' };
     }
     return { text: '', iso: '', source: 'event' };
+  }
+  function rsEventLocation(model, event) {
+    function text(value) { return typeof value === 'string' ? value.trim() : ''; }
+    function invalid(value) { return value != null && typeof value !== 'string'; }
+    var own = { venue: text(event.venue), surface: text(event.surface) };
+    var out = { venue: own.venue, surface: own.surface, venueSource: 'event', surfaceSource: 'event' };
+    var results = model.rallyesport.results.filter(function (row) { return row.eventId === event.id; });
+    if (results.length > 1) return out;
+    var roundId = results[0] && results[0].nrRoundId, round = null;
+    if (roundId) {
+      var rounds = model.calendar.filter(function (row) { return row.id === roundId; });
+      if (rounds.length !== 1 || !rounds[0].eventId) return out;
+      round = rounds[0];
+    }
+    if (event.nrEventId && round && event.nrEventId !== round.eventId) return out;
+    var eventId = event.nrEventId || round && round.eventId;
+    if (!eventId) return out;
+    var linked = model.events.filter(function (row) { return row.id === eventId; });
+    if (linked.length !== 1) return out;
+    var rawRounds = model.raw && Array.isArray(model.raw.rounds) ? model.raw.rounds : model.calendar;
+    var eventRounds = rawRounds.filter(function (row) { return row.eventId === eventId; });
+    var selected = round && rawRounds.filter(function (row) { return row.id === round.id; });
+    if (selected && (selected.length !== 1 || selected[0].eventId !== eventId)) return out;
+    ['venue', 'surface'].forEach(function (field) {
+      if (own[field]) return;
+      var eventValue = text(linked[0][field]), roundValue = selected && text(selected[0][field]);
+      var evidence = roundValue ? [selected[0]] : eventRounds;
+      if (invalid(linked[0][field]) || evidence.some(function (item) { return invalid(item[field]); })) return;
+      if (eventValue && evidence.some(function (item) {
+        var value = text(item[field]);
+        return value && value.toLowerCase() !== eventValue.toLowerCase();
+      })) return;
+      if (eventValue) {
+        out[field] = eventValue;
+        out[field + 'Source'] = 'Related NR event';
+      } else if (roundValue) {
+        out[field] = roundValue;
+        out[field + 'Source'] = 'Related NR round';
+      }
+    });
+    return out;
   }
   function classification(result, mode, score) {
     if (!result) return 'Not published';
@@ -344,8 +385,10 @@
       var date = rsEventDate(model, event);
       var relatedLinks = linked ? eventLinks(linked, list) : [];
       var result = model.rallyesport.results.filter(function (row) { return row.eventId === event.id; })[0];
+      var location = rsEventLocation(model, event);
       return { id: event.id, name: event.name, badge: 'RS', date: date.text, dateSource: date.source,
-        sortDate: date.iso, venue: event.venue || '', surface: event.surface || '',
+        sortDate: date.iso, venue: location.venue, surface: location.surface,
+        venueSource: location.venueSource, surfaceSource: location.surfaceSource,
         scope: event.countsForChampionship === false ? 'Non-scoring event · not a championship round' : 'Championship event',
         entryNote: '', links: eventLinks(event),
         related: relatedLinks.length ? [{ label: 'Related NR event links', links: relatedLinks }] : [],
@@ -674,7 +717,7 @@
    * credit:string,notes:string[],points:ResultRolePoints[]}} ResultRow
    * @typedef {{label:string,href:string,selected:boolean}} ResultNavigation
    * @typedef {{year:number,id:string,tab:string,name:string,published:boolean,scope:string,
-   * date:string,dateSource:string,dateIso:string,day:string,venue:string,surface:string,
+   * date:string,dateSource:string,dateIso:string,day:string,venue:string,surface:string,venueSource:string,surfaceSource:string,
    * stages:string[],state:string,roundCount:number,sourceTitle:string,sourceStatus:string,
    * pointsLabel:string,pointsStatus:string,scoringBasis:string,scoringReason:string,
    * graph:ResultGraph|null,rows:ResultRow[],qualification:string,notes:string[],
@@ -708,11 +751,15 @@
     });
     var index = sourceRows.findIndex(function (row) { return row.id === id; });
     var calendarEvent = calendar(model, mode).events.filter(function (row) { return row.id === eventId; })[0];
+    var location = mode === 'rs' ? rsEventLocation(model, event) : {
+      venue: event.venue || '', surface: event.surface || '', venueSource: 'event', surfaceSource: 'event'
+    };
     var display = { year: model.year, id: id, tab: active, name: event.name, published: !!raw,
       scope: event.countsForChampionship === false ? 'Non-scoring event' : mode === 'nr' ? 'Round ' + (raw || meta).n :
         event.roundNumber == null ? 'Championship round' : 'Round ' + event.roundNumber,
       date: dates.text, dateSource: dates.source, dateIso: mode === 'nr' ? dateIso((raw || meta).date) : dates.iso,
-      day: mode === 'nr' ? (raw || meta).day || '' : '', venue: event.venue || '', surface: event.surface || '',
+      day: mode === 'nr' ? (raw || meta).day || '' : '', venue: location.venue, surface: location.surface,
+      venueSource: location.venueSource, surfaceSource: location.surfaceSource,
       stages: graph ? graph.stages.slice() : [], state: classification(raw, mode, null),
       roundCount: mode === 'nr' ? model.calendar.length : model.rallyesport.events.filter(function (event) { return event.countsForChampionship !== false; }).length,
       pointsStatus: event.countsForChampionship === false ? 'not-scoring' :

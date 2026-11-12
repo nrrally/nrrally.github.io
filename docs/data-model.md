@@ -227,6 +227,10 @@ No real event/results are
 preloaded. `nrEventId`, `nrRoundId` and
 each `stages[].nrStage` are optional independent associations; stage arrays are explicit
 subsets and are never aligned by date or position.
+For public display only, a uniquely linked NR event or round can supply a missing RS
+venue or surface. The adapter labels inherited values, keeps RS-owned values first,
+and leaves ambiguous or conflicting day-specific values unavailable. This adds no
+stored field, source relationship, classification or scoring data.
 `roundNumber` is an optional positive integer, unique within the RS season, for explicit
 RS championship numbering; it is never derived from NR rounds or event-array position.
 

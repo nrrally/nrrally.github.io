@@ -17,6 +17,12 @@ dates, stages or venue truth. The launch's synthetic TEST crew has an explicit l
 RS0 review; the same people score normally at subsequent events despite legacy
 non-member/missing-licence/manual-exclusion and invitation evidence.
 
+`node --test tools\tests\public-display.test.js tools\tests\rallyesport.test.js`
+also checks RS location inheritance independently for venue and surface, RS precedence,
+exact event/round links, unavailable or conflicting relationships and day metadata,
+provenance and unchanged scoring. The public theme suite checks linked and unlinked
+locations on Home, calendar and result views at its four widths and both themes.
+
 Unit checks cover both roles, absent roster decisions, unchanged source/private evidence,
 RS2/RS4 ranks/points, evidenced and unproven DNF, DNS, absent co-driver, three-ready/four-
 counted provisional totals, all-four-ready still provisional, launch timing retention,

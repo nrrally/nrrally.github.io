@@ -233,6 +233,11 @@ graph/rank; any valid official Final observations remain available independently
 Each calendar shows only its competition in its own event/round order, with
 source-backed dates and undated entries labelled. RS cards can indicate an explicit shared `nrEventId`, but
 do not include NR results. Empty RS seasons never borrow NR leaders/results.
+RS Home/calendar cards and result headers use their own venue and surface when known.
+Missing fields may display labelled related NR event metadata, or metadata from an
+explicitly linked NR round, without modifying published data. Missing, duplicate or
+inconsistent links and conflicting or malformed day-specific values remain unavailable;
+names and dates never establish a relationship. Each field is resolved independently.
 RS overrides only primary-accent tokens and the decorative hero track to blue in
 light/dark; NR stays red. Logos, series/category and success/warning colors remain.
 

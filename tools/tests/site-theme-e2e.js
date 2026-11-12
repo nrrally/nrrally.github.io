@@ -15,7 +15,7 @@ const nrEventId = season.events[0].id;
 season.events[0].dates = '2026-02-01';
 season.rounds[0].date = '2026-02-01';
 const sharedNrEvents = [
-  { id: 'synthetic-gr-legends', name: 'Synthetic GR Legends Rally', dates: '10–11 July 2026', venue: 'Soetdoring' },
+  { id: 'synthetic-gr-legends', name: 'Synthetic GR Legends Rally', dates: '10–11 July 2026', venue: 'Soetdoring', surface: 'Gravel' },
   { id: 'synthetic-ermelo', name: 'Synthetic INGCO Ermelo Rally', dates: '21 August 2026', venue: 'Ermelo' },
   { id: 'synthetic-trac', name: 'Synthetic TRAC N4 Rally', dates: '30 October 2026', venue: 'Dullstroom' }
 ];
@@ -743,6 +743,9 @@ async function main() {
         const sharedRsCard = page.locator('.event-card').filter({ hasText: 'Synthetic RS R2' });
         assert.ok((await sharedRsCard.innerText()).includes('10–11 July 2026'),
           'a shared RS-only view can display the linked NR event date without assigning it as RS scoring evidence');
+        assert.match(await sharedRsCard.locator('.meta').innerText(), /Soetdoring.*Related NR event.*Gravel.*Related NR event/s);
+        assert.match(await page.locator('.event-card').filter({ hasText: 'Synthetic Launch Event' }).locator('.meta').innerText(),
+          /Venue unavailable.*Surface unavailable/s);
         assert.ok((await page.locator('main').innerText()).includes('The 2026 rounds'));
         const relatedLinks = sharedRsCard.locator('.event-related-links');
         assert.ok((await relatedLinks.innerText()).includes('Related NR event links'));
@@ -871,6 +874,8 @@ async function main() {
         assert.ok(page.url().includes('competition=rs'));
         assert.equal(await page.getByRole('dialog').count(), 0);
         await visit('#/rallyesport/synthetic-rs-r2-results/classification');
+        assert.match(await page.locator('.round-meta').innerText(), /Soetdoring.*Related NR event.*Gravel.*Related NR event/s);
+        await noOverflow();
         const dnfRow = page.locator('.rs-classification tbody tr[data-car="3"]');
         assert.equal(await dnfRow.count(), 1);
         assert.equal(await dnfRow.locator('.rs-result-car').innerText(), '3');
@@ -879,6 +884,10 @@ async function main() {
           'equal known driver/co-driver DNF awards display once');
         assert.match(await dnfRow.locator('.rs-result-points .result-points-equal').getAttribute('aria-label'),
           /Driver and co-driver each scored 0 championship points/);
+        await visit('#/2026/rounds?competition=rs');
+        assert.match(await page.locator('.event-card').filter({ hasText: 'Synthetic RS R2' }).locator('.meta').innerText(),
+          /Soetdoring.*Related NR event.*Gravel.*Related NR event/s);
+        await noOverflow();
         await visit('#/rounds');
         assert.equal(await page.locator('.event-card').count(), 4, 'NR calendar includes NR events only');
         assert.deepEqual(await page.locator('.competition-badge').allTextContents(), ['NR', 'NR', 'NR', 'NR']);
