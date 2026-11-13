@@ -549,16 +549,16 @@
             sourceLinks(entry.source ? [{ label: 'Source', url: entry.source }] : []) + '</div>';
         }).join('') + '</div></details>';
       html += (row.apps.length ? '<div class="table-wrap profile-history" role="region" aria-label="Participation history" tabindex="0"><table class="data"><thead><tr>' +
-        ['Round / event', 'Event', 'No.', 'Role', 'With', 'Vehicle', 'Class', 'Championship scoring',
+        ['Round / event', 'Event', 'No.', 'Role', 'With', 'Vehicle', 'Class',
           'Official position / finish', 'Class pos', 'Points', 'Graph'].map(function (label) {
           return '<th scope="col">' + label + '</th>';
         }).join('') + '</tr></thead><tbody>' + row.apps.map(function (app) {
           return '<tr><td>' + link(app.href, esc(app.round)) + '</td><td>' + esc(app.event) +
             (app.day ? ' · ' + esc(app.day) : '') + '</td><td><span class="carno-lg">' + esc(app.car) +
             '</span></td><td>' + (app.role === 'driver' ? 'Driver' : 'Co-driver') + (app.note ?
-              '<span class="note-mark" title="' + esc(app.note) + '">*</span>' : '') +
+              '<div class="small muted">' + esc(app.note) + '</div>' : '') +
             '</td><td>' + resultPerson({ name: app.partner || '—', href: app.partnerHref }) + '</td><td>' + esc(app.vehicle || 'Not recorded') +
-            '</td><td>' + classes({ classes: app.cls ? [app.cls] : [] }) + '</td><td>' + esc(app.scoring) +
+            '</td><td>' + classes({ classes: app.cls ? [app.cls] : [] }) +
             '</td><td>' + value(app.pos) + ' · ' + esc(app.status) + '</td><td>' + classPosition(app, 'profile-class-position-note-' + index) + '</td><td>' +
             (app.championship ? value(app.points) : 'Non-scoring event') + '</td><td>' +
             (app.graphHref ? link(app.graphHref, 'Graph →', 'go') : '—') + '</td></tr>';

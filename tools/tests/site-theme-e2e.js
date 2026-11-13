@@ -815,6 +815,7 @@ async function main() {
         await page.getByRole('link', { name: 'Synthetic Driver 4', exact: true }).click();
         assert.equal(await page.locator('.kpi').filter({ hasText: 'Starts' }).locator('b').innerText(), '3');
         assert.equal(await page.locator('.profile-history .participation-alert').count(), 0);
+        assert.ok(!(await page.locator('.profile-history thead').innerText()).includes('Championship scoring'));
         await noOverflow();
         await navigate(page, 'Crews');
         await page.getByRole('link', { name: 'Alex Test', exact: true }).click();
@@ -834,6 +835,7 @@ async function main() {
         const sharedProfileHeader = await page.locator('.profile-head').innerText();
         await competitionSwitch().click();
         await page.waitForURL(url => url.hash.includes('/person/alex-test?competition=nr'));
+        assert.ok(!(await page.locator('.profile-history thead').innerText()).includes('Championship scoring'));
         assert.equal(await page.locator('.profile-head').innerText(), sharedProfileHeader,
           'switching keeps the canonical person, shared biography and selected season');
         assert.ok(await page.locator('.chart-card svg[aria-label="Points by round"]').count(),
@@ -1042,9 +1044,9 @@ async function main() {
     await page.locator('main a[href*="/synthetic-rs-r2-results/graph?"]').click();
     await page.locator('.chart-card svg').waitFor();
     await visit('#/2026/person/alex-test?competition=rs');
-    assert.ok((await page.locator('main').innerText()).includes('RS0 · Non-Scoring*'));
-    assert.ok(await page.locator('.note-mark[title*="does not establish non-membership"]').count(),
-      'the profile marker does not imply non-membership');
+    assert.ok((await page.locator('.profile-history').innerText()).includes('RS0 · Non-Scoring.'));
+    assert.ok((await page.locator('.profile-history').innerText()).includes('does not establish non-membership'),
+      'the visible profile note does not imply non-membership');
     await page.locator('main a[href*="/rallyesport/"]').first().click();
     await page.locator('.chart-card svg').waitFor();
     const timingResult = bundle.season.rallyesport.results[0], savedTiming = F.copy(timingResult.entries);

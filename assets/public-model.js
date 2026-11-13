@@ -1021,7 +1021,8 @@
           status: app.status, pos: app.pos, points: app.pts, credited: !!app.credited,
           scoring: app.credited ? 'Credited championship role' : 'Printed role; championship credit assigned elsewhere',
           note: app.msaOnly ? 'Start recorded in the MSA standings; car absent from this classification.' :
-            !app.credited ? 'Printed on the sheet; championship credit assigned elsewhere.' :
+            !app.credited ? 'Printed on the sheet; no championship credit is recorded for this role.' :
+            !app.role ? 'Championship credit: ' + roleName(app.credited) + '; not named on the classification.' :
             app.role && app.role !== app.credited ? 'Printed ' + roleName(app.role) +
               '; championship credit: ' + roleName(app.credited) + '.' : '',
           href: href(model.year, mode, '/round/' + encodeURIComponent(round.id)),
@@ -1048,7 +1049,7 @@
         status: entry.status, pos: entry.pos,
         points: app.championshipRound && typeof app.points === 'number' ? app.points : null, credited: false,
         scoring: !app.championshipRound && !app.eligibility ? 'Non-scoring event' : scoringText(app.eligibility),
-        note: app.eligibility && app.eligibility.status !== 'eligible' ? ROLE_NOTE : '',
+        note: app.eligibility && app.eligibility.status !== 'eligible' ? 'RS0 · Non-Scoring. ' + ROLE_NOTE : '',
         href: href(model.year, mode, '/rallyesport/' + encodeURIComponent(result.id)),
         graphHref: href(model.year, mode, '/rallyesport/' + encodeURIComponent(result.id) + '/graph', { cars: entry.car }),
         stagePos: (entry.stagePos || []).slice() });

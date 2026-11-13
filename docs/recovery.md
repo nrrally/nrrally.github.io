@@ -11,6 +11,17 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
+### Profile history scoring column (authorized release)
+
+The shared NR/RS profile table omits the repetitive Championship scoring column.
+Exceptional printed/credited role differences, uncredited roles, unprinted
+credited people and MSA-only starts remain visible text in the role cell. RS
+non-scoring eligibility caveats remain visible. No sporting data/scoring changes
+or migration are involved. Coordinated shells use `rs-visual-13`; the user
+authorized release of this fix. The release ledger records the actual verified
+deployment separately. Rollback restores the prior display without changing
+data; retain source-status-compatible scoring code.
+
 ### Linked RS vehicles and shared event resources (deployed)
 
 Missing RS vehicle details can display the explicitly linked same-season NR

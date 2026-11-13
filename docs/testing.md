@@ -32,6 +32,11 @@ Event-resource tests cover RS category preference, URL deduplication, accurate N
 classification labels and honest missing states. The public theme suite checks
 unified links without contradictory empty messaging at all four widths/themes.
 
+Shared profile regressions check that both histories omit the scoring column and
+preserve visible NR role-credit differences, replacement/exclusion and MSA-only
+starts. RS non-scoring exceptions remain visible; ordinary credited appearances
+do not repeat a label. Models and scores stay unchanged.
+
 Public start-count regressions implement the user's superseding source-authority
 decision: official classified/DNF counts, even without times; DNS excludes.
 Home/standings/Crews/profiles agree for both roles with exact counts and no missing-

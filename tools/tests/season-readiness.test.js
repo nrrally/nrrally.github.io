@@ -532,7 +532,8 @@ test('RS crews and cross-season profiles use resolved RS identities and official
   assert.match(reviewedCrews, /id="crew-eligibility-note"/);
   assert.ok(!reviewedCrews.includes('RS0 · Non-Scoring*'));
   assert.ok(!reviewedCrews.includes('eligibility unverified'));
-  assert.ok(reviewedPerson.includes('>Class</th><th scope="col">Championship scoring</th>'));
+  assert.ok(reviewedPerson.includes('>Class</th><th scope="col">Official position / finish</th>'));
+  assert.ok(!reviewedPerson.includes('<th scope="col">Championship scoring</th>'));
   assert.ok(reviewedPerson.includes('Official position / finish'));
   const classification = api.viewRallyeSport('rs-result', {}).html;
   assert.ok(classification.includes('Official finish: <span class="result-finish'));
@@ -673,7 +674,7 @@ test('a shared stable-ID profile retains RS R2/R4 charts and car details for RS0
   api.rememberCompetition('rs');
   const before = JSON.stringify(model), html = api.viewRsPerson('alex-test').html;
   for (const text of ['profile-head', 'Synthetic shared biography.', 'assets/brand.svg', 'Driver points by round',
-    'class="carno-lg">72', 'class="carno-lg">74', 'Not recorded', 'RS0 · Non-Scoring*',
+    'class="carno-lg">72', 'class="carno-lg">74', 'Not recorded', 'RS0 · Non-Scoring.',
     '/graph?cars=72&amp;competition=rs', '2026 standings']) assert.ok(html.includes(text), text);
   assert.ok(!html.includes('NR statistics are not included'));
   assert.ok(!html.includes('Synthetic NR-only vehicle'));

@@ -210,6 +210,11 @@ source car numbers, optional source vehicle, partners, official results, recorde
 wins, standings summaries and graph links selecting that appearance's car. Crews and
 standings retain the corresponding role/class and per-event detail. Competition switches
 keep a canonical person and selected season; they never transfer NR sporting results.
+Neither competition's profile history has a repetitive "Championship scoring"
+column. Exceptional NR printed-versus-credited roles, uncredited printed roles,
+credit to an unprinted person and MSA-only starts are explicitly visible in the
+role cell, not a title-only marker. RS non-scoring eligibility caveats remain
+visible when applicable. This presentation does not alter credit or scoring.
 The shared RS display resolver preserves nonempty RS vehicle text first. Otherwise
 an explicit consistent NR event/round relationship permits a same-season vehicle
 lookup in NR's normalized printed result rows and published entry lists. Car number

@@ -31,6 +31,24 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## Profile history scoring column (authorized release; pre-push)
+
+- The user requested removing the Championship scoring profile-history column
+  from both competitions. Visible exception text still explains NR credited versus
+  printed roles, uncredited printed people, unprinted credited people, and MSA-only
+  starts; RS non-scoring caveats remain visible. This fixes a presentation mismatch:
+  the shared renderer showed NR credit labels but RS scoring-class text.
+- No engine/scoring, public data, projector, provider, review digest or source-row
+  changes; no migration is needed. The four shells use `rs-visual-13`.
+  Rollback to the preceding compatible display is data-independent. The user
+  explicitly authorized a guarded normal main release of this fix, followed by
+  exact Pages/assets and public mobile/desktop verification. No data/provider
+  writes are authorized.
+- 127 focused display/scoring/entry/season tests and the public-theme browser suite
+  passed. Anonymous actual-public local-overlay checks passed both competitions
+  and every NR exceptional-credit profile at 390/1440 px, light/dark, without
+  overflow/errors. Public captures remain outside Git; no provider writes.
+
 ## Linked RS vehicles and event resources (deployed; verification follow-up)
 
 - Runtime `93aaa37415b6bbc759097aa739897c3305544854` deployed through the

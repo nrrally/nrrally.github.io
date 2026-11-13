@@ -283,6 +283,33 @@ test('NR directories distinguish multi-day rounds, printed roles, credited roles
   const profile = P.profile([model], 'nr', person.id);
   assert.equal(profile.stats.find(stat => stat[0] === 'Starts')[1], 2);
   assert.deepEqual(profile.seasons[0].charts.map(chart => chart.role), ['driver', 'codriver']);
+  function history(id) {
+    const profile = P.profile([model], 'nr', id);
+    return C.profile(profile, '', profile.seasons.map(season => season.charts.map(() => ''))).html;
+  }
+  assert.match(history(person.id), /Printed Driver; championship credit: Co-driver/);
+  assert.match(history(msa.id), /Start recorded in the MSA standings; car absent from this classification/);
+  assert.doesNotMatch(history(person.id), /Championship scoring|Credited championship role/);
+});
+test('NR profile history explains replacement and excluded credits without a routine scoring column', () => {
+  const season = F.season(2026), people = F.docs()['data/people.json'], raw = F.payload('results', 2026).rounds[0];
+  const base = raw.entries[0];
+  raw.entries = [
+    { ...base, car: '1', driver: 'Alex Test', codriver: 'Printed Person', credit: { codriver: 'Credited Person' } },
+    { ...base, car: '2', driver: 'Another Driver', codriver: 'Excluded Person', credit: { noCodriver: true } }
+  ];
+  const model = freeze(E.buildSeason({ season, rounds: { R1: raw }, people }));
+  const before = JSON.stringify(model);
+  function html(name) {
+    const id = model.people.find(person => person.name === name).id;
+    const profile = P.profile([model], 'nr', id);
+    return C.profile(profile, '', profile.seasons.map(season => season.charts.map(() => ''))).html;
+  }
+  assert.match(html('Printed Person'), /Printed on the sheet; no championship credit is recorded for this role/);
+  assert.match(html('Credited Person'), /Championship credit: Co-driver; not named on the classification/);
+  assert.match(html('Excluded Person'), /Printed on the sheet; no championship credit is recorded for this role/);
+  assert.doesNotMatch(html('Alex Test'), /Credited championship role|Championship scoring/);
+  assert.equal(JSON.stringify(model), before);
 });
 test('profiles retain cross-season roles, credited NR starts and independent RS source history without global context', () => {
   const { f, raw } = fixture(), first = build(f, { R1: raw });
@@ -315,7 +342,9 @@ test('shared directories and profile history have identical equivalent-field str
     const display = P.profile([model], mode, id);
     display.seasons[0].row.apps = display.seasons[0].row.apps.slice(0, 1).map(app => ({ ...app, note: '' }));
     const html = C.profile(display, '<div class="profile-head">Header</div>', [['Chart']]).html;
-    return html.match(/<div class="table-wrap profile-history"[\s\S]*?<\/table>/)[0];
+    const table = html.match(/<div class="table-wrap profile-history"[\s\S]*?<\/table>/)[0];
+    assert.doesNotMatch(table, /Championship scoring|Credited championship role/);
+    return table;
   });
   assert.equal(shape(profiles[0]), shape(profiles[1]));
 });
