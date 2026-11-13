@@ -11,6 +11,25 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
+### Linked RS vehicles and shared event resources (authorized release)
+
+Missing RS vehicle details can display the explicitly linked same-season NR
+event's normalized printed-result or published entry-list vehicle. RS-owned text
+wins. Exact car plus both stable printed-role identities are required; credited
+identities, similar names, event dates and cross-season car numbers are not joins.
+Conflicting links/crews/descriptions and ambiguous rows remain unavailable.
+All RS classification/graph and Crews/profile history use the same display resolver.
+NR scoring and all source/review records remain untouched; no data migration.
+Shared event links now fill missing RS categories in the ordinary event-link group,
+deduplicated with RS preference and inherited results labelled as NR. Entry-list
+resources replace only the corresponding false unavailable message, not missing
+entry counts or day scope. Unlinked/missing resources remain honest.
+Four shells coordinate `rs-visual-12`; old open tabs require reload after release.
+The user explicitly authorized publishing both display fixes; see the release
+ledger for scope and actual deployment verification, not inferred push success.
+Rollback to the preceding source-status runtime needs no data change for this
+display-only work; its existing scoring-basis compatibility must still be retained.
+
 ### Source-authoritative participation (deployed; activation verified by coordinator)
 
 The user's superseding instruction treats official classified/DNF as started and

@@ -642,7 +642,8 @@ test('result navigation retains cars, metrics, historical routes and explicitly 
   }
   const rs = P.result(model, 'rs', result.id, 'classification');
   assert.deepEqual(rs.sourceLinks, [{ label: 'Official source classification', url: result.source.url }]);
-  assert.ok(rs.related.some(group => group.label === 'Related NR event links' && group.links.some(link => link.url.includes('dynamic-synthetic-srs'))));
+  assert.ok(rs.eventLinks.some(link => link.url.includes('dynamic-synthetic-srs')));
+  assert.deepEqual(rs.related, []);
   assert.ok(!rs.sourceLinks.some(link => link.url.includes('dynamic-synthetic-srs')));
   const changed = build(f);
   changed.rallyesport.events.find(row => row.id === event.id).nrEventId = 'unmapped';
@@ -1128,8 +1129,8 @@ test('explicit relationships inherit dynamic NR links and date context, never NR
   assert.equal(adapted.date, '30–31 October 2026');
   assert.equal(adapted.rounds[0].dateIso, '', 'the NR programme does not assign an RS scoring day');
   assert.match(adapted.rounds[0].href, /rallyesport\/rs-r2-classification\/graph/);
-  assert.deepEqual(adapted.links, []);
-  assert.equal(adapted.related[0].label, 'Related NR event links');
+  assert.equal(adapted.links[0].label, 'Official NR results');
+  assert.deepEqual(adapted.related, []);
   model.events[0].links.srs = 'https://example.com/srs-changed';
   let html = C.calendar(P.calendar(model, 'rs'), 0);
   assert.match(html, /srs-changed/);
@@ -1145,6 +1146,103 @@ test('explicit relationships inherit dynamic NR links and date context, never NR
   adapted = P.calendar(model, 'rs').events.find(row => row.id === event.id);
   assert.equal(adapted.date, 'July 2026');
   assert.equal(adapted.sortDate, '', 'a month alone does not invent a day');
+});
+test('linked RS vehicles use exact printed crew identities and shared NR result/entry sources across surfaces', () => {
+  const { f, raw } = fixture();
+  const model = build(f, { R1: raw }), result = model.rallyesport.results[1], entry = result.entries[0];
+  const event = model.rallyesport.events.find(event => event.id === result.eventId);
+  event.nrEventId = model.events[0].id;
+  result.nrRoundId = 'R1';
+  entry.vehicle = '';
+  const nr = model.rounds[0].entries[0];
+  Object.assign(nr, { car: String(entry.car), driverId: entry.driverId, codriverId: entry.codriverId,
+    vehicle: 'Synthetic linked rally car', champDriverId: 'unrelated-credit', champCodriverId: 'other-credit' });
+  function vehicles() {
+    const graph = P.resultGraph(model, 'rs', result.id);
+    const classification = P.result(model, 'rs', result.id, 'classification');
+    const directory = P.directory(model, 'rs');
+    const values = [graph.entries.find(row => row.car === String(entry.car)).vehicle,
+      classification.rows.find(row => row.car === String(entry.car)).vehicle];
+    for (const role of ['driver', 'codriver']) {
+      const person = directory.rows.find(row => row.id === entry[role + 'Id']);
+      values.push(person.apps.find(app => app.eventId === event.id && app.role === role && app.car === String(entry.car)).vehicle);
+      const profile = P.profile([model], 'rs', entry[role + 'Id']);
+      values.push(profile.seasons[0].row.apps.find(app => app.eventId === event.id && app.role === role && app.car === String(entry.car)).vehicle);
+    }
+    return values;
+  }
+  const before = JSON.stringify(model), scoring = JSON.stringify(model.rallyesport.scoring);
+  assert.ok(vehicles().every(vehicle => vehicle === 'Synthetic linked rally car'));
+  assert.match(C.resultClassification(P.result(model, 'rs', result.id, 'classification')), /Synthetic linked rally car/);
+  assert.equal(JSON.stringify(model), before, 'display never edits source records or scoring');
+  entry.vehicle = 'RS-owned vehicle';
+  nr.vehicle = 'Conflicting NR vehicle';
+  assert.ok(vehicles().every(vehicle => vehicle === 'RS-owned vehicle'));
+  entry.vehicle = '   ';
+  nr.vehicle = '';
+  model.entryLists = [{ eventId: event.nrEventId, entries: [{
+    car: String(entry.car), driverId: entry.driverId, codriverId: entry.codriverId,
+    driverKnown: true, codriverKnown: true,
+    roundIds: ['R1'], vehicle: 'Synthetic entry-list car'
+  }] }];
+  assert.ok(vehicles().every(vehicle => vehicle === 'Synthetic entry-list car'));
+  const listEntry = model.entryLists[0].entries[0];
+  nr.vehicle = 'Synthetic Entry-List Car';
+  assert.ok(vehicles().every(vehicle => vehicle === 'Synthetic Entry-List Car'), 'case-only variations keep the NR classification text');
+  nr.vehicle = 'Conflicting result car';
+  assert.ok(vehicles().every(vehicle => vehicle === ''));
+  nr.vehicle = '';
+  model.entryLists[0].entries.push({ ...listEntry });
+  assert.ok(vehicles().every(vehicle => vehicle === ''), 'duplicate matching rows are ambiguous');
+  model.entryLists[0].entries.pop();
+  listEntry.codriverId = 'different-person';
+  assert.ok(vehicles().every(vehicle => vehicle === ''), 'number-only matches do not establish the crew');
+  listEntry.codriverId = entry.codriverId;
+  nr.driverKnown = false;
+  assert.ok(vehicles().every(vehicle => vehicle === ''), 'unresolved NR names cannot match a known RS ID by slug collision');
+  nr.driverKnown = true;
+  entry.driverKnown = false;
+  assert.equal(P.resultGraph(model, 'rs', result.id).entries.find(row => row.car === String(entry.car)).vehicle,
+    '', 'unresolved identities are not guessed');
+  entry.driverKnown = true;
+  listEntry.roundIds = ['another-day'];
+  assert.ok(vehicles().every(vehicle => vehicle === ''), 'explicit day restrictions are respected');
+  listEntry.roundIds = ['R1'];
+  event.nrEventId = 'unrelated-event';
+  assert.ok(vehicles().every(vehicle => vehicle === ''), 'contradictory event and round links block inheritance');
+  delete event.nrEventId;
+  assert.ok(vehicles().every(vehicle => vehicle === 'Synthetic entry-list car'), 'exact round link also identifies the event');
+  delete result.nrRoundId;
+  assert.ok(vehicles().every(vehicle => vehicle === ''), 'no relationship means no inheritance');
+  event.nrEventId = model.events[0].id;
+  assert.ok(vehicles().every(vehicle => vehicle === 'Synthetic entry-list car'), 'event-only links use matching published crew data');
+  model.events.push({ ...model.events[0] });
+  assert.ok(vehicles().every(vehicle => vehicle === ''), 'duplicate parent events are ambiguous');
+  model.events.pop();
+  assert.equal(JSON.stringify(model.rallyesport.scoring), scoring);
+});
+test('shared RS event resources replace empty messages, preserve own link preference and deduplicate targets', () => {
+  const { f } = fixture(), model = build(f), event = model.rallyesport.events[1];
+  event.nrEventId = model.events[0].id;
+  model.events[0].links = { results: 'https://example.com/nr-results', entryList: 'https://example.com/entries',
+    srs: 'https://example.com/regs', noticeboard: 'https://example.com/board' };
+  event.links = { srs: 'https://example.com/rs-regs', spectatorGuide: 'https://example.com/board' };
+  const adapted = P.calendar(model, 'rs').events.find(row => row.id === event.id);
+  assert.deepEqual(adapted.links.map(link => link.url), ['https://example.com/rs-regs',
+    'https://example.com/board', 'https://example.com/nr-results', 'https://example.com/entries']);
+  const html = C.calendar({ ...P.calendar(model, 'rs'), events: [adapted] }, 0);
+  assert.doesNotMatch(html, /Event entries unavailable|No event links published|Related NR event links/);
+  assert.match(html, /Official NR results/);
+  event.links.results = 'https://example.com/rs-results';
+  const ownResults = P.calendar(model, 'rs').events.find(row => row.id === event.id).links;
+  assert.ok(ownResults.some(link => link.url === event.links.results && link.label === 'Official results'));
+  assert.ok(!ownResults.some(link => link.url === model.events[0].links.results), 'RS-owned result links take precedence');
+  event.nrEventId = 'absent';
+  event.links = {};
+  const missing = P.calendar(model, 'rs').events.find(row => row.id === event.id);
+  const absentHtml = C.calendar({ ...P.calendar(model, 'rs'), events: [missing] }, 0);
+  assert.match(absentHtml, /Event entries unavailable/);
+  assert.match(absentHtml, /No event links published/);
 });
 test('RS location uses only explicit unambiguous NR event or round links, preserving own values', () => {
   const { f } = fixture(), model = build(f);

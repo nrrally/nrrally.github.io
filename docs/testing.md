@@ -23,6 +23,15 @@ exact event/round links, unavailable or conflicting relationships and day metada
 provenance and unchanged scoring. The public theme suite checks linked and unlinked
 locations on Home, calendar and result views at its four widths and both themes.
 
+Linked vehicle regressions exercise RS precedence, NR result/entry-list fallback,
+both printed stable-role identities (not championship credits), exact event/round
+scope, entry-day restrictions, missing links, duplicate/conflicting candidates,
+case-only vehicle descriptions and immutable scoring/source models. Graph,
+classification and both roles' Crews/profile histories share the resolved value.
+Event-resource tests cover RS category preference, URL deduplication, accurate NR
+classification labels and honest missing states. The public theme suite checks
+unified links without contradictory empty messaging at all four widths/themes.
+
 Public start-count regressions implement the user's superseding source-authority
 decision: official classified/DNF counts, even without times; DNS excludes.
 Home/standings/Crews/profiles agree for both roles with exact counts and no missing-

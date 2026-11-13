@@ -367,6 +367,7 @@
         return {
           car: String(r.car), status: status, pos: status === 'classified' ? +r.pos : null,
           driver: drv.name, codriver: co.name, driverId: drv.id, codriverId: co.id,
+          driverKnown: !!drv.known, codriverKnown: !!co.known,
           champDriver: cdrv.name, champCodriver: cco.name, champDriverId: cdrv.id, champCodriverId: cco.id,
           noCreditCodriver: !!credit.noCodriver, printedClass: pcl, cls: cls, vehicle: r.vehicle || '',
           stagesCompleted: r.stages == null || r.stages === '' ? null : +r.stages, times: times, stagePos: sp,
@@ -521,7 +522,8 @@
               r.extraStarts.some(function (x) { return x.driverId === id || x.codriverId === id; });
           });
         }
-        var row = Object.assign({}, e, { driver: d.name, codriver: c.name, driverId: d.id, codriverId: c.id });
+        var row = Object.assign({}, e, { driver: d.name, codriver: c.name, driverId: d.id, codriverId: c.id,
+          driverKnown: !!d.known, codriverKnown: !!c.known });
         row.recordedStart = candidates.some(function (r) { return entryCrewRecorded(row, r); });
         [[d, 'driver', c.name], [c, 'co-driver', d.name]].forEach(function (x) {
           if (!x[0].id) return;

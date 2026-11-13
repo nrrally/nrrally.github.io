@@ -747,10 +747,10 @@ async function main() {
         assert.match(await page.locator('.event-card').filter({ hasText: 'Synthetic Launch Event' }).locator('.meta').innerText(),
           /Venue unavailable.*Surface unavailable/s);
         assert.ok((await page.locator('main').innerText()).includes('The 2026 rounds'));
-        const relatedLinks = sharedRsCard.locator('.event-related-links');
-        assert.ok((await relatedLinks.innerText()).includes('Related NR event links'));
+        const relatedLinks = sharedRsCard.locator('.event-own-links');
+        assert.doesNotMatch(await sharedRsCard.innerText(), /Related NR event links|Event entries unavailable|No event links published/);
         assert.deepEqual(await relatedLinks.locator('a').allTextContents(),
-          ['Official results ↗', 'Entry list ↗', 'Supplementary regs ↗', 'Noticeboard ↗', 'Spectator guide ↗']);
+          ['Official NR results ↗', 'Entry list ↗', 'Supplementary regs ↗', 'Noticeboard ↗', 'Spectator guide ↗']);
         assert.equal(await relatedLinks.locator('a[href="https://example.com/synthetic-nr-srs"]').count(), 1);
         const nrLinkedWithoutLinks = page.locator('.event-card').filter({ hasText: 'Synthetic RS R3' });
         assert.equal(await nrLinkedWithoutLinks.locator('.event-related-links').count(), 0,
@@ -826,7 +826,7 @@ async function main() {
           'RS0 people retain the season graph');
         assert.ok((await page.locator('.rs-profile-points').innerText()).includes('0'));
         assert.ok(!(await page.innerText('main')).includes('NR statistics are not included'));
-        assert.ok((await page.innerText('main')).includes('Not recorded'), 'a missing RS vehicle is not copied from NR');
+        assert.ok((await page.innerText('main')).includes('Not recorded'), 'a missing RS vehicle without a matching linked NR crew remains unavailable');
         assert.ok(await page.locator('a[href*="/graph?cars=1"][href*="competition=rs"]').count());
         assert.equal(await page.locator('.kpi').filter({ hasText: 'Starts' }).locator('b').innerText(), '2',
           'RS profiles expose evidenced championship starts in the common KPI slot');

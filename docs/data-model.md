@@ -245,8 +245,12 @@ value, penalty and total. Missing values are null/empty, not zero; RS final stat
 position are never inferred from sums. A source may be identified by HTTPS URL, source
 file name or description; a local-only source need not be assigned an invented URL.
 An optional entry `vehicle` is source vehicle/model text (string, at most 200 characters).
-Absent/empty means not recorded, not an NR-derived vehicle. It is validated, retained in
-the public projection and displayed in results/profiles without affecting any score.
+Absent/empty means not recorded in this RS source. Display may inherit a vehicle
+from an explicitly linked same-season NR event's published result/entry-list rows
+only with exact car and both printed stable-role identities and no conflicting
+match; this never writes a derived vehicle into the source record. The original
+field is validated, retained in the public projection and displayed in
+results/profiles without affecting any score.
 Existing rows need no migration or inferred enrichment. Older admin validators must not
 be used after adding this field; see the local compatibility record in [releases.md](releases.md).
 

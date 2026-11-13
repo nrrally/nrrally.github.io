@@ -209,8 +209,18 @@ explicit zeros for RS0; unavailable points remain gaps, not zeros. RS profiles r
 source car numbers, optional source vehicle, partners, official results, recorded stage
 wins, standings summaries and graph links selecting that appearance's car. Crews and
 standings retain the corresponding role/class and per-event detail. Competition switches
-keep a canonical person and selected season; they never transfer NR results or vehicle
-details into an RS appearance. An absent RS vehicle is shown as "Not recorded".
+keep a canonical person and selected season; they never transfer NR sporting results.
+The shared RS display resolver preserves nonempty RS vehicle text first. Otherwise
+an explicit consistent NR event/round relationship permits a same-season vehicle
+lookup in NR's normalized printed result rows and published entry lists. Car number
+and both stable printed role identities must match; championship-credit identities
+are not substitutes. Normalized NR rows expose known-identity flags so unresolved
+name slugs are not accepted as stable identities. Explicit entry day restrictions
+apply. Duplicate car rows,
+conflicting crews or conflicting vehicle descriptions leave the value unavailable;
+case/whitespace-only description differences preserve the NR result wording.
+Classification, graph/head-to-head and Crews/profile history reuse this resolver.
+Unlinked/unmatched vehicles remain "Not recorded"; stored rows and scoring never change.
 
 The shared graph UI provides the same six metrics, car/class quick filters, legend
 highlighting, tooltips, head-to-head bars/table and stage table in both modes. An RS
@@ -233,6 +243,12 @@ graph/rank; any valid official Final observations remain available independently
 Each calendar shows only its competition in its own event/round order, with
 source-backed dates and undated entries labelled. RS cards can indicate an explicit shared `nrEventId`, but
 do not include NR results. Empty RS seasons never borrow NR leaders/results.
+Explicitly linked NR event resources fill missing RS event-link categories in the
+ordinary Event links group, with RS-owned categories first and duplicate URLs
+removed. Inherited classification links say "Official NR results", never imply
+an RS classification. Shared entry-list resources replace the contradictory
+event-entry-unavailable message without asserting RS entry counts or day allocations.
+Genuinely missing links/entry resources retain their unavailable messages.
 RS Home/calendar cards and result headers use their own venue and surface when known.
 Missing fields may display labelled related NR event metadata, or metadata from an
 explicitly linked NR round, without modifying published data. Missing, duplicate or

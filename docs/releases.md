@@ -31,6 +31,37 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## Linked RS vehicles and event resources (authorized release; pre-push)
+
+- User-directed shared display change: preserve RS vehicle text, otherwise resolve
+  same-season explicitly linked NR printed-result/entry-list vehicle by exact car
+  and both stable printed-role identities. Respect explicit day restrictions;
+  conflicting links, duplicate/changed crews or differing vehicle descriptions
+  do not produce guessed details. Case/whitespace-only descriptions retain NR
+  result wording. Classification, graph and Crews/profile history agree.
+- Linked NR event resources appear as ordinary event links with RS category
+  preference and URL deduplication. NR classification targets remain labelled NR;
+  shared entry resources remove contradictory unavailable messaging without
+  fabricating RS entry totals or day allocations. Real missing states remain.
+- NR normalized result/entry-list rows expose known-identity flags, as RS already
+  does, preventing unresolved name slugs from masquerading as stable matching IDs.
+  No scoring, schema, projector, source rows, current-finality/class-order
+  digests, provider, analytics or data changes. No Firebase/private access or writes.
+  Four shells coordinate `rs-visual-12`; reload existing tabs after deployment.
+  This display-only change requires no data migration and can roll back to the
+  preceding compatible source-status code without restoring data.
+- 154 focused display/scoring/import/admin-logic/entry/season-readiness tests pass.
+  Anonymous-public local-overlay checks pass representative linked events'
+  classification and both-role profile history and unified event resources at
+  390/1440 px, light/dark. The actual engine model matches the previous runtime
+  after omitting only the new NR identity metadata: no scoring/standings changes.
+  The existing public-theme browser suite passes at 320/390/768/1440 px in both
+  themes, including merged resource links, public navigation and unchanged NR.
+  Public captures remain outside Git. The user explicitly selected publishing
+  both fixes. Scope is a guarded normal main code/docs push under the approved
+  account, exact Pages/assets/docs and actual public mobile/desktop verification.
+  No data/provider writes or migration are authorized or required.
+
 ## Source-authoritative participation deployment and activation (documentation follow-up)
 
 - Runtime `a0efbecd33eb382010c54680674195fbb37eecd2` deployed by guarded normal

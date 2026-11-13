@@ -267,6 +267,42 @@
     }
     return { text: '', iso: '', source: 'event' };
   }
+  function linkedNrEvent(model, event, result) {
+    var round = result && result.nrRoundId;
+    var rounds = round ? model.calendar.filter(function (row) { return row.id === round; }) : [];
+    if (round && rounds.length !== 1) return null;
+    var id = event.nrEventId || rounds[0] && rounds[0].eventId;
+    if (!id || rounds.length && rounds[0].eventId !== id) return null;
+    var events = model.events.filter(function (row) { return row.id === id; });
+    return events.length === 1 ? { event: events[0], roundId: round || '' } : null;
+  }
+  function rsVehicle(model, result, entry) {
+    if (typeof entry.vehicle === 'string' && entry.vehicle.trim()) return entry.vehicle;
+    var events = model.rallyesport.events.filter(function (event) { return event.id === result.eventId; });
+    var link = events.length === 1 && linkedNrEvent(model, events[0], result);
+    if (!link || !entry.driverKnown || entry.codriver && !entry.codriverKnown) return '';
+    var sources = model.rounds.filter(function (round) {
+      return round.eventId === link.event.id && (!link.roundId || round.id === link.roundId);
+    }).map(function (round) { return round.entries; });
+    model.entryLists.filter(function (list) { return list.eventId === link.event.id; }).forEach(function (list) {
+      sources.push(list.entries.filter(function (row) {
+        return !link.roundId || !row.roundIds.length || row.roundIds.indexOf(link.roundId) >= 0;
+      }));
+    });
+    var vehicles = [], conflict = false;
+    sources.forEach(function (rows) {
+      var matches = rows.filter(function (row) { return String(row.car) === String(entry.car); });
+      if (matches.length > 1) conflict = true;
+      matches.forEach(function (row) {
+        if (!row.driverKnown || entry.codriver && !row.codriverKnown ||
+          row.driverId !== entry.driverId || (row.codriverId || '') !== (entry.codriverId || '')) conflict = true;
+        if (typeof row.vehicle === 'string' && row.vehicle.trim()) vehicles.push(row.vehicle.trim());
+      });
+    });
+    return !conflict && vehicles.length && vehicles.every(function (vehicle) {
+      return vehicle.replace(/\s+/g, ' ').toLowerCase() === vehicles[0].replace(/\s+/g, ' ').toLowerCase();
+    }) ? vehicles[0] : '';
+  }
   function rsEventLocation(model, event) {
     function text(value) { return typeof value === 'string' ? value.trim() : ''; }
     function invalid(value) { return value != null && typeof value !== 'string'; }
@@ -395,18 +431,28 @@
   function rsCalendar(model) {
     var classes = ['RS2', 'RS4'];
     return { year: model.year, classes: classes, events: model.rallyesport.events.map(function (event) {
-      var linked = model.events.filter(function (row) { return row.id === event.nrEventId; })[0];
+      var results = model.rallyesport.results.filter(function (row) { return row.eventId === event.id; });
+      var link = results.length <= 1 && linkedNrEvent(model, event, results[0]);
+      var linked = link && link.event;
       var list = linked && model.entryLists.filter(function (row) { return row.eventId === linked.id; })[0];
       var date = rsEventDate(model, event);
-      var relatedLinks = linked ? eventLinks(linked, list) : [];
+      var links = eventLinks(event), seen = {};
+      links.forEach(function (link) { seen[link.url] = true; });
+      (linked ? eventLinks(linked, list) : []).forEach(function (link) {
+        if (!seen[link.url] && !links.some(function (own) { return own.label === link.label; })) {
+          links.push({ url: link.url, label: link.label === 'Official results' ? 'Official NR results' : link.label });
+          seen[link.url] = true;
+        }
+      });
       var result = model.rallyesport.results.filter(function (row) { return row.eventId === event.id; })[0];
       var location = rsEventLocation(model, event);
       return { id: event.id, name: event.name, badge: 'RS', date: date.text, dateSource: date.source,
         sortDate: date.iso, venue: location.venue, surface: location.surface,
         venueSource: location.venueSource, surfaceSource: location.surfaceSource,
         scope: event.countsForChampionship === false ? 'Non-scoring event · not a championship round' : 'Championship event',
-        entryNote: '', links: eventLinks(event),
-        related: relatedLinks.length ? [{ label: 'Related NR event links', links: relatedLinks }] : [],
+        entryNote: list ? 'Entry list for the shared event' :
+          links.some(function (link) { return link.label === 'Entry list'; }) ? 'Event entry list linked below' : '',
+        links: links, related: [],
         rounds: [roundDisplay(model, 'rs', event, { id: event.id,
           label: event.countsForChampionship === false ? 'Launch event' : event.roundNumber == null ? 'Round unavailable' : 'R' + event.roundNumber,
           date: date.source === 'event' ? date.text : '' }, result, classes, '')] };
@@ -430,7 +476,10 @@
           parent.badge = 'NR + RS';
           event.rounds.forEach(function (row) { row.label = 'RS ' + row.label; });
           parent.rounds = parent.rounds.concat(event.rounds);
-          if (event.links.length) parent.related.push({ label: 'Related RS event links', links: event.links });
+          var ownLinks = event.links.filter(function (link) {
+            return !parent.links.some(function (own) { return own.url === link.url; });
+          });
+          if (ownLinks.length) parent.related.push({ label: 'Related RS event links', links: ownLinks });
         }
       });
     } else throw new Error('Unsupported calendar competition: ' + mode);
@@ -676,7 +725,7 @@
         return { car: String(entry.car), status: entry.status, pos: entry.pos, classPos: classPosition.value,
           classPosCalculated: classPosition.calculated,
           driver: entry.driver, codriver: entry.codriver, driverId: entry.driverId, codriverId: entry.codriverId,
-          vehicle: entry.vehicle, cls: resultClass(raw, entry), printedClass: entry['class'],
+          vehicle: rsVehicle(model, raw, entry), cls: resultClass(raw, entry), printedClass: entry['class'],
           seriesKey: 'RS:' + raw.id + ':' + entry.car,
           driverHref: entry.driverKnown ? href(model.year, mode, '/person/' + encodeURIComponent(entry.driverId)) : null,
           codriverHref: entry.codriverKnown ? href(model.year, mode, '/person/' + encodeURIComponent(entry.codriverId)) : null,
@@ -992,7 +1041,7 @@
         partner: entry[app.role === 'driver' ? 'codriver' : 'driver'],
         partnerHref: entry[(app.role === 'driver' ? 'codriver' : 'driver') + 'Known'] ?
           href(model.year, mode, '/person/' + encodeURIComponent(entry[(app.role === 'driver' ? 'codriver' : 'driver') + 'Id'])) : null,
-        vehicle: entry.vehicle || '',
+        vehicle: rsVehicle(model, result, entry),
         cls: displayClass, classPos: classPosition.value, classPosCalculated: classPosition.calculated,
         currentFinalityConfirmed: !!result.currentFinalityConfirmed,
         classPosClass: classPosition.calculated && E.normClass(entry['class']) !== E.normClass(displayClass) ? entry['class'] : '',
