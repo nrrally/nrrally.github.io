@@ -31,7 +31,18 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
-## Profile history scoring column (authorized release; pre-push)
+## Profile history scoring column (deployed; verification follow-up)
+
+- Runtime `95ab0510ac94ddd6e2d931f47e1fbf78d833af66` deployed by guarded
+  approved-account normal main push. Pages built that exact revision; canonical
+  bytes of four shells, both changed display assets and four affected documents
+  matched Git at `rs-visual-13`.
+- Actual anonymous live checks confirmed the removed column and visible
+  exceptional role/credit explanations in both contexts at 390/1440 px, light/dark,
+  without overflow or errors. No scoring, source data or provider changes occurred.
+- This authorized follow-up records deployment/recovery only. It changes no
+  runtime behavior and needs no data migration or database access. Rollback
+  retains source-status-compatible code and does not require restoring data.
 
 - The user requested removing the Championship scoring profile-history column
   from both competitions. Visible exception text still explains NR credited versus
