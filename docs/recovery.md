@@ -11,7 +11,7 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
-### Linked RS vehicles and shared event resources (authorized release)
+### Linked RS vehicles and shared event resources (deployed)
 
 Missing RS vehicle details can display the explicitly linked same-season NR
 event's normalized printed-result or published entry-list vehicle. RS-owned text
@@ -27,6 +27,12 @@ entry counts or day scope. Unlinked/missing resources remain honest.
 Four shells coordinate `rs-visual-12`; old open tabs require reload after release.
 The user explicitly authorized publishing both display fixes; see the release
 ledger for scope and actual deployment verification, not inferred push success.
+Runtime `93aaa37415b6bbc759097aa739897c3305544854` deployed successfully;
+Pages built the exact revision and canonical bytes of all four shells, both
+changed runtime assets and affected documents matched Git. Anonymous actual-live
+checks at 390/1440 px, light/dark, confirmed linked vehicle inheritance on
+classifications and both-role profile histories plus unified event-resource
+targets, without overflow/errors. No data migration or provider writes occurred.
 Rollback to the preceding source-status runtime needs no data change for this
 display-only work; its existing scoring-basis compatibility must still be retained.
 

@@ -31,7 +31,20 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
-## Linked RS vehicles and event resources (authorized release; pre-push)
+## Linked RS vehicles and event resources (deployed; verification follow-up)
+
+- Runtime `93aaa37415b6bbc759097aa739897c3305544854` deployed through the
+  approved-account guarded normal main push. Pages built that exact revision;
+  canonical bytes of four shells, both changed runtime assets and all five
+  affected documents matched Git, using `rs-visual-12`.
+- Actual anonymous live checks passed representative linked events' classifications,
+  both roles' profile histories and unified event-resource destinations at
+  390/1440 px, light/dark, without overflow or runtime errors. Missing/unmatched
+  vehicles remain unavailable; source records and scoring are unchanged.
+- This authorized documentation follow-up records deployment/recovery only;
+  no further runtime, data, provider or scoring changes. No migration or database
+  access is required. Rollback retains the existing source-status-compatible
+  runtime and needs no data restoration for these display fixes.
 
 - User-directed shared display change: preserve RS vehicle text, otherwise resolve
   same-season explicitly linked NR printed-result/entry-list vehicle by exact car
