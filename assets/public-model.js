@@ -28,6 +28,17 @@
       return encodeURIComponent(key) + '=' + encodeURIComponent(params[key]);
     }).join('&');
   }
+  function nrNationalContext(notices, personId, role, onlyRound, onlyCar) {
+    return notices.filter(function (notice) {
+      return notice.personId === personId && (!role || notice.role === role) &&
+        (!onlyRound || notice.roundId === onlyRound) && (!onlyCar || notice.car === onlyCar);
+    }).map(function (notice) {
+      return 'R' + notice.roundNumber + ' ' + notice.printedClass +
+        (notice.scoredClass === notice.printedClass ? '' : ' (scored ' + notice.scoredClass + ')') + ' ' +
+        (notice.role === 'driver' ? 'driver' : 'co-driver') +
+        ' (event entry ' + notice.nationalClass + ')';
+    });
+  }
   function rsAppearances(model, id, includeUnresolved) {
     var all = [], rs = model.rallyesport;
     rs.results.forEach(function (result) {
@@ -524,6 +535,7 @@
   /** @returns {StandingsDisplay} */
   function standings(model, mode, role, query) {
     if (role !== 'driver' && role !== 'codriver') throw new Error('Unsupported standings role: ' + role);
+    var nationalNotices = mode === 'nr' ? E.nrNationalEntryDiagnostics(model, model.nrNationalEntries) : [];
     var overview = home(model, mode), q = query || {}, display = {
       year: model.year, title: role === 'driver' ? 'Drivers' : 'Co-drivers', role: role,
       selectedClass: '', showBreak: q.pts === 'split', hasResults: overview.hasResults,
@@ -559,6 +571,7 @@
           var row = Object.assign({}, homeRows.filter(function (row) { return row.id === raw.id; })[0]);
           row.rank = display.selectedClass ? index + 1 : raw.rank;
           row.overallRank = raw.rank;
+          row.nationalContext = nrNationalContext(nationalNotices, raw.id, role);
           row.ineligible = !raw.eligible;
           row.classPoints = 0;
           row.cells = model.rounds.map(function (round) {
@@ -616,6 +629,7 @@
         });
         row.qualifier = raw.rank == null ? 'RS0 Non-Scoring SSR 6.1' : 'Eligible';
         row.ineligible = raw.rank == null;
+        row.nationalContext = [];
         row.overallRank = overallRow ? overallRow.rank : null;
         row.classPoints = raw.points;
         row.cells = display.columns.map(function (column) {
@@ -795,6 +809,7 @@
    */
   function result(model, mode, id, tab, query) {
     if (mode !== 'nr' && mode !== 'rs') throw new Error('Unsupported result competition: ' + mode);
+    var nationalNotices = mode === 'nr' ? E.nrNationalEntryDiagnostics(model, model.nrNationalEntries) : [];
     var q = query || {}, active = ['graph', 'classification', 'stages'].indexOf(tab) >= 0 ? tab : 'graph';
     var graph = resultGraph(model, mode, id);
     var raw = (mode === 'nr' ? model.rounds : model.rallyesport.results).filter(function (row) { return row.id === id; })[0];
@@ -890,6 +905,14 @@
         total: mode === 'nr' ? entry.status === 'classified' ? entry.total == null ? '—' : E.fmtTime(entry.total, true) : entry.status : original.total || '—',
         gap: '—', previousGap: '—', credit: '',
         notes: (original.notes || []).map(function (note) { return sourceNote(note, raw, original); }).filter(Boolean), points: [] };
+      if (mode === 'nr') {
+        ['driver', 'codriver'].forEach(function (role) {
+          var printedId = entry[role + 'Id'];
+          var isCredited = printedId && (role === 'driver' ? printedId === entry.champDriverId :
+            !entry.noCreditCodriver && printedId === entry.champCodriverId);
+          row[role].nationalContext = isCredited ? nrNationalContext(nationalNotices, printedId, role, raw.id, entry.car) : [];
+        });
+      }
       if (entry.status === 'classified' && entry.total != null) {
         if (first && entry !== first) row.gap = '+' + resultTime(Number((entry.total - first.total).toFixed(graph.timePrecision)), graph.timePrecision);
         if (previous && previous.total != null) row.previousGap = '+' + resultTime(Number((entry.total - previous.total).toFixed(graph.timePrecision)), graph.timePrecision);
@@ -988,6 +1011,7 @@
   }
   function directory(model, mode, profiles) {
     if (mode !== 'nr' && mode !== 'rs') throw new Error('Unsupported directory competition: ' + mode);
+    var nationalNotices = mode === 'nr' ? E.nrNationalEntryDiagnostics(model, model.nrNationalEntries) : [];
     var people = {}, sourceIneligible = Object.create(null), tables = mode === 'nr' ? model.standings :
       model.rallyesport.scoring.status === 'ready' ? model.rallyesport.scoring.standings : model.rallyesport.scoring.provisionalStandings;
     function person(key, id, name) {
@@ -1087,6 +1111,7 @@
       row.startsCount = starts.count; row.startsCountLowerBound = starts.lowerBound;
       row.hasIneligible = !!(row.driver && row.driver.ineligible || row.codriver && row.codriver.ineligible ||
         sourceIneligible[key]);
+      row.nationalContext = mode === 'nr' ? nrNationalContext(nationalNotices, row.id) : [];
       row.status = apps.some(function (app) { return app.scoring.indexOf('Non-Scoring') >= 0; }) ? 'RS0 · Non-Scoring' : '';
       return row;
     }).sort(function (a, b) { return a.name.localeCompare(b.name); });

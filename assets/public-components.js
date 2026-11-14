@@ -246,7 +246,8 @@
         return '<tr class="' + rowClass + '" data-person="' + esc(row.id) + '"><td class="center sticky s-pos">' +
           value(row.rank) + '</td><th scope="row" class="sticky s-name"' +
           (row.ineligible ? ' aria-describedby="standings-eligibility-note"' : '') + '>' + person(row) +
-          (row.ineligible ? '<span class="eligibility-mark" aria-hidden="true">*</span>' : '') + '</th>' +
+          (row.ineligible ? '<span class="eligibility-mark" aria-hidden="true">*</span>' : '') +
+          nationalContext(row.nationalContext) + '</th>' +
           '<td class="num total m-only">' + value(row.points) + '</td><td class="standing-classes">' + classes(row) + '</td>' +
           (display.selectedClass ? '<td class="num">' + value(row.overallRank) + '</td>' : '') +
           row.cells.map(function (cell) {
@@ -292,6 +293,14 @@
       }).join('') + '</div></details></div>' + standingsTable(display) };
   }
   function resultPerson(row) { return row.href ? person(row) : esc(row.name); }
+  function nationalContext(context, name) {
+    if (!context || !context.length) return '';
+    return '<details class="national-context"><summary aria-label="Show national event entry and NR class context' +
+      (name ? ' for ' + esc(name) : '') + '">!</summary><span>' +
+      (name ? esc(name) + ': ' : '') + 'National event entry and NR championship classification: ' +
+      esc(context.join(', ')) + '. NR SSR: “Class NR0 will score Class points only, and not the Overall Northern Regions Championship, but qualifies for trophies per event and annual Class awards.” ' +
+      'This automatic anomaly notice is not an adjudication or a claim of wrongdoing. Published final results remain what the site displays and scores; official results and points are unchanged.</span></details>';
+  }
   function resultPosition(position, status) {
     var stopped = status !== 'classified';
     return '<span class="pos' + (stopped || position == null ? ' dnf' : position <= 3 ? ' p' + position : '') + '">' +
@@ -343,8 +352,9 @@
       '</tr></thead><tbody>' + display.rows.map(function (row) {
         function role(person, key) {
           var points = row.points.filter(function (points) { return points.role === key; })[0];
-          return '<div class="result-crew-role rs-crew-role" aria-label="' + (key === 'driver' ? 'Driver' : 'Co-driver') + '"><span>' +
-            resultPerson(person) + '</span><span class="small result-role-status rs-role-status">' +
+          var marker = nationalContext(person.nationalContext), tag = marker ? 'div' : 'span';
+          return '<div class="result-crew-role rs-crew-role" aria-label="' + (key === 'driver' ? 'Driver' : 'Co-driver') + '"><' + tag + '>' +
+            resultPerson(person) + marker + '</' + tag + '><span class="small result-role-status rs-role-status">' +
             esc(points.detail || 'Scoring status unavailable') + (points.detailHelp ?
               '<span class="note-mark" title="' + esc(points.detailHelp) + '">*</span>' : '') + '</span></div>';
         }
@@ -502,7 +512,7 @@
         var standings = [standing(row.driver, 'Driver'), standing(row.codriver, 'Co-driver')].filter(Boolean).join('') ||
           '<span class="small muted">No championship standing</span>';
         var identity = resultPerson(row) + (row.hasIneligible ?
-          '<span class="eligibility-mark" aria-hidden="true">*</span>' : '');
+          '<span class="eligibility-mark" aria-hidden="true">*</span>' : '') + nationalContext(row.nationalContext);
         var cells = [
           identity + (!row.id ? '<div class="small muted">Source name; profile unresolved</div>' : ''),
           row.roles.length ? row.roles.map(function (role) { return role === 'driver' ? 'Driver' : 'Co-driver'; }).join(' &amp; ') : 'Listed',

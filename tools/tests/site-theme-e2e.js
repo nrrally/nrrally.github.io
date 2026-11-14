@@ -134,6 +134,23 @@ site: { ...docs['data/site.json'], siteName: 'Northern Regions Rally', tagline: 
 people, season_2026: bundle
 };
 const standingsParityModel = E.buildSeason({ season: bundle.season, rounds: bundle.rounds, people, publicProjection: true });
+const nationalSeason = F.copy(season);
+nationalSeason.rounds.push({ ...nationalSeason.rounds[0], id: 'R2' });
+nationalSeason.classes.push({ id: 'NR1', desc: 'Synthetic national context', classOnly: false });
+nationalSeason.events[0].links = { ...nationalSeason.events[0].links, noticeboard: 'https://webapp.sportity.com/event/noticeboard' };
+const nationalRound = F.copy(bundle.rounds.R1);
+nationalRound.entries[0].class = 'NR1';
+const nationalModel = E.buildSeason({ season: nationalSeason, rounds: { R1: nationalRound, R2: nationalRound }, people, publicProjection: true });
+nationalModel.nrNationalEntries = { year: 2026, events: [{ eventId: 'test-event', noticeboardUrl: 'https://webapp.sportity.com/event/noticeboard',
+  sourceUrl: 'https://app-cdn.sportity.com/entries.pdf', sourceSha256: 'a'.repeat(64),
+  entries: [{ car: '1', driverId: 'alex-test', codriverId: 'blake-example', nationalClass: 'NRC3' }] }] };
+nationalModel.nrNationalEntries.events[0].review = { version: 1, reviewed: true,
+  digest: E.nrNationalEntryReviewDigest(nationalModel, nationalModel.nrNationalEntries.events[0]), evidence: 'Synthetic review' };
+const nationalDisplays = [
+  { kind: 'standings', value: P.standings(nationalModel, 'nr', 'driver') },
+  { kind: 'result', value: P.result(nationalModel, 'nr', 'R2', 'classification') },
+  { kind: 'directory', value: P.directory(nationalModel, 'nr') }
+];
 const standingsParity = ['nr', 'rs'].map(mode => {
   const display = P.standings(standingsParityModel, mode, 'driver');
   const row = display.rows.find(row => !row.ineligible && row.classes.length === 1 && row.cells.some(cell => cell.points != null));
@@ -225,6 +242,20 @@ async function main() {
       assert.equal(await page.locator('.footer a[href="disclaimer.html"]').count(), 1);
       assert.ok((await page.innerText('.site-disclosure')).includes('not this site'));
     };
+    const savedBundle = published.season_2026;
+    const wiredSeason = F.copy(nationalSeason);
+    wiredSeason.nrNationalEntries = F.copy(nationalModel.nrNationalEntries);
+    published.season_2026 = { season: AI.projectPublic(wiredSeason, people),
+      rounds: { R1: nationalRound, R2: nationalRound } };
+    for (const route of ['#/2026/round/R2/classification', '#/2026/standings', '#/2026/crews']) {
+      await visit(route);
+      const notice = page.locator('.national-context').first();
+      await notice.waitFor();
+      assert.equal(await notice.evaluate(el => el.open), false, 'notice is collapsed by default');
+      await notice.locator('summary').click();
+      assert.match(await notice.innerText(), /Class NR0 will score Class points only/);
+    }
+    published.season_2026 = savedBundle;
     const noOverflow = async () => {
       const layout = await page.evaluate(() => ({
         viewport: window.innerWidth, document: document.documentElement.scrollWidth,
@@ -505,6 +536,19 @@ async function main() {
         }
         assert.deepEqual(resultPresentations[1], resultPresentations[0],
           'actual NR/RS result adapters share exact header wording, row structure, tabs, responsive layout and computed typography/spacing');
+        for (const context of nationalDisplays) {
+          await page.evaluate(({ kind, value }) => {
+            const C = window.NRPublicComponents;
+            document.querySelector('main').innerHTML = kind === 'result' ? C.resultShell(value, C.resultClassification(value)).html :
+              kind === 'standings' ? C.standings(value).html : C.directory(value).html;
+          }, context);
+          const disclosure = page.locator('.national-context summary').first();
+          await disclosure.focus();
+          await page.keyboard.press('Enter');
+          assert.match(await disclosure.locator('..').innerText(), /Class NR0 will score Class points only/);
+          assert.match(await disclosure.locator('..').innerText(), /official results and points are unchanged/i);
+          await noOverflow();
+        }
         await page.evaluate(display => {
           document.querySelector('main').innerHTML = window.NRPublicComponents.resultShell(display,
             window.NRPublicComponents.resultClassification(display)).html;

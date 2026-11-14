@@ -201,6 +201,11 @@ table.data tr.hl td { background: color-mix(in srgb, var(--accent) 9%, var(--sur
 .ptcell small { font-size: 10.5px; color: var(--muted); font-weight: 600; }
 .ptcell.zero b { color: var(--muted); }
 .eligibility-mark { margin-inline-start: .2em; color: var(--muted); font-size: .8em; font-weight: 750; vertical-align: super; }
+.national-context { display: inline; font-weight: 400; }
+.national-context summary { display: inline; cursor: pointer; margin-inline-start: .25em; color: var(--accent); font-weight: 850; }
+.national-context summary::-webkit-details-marker { display: none; }
+.national-context summary:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.national-context[open] > span { display: block; min-width: 13em; max-width: 28em; white-space: normal; font-size: 12px; line-height: 1.4; color: var(--ink); }
 .standings-eligibility-footnote, .crew-eligibility-footnote { margin-block: 6px 0; }
 .crew-standing-role { display: block; overflow-wrap: anywhere; }
 .crew-standing-role-label { color: var(--muted); font-size: 11px; font-weight: 750; }
@@ -248,7 +253,7 @@ td.fastest { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); 
 .rs-competitor { font-weight:750; }
 .result-classification .crew { min-width: 220px; gap: 7px; }
 .result-crew-role { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.result-crew-role + .result-crew-role > span:first-child { font-size: 12.5px; color: var(--muted); }
+.result-crew-role + .result-crew-role > :first-child { font-size: 12.5px; color: var(--muted); }
 .result-role-status { white-space: nowrap; color: var(--muted); }
 .result-printed-class, .result-points > span, .result-stage-crew { display: block; }
 .result-points .result-points-equal { display: block; }

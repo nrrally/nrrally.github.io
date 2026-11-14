@@ -31,6 +31,30 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## 2026 NR National entry context (local; not deployed)
+
+- The user requested a reusable engine-level, neutral NR notice and conditionally
+  authorized a code push. The generic rule compares explicitly reviewed same-event
+  National NRC1–NRC4 entries with NR1–NR4 classifications and stable role identities.
+  R1, NR0, DNS and RS remain excluded; results, scoring and positions do not change.
+- A staged admin review, source/classification digest, public projection and stale
+  review checks support repeatable use. This requires manual source verification and
+  fresh event identity review; it does not fetch or parse entry PDFs. The implemented
+  rule is limited to 2026; later SSR applicability is not assumed.
+- Four shells use `rs-visual-14`. Existing tabs must be retired before catalogue
+  activation. No catalogue or provider write is authorized by the code push; existing
+  public data produce no new indicator. An older admin can mishandle new fields:
+  use compatible code, or a separately authorized paired data restore, for rollback.
+- 157 synthetic display/scoring/import/admin/entry tests passed, as did responsive
+  public and admin browser suites with provider traffic intercepted. An anonymous
+  public-snapshot rehearsal with an in-memory reviewed candidate produced only the
+  previously reviewed crew's two roles in six rounds and left NR standings and RS
+  scoring unchanged. This is not a private baseline or a publication rehearsal.
+  The actual source catalogue, review evidence, protected backups and provider
+  records are not committed. Separate explicit data authorization, source review,
+  backup, guarded atomic publication and History are required before any notice
+  appears live.
+
 ## Profile history scoring column (deployed; verification follow-up)
 
 - Runtime `95ab0510ac94ddd6e2d931f47e1fbf78d833af66` deployed by guarded

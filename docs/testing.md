@@ -2,6 +2,14 @@
 
 ## Revised RS entry-based policy (synthetic)
 
+National-entry context tests use synthetic reviewed event entries, not provider
+data. They cover NR1–NR4, both credited roles, R1/NR0/DNS exclusions, ambiguous
+or mismatched events, cars and identities, private-evidence removal, stale review
+invalidation and unchanged scoring. Browser checks exercise the neutral disclosure
+on classification, standings and Crews at four widths and both themes, and
+exercise the admin review and invalidation flow. Production activation and
+independently verified source data require separate authorization.
+
 ```
 node --test tools\tests\rallyesport.test.js tools\tests\season-readiness.test.js tools\tests\admin-logic.test.js tools\tests\ai-import.test.js
 node tools\tests\rs-entry-policy-e2e.js

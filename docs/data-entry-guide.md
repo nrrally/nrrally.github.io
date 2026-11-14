@@ -1,5 +1,18 @@
 # Data entry guide
 
+### National entry context (2026)
+
+In **Events & calendar**, use **Add national entry review** for the relevant
+event. Verify the event-linked Sportity noticeboard and the exact entry-list PDF
+and its SHA-256 independently, then add each reviewed National crew with both
+stable competitor identities and NRC class. Reconcile against the same-event NR
+classifications before recording private review evidence and confirming the
+review. This is a manual process, not automatic extraction; unresolved identities
+must not be guessed. Source, entry, classification or calendar changes invalidate
+the review and block publication. Review & publish remains the audited data
+publication step. The indicator changes no points or results and does not apply
+to R1 or RS. No later-season policy is assumed.
+
 How to get a season or round's official data into the site correctly. Manual entry, deterministic PDF/spreadsheet import and optional AI preparation are all available.
 
 ## Source participation statuses

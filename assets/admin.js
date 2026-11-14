@@ -110,6 +110,10 @@
     if (!E || E.rallyNoticeContractVersion !== 1 || typeof E.validateActiveRally !== 'function' || typeof E.nrcDestination !== 'function') {
       return 'Rally-notice scripts are missing or out of date. Refresh this page with Ctrl+Shift+R before restoring or publishing; nothing has been published.';
     }
+    if (E.nrNationalEntryContractVersion !== 1 || typeof E.validateNrNationalEntries !== 'function' ||
+      typeof E.nrNationalEntryReviewDigest !== 'function') {
+      return 'National entry review scripts are missing or out of date. Refresh this page before restoring or publishing; nothing has been published.';
+    }
     return !E || E.entryContractVersion !== 2 || typeof E.validateEntryLists !== 'function' || typeof E.entryEvidenceLoss !== 'function' ||
       !AI || AI.entryContractVersion !== 2 || typeof AI.validateDocuments !== 'function' ?
       'Entry-aware scripts are missing or out of date. Refresh this page with Ctrl+Shift+R before restoring or publishing; nothing has been published.' : '';
@@ -352,6 +356,7 @@
     Object.keys(staged.docs).forEach(function (p) {
       var obj = clone(staged.docs[p]);
       if (/^data\/seasons\/\d+\/season\.json$/.test(p) && obj.rallyesport) delete obj.rallyesport.scoring;
+      if (/^data\/seasons\/\d+\/season\.json$/.test(p)) delete obj.nrNationalEntries;
       A.docs[p] = { orig: norm(obj), obj: obj, deleted: false };
     });
     afterLoad();
@@ -383,7 +388,7 @@
       var before = A.docs[p].obj, after = set.docs[p];
       return !A.docs[p].deleted && before && E.entryEvidenceLoss(before, after, peopleDoc(), set.docs[PEOPLE]);
     });
-    if (entryLoss && !window.confirm('This backup removes saved entry-list evidence or replaces crew/source details or day scope. Review the differences. Restore anyway? History records the replacement only when you publish.')) throw new Error('Backup restore cancelled; entry evidence retained.');
+    if (entryLoss && !window.confirm('This backup removes saved entry-list or national entry review evidence, or replaces crew/source details or day scope. Review the differences. Restore anyway? History records the replacement only when you publish.')) throw new Error('Backup restore cancelled; entry evidence retained.');
     if (rsLoss.length && !window.confirm(rallyeSportLossMessage(rsLoss, 'backup restore'))) throw new Error('Backup restore cancelled; RallyeSport data retained.');
     Object.keys(A.docs).forEach(function (p) { if (!set.docs[p]) A.docs[p].deleted = true; });
     Object.keys(set.docs).forEach(function (p) {
@@ -542,7 +547,7 @@
     return order.map(function (g) { return groups[g]; });
   }
   function stageUndo(g) {
-    var rsLoss = [];
+    var rsLoss = [], nationalLoss = [];
     g.items.forEach(function (it) {
       var match = it.path.match(/^data\/seasons\/(\d+)\/season\.json$/), doc = A.docs[it.path];
       if (!match || !doc) return;
@@ -550,7 +555,11 @@
       var beforeObj = it.before == null ? null : JSON.parse(it.before);
       var currentRs = current && current.rallyesport, beforeRs = beforeObj && beforeObj.rallyesport;
       if ((currentRs || beforeRs) && norm(currentRs) !== norm(beforeRs)) rsLoss.push(match[1]);
+      if (current && current.nrNationalEntries &&
+        JSON.stringify(current.nrNationalEntries) !== JSON.stringify(beforeObj && beforeObj.nrNationalEntries)) nationalLoss.push(match[1]);
     });
+    if (nationalLoss.length && !window.confirm('This History undo replaces or removes national entry review evidence for ' +
+      nationalLoss.join(', ') + '. Review the resulting changes before publishing. Continue?')) return false;
     if (rsLoss.length && !window.confirm(rallyeSportLossMessage(rsLoss, 'History undo'))) return false;
     var before = clone(peopleDoc().people);
     g.items.forEach(function (it) {
@@ -1310,7 +1319,7 @@
         fld('Dates', input(function (v) { ev.dates = v; }, ev.dates, 'placeholder="21–22 August ' + A.year + '"')) + fld('Venue', input(function (v) { ev.venue = v; }, ev.venue)) +
         fld('Surface', select(function (v) { ev.surface = v; }, ev.surface || '', [['', '—'], ['Gravel', 'Gravel'], ['Tarmac', 'Tarmac'], ['Mixed', 'Mixed']])) +
         LINKS.map(function (l) { return fld(l[1], input(function (v) { if (v.trim()) ev.links[l[0]] = v.trim(); else delete ev.links[l[0]]; }, ev.links[l[0]], 'type="url" placeholder="https://"')); }).join('') +
-        '</div>' + entryListEditor(s, ev) + '<div class="actions">' + (used ? '<span class="small muted">Remove its rounds first to delete this event.</span>' : btn(function () { if (window.confirm('Delete ' + (ev.name || 'this event') + '?')) { s.events.splice(i, 1); render(); } }, 'Delete event', 'tiny ghost')) + '</div></div>';
+        '</div>' + entryListEditor(s, ev) + nationalEntryEditor(s, ev) + '<div class="actions">' + (used ? '<span class="small muted">Remove its rounds first to delete this event.</span>' : btn(function () { if (window.confirm('Delete ' + (ev.name || 'this event') + '?')) { s.events.splice(i, 1); render(); } }, 'Delete event', 'tiny ghost')) + '</div></div>';
     }).join('');
     var ne = A.newEvent || (A.newEvent = { name: '' });
     html += '<div class="card add-card"><div class="form-grid">' + fld('New event name', input(function (v) { ne.name = v; }, ne.name, 'placeholder="e.g. TRAC N4 Rally" id="neName"'), '', 'span2') + '<div class="fld">' +
@@ -1340,6 +1349,56 @@
         }, '+ Add round', 'primary', 'id="nrBtn"') + '</div></div><p class="small muted">New rounds go to the end of the calendar. Add them in date order.</p></div>';
     }
     return html + '</div>';
+  }
+
+  function nationalEntryEditor(s, ev) {
+    if (s.year !== 2026) return '';
+    var catalogue = s.nrNationalEntries, list = catalogue && catalogue.events.filter(function (x) { return x.eventId === ev.id; })[0];
+    if (!list) return '<div class="actions">' + btn(function () {
+      s.nrNationalEntries = s.nrNationalEntries || { year: 2026, events: [] };
+      s.nrNationalEntries.events.push({ eventId: ev.id, noticeboardUrl: ev.links.noticeboard || '',
+        sourceUrl: '', sourceSha256: '', entries: [] });
+      render();
+    }, 'Add national entry review', 'tiny') + '</div>';
+    var currentModel = model(), valid = E.nrNationalEntryReviewAccepted(currentModel, list, true);
+    var choices = [['', 'Choose a competitor']].concat(peopleDoc().people.map(function (p) { return [p.id, p.name]; }));
+    return '<details class="entry-editor"><summary>National entry review · ' + list.entries.length + ' crews</summary>' +
+      '<p class="small muted">Display-only, not an eligibility or scoring decision. Verify the linked Sportity noticeboard, exact PDF and SHA-256, each national entry and both stable crew identities against the same-event NR classifications. Changed source, crews, results or round order require a new review. Round 1 and RS are excluded.</p>' +
+      '<p class="small">' + (valid ? 'Review matches the current source and classifications.' : 'Review is missing or stale; publication is blocked.') + '</p><div class="form-grid">' +
+      fld('Linked event noticeboard', input(function (v) { list.noticeboardUrl = v.trim(); }, list.noticeboardUrl, 'type="url"')) +
+      fld('Sportity entry-list PDF URL', input(function (v) { list.sourceUrl = v.trim(); }, list.sourceUrl, 'type="url"')) +
+      fld('Entry-list PDF SHA-256', input(function (v) { list.sourceSha256 = v.trim(); }, list.sourceSha256)) + '</div>' +
+      list.entries.map(function (row, index) {
+        return '<div class="card"><div class="form-grid">' +
+          fld('National entry car', input(function (v) { row.car = v.trim(); }, row.car)) +
+          fld('Driver identity', select(function (v) { row.driverId = v; }, row.driverId, choices)) +
+          fld('Co-driver identity', select(function (v) { row.codriverId = v; }, row.codriverId, choices)) +
+          fld('National entry class', select(function (v) { row.nationalClass = v; }, row.nationalClass,
+            [['', 'Choose class'], ['NRC1', 'NRC1'], ['NRC2', 'NRC2'], ['NRC3', 'NRC3'], ['NRC4', 'NRC4']])) +
+          '</div>' + btn(function () { list.entries.splice(index, 1); render(); }, 'Remove crew', 'tiny ghost') + '</div>';
+      }).join('') +
+      '<div class="actions">' + btn(function () { list.entries.push({ car: '', driverId: '', codriverId: '', nationalClass: '' }); render(); }, '+ Add national crew', 'tiny') +
+      btn(function () {
+        var evidence = window.prompt('Record the private source and identity reconciliation evidence for this exact review:');
+        if (evidence == null) return;
+        var draft = clone(s), target = draft.nrNationalEntries.events.filter(function (x) { return x.eventId === ev.id; })[0];
+        target.review = { version: 1, reviewed: true, digest: E.nrNationalEntryReviewDigest(currentModel, target), evidence: evidence };
+        var rounds = {}; (draft.rounds || []).forEach(function (r) { var raw = rawRound(r.id); if (r.results && raw) rounds[r.id] = raw; });
+        var issues = E.validateNrNationalEntries(draft, rounds, peopleDoc());
+        if (issues.length) throw new Error(issues.map(function (i) { return i.msg; }).join(' '));
+        var notices = E.nrNationalEntryDiagnostics(currentModel, { year: 2026, events: [target] });
+        var summary = notices.map(function (n) {
+          return 'R' + n.roundNumber + ' car ' + n.car + ' ' + n.role + ' ' + n.printedClass + ' / ' + n.nationalClass;
+        });
+        if (!window.confirm('Confirm the source and exact crew identities have been reviewed? This does not change results or points. Current notices: ' +
+          (summary.length ? summary.join('; ') : 'none') + '.')) return;
+        list.review = target.review; render();
+      }, 'Review current source and classifications', 'tiny') +
+      btn(function () { if (window.confirm('Remove this national entry review from the draft?')) {
+        s.nrNationalEntries.events = s.nrNationalEntries.events.filter(function (x) { return x !== list; });
+        if (!s.nrNationalEntries.events.length) delete s.nrNationalEntries;
+        render();
+      } }, 'Remove review', 'tiny ghost') + '</div></details>';
   }
 
   /* ------------------------------------------------------------------ competitors */

@@ -11,6 +11,34 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
+### NR national event-entry context (local, not activated)
+
+The shared engine provides a read-only `nrNationalEntryDiagnostics` helper and
+loads optional `season.nrNationalEntries`; see [data-model.md](data-model.md) for
+the reviewed event contract. The admin stages reviews and the public projector
+removes private review evidence. PDF SHA-256, event noticeboard, source rows,
+classifications, stable role identities and round order are bound to review.
+Source files must be verified manually; the browser does not download/hash them
+or import a National roster automatically. Changes invalidate review and block
+publication until re-reviewed or removed. No catalogue has been published.
+Do not copy private registers or real-person fixtures into Git or identify people
+by name or car alone. Future years require confirmed applicable rules and a
+separately implemented/tested policy; 2026 SSR wording is not assumed to persist.
+
+The helper produces separate structured notices and never alters scoring or source
+rows. For an exact same-event, car and two-role match, NR classifications, role standings
+and Crews show a neutral disclosure for matching credited roles with printed and
+scored NR1–NR4 classes in 2026 R2 onward. It identifies the national entry class
+and the recorded regional classification and quotes the NR0 clause; R1, NR0, DNS, other seasons and RS are
+excluded. It does not claim that an NR entry-list column was filled, adjudicate,
+or amend official results or recalculate points. RS guidance remains pending.
+Four shells use `rs-visual-14`. The user requested a code push conditional on a
+reusable engine; this does not authorize a database write. Before any activation,
+retire old admin tabs, obtain explicit data-write authorization, take protected
+backups and use audited atomic working/public/revision/History publication with
+preconditions. An older client can remove or mishandle the new catalogue; rollback
+must preserve compatible code or use an independently authorized paired data restore.
+
 ### Profile history scoring column (deployed)
 
 The shared NR/RS profile table omits the repetitive Championship scoring column.

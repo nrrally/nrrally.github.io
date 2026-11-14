@@ -314,20 +314,138 @@
 
   /* ---------------------------------------------------------------- people */
   function peopleIndex(peopleDoc) {
-    var byKey = {}, byId = {};
+    var byKey = Object.create(null), byId = Object.create(null), ambiguous = Object.create(null);
+    function indexName(name, person) {
+      var key = keyName(name);
+      if (byKey[key] && byKey[key].id !== person.id) ambiguous[key] = true;
+      byKey[key] = person;
+    }
     ((peopleDoc && peopleDoc.people) || []).forEach(function (p) {
       byId[p.id] = p;
-      byKey[keyName(p.name)] = p;
-      (p.aliases || []).forEach(function (a) { byKey[keyName(a)] = p; });
+      indexName(p.name, p);
+      (p.aliases || []).forEach(function (a) { indexName(a, p); });
     });
     return {
       byId: byId,
       resolve: function (name) {
         var n = normName(name); if (!n) return { id: '', name: '' };
         var p = byKey[keyName(n)];
-        return p ? { id: p.id, name: p.name, known: true } : { id: slug(n), name: n, known: false };
+        return p ? { id: p.id, name: p.name, known: true, ambiguous: !!ambiguous[keyName(n)] } : { id: slug(n), name: n, known: false };
       }
     };
+  }
+
+  function nrNationalEntryReviewDigest(model, event) {
+    if (!model || model.year !== 2026 || !event || !Array.isArray(event.entries) ||
+      !Array.isArray(model.events) || !Array.isArray(model.rounds)) return null;
+    if (event.entries.some(function (e) {
+      return !e || typeof e !== 'object' || Array.isArray(e) ||
+        ['car', 'driverId', 'codriverId', 'nationalClass'].some(function (key) { return typeof e[key] !== 'string'; });
+    })) return null;
+    var linked = model.events.filter(function (e) { return e.id === event.eventId; });
+    if (linked.length !== 1 || !linked[0].links || !linked[0].links.noticeboard ||
+      event.noticeboardUrl !== linked[0].links.noticeboard) return null;
+    var linkedRounds = model.rounds.filter(function (r) { return r.eventId === event.eventId; });
+    if (linkedRounds.some(function (r) { return !r.sourceDigest; })) return null;
+    return sha256(JSON.stringify([1, model.year, event.eventId, event.noticeboardUrl, event.sourceUrl,
+      event.sourceSha256, event.entries.map(function (e) {
+        return [e.car, e.driverId, e.codriverId, e.nationalClass];
+      }), linkedRounds.map(function (r) {
+        return [r.id, r.n, r.eventId, r.sourceDigest, r.entries.map(function (e) {
+          return [e.car, e.status, e.printedClass, e.cls, e.driverId, e.codriverId,
+            e.driverKnown, e.codriverKnown, e.driverAmbiguous, e.codriverAmbiguous,
+            e.champDriverId, e.champCodriverId, e.noCreditCodriver];
+        })];
+      })]));
+  }
+  function nrNationalEntryReviewAccepted(model, event, privateReview) {
+    var review = event && event.review, digest = nrNationalEntryReviewDigest(model, event);
+    return !!(review && review.version === 1 && review.reviewed === true && digest &&
+      review.digest === digest && (!privateReview || typeof review.evidence === 'string' &&
+      review.evidence.trim().length > 0 && review.evidence.length <= 1000 &&
+      !/[\u0000-\u001f\u007f]/.test(review.evidence)));
+  }
+  function validateNrNationalEntries(season, rounds, people) {
+    var issues = [], catalogue = season.nrNationalEntries, seen = Object.create(null);
+    if (catalogue === undefined) return issues;
+    function error(message) { issues.push({ level: 'error', msg: 'National entry review: ' + message }); }
+    if (!catalogue || catalogue.year !== 2026 || season.year !== 2026 ||
+      !Array.isArray(catalogue.events) || Object.keys(catalogue).some(function (k) { return ['year', 'events'].indexOf(k) < 0; })) {
+      error('unsupported catalogue or season.'); return issues;
+    }
+    var model = buildSeason({ season: season, rounds: rounds, people: people }), idx = peopleIndex(people);
+    catalogue.events.forEach(function (event) {
+      if (!event || typeof event !== 'object' || Array.isArray(event) ||
+        Object.keys(event).some(function (k) { return ['eventId', 'noticeboardUrl', 'sourceUrl', 'sourceSha256', 'entries', 'review'].indexOf(k) < 0; })) {
+        error('invalid event fields.'); return;
+      }
+      if (!event.eventId || seen[event.eventId]) error('unknown or duplicate event.');
+      seen[event.eventId] = true;
+      try {
+        var u = new URL(event.sourceUrl);
+        if (u.protocol !== 'https:' || u.hostname !== 'app-cdn.sportity.com' || u.username || u.password || u.port)
+          error('source must be an HTTPS Sportity entry list.');
+        var board = new URL(event.noticeboardUrl);
+        if (board.protocol !== 'https:' || board.hostname !== 'webapp.sportity.com' || board.username || board.password || board.port)
+          error('event noticeboard must be an HTTPS Sportity noticeboard.');
+      } catch (e) { error('invalid entry-list source URL.'); }
+      if (!/^[a-f0-9]{64}$/.test(event.sourceSha256 || '')) error('source PDF SHA-256 is required.');
+      if (!Array.isArray(event.entries) || !event.entries.length || event.entries.length > 10000) {
+        error('reviewed entry rows are required.'); return;
+      }
+      var cars = Object.create(null);
+      event.entries.forEach(function (row) {
+        if (!row || typeof row !== 'object' || Array.isArray(row) ||
+          Object.keys(row).some(function (k) { return ['car', 'driverId', 'codriverId', 'nationalClass'].indexOf(k) < 0; })) {
+          error('invalid entry fields.'); return;
+        }
+        if (typeof row.car !== 'string' || !/^\d{1,8}$/.test(row.car) || cars[row.car]) error('unique numeric car is required.');
+        cars[row.car] = true;
+        if (typeof row.driverId !== 'string' || typeof row.codriverId !== 'string' ||
+          !Object.prototype.hasOwnProperty.call(idx.byId, row.driverId) ||
+          !Object.prototype.hasOwnProperty.call(idx.byId, row.codriverId) || row.driverId === row.codriverId)
+          error('two different stable crew identities are required.');
+        if (['NRC1', 'NRC2', 'NRC3', 'NRC4'].indexOf(row.nationalClass) < 0) error('unsupported national class.');
+      });
+      if (!event.review || Object.keys(event.review).some(function (k) { return ['version', 'reviewed', 'digest', 'evidence'].indexOf(k) < 0; }) ||
+        !nrNationalEntryReviewAccepted(model, event, true)) error('review is missing, invalid or stale.');
+    });
+    return issues;
+  }
+
+  // Read-only diagnostic; it does not participate in scoring or modify the model.
+  function nrNationalEntryDiagnostics(model, catalogue) {
+    var notices = [];
+    if (!model || model.year !== 2026 || !catalogue || catalogue.year !== 2026 ||
+      !Array.isArray(model.rounds) || !Array.isArray(catalogue.events)) return notices;
+    model.rounds.forEach(function (round) {
+      if (!Number.isInteger(round.n) || round.n < 2 || !round.eventId || !Array.isArray(round.entries)) return;
+      var events = catalogue.events.filter(function (event) { return event && event.eventId === round.eventId; });
+      if (events.length !== 1 || !nrNationalEntryReviewAccepted(model, events[0], false) ||
+        !Array.isArray(events[0].entries)) return;
+      round.entries.forEach(function (entry) {
+        if (['classified', 'DNF'].indexOf(entry.status) < 0 ||
+          ['NR1', 'NR2', 'NR3', 'NR4'].indexOf(entry.cls) < 0 ||
+          ['NR1', 'NR2', 'NR3', 'NR4'].indexOf(entry.printedClass) < 0 ||
+          !entry.driverKnown || !entry.codriverKnown || entry.driverAmbiguous || entry.codriverAmbiguous ||
+          round.entries.filter(function (row) { return row.car === entry.car; }).length !== 1) return;
+        var candidates = events[0].entries.filter(function (row) { return row && String(row.car) === entry.car; });
+        if (candidates.length !== 1) return;
+        var source = candidates[0];
+        if (['NRC1', 'NRC2', 'NRC3', 'NRC4'].indexOf(source.nationalClass) < 0 ||
+          !source.driverId || !source.codriverId || source.driverId !== entry.driverId ||
+          source.codriverId !== entry.codriverId) return;
+        ['driver', 'codriver'].forEach(function (role) {
+          if (role === 'codriver' && entry.noCreditCodriver) return;
+          var personId = role === 'driver' ? entry.champDriverId : entry.champCodriverId;
+          if (personId !== entry[role + 'Id']) return;
+          notices.push({ eventId: round.eventId, roundId: round.id, roundNumber: round.n, car: entry.car,
+            personId: personId, role: role, nationalClass: source.nationalClass,
+            printedClass: entry.printedClass, scoredClass: entry.cls });
+        });
+      });
+    });
+    return notices;
   }
 
   /* ---------------------------------------------------------------- season model */
@@ -367,7 +485,7 @@
         return {
           car: String(r.car), status: status, pos: status === 'classified' ? +r.pos : null,
           driver: drv.name, codriver: co.name, driverId: drv.id, codriverId: co.id,
-          driverKnown: !!drv.known, codriverKnown: !!co.known,
+          driverKnown: !!drv.known, codriverKnown: !!co.known, driverAmbiguous: !!drv.ambiguous, codriverAmbiguous: !!co.ambiguous,
           champDriver: cdrv.name, champCodriver: cco.name, champDriverId: cdrv.id, champCodriverId: cco.id,
           noCreditCodriver: !!credit.noCodriver, printedClass: pcl, cls: cls, vehicle: r.vehicle || '',
           stagesCompleted: r.stages == null || r.stages === '' ? null : +r.stages, times: times, stagePos: sp,
@@ -430,7 +548,7 @@
         id: meta.id, n: n, eventId: meta.eventId, day: meta.day || '', date: meta.date || '',
         title: raw.title || '', status: raw.status || '', provisional: /provisional/i.test(raw.status || ''), finalityUnclear: !!raw.finalityUnclear,
         currentFinalityConfirmed: currentFinalityAccepted(raw, 'nr', !opts.publicProjection),
-        notes: raw.notes || [], source: raw.source || {}, stages: S, labels: labels, entries: ents, progression: prog,
+        notes: raw.notes || [], source: raw.source || {}, sourceDigest: currentFinalityDigest(raw, 'nr'), stages: S, labels: labels, entries: ents, progression: prog,
         extraStarts: extra, confirmed: !!confirmed[meta.id]
       };
     }
@@ -553,6 +671,7 @@
       people: Object.keys(people).map(function (k) { return people[k]; }).sort(function (a, b) { return a.name < b.name ? -1 : 1; }),
       msa: season.msa || null, documents: season.documents || [], notes: season.notes || [],
       entryLists: entryLists,
+      nrNationalEntries: season.nrNationalEntries || null,
       rallyesport: buildRallyeSport(season.rallyesport, opts.people, season, opts.publicProjection === true),
       calendar: (season.rounds || []).map(function (m, i) {
         return { id: m.id, n: i + 1, eventId: m.eventId, day: m.day || '', date: m.date || '', hasResults: !!roundsById[m.id] };
@@ -1434,6 +1553,8 @@
 
   /* ---------------------------------------------------------------- validation */
   function entryEvidenceLoss(before, after, beforePeople, afterPeople) {
+    if (before && before.nrNationalEntries &&
+      JSON.stringify(before.nrNationalEntries) !== JSON.stringify(after && after.nrNationalEntries)) return true;
     var oldIndex = peopleIndex(beforePeople), newIndex = peopleIndex(afterPeople);
     function identity(idx, name) {
       var p = idx.resolve(name);
@@ -1636,7 +1757,8 @@
         if (!classes[map[id]]) error(role + ' class map refers to unknown class ' + map[id]);
       });
     });
-    return issues.concat(validateEntryLists(season, people), validateRallyeSport(season.rallyesport, season, rounds, people));
+    return issues.concat(validateEntryLists(season, people), validateNrNationalEntries(season, rounds, people),
+      validateRallyeSport(season.rallyesport, season, rounds, people));
   }
   function nrcDestination(value) {
     if (typeof value !== 'string' || !/^https:\/\//i.test(value) || /[\s\\]/.test(value)) return '';
@@ -1921,7 +2043,9 @@
     validateRallyeSport: validateRallyeSport,
     rallyNoticeContractVersion: 1, validateActiveRally: validateActiveRally, nrcDestination: nrcDestination,
     entryContractVersion: 2, parseTime: parseTime, fmtTime: fmtTime, slug: slug, normName: normName, normClass: normClass, ord: ord, r1: r1, prettyJson: prettyJson,
-    peopleIndex: peopleIndex, buildSeason: buildSeason, validateRound: validateRound, parseClassificationText: parseClassificationText, parseSpreadsheet: parseSpreadsheet,
+    nrNationalEntryContractVersion: 1, nrNationalEntryReviewDigest: nrNationalEntryReviewDigest,
+    nrNationalEntryReviewAccepted: nrNationalEntryReviewAccepted, validateNrNationalEntries: validateNrNationalEntries,
+    peopleIndex: peopleIndex, buildSeason: buildSeason, nrNationalEntryDiagnostics: nrNationalEntryDiagnostics, validateRound: validateRound, parseClassificationText: parseClassificationText, parseSpreadsheet: parseSpreadsheet,
     similarNames: similarNames, sumReport: sumReport, spreadsheetTemplate: spreadsheetTemplate,
     validateSeason: validateSeason, validateDataset: validateDataset, validateEntryLists: validateEntryLists, entryEvidenceLoss: entryEvidenceLoss };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.NREngine = api;

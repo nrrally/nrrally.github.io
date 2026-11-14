@@ -20,6 +20,158 @@ function fixture() {
 function build(f, rounds = {}) {
   return E.buildSeason({ season: AI.projectPublic(f.season, f.people), rounds, people: f.people, publicProjection: true });
 }
+test('reviewed same-event national entries are neutral, role-scoped and display-only', () => {
+  const season = F.season(2026), people = F.docs()['data/people.json'];
+  people.people.push({ id: 'blake-example', name: 'Blake Example', aliases: [] });
+  season.classes = ['NR0', 'NR1', 'NR2', 'NR3', 'NR4'].map(id => ({ id, classOnly: id === 'NR0' }));
+  season.events[0].links = { ...season.events[0].links, noticeboard: 'https://webapp.sportity.com/event/noticeboard' };
+  const template = F.payload('results', 2026).rounds[0];
+  template.entries[0].driver = 'Alex Test';
+  template.entries[0].codriver = 'Blake Example';
+  const rounds = {};
+  ['NR1', 'NR1', 'NR2', 'NR3', 'NR4', 'NR0', 'NR1'].forEach((cls, i) => {
+    const id = 'R' + (i + 1), raw = F.copy(template);
+    if (i) season.rounds.push({ ...season.rounds[0], id });
+    raw.entries[0].class = cls;
+    if (i === 6) raw.entries[0].status = 'DNS';
+    rounds[id] = raw;
+  });
+  const model = E.buildSeason({ season, rounds, people });
+  const catalogue = { year: 2026, events: [{ eventId: 'test-event', noticeboardUrl: 'https://webapp.sportity.com/event/noticeboard',
+    sourceUrl: 'https://app-cdn.sportity.com/entries.pdf', sourceSha256: 'a'.repeat(64),
+    entries: [{ car: '1', driverId: 'alex-test', codriverId: 'blake-example', nationalClass: 'NRC3' }] }] };
+  function reviewed(input, source = catalogue) {
+    const copy = F.copy(source);
+    copy.events.forEach(event => { event.review = { version: 1, reviewed: true,
+      digest: E.nrNationalEntryReviewDigest(input, event), evidence: 'Synthetic review' }; });
+    return copy;
+  }
+  catalogue.events[0].review = reviewed(model).events[0].review;
+  model.nrNationalEntries = catalogue;
+  const before = JSON.stringify(freeze(model));
+  const notices = E.nrNationalEntryDiagnostics(model, catalogue);
+  assert.equal(notices.length, 8);
+  assert.deepEqual(notices.map(item => item.roundId), ['R2', 'R2', 'R3', 'R3', 'R4', 'R4', 'R5', 'R5']);
+  assert.deepEqual(notices.slice(0, 2).map(item => item.role), ['driver', 'codriver']);
+  assert.equal(JSON.stringify(model), before, 'engine diagnostic does not mutate results or scoring');
+  const quote = 'Class NR0 will score Class points only, and not the Overall Northern Regions Championship, but qualifies for trophies per event and annual Class awards.';
+  function display(id) { return P.result(model, 'nr', id, 'classification'); }
+  for (const id of ['R1', 'R6', 'R7']) {
+    assert.doesNotMatch(C.resultClassification(display(id)), /national-context/);
+  }
+  for (const id of ['R2', 'R3', 'R4', 'R5']) {
+    const row = display(id).rows[0], html = C.resultClassification(display(id));
+    assert.equal(row.driver.nationalContext.length, 1);
+    assert.equal(row.codriver.nationalContext.length, 1);
+    assert.equal((html.match(/class="national-context"/g) || []).length, 2);
+    assert.ok(html.includes(quote));
+    assert.match(html, /automatic anomaly notice is not an adjudication or a claim of wrongdoing/);
+    assert.match(html, /official results and points are unchanged/i);
+  }
+  for (const [role, id] of [['driver', 'alex-test'], ['codriver', 'blake-example']]) {
+    const standings = P.standings(model, 'nr', role, {});
+    assert.equal(standings.rows.find(row => row.id === id).nationalContext.length, 4);
+    assert.ok(C.standings(standings).html.includes(quote));
+    assert.equal(P.directory(model, 'nr').rows.find(row => row.id === id).nationalContext.length, 4);
+  }
+  assert.ok(C.directory(P.directory(model, 'nr')).html.includes(quote));
+  assert.equal(JSON.stringify(model), before, 'rendering does not mutate results or scoring');
+  const noRoster = { ...model, nrNationalEntries: null };
+  assert.doesNotMatch(C.resultClassification(P.result(noRoster, 'nr', 'R2', 'classification')), /national-context/);
+  assert.doesNotMatch(C.resultClassification(P.result({ ...model, year: 2027 }, 'nr', 'R2', 'classification')), /national-context/);
+  const dnf = F.copy(template);
+  dnf.entries[0].class = 'NR1'; dnf.entries[0].status = 'DNF';
+  const dnfModel = E.buildSeason({ season, rounds: { R2: dnf }, people });
+  dnfModel.nrNationalEntries = reviewed(dnfModel);
+  assert.equal(P.result(dnfModel, 'nr', 'R2', 'classification').rows[0].driver.nationalContext.length, 1);
+  const nr0Override = F.copy(template);
+  nr0Override.entries[0].class = 'NR0'; nr0Override.entries[0].scoredClass = 'NR1';
+  const nr0Model = E.buildSeason({ season, rounds: { R2: nr0Override }, people });
+  nr0Model.nrNationalEntries = reviewed(nr0Model);
+  assert.doesNotMatch(C.resultClassification(P.result(nr0Model, 'nr', 'R2', 'classification')), /national-context/);
+
+  const changed = F.copy(template);
+  changed.entries[0].class = 'NR1';
+  changed.entries[0].credit = { codriver: 'Credited Example' };
+  people.people.push({ id: 'credited-example', name: 'Credited Example', aliases: [] });
+  const override = E.buildSeason({ season, rounds: { R2: changed }, people });
+  override.nrNationalEntries = reviewed(override);
+  const result = P.result(override, 'nr', 'R2', 'classification');
+  assert.deepEqual(result.rows[0].codriver.nationalContext, [], 'printed person is not attributed another person’s credit');
+  assert.equal(result.rows[0].driver.nationalContext.length, 1);
+  changed.entries[0].credit = { noCodriver: true };
+  const excluded = E.buildSeason({ season, rounds: { R2: changed }, people });
+  excluded.nrNationalEntries = reviewed(excluded);
+  assert.deepEqual(P.result(excluded, 'nr', 'R2', 'classification').rows[0].codriver.nationalContext, []);
+  for (const edit of [
+    c => { c.events[0].eventId = 'other-event'; },
+    c => { c.events[0].review.reviewed = false; },
+    c => { c.events[0].sourceUrl = ''; },
+    c => { c.events[0].entries[0].car = '2'; },
+    c => { c.events[0].entries[0].codriverId = 'someone-else'; },
+    c => { c.events[0].entries[0].nationalClass = 'RS2'; },
+    c => { c.events[0].entries.push({ ...c.events[0].entries[0] }); },
+    c => { c.events.push(F.copy(c.events[0])); }
+  ]) {
+    const invalid = F.copy(catalogue); edit(invalid);
+    const modelWithInvalid = { ...model, nrNationalEntries: invalid };
+    assert.doesNotMatch(C.resultClassification(P.result(modelWithInvalid, 'nr', 'R2', 'classification')), /national-context/);
+  }
+  const multipleCars = F.copy(template);
+  multipleCars.entries[0].class = 'NR1';
+  multipleCars.entries.push({ ...multipleCars.entries[0], car: '2', pos: 2 });
+  const multiModel = E.buildSeason({ season, rounds: { R2: multipleCars }, people });
+  multiModel.nrNationalEntries = reviewed(multiModel);
+  const multiRows = P.result(multiModel, 'nr', 'R2', 'classification').rows;
+  assert.equal(multiRows.find(row => row.car === '1').driver.nationalContext.length, 1);
+  assert.deepEqual(multiRows.find(row => row.car === '2').driver.nationalContext, []);
+  const { f, raw } = fixture(), rsModel = build(f, { R1: raw });
+  rsModel.nrNationalEntries = catalogue;
+  assert.doesNotMatch(C.resultClassification(P.result(rsModel, 'rs', rsModel.rallyesport.results[1].id, 'classification')), /national-context/);
+  assert.doesNotMatch(C.standings(P.standings(rsModel, 'rs', 'driver')).html, /national-context/);
+  assert.doesNotMatch(C.directory(P.directory(rsModel, 'rs')).html, /national-context/);
+});
+test('national entry review is projected without private evidence and invalidates on source or classification changes', () => {
+  const season = F.season(2026), people = F.docs()['data/people.json'];
+  people.people.push({ id: 'blake-example', name: 'Blake Example', aliases: [] });
+  season.classes.push({ id: 'NR1', desc: 'Synthetic', classOnly: false });
+  season.events[0].links = { ...season.events[0].links, noticeboard: 'https://webapp.sportity.com/event/board' };
+  season.rounds.push({ ...season.rounds[0], id: 'R2', results: true });
+  const raw = F.payload('results', 2026).rounds[0];
+  raw.id = 'R2';
+  Object.assign(raw.entries[0], { driver: 'Alex Test', codriver: 'Blake Example', class: 'NR1' });
+  const rounds = { R2: raw };
+  const model = E.buildSeason({ season, rounds, people });
+  const entry = { eventId: 'test-event', noticeboardUrl: season.events[0].links.noticeboard,
+    sourceUrl: 'https://app-cdn.sportity.com/test.pdf', sourceSha256: 'a'.repeat(64),
+    entries: [{ car: '1', driverId: 'alex-test', codriverId: 'blake-example', nationalClass: 'NRC3' }] };
+  entry.review = { version: 1, reviewed: true, digest: E.nrNationalEntryReviewDigest(model, entry), evidence: 'private synthetic review' };
+  season.nrNationalEntries = { year: 2026, events: [entry] };
+  assert.deepEqual(E.validateNrNationalEntries(season, rounds, people), []);
+  assert.equal(E.entryEvidenceLoss(season, { ...season, nrNationalEntries: undefined }, people, people), true);
+  const projection = AI.projectPublic(season, people);
+  assert.equal(projection.nrNationalEntries.events[0].review.evidence, undefined);
+  const published = E.buildSeason({ season: projection, rounds, people, publicProjection: true });
+  assert.equal(E.nrNationalEntryDiagnostics(published, published.nrNationalEntries).length, 2);
+  const changed = F.copy(rounds);
+  changed.R2.entries[0].class = 'NR2';
+  const stale = E.buildSeason({ season: projection, rounds: changed, people, publicProjection: true });
+  assert.deepEqual(E.nrNationalEntryDiagnostics(stale, stale.nrNationalEntries), []);
+  assert.ok(E.validateNrNationalEntries(season, changed, people).some(i => /stale/.test(i.msg)));
+  const moved = F.copy(season); moved.events[0].links.noticeboard = 'https://webapp.sportity.com/event/new-board';
+  assert.ok(E.validateNrNationalEntries(moved, rounds, people).some(i => /stale/.test(i.msg)));
+  const untrusted = F.copy(season); untrusted.nrNationalEntries.events[0].entries[0].driverId = '__proto__';
+  assert.ok(E.validateNrNationalEntries(untrusted, rounds, people).some(i => /identities/.test(i.msg)));
+  const ambiguousPeople = F.copy(people);
+  ambiguousPeople.people.push({ id: 'alias-collision', name: 'Another Example', aliases: ['Alex Test'] });
+  const ambiguousModel = E.buildSeason({ season: projection, rounds, people: ambiguousPeople, publicProjection: true });
+  assert.deepEqual(E.nrNationalEntryDiagnostics(ambiguousModel, ambiguousModel.nrNationalEntries), []);
+  assert.ok(E.validateNrNationalEntries(season, rounds, ambiguousPeople).some(i => /stale/.test(i.msg)));
+  const signedAmbiguous = F.copy(ambiguousModel.nrNationalEntries);
+  signedAmbiguous.events[0].entries[0].driverId = 'alias-collision';
+  signedAmbiguous.events[0].review.digest = E.nrNationalEntryReviewDigest(ambiguousModel, signedAmbiguous.events[0]);
+  assert.deepEqual(E.nrNationalEntryDiagnostics(ambiguousModel, signedAmbiguous), [], 're-review cannot resolve an ambiguous source name');
+});
 test('valid current-finality reviews supersede only the displayed technical caveat without changing source or scoring', () => {
   const { f, raw } = fixture(), rs = f.data.results[3];
   raw.title = 'Synthetic NR final classification'; raw.status = 'Final Official Classification 1/1';

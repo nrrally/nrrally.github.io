@@ -136,6 +136,40 @@ only on refresh. Visitors' `nr-analytics-choice` (`on`/`off`) is browser-local, 
 | `rounds` | `[{id, eventId, day, date, results}]` in calendar order. A round's number is its position in this list. `results: true` means a round file exists; the site only loads rounds with this flag. |
 | `notes` | Season-level data notes, shown on the site's "Sources & data notes" page |
 | `rallyesport` | Optional, independent RS events/classifications and RS-only decision inputs; absent means no RS data. See below. |
+| `nrNationalEntries` | Optional 2026 event-scoped, reviewed National entry context; display-only. See below. |
+
+### Reviewed National event entries
+
+The optional working field has this shape (illustrative values only):
+
+```json
+{"year":2026,"events":[{"eventId":"event-id","noticeboardUrl":"https://webapp.sportity.com/event/example",
+  "sourceUrl":"https://app-cdn.sportity.com/example.pdf","sourceSha256":"<64 lowercase hex characters>",
+  "entries":[{"car":"1","driverId":"example-driver","codriverId":"example-codriver","nationalClass":"NRC3"}],
+  "review":{"version":1,"reviewed":true,"digest":"<computed digest>","evidence":"Private review evidence"}}]}
+```
+
+Only exact event, car and two unambiguous stable printed-role IDs in National
+NRC1–NRC4 entries and NR1–NR4 classified/DNF results from round 2 onward generate
+notices; per-role championship credit must also match. NR0, DNS, R1, unsupported
+seasons and RS do not generate notices. This does not change official results,
+eligibility, awards, positions or scoring.
+
+The admin enters the Sportity PDF URL, its independently verified SHA-256,
+the event's currently linked Sportity noticeboard and reviewed crew identities,
+then explicitly reviews the classification and source. The digest binds these,
+the event's classification source/rows, resolved identities and round numbers.
+Any change invalidates the review and blocks publishing until re-reviewed or
+removed. This is a manual review workflow, not an automatic PDF download, list
+parser, season-wide national register or proof that a third-party file was
+retrieved correctly. Future source rows require fresh identity reconciliation
+and review. Working data and History retain evidence; public projection includes
+reviewed entries and digest but removes `review.evidence`. Do not stage a row
+merely because names or car numbers look similar. Older admin clients must be
+closed before activation. Backups preserve the field; restoring an older backup
+or undoing an older History change can remove it and requires explicit review.
+Demo mode omits the catalogue because
+its public snapshot cannot reconstruct private review evidence.
 
 Round `date` is strict date-only `YYYY-MM-DD` for calendar display; invalid/blank dates
 remain unconfirmed, not normalized to another day. Event `dates` is supplied display

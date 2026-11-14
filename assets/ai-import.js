@@ -347,6 +347,11 @@
       else delete result.currentFinalityReview;
     }
     if (value.rallyesport && typeof E.projectRallyeSport === 'function') result.rallyesport = E.projectRallyeSport(value.rallyesport, value, people || { people: [] });
+    if (result.nrNationalEntries && Array.isArray(result.nrNationalEntries.events)) {
+      result.nrNationalEntries.events.forEach(function (event) {
+        if (event.review) delete event.review.evidence;
+      });
+    }
     delete result._aiImport;
     return result;
   }
