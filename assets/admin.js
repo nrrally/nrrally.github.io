@@ -803,13 +803,13 @@
               var revision = ref.revision || catalogue.baseline;
               var url = 'https://github.com/nrrally/nrrally.github.io/blob/' + revision + '/' + ref.path + '#L' + ref.start + '-L' + ref.end;
               return '<li><a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(ref.symbol) + '</a><code>' + esc(ref.path) + ':' + ref.start + '-' + ref.end +
-                (ref.revision ? ' (release branch; not an immutable baseline)' : ' (legacy baseline)') + '</code></li>';
+                ' (audited immutable revision)</code></li>';
             }).join('') + '</ul></details></li>';
         }).join('') + '</ol>' +
         '<nav class="logic-related" aria-label="Continue exploring"><h3>Connected decisions</h3>' + topic.related.map(function (id) { return link(id); }).join('') + '</nav>';
     }
     html += '<footer class="logic-maintenance">Evidence baseline <code>' + catalogue.baseline.slice(0, 7) + '</code> · ' + catalogue.topics.length +
-      ' curated topics. Source links open the audited revision, not changing main. This is a maintained explanation, not a second scoring engine. Re-audit when processing changes. External evidence links need GitHub connectivity; the explorer itself renders locally.</footer></article></div></div>';
+      ' curated topics. Source links open the audited revision, not changing main. This is a manually maintained explanation, not a second scoring engine or proof that every branch is catalogued. Re-audit when processing changes. External evidence links need GitHub connectivity; the explorer itself renders locally.</footer></article></div></div>';
     liveRefresh = function () { filterLogic(A.logicQuery || ''); };
     return html;
   }

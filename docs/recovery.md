@@ -11,7 +11,7 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
-### NR national event-entry context (local, not activated)
+### NR national event-entry context (deployed and activated)
 
 The shared engine provides a read-only `nrNationalEntryDiagnostics` helper and
 loads optional `season.nrNationalEntries`; see [data-model.md](data-model.md) for
@@ -20,7 +20,9 @@ removes private review evidence. PDF SHA-256, event noticeboard, source rows,
 classifications, stable role identities and round order are bound to review.
 Source files must be verified manually; the browser does not download/hash them
 or import a National roster automatically. Changes invalidate review and block
-publication until re-reviewed or removed. No catalogue has been published.
+publication until re-reviewed or removed. The separately authorized activation
+published exactly three reviewed event records for the approved #210 crew, covering
+NR R2–R7. No other candidate entries were published.
 Do not copy private registers or real-person fixtures into Git or identify people
 by name or car alone. Future years require confirmed applicable rules and a
 separately implemented/tested policy; 2026 SSR wording is not assumed to persist.
@@ -32,12 +34,26 @@ scored NR1–NR4 classes in 2026 R2 onward. It identifies the national entry cla
 and the recorded regional classification and quotes the NR0 clause; R1, NR0, DNS, other seasons and RS are
 excluded. It does not claim that an NR entry-list column was filled, adjudicate,
 or amend official results or recalculate points. RS guidance remains pending.
-Four shells use `rs-visual-14`. The user requested a code push conditional on a
-reusable engine; this does not authorize a database write. Before any activation,
+The compatible runtime `3f85896da1bd6336227895976a68fdc3babfb62a` was deployed
+and verified. The authorized publication used protected backups and one guarded
+atomic working/public/revision/attributed **GitHub Copilot (direct Firebase)**
+History transaction, with full readback and public checks. No results, scoring or
+RS data changed. For future changes,
 retire old admin tabs, obtain explicit data-write authorization, take protected
 backups and use audited atomic working/public/revision/History publication with
 preconditions. An older client can remove or mishandle the new catalogue; rollback
 must preserve compatible code or use an independently authorized paired data restore.
+
+### Logic Explorer library follow-up
+
+The admin-only, static/public Logic Explorer documents the NR, RS and shared
+paths at the immutable deployed `3f85896da1bd6336227895976a68fdc3babfb62a`
+baseline, including reviewed finality, RS class display, linked display and NR
+National-entry notices. It is manually curated and not proof of exhaustive
+branch coverage. This library-only follow-up changes no scoring, provider data
+or permissions. Four shells use `rs-visual-15`; reload old tabs. Rollback of the
+library itself needs no data migration, but retain National-entry-compatible
+runtime or use a separately authorized paired data restore.
 
 ### Profile history scoring column (deployed)
 
@@ -552,8 +568,9 @@ must be released and old admin tabs retired before any separately approved data 
 After data migration, code-only rollback is unsafe: restore matching private working
 data and its regenerated public bundle atomically with revision/History preconditions
 before restoring older code. Keep full private backups and provenance; Git cannot
-recover them. The Logic explorer labels preserved pinned links as legacy baseline and
-its new policy-helper link as mutable release `main`, not an immutable source citation.
+recover them. The original Explorer release used a mixture of legacy and mutable
+source links; the later library audit repins the current catalogue to one immutable
+runtime baseline.
 Keep existing S2 Mine wording for this release; the SN/S2 discrepancy is not a code-release
 blocker and must not be resolved by guessing. No upcoming result/date/programme
 is invented. Validation and operational limitations are recorded in [releases.md](releases.md).

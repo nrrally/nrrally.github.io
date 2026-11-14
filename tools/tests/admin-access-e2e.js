@@ -192,7 +192,7 @@ async function main() {
     for (const scheme of ['light', 'dark']) {
       await page.emulateMedia({ colorScheme: scheme });
       await page.evaluate(theme => document.documentElement.setAttribute('data-theme', theme), scheme);
-      for (const width of [390, 1440]) {
+      for (const width of [320, 390, 768, 1440]) {
         await page.setViewportSize({ width, height: 1000 });
         await visit('#/logic/nr/nr-finality');
         assert.equal(await page.locator('#logicTopicTitle').innerText(), 'NR source finality is not MSA confirmation');
@@ -201,7 +201,8 @@ async function main() {
         await evidence.locator('summary').focus();
         await page.keyboard.press('Enter');
         assert.equal(await evidence.getAttribute('open'), '');
-        assert.match(await evidence.locator('a').first().getAttribute('href'), /\/blob\/bcb4c8a[0-9a-f]+\/.*#L\d+-L\d+/);
+        assert.match(await evidence.locator('a').first().getAttribute('href'), new RegExp('/blob/' + catalogue.baseline + '/.*#L\\d+-L\\d+'));
+        assert.match(await evidence.innerText(), /audited immutable revision/);
         await page.keyboard.press('Enter');
         await capture('explorer-nr-' + width + '-' + scheme);
         await visit('#/logic/rs/rs-roles');
@@ -213,6 +214,12 @@ async function main() {
         assert.equal(await page.locator('[data-logic-topic]:visible').count(), 0);
         assert.match(await page.locator('#logicSearchStatus').innerText(), /^0 topics/);
         await page.locator('#logicSearch').fill('');
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+        await visit('#/logic/nr/nr-national-entry');
+        assert.match(await page.locator('.logic-topic').innerText(), /classified or DNF/);
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+        await visit('#/logic/rs/rs-class-display');
+        assert.match(await page.locator('.logic-topic').innerText(), /retains any printed class position/);
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       }
     }
@@ -566,7 +573,7 @@ async function main() {
     await page.click('#demoBtn'); await page.getByText(/Synthetic token failure/).first().waitFor(); await absent();
     assert.equal(writes.length, 0); assert.deepEqual(external, []); assert.deepEqual(errors, []);
     await ctx.close();
-    console.log('Admin access E2E passed: access gates, all 30 logic topics, responsive light/dark RS tasks, keyboard/focus, unchanged drafts, editing/reuse/restore/merge/simulation, refresh, sign-out and delayed-load race; no writes.');
+    console.log('Admin access E2E passed: access gates, all ' + catalogue.topics.length + ' logic topics, responsive light/dark RS tasks, keyboard/focus, unchanged drafts, editing/reuse/restore/merge/simulation, refresh, sign-out and delayed-load race; no writes.');
   } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }
 }
 module.exports = { fixtures, nrRound };

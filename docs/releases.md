@@ -31,7 +31,28 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
-## 2026 NR National entry context (local; not deployed)
+## Logic Explorer audit (authorized library-only follow-up)
+
+- Refresh the read-only, manually curated NR/RS/shared decision library against
+  immutable deployed runtime `3f85896da1bd6336227895976a68fdc3babfb62a`.
+  Correct linked NR vehicle inheritance and document National-entry notices,
+  current finality, reviewed RS class positions and linked event/winner display.
+  Evidence is source-linked, but the catalogue is not proof of exhaustive branch
+  coverage or external sporting truth.
+- The user authorized a separate normal main push after the preceding code release
+  and data publication. No scoring, results, policy, provider data or permissions
+  change; no Firebase access or data migration. The 2026 guide edition is unchanged.
+  Four shells use `rs-visual-15`; reload existing tabs. Rollback the library without
+  changing data, retaining National-entry-compatible runtime or undertaking an
+  independently authorized paired data restore.
+- Validation: 148 synthetic Logic Explorer, RS scoring, public display, season and
+  import tests passed. Synthetic admin browser regression visited all 34 topics,
+  checked evidence/navigation at 320/390/768/1440 px in both themes and preserved
+  drafts; the synthetic public theme regression passed with provider traffic
+  intercepted. These checks do not prove external data or exhaustive branch coverage.
+  Actual deployment verification remains separate; a push does not prove deployment.
+
+## 2026 NR National entry context (deployed and activated)
 
 - The user requested a reusable engine-level, neutral NR notice and conditionally
   authorized a code push. The generic rule compares explicitly reviewed same-event
@@ -41,9 +62,14 @@ must be addressed; there is no automation that can infer approvals or certify pr
   review checks support repeatable use. This requires manual source verification and
   fresh event identity review; it does not fetch or parse entry PDFs. The implemented
   rule is limited to 2026; later SSR applicability is not assumed.
-- Four shells use `rs-visual-14`. Existing tabs must be retired before catalogue
-  activation. No catalogue or provider write is authorized by the code push; existing
-  public data produce no new indicator. An older admin can mishandle new fields:
+- Four shells used `rs-visual-14`. The code was deployed at
+  `3f85896da1bd6336227895976a68fdc3babfb62a` and Pages/canonical assets verified.
+  After separate explicit authorization and retiring old admin tabs, exactly three
+  reviewed #210 event records were published in one backed-up, guarded atomic
+  working/public/revision/attributed History transaction. Full readback and public
+  checks verified both roles on R2–R7, none on R1 or RS, unchanged results, NR
+  standings and RS data/scoring. No other candidate entries were published.
+  An older admin can mishandle new fields:
   use compatible code, or a separately authorized paired data restore, for rollback.
 - 157 synthetic display/scoring/import/admin/entry tests passed, as did responsive
   public and admin browser suites with provider traffic intercepted. An anonymous
@@ -51,9 +77,8 @@ must be addressed; there is no automation that can infer approvals or certify pr
   previously reviewed crew's two roles in six rounds and left NR standings and RS
   scoring unchanged. This is not a private baseline or a publication rehearsal.
   The actual source catalogue, review evidence, protected backups and provider
-  records are not committed. Separate explicit data authorization, source review,
-  backup, guarded atomic publication and History are required before any notice
-  appears live.
+  records are not committed. Future data changes require separate authorization,
+  source review, backup, guarded atomic publication and History.
 
 ## Profile history scoring column (deployed; verification follow-up)
 

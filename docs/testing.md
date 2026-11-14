@@ -8,7 +8,15 @@ or mismatched events, cars and identities, private-evidence removal, stale revie
 invalidation and unchanged scoring. Browser checks exercise the neutral disclosure
 on classification, standings and Crews at four widths and both themes, and
 exercise the admin review and invalidation flow. Production activation and
-independently verified source data require separate authorization.
+independently verified source data require separate authorization. The approved
+three-record 2026 activation was separately completed and verified.
+
+The Logic Explorer checks validate its immutable evidence ranges, representative
+source anchors, connected topic graph, read-only rendering and unchanged draft and
+projection. Admin browser tests visit every topic and exercise representative
+topics across four widths and both themes. These
+structural checks do not prove that the manual explanations cover every branch or
+that external source evidence is true; re-audit after processing changes.
 
 ```
 node --test tools\tests\rallyesport.test.js tools\tests\season-readiness.test.js tools\tests\admin-logic.test.js tools\tests\ai-import.test.js

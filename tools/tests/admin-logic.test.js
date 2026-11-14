@@ -57,7 +57,8 @@ test('class-order review needs evidence and an explicit complete-source confirma
 test('catalogue is a closed source-linked graph with explicit branch outcomes', () => {
   const ids = catalogue.topics.map(topic => topic.id), seen = new Set(ids);
   assert.equal(seen.size, ids.length);
-  assert.equal(ids.length, 30);
+  assert.equal(ids.length, 34);
+  assert.match(catalogue.baseline, /^[a-f0-9]{40}$/);
   assert.deepEqual(catalogue.groups.map(group => group.id), ['nr', 'rs', 'shared']);
   const files = new Map();
   for (const topic of catalogue.topics) {
@@ -71,11 +72,11 @@ test('catalogue is a closed source-linked graph with explicit branch outcomes', 
         if (branch.next) assert.ok(seen.has(branch.next), branch.next);
       }
       for (const ref of node.evidence) {
+        assert.equal(ref.revision, undefined, 'all evidence must use the single immutable baseline');
         assert.match(ref.path, /^(assets|docs)\//);
         assert.ok(!ref.path.includes('..'));
         const key = (ref.revision || catalogue.baseline) + ':' + ref.path;
-        if (!files.has(key)) files.set(key, ref.revision ?
-          fs.readFileSync(path.join(root, ref.path), 'utf8').split('\n') :
+        if (!files.has(key)) files.set(key,
           execFileSync('git', ['show', key], { cwd: root, encoding: 'utf8', windowsHide: true }).split('\n'));
         const lines = files.get(key);
         assert.ok(ref.start > 0 && ref.end >= ref.start && ref.end <= lines.length, JSON.stringify(ref));
@@ -93,6 +94,8 @@ test('every topic renders escaped navigable evidence without editing or projecti
     assert.ok(html.includes('id="logicTopicTitle"'));
     assert.ok(html.includes('aria-label="Decision flow"'));
     assert.ok(html.includes('/blob/' + catalogue.baseline + '/'));
+    assert.ok(html.includes('audited immutable revision'));
+    assert.ok(!html.includes('legacy baseline') && !html.includes('release branch'));
     assert.ok(!html.includes('data-k=') && !html.includes('data-act='));
   }
   const missing = api.viewLogic('rs', '<script>');
@@ -129,10 +132,34 @@ test('explanations keep sensitive distinctions and are admin-only assets', () =>
   assert.match(text('rs-members'), /NOT non-membership assertions/);
   assert.match(text('rs-totals'), /Share rank/);
   assert.match(text('rs-scope'), /future year/);
+  assert.match(text('nr-national-entry'), /round 2 onward/);
+  assert.match(text('nr-national-entry'), /uncredited role/);
+  assert.match(text('shared-finality'), /separately reviewed acceptedForScoring/);
+  assert.match(text('rs-class-display'), /without changing printed rows/);
+  assert.match(text('shared-linked-display'), /Conflicting crew/);
+  assert.doesNotMatch(text('rs-profiles'), /Never use an NR vehicle/);
   const admin = fs.readFileSync(path.join(root, 'admin', 'index.html'), 'utf8');
   assert.match(admin, /admin-logic\.js/);
   assert.match(admin, /noindex, nofollow/);
   for (const file of ['index.html', 'privacy.html', 'disclaimer.html']) assert.ok(!/admin-logic\.(?:js|css)/.test(fs.readFileSync(path.join(root, file), 'utf8')));
+});
+test('new decision evidence points at the relevant audited implementation', () => {
+  const checks = [
+    ['nr-national-entry', 'diagnostic scope', 'function nrNationalEntryDiagnostics'],
+    ['nr-national-entry', 'same-event car and role diagnostic', 'source.driverId !== entry.driverId'],
+    ['shared-finality', 'current-finality digest and acceptance', 'function currentFinalityAccepted'],
+    ['rs-class-display', 'class-order review', 'function rallyeSportClassOrder'],
+    ['shared-linked-display', 'vehicle matching and conflict checks', 'function rsVehicle'],
+    ['shared-linked-display', 'source-backed winners and scope', 'function sourceWinner']
+  ];
+  for (const [id, symbol, expected] of checks) {
+    const ref = catalogue.topics.find(topic => topic.id === id).nodes.flatMap(node => node.evidence)
+      .find(item => item.symbol === symbol);
+    assert.ok(ref, symbol);
+    const lines = execFileSync('git', ['show', catalogue.baseline + ':' + ref.path],
+      { cwd: root, encoding: 'utf8', windowsHide: true }).split('\n');
+    assert.ok(lines.slice(ref.start - 1, ref.end).join('\n').includes(expected), symbol);
+  }
 });
 test('entry-based admin shows inactive legacy evidence and validates unsupported imported source statuses', () => {
   const { api, location } = harness(), f = F.revisedRallyeSport();

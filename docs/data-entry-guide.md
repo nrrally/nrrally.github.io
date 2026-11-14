@@ -61,19 +61,19 @@ For a committee discussion, open **Logic explorer**, choose **Northern Regions**
 **RallyeSport** or **Shared workflow**, and select a topic. Search finds topics across
 both competitions and shared processing. Each topic shows inputs, numbered decisions,
 conditional outcomes and connected paths; **Evidence for this decision** opens exact
-code/documentation line links at the displayed revision. Legacy links stay pinned;
-the new policy helper link explicitly identifies the release branch (`main`), not an
-immutable audit revision. For release verification compare it with the checked-out
-reviewed commit; a moving branch is not historical deployment evidence. Browser back/forward
+code/documentation line links at the displayed immutable audited revision. Browser back/forward
 works between topics. It needs no competitor data or additional database query.
 
-The 30 curated topics cover intake/validation, credited versus printed identities,
+The 34 curated topics cover intake/validation, credited versus printed identities,
 starts/entries, eligibility, event points, rankings/totals, source finality versus MSA
 comparison, graph gaps/endpoints, profiles, calendar/empty states, projection, publication,
-notices/analytics and unsupported decisions. In particular NR provisional results still
+notices/analytics and unsupported decisions. They include the 2026 NR National-entry
+notice gates, current-finality review, reviewed RS class-position display and explicitly
+linked event/vehicle/winner display. In particular NR provisional results still
 calculate points; RS points have separate readiness/finality gates; RS roles rank
 independently; RS0 is not a blanket non-membership claim; unavailable is not zero.
-This is a maintained explanation, not another scoring engine, live individual diagnosis,
+This is a manually maintained explanation, not proof of exhaustive branch coverage,
+another scoring engine, live individual diagnosis,
 regulatory authority or automatic proof that a source/workbook is correct. Follow the
 stored evidence when investigating a real record; never infer a person-specific reason.
 
