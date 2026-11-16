@@ -120,7 +120,7 @@ async function main() {
           else assert.equal(guide, sharedGuideText, 'NR and RS share the same newcomer guide');
           const comparison = page.locator('section[aria-labelledby="guide-national-regional"]');
           assert.ok(await comparison.getByRole('heading', { name: 'RallyeSport (RS): a club championship', exact: true }).isVisible());
-          assert.ok((await comparison.innerText()).includes('typically the lowest-cost'));
+          assert.ok((await comparison.innerText()).includes('Compare current entry fees and related costs'));
           assert.ok((await comparison.innerText()).includes('varies from round to round'));
           const rsRules = comparison.getByRole('link', { name: '2026 RallyeSport SSRs', exact: true });
           assert.ok(await rsRules.isVisible());

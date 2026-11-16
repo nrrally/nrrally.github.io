@@ -31,6 +31,53 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## Approved public wording changes (pre-deployment)
+
+- The user approved proposals 1, 3, 5–16, 18, 19 and 21 from the public wording audit.
+  Proposals 2, 4, 17 and 20 remain unchanged. The authorized scope is rendered commentary,
+  guide/disclaimer copy and coordinated asset query versions only.
+- Home replaces the completeness-sounding headline; the RS welcome and guide remove
+  unsupported affiliation/cost-ranking claims; the Info page distinguishes transcribed
+  source results from independently compiled standings. Public notes remove the reviewed
+  RS eligibility/minimum comparison and reviewer/identity narration, simplify role/start
+  explanations, defer official decisions, and qualify the MSA comparison label. NR
+  source-time and R3 status notes use the approved factual wording. Provisional, blocked,
+  unavailable and printed source statuses remain separate and visible.
+- No engine, scoring, results, source status, classification, class, position/rank, time,
+  stage, point, start, eligibility decision, source record, public projection, database,
+  provider, analytics or privacy behavior changed. No data migration or database restore
+  is needed. The public raw documents retain their original notes; renderer filtering is
+  not a privacy boundary and does not change anonymous direct Firestore access.
+- All four shells use the coordinated `public-wording-1` asset query version. Existing
+  tabs may require reload. Rollback is a code-only revert; it requires no data restoration.
+  Do not combine with the separate, unpushed pre-event-entry branch: that work has not
+  been reviewed or included here and must coordinate asset versions if integrated later.
+- Approval is for the reviewed wording release to `origin/main`, not a database write or
+  an official sporting decision. This entry is pre-deployment; no Pages build or live
+  deployment is claimed until its exact SHA is independently verified.
+- Validation used fresh anonymous GETs only for `public/site`, `public/people` and the
+  only advertised season, 2026 (seven NR classifications/124 entries; four RS
+  classifications/71 entries). Repeated GETs remained identical. A structured before/
+  after comparison against the checked-out baseline covered both modes, both roles,
+  every available classification and standings class (NR1–NR4 and RS2/RS4, including
+  non-scoring RS0 role markers),
+  source rows, ranks/positions,
+  classes/statuses, stage-time/progression arrays, points, starts, eligibility, directory
+  and profile facts. The sporting projection digests were NR
+  `35fffb46733e527ae943f46a363303b69c87d7b21ec8b4416b7c9cde8fefe542` and RS
+  `07511a76cbf7577de40a2ca75cfbdbb81c9d54597af06c777af3b91118e8fc0f`; no difference
+  was found. These digests summarize the comparison and contain no competitor records.
+- Focused synthetic unit tests passed (82); the public theme suite and navigation browser
+  suite passed. A local rendering of the modified UI against the fresh in-memory public
+  bundles covered 57 routes at 390px and 1440px with no runtime errors or horizontal
+  overflow. Every browser non-GET request and external/analytics request was blocked;
+  public bundle reads were served from the in-memory GET snapshots. The actual live
+  deployment remains to be verified. No official PDFs, private records, History, admin
+  account lists, private identity/eligibility evidence or live-timing sources were read.
+- Remaining limitation: the release only reduces misleading application commentary.
+  Legacy source notes remain anonymously retrievable from the public database; no
+  jurisdiction-specific legal advice or legal protection is claimed.
+
 ## Logic Explorer audit (authorized library-only follow-up)
 
 - Refresh the read-only, manually curated NR/RS/shared decision library against

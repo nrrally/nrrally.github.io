@@ -11,6 +11,23 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
+### Approved public wording changes (pre-deployment)
+
+The approved 2026 wording change is presentation-only: shared public adapters and
+components, the RS welcome/guide, disclaimer and scoring-rules description. Four
+HTML shells coordinate the `public-wording-1` cache version. No engine, source or
+public database record, published scoring snapshot, result/standing/class/rank,
+time/stage, point, start, eligibility decision, provider state, analytics behavior
+or privacy behavior changed. No data migration or database recovery is required;
+rollback is a code-only revert. Reload old tabs to obtain the coordinated assets.
+
+The RS note filter affects rendered application copy only. The original source
+notes remain in the anonymously readable public Firestore bundles, so filtering is
+not access control or deletion. The separate pre-event-entry work is on another
+unreleased branch and is not included; coordinate shared asset versions before any
+later integration. Deployment remains unverified until the exact Pages SHA and
+canonical assets are checked and the release ledger is updated.
+
 ### NR national event-entry context (deployed and activated)
 
 The shared engine provides a read-only `nrNationalEntryDiagnostics` helper and

@@ -91,7 +91,7 @@
     var status = !model.scoring.available ? 'Points unavailable' : model.scoring.provisional ? 'Provisional points' : 'Championship points';
     function stat(number, label) { return '<div class="hero-stat"><b>' + value(number) + '</b><span>' + label + '</span></div>'; }
     var html = '<section class="hero"><p class="hero-kicker">' + model.year + ' · Season overview</p><p class="eyebrow">' +
-      esc(model.competition.name) + '</p><h1>' + (hasResults ? 'Every stage, time and point of ' + model.year + '.' : 'The ' + model.year + ' season.') + '</h1>' +
+      esc(model.competition.name) + '</p><h1>' + (hasResults ? model.year + ' rally results and standings.' : 'The ' + model.year + ' season.') + '</h1>' +
       '<p>' + esc(model.description || 'Classifications, championship standings and stage graphs.') + '</p><div class="hero-stats">' +
       stat(counts.rounds == null ? null : counts.rounds + (counts.listedRounds > counts.rounds ? ' / ' + counts.listedRounds : ''), 'Rounds with results') +
       stat(counts.events, 'Events') + stat(counts.drivers, 'Drivers scored') + stat(counts.stages, 'Recorded special stages') +
@@ -282,10 +282,10 @@
       esc(display.scoring.reason || 'No additional qualification recorded.') +
       '</p><details class="notes standings-notes"><summary>Scoring notes</summary><div><p>' +
       esc(display.scoring.reason || status + '.') + '</p><p>' + esc(display.scoring.scope) + '</p>' +
-      '<p>Rounds started counts recorded championship starts for this role across classes.' +
+      '<p>Starts are counts shown here; official eligibility is determined by the applicable rules and officials.' +
       (display.rows.some(function (row) { return row.startsLowerBound && row.starts != null; }) ?
         ' + means at least this many starts; other recorded appearances have unavailable classification status.' : '') +
-      ' — means unavailable or no recorded contribution, never an assumed zero. A recorded DNF scores 0 only where established by the scoring data. Round cells describe their source status. † marks a round qualification.</p>' +
+      ' — means unavailable or no recorded contribution, never an assumed zero. Round cells describe their source status.</p>' +
       display.notes.map(function (note) {
         return '<p>' + esc(note.text) + (note.links.length ? ' ' + note.links.map(function (item) {
           return /^#\//.test(item.url) ? link(item.url, esc(item.label)) : sourceLinks([item]);

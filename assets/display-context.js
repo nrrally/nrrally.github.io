@@ -56,8 +56,8 @@
     dialog.setAttribute('aria-labelledby', 'rsWelcomeTitle');
     dialog.setAttribute('aria-describedby', 'rsWelcomeText');
     dialog.innerHTML = '<h2 id="rsWelcomeTitle">Welcome to RallyeSport</h2>' +
-      '<p id="rsWelcomeText">Welcome to RallyeSport - a Northern Regions Club League. Stats, Results, and Calendar are different to Northern Regions - ' +
-      '<a>click here to find out more</a>.</p><button class="btn primary" type="button" autofocus>Continue</button>';
+      '<p id="rsWelcomeText">RallyeSport is a separate competition. These results and standings are independently compiled. ' +
+      '<a>Click here to find out more</a>.</p><button class="btn primary" type="button" autofocus>Continue</button>';
     dialog.querySelector('a').setAttribute('href', infoHref);
     document.body.appendChild(dialog);
     document.body.classList.add('competition-welcome-open');

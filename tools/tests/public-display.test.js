@@ -216,7 +216,7 @@ test('valid current-finality reviews supersede only the displayed technical cave
     const display = P.result(model, mode, id, 'classification');
     assert.equal(display.state, 'Final classification');
     assert.ok(display.currentFinalityConfirmed);
-    assert.doesNotMatch(display.graph.metrics[0].help, /not a certification/);
+    assert.match(display.graph.metrics[0].help, /does not confirm that the source document is final/);
     assert.ok(display.notes.every(note => !/pending post.?event technical checks/i.test(note)));
     for (const html of [C.resultShell(display, C.resultClassification(display)).html, C.sources(P.sources(model, mode)).html,
       C.calendar(P.calendar(model, mode), 0), C.winners(P.calendar(model, mode))]) {
@@ -241,7 +241,7 @@ test('valid current-finality reviews supersede only the displayed technical cave
   const staleDisplay = P.result(build(f, { R1: stalePublic }), 'nr', 'R1', 'classification');
   assert.equal(staleDisplay.currentFinalityConfirmed, false);
   assert.ok(staleDisplay.notes.some(note => /pending post.?event technical checks/i.test(note)));
-  assert.match(staleDisplay.graph.metrics[0].help, /not a certification/);
+  assert.match(staleDisplay.graph.metrics[0].help, /does not confirm that the source document is final/);
   const staleRsPublic = AI.projectPublic(f.season, f.people);
   staleRsPublic.rallyesport.results[3].source.file += '.changed';
   const staleRsModel = E.buildSeason({ season: staleRsPublic, rounds: {}, people: f.people, publicProjection: true });
@@ -895,7 +895,7 @@ test('standings show one accessible asterisk and a conditional bottom footnote f
   f.season.minStarts = 2;
   const ineligible = P.standings(freeze(build(f, { R1: raw })), 'nr', 'driver');
   assert.ok(ineligible.rows.some(row => row.ineligible));
-  assert.match(ineligible.ineligibleNote, /^\* Minimum starts not met\.$/);
+  assert.match(ineligible.ineligibleNote, /^\* Fewer than five recorded starts\.$/);
   const ineligibleHtml = C.standings(ineligible).html;
   assert.equal((ineligibleHtml.match(/class="eligibility-mark"/g) || []).length,
     ineligible.rows.filter(row => row.ineligible).length);
@@ -997,7 +997,8 @@ test('RS missing/blocked snapshots, legacy RS0 and standings-only people never g
   assert.ok(legacyDisplay.rows.length, 'legacy non-scoring table remains reachable');
   assert.ok(legacyDisplay.rows.every(row => row.rank == null && row.ineligible && row.points === 0));
   assert.match(C.standings(legacyDisplay).html, /standings-eligibility-note/);
-  assert.match(C.standings(legacyDisplay).html, /does not establish non-membership/);
+  assert.match(C.standings(legacyDisplay).html, /RS0 · Non-Scoring · No championship points or rank/);
+  assert.doesNotMatch(C.standings(legacyDisplay).html, /membership/);
   const blocked = build(f), score = blocked.rallyesport.scoring;
   const resultId = score.results[0].resultId;
   score.results[0].status = 'blocked'; score.results[0].entries = [];
@@ -1168,7 +1169,7 @@ test('Home marks only explicit NR ineligibility and places one footnote after th
   const home = P.nrHome(model), excluded = home.drivers.find(row => row.name === 'Driver 1');
   assert.equal(excluded.ineligible, true, 'the adapter uses the explicit minimum-start result');
   assert.equal(home.drivers.find(row => row.name === 'Driver 2').ineligible, false);
-  assert.equal(home.ineligibleNote, '* Minimum starts not met.');
+  assert.equal(home.ineligibleNote, '* Fewer than five recorded starts.');
   const html = C.home(home, '').html;
   assert.equal((html.match(/id="home-eligibility-note"/g) || []).length, 1);
   assert.ok(html.indexOf('id="home-eligibility-note"') > html.indexOf('class="home-classes"'),
@@ -1187,7 +1188,7 @@ test('Home marks only explicit NR ineligibility and places one footnote after th
   model.standings.drivers = Array.from({ length: 6 }, (_, index) => ({ ...tieBase,
     id: 'tie-driver-' + index, name: 'Tie Driver ' + (index + 1), rank: 1, total: 42, eligible: index < 5 }));
   const tied = P.nrHome(model), tiedHtml = C.home(tied, '').html;
-  assert.equal(tied.ineligibleNote, '* Minimum starts not met.',
+  assert.equal(tied.ineligibleNote, '* Fewer than five recorded starts.',
     'the footnote accounts for every tied featured leader, even beyond the five-row list cap');
   assert.match(tiedHtml, /Tie Driver 6<\/a><span class="eligibility-mark" aria-hidden="true">\*<\/span>/);
 });
@@ -1197,7 +1198,7 @@ test('Home ties and both leader roles mark only explicitly ineligible names acce
   home.drivers = [tie(home.drivers[0], 'Tied Driver A', true), tie(home.drivers[1], 'Tied Driver B', true)];
   home.codrivers = [tie(home.codrivers[0], 'Tied Co-driver', true), tie(home.codrivers[1], 'Unknown Co-driver', false)];
   home.classes = [{ ...home.classes[0], rows: home.drivers }];
-  home.ineligibleNote = '* RS0 · Non-Scoring; this does not establish non-membership.';
+  home.ineligibleNote = '* RS0 · Non-Scoring; no championship points or rank.';
   const html = C.home(home, '').html, champ = C.champCard(home);
   for (const name of ['Tied Driver A', 'Tied Driver B', 'Tied Co-driver'])
     assert.match(champ, new RegExp('<a href="[^"]+" aria-describedby="home-eligibility-note">' + name +

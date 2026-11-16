@@ -389,8 +389,7 @@
 
   /* ---------- rounds list */
   function rsEligibilityNote() {
-    if (E.rallyeSportEntryPolicy(D.rallyesport)) return '<p class="small muted rs-eligibility-note">* RS0 is a launch-only user classification, not a championship membership or licence restriction.</p>';
-    return '<p class="small muted rs-eligibility-note">* RS0 Non-Scoring SSR 6.1 · No championship points or rank; not a declaration of non-membership.</p>';
+    return '<p class="small muted rs-eligibility-note">* RS0 · Non-Scoring; no championship points or rank.</p>';
   }
   function rsScoringNotice() {
     var scoring = D.rallyesport.scoring;
@@ -398,7 +397,6 @@
     return '<p class="small muted">' + (scoring.status === 'ready' ? 'RS championship points.' :
       hasTables ? 'Provisional RS points · scored rounds only.' : 'RS points unavailable. ' + esc(scoring.reason || '')) + '</p>' +
       '<details class="notes rs-scoring-notes"><summary>Scoring notes</summary><div><p>' + esc(scoring.reason || '') + '</p>' +
-      (E.rallyeSportEntryPolicy(D.rallyesport) ? '<p>User-confirmed entry-based eligibility applies to drivers and co-drivers. Membership, licence and invitation do not exclude championship entrants. Official classified/DNF status establishes a start; DNS excludes. This is not a printed SSR amendment. Non-scoring events remain in event history, not championship totals or round counts.</p>' : '') +
       (rallyeSportStarterMinimumNote(scoring, D.year) ? '<p class="small">' + esc(rallyeSportStarterMinimumNote(scoring, D.year)) + '</p>' : '') +
       (scoring.provisionalStandings && scoring.status !== 'ready' ? '<p>Provisional cumulative points: ready events only; blocked events are excluded, not scored as zero.</p>' : '') +
       ((scoring.excludedProvisionalEvents || []).length ? '<p class="small">Not scored: ' +

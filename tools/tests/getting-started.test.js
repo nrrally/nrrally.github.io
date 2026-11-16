@@ -52,8 +52,8 @@ test('NRC, NR and RS comparison explains the club option without promising stage
   for (const phrase of ['National Rally Championship (NRC)', 'Northern Regions (NR)',
     'South African championship titles', 'Regional titles', 'RallyeSport (RS): a club championship',
     'separate club championship', 'standalone events', 'join an NR event', 'selected stage programme',
-    'may not include all the NR stages', 'varies from round to round', 'typically the lowest-cost',
-    'not a guaranteed price difference', 'Standing Supplementary Regulations (SSRs)',
+    'may not include all the NR stages', 'varies from round to round', 'Compare current entry fees and related costs',
+    'total cost varies by event and crew', 'Standing Supplementary Regulations (SSRs)',
     'event Supplementary Regulations (SRs)', 'official programme', 'exact stages',
     'entry and licensing requirements', 'costs', 'dated reference', 'current documents and bulletins']) {
     assert.ok(visible.includes(phrase), phrase);

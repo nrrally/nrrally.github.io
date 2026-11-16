@@ -435,7 +435,7 @@ test('archived scoring, source status and historical profiles stay separate from
   assert.equal(prior.standings.drivers[0].eligible, true);
   assert.ok(api.viewAbout().html.includes('Synthetic archive note'));
   assert.ok(api.viewAbout().html.includes('Stage graphs'));
-  assert.ok(api.viewRound('R1', 'graph', {}).html.includes('Points match MSA'));
+  assert.ok(api.viewRound('R1', 'graph', {}).html.includes('MSA comparison recorded'));
   const s = emptySeason();
   select(api, s);
   assert.equal(api.ST.models[2027].people.length, 0);
@@ -541,7 +541,8 @@ test('RS crews and cross-season profiles use resolved RS identities and official
   assert.ok(reviewedPerson.includes('RS4'));
   assert.ok(reviewedPerson.includes('7 · classified'));
   for (const html of [reviewedCrews, reviewedPerson]) {
-    assert.ok(html.includes('RS0 Non-Scoring SSR 6.1'));
+    assert.ok(html.includes('RS0 · Non-Scoring'));
+    assert.ok(!html.includes('does not establish non-membership'));
     assert.ok(!html.includes('RS0 roles receive'));
   }
   const before = JSON.stringify(api.ST.models[2027].rallyesport);

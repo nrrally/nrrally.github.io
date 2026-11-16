@@ -1,5 +1,25 @@
 # Testing
 
+## Approved public wording changes
+
+The wording-only projection regressions use synthetic fixtures and verify that
+approved NR/RS commentary is rewritten or filtered without mutating source records,
+printed source title/status, results or scoring facts. Run:
+
+```
+node --test tools\tests\public-wording.test.js tools\tests\public-display.test.js tools\tests\getting-started.test.js tools\tests\season-readiness.test.js
+node tools\tests\site-theme-e2e.js
+node tools\tests\navigation-e2e.js
+```
+
+The browser suites require the existing Playwright setup described below. Keep its
+provider/external-request interception enabled; never send synthetic events or
+analytics to production. The pre-release public-data comparison and local-overlay
+browser check used anonymous GET snapshots in memory only. They are not committed
+fixtures, do not read protected records, and are not a substitute for post-deployment
+verification of the exact Pages SHA and canonical routes/assets. Renderer filtering
+does not remove the legacy source notes from public Firestore.
+
 ## Revised RS entry-based policy (synthetic)
 
 National-entry context tests use synthetic reviewed event entries, not provider

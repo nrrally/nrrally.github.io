@@ -464,7 +464,7 @@ async function main() {
           assert.equal(await page.locator('.hero > p').last().innerText(), published.site.tagline);
           assert.deepEqual(await page.locator('.hero-actions a').allTextContents(),
             ['Open the latest stage graph', 'Championship standings', 'Getting started in NR Rally']);
-          assert.equal(await page.locator('#home-eligibility-note').innerText(), '* Minimum starts not met.');
+          assert.equal(await page.locator('#home-eligibility-note').innerText(), '* Fewer than five recorded starts.');
           assert.ok(await page.locator('.leader a[aria-describedby="home-eligibility-note"]').count(),
             'under-minimum names link to the single conditional Home footnote');
           assert.ok(await page.locator('.leader a[aria-describedby="home-eligibility-note"] + .eligibility-mark[aria-hidden="true"]').count(),
@@ -614,7 +614,7 @@ async function main() {
         assert.equal(await eligibleStanding.locator('.standing-classes .cls').innerText(), 'RS2',
           'actual projected rows without scoringClass derive their class from the role-specific class table');
         assert.ok(!(await page.locator('main').innerText()).includes('RS2 / RS4'));
-        assert.ok((await page.locator('main').innerText()).includes('RS0 Non-Scoring SSR 6.1'));
+        assert.ok((await page.locator('main').innerText()).includes('RS0 · Non-Scoring; no championship points or rank'));
         const tableValues = () => page.locator('table.data tbody tr').evaluateAll(rows => rows.map(row =>
           Array.from(row.cells, cell => cell.hasAttribute('data-points') ?
             cell.getAttribute('data-points') : cell.textContent.trim())));
@@ -667,7 +667,7 @@ async function main() {
         await page.getByRole('button', { name: 'Continue', exact: true }).waitFor();
         assert.equal(await page.evaluate(() => document.activeElement.textContent), 'Continue');
         await page.keyboard.press('Tab');
-        assert.equal(await page.evaluate(() => document.activeElement.textContent), 'click here to find out more');
+        assert.equal(await page.evaluate(() => document.activeElement.textContent), 'Click here to find out more');
         await page.keyboard.press('Tab');
         assert.equal(await page.evaluate(() => document.activeElement.textContent), 'Continue');
         await page.keyboard.press('Escape');
@@ -853,8 +853,8 @@ async function main() {
         assert.deepEqual(await page.locator('#crewTable thead th').allTextContents(),
           ['Competitor', 'Role', 'Class / status', 'Standings', 'Starts',
             'Events / championship rounds', 'Car(s)']);
-        assert.ok((await page.locator('main').innerText()).includes('does not establish non-membership'),
-          'the single footnote preserves the RS0 eligibility caveat');
+        assert.ok(!(await page.locator('main').innerText()).includes('does not establish non-membership'),
+          'the public RS0 footnote does not discuss membership');
         assert.ok(!(await page.locator('main').innerText()).includes('RS0 roles receive'));
         await page.getByRole('link', { name: 'Synthetic Driver 4', exact: true }).click();
         assert.equal(await page.locator('.kpi').filter({ hasText: 'Starts' }).locator('b').innerText(), '3');
@@ -1000,9 +1000,9 @@ async function main() {
         assert.ok(!technicalChecksText.includes('eligibility unverified'));
         assert.ok(!technicalChecksText.includes('membership eligibility is unverified'));
         assert.ok(technicalChecksText.includes('Official finish is separate from each person’s championship scoring.'));
-        assert.ok(await page.locator('.note-mark[title*="does not establish non-membership"]').count(),
-          'the RS0 marker does not imply non-membership');
-        assert.ok(technicalChecksText.includes('RS0 Non-Scoring SSR 6.1'));
+        assert.ok(await page.locator('.note-mark[title*="No championship points or rank"]').count(),
+          'the RS0 marker explains its non-scoring status without membership commentary');
+        assert.ok(technicalChecksText.includes('RS0 · Non-Scoring'));
         const sourceRow = page.locator('table.data tbody tr').filter({ hasText: 'Alex Test' }).first();
         assert.equal(await sourceRow.locator('.rs-result-pos').innerText(), '1');
         assert.equal(await sourceRow.locator('.rs-result-car').innerText(), '1');
@@ -1017,8 +1017,8 @@ async function main() {
         await page.keyboard.press('Enter');
         const sourceNotesText = await page.locator('.rs-source-notes').innerText();
         assert.ok(sourceNotesText.includes('results are final pending post-event technical checks'));
-        assert.ok(sourceNotesText.includes('2026 RS event minimum: 6 source-backed starters'));
-        assert.ok(sourceNotesText.includes('Published SSR V1 states 15; no written amendment is recorded.'));
+        assert.ok(!sourceNotesText.includes('2026 RS event minimum: 6 source-backed starters'));
+        assert.ok(!sourceNotesText.includes('Published SSR V1 states 15; no written amendment is recorded.'));
         await page.locator('.rs-scoring-order summary').click();
         assert.ok(await page.locator('.rs-scoring-order table').isVisible());
         await noOverflow();
@@ -1027,7 +1027,7 @@ async function main() {
         await visit('#/rallyesport');
         assert.ok(!(await page.locator('main').innerText()).includes('2026 RS event minimum'));
         await page.locator('.rs-scoring-notes summary').click();
-        assert.ok((await page.locator('main').innerText()).includes('2026 RS event minimum: 6 source-backed starters'));
+        assert.ok(!(await page.locator('main').innerText()).includes('2026 RS event minimum: 6 source-backed starters'));
         await visit('#/person/rs-driver-3?competition=rs');
         assert.ok(!(await page.locator('main').innerText()).includes('Published SSR V1'));
         assert.equal(await page.locator('.rs-profile-points svg').count(), 1);
@@ -1089,8 +1089,8 @@ async function main() {
     await page.locator('.chart-card svg').waitFor();
     await visit('#/2026/person/alex-test?competition=rs');
     assert.ok((await page.locator('.profile-history').innerText()).includes('RS0 · Non-Scoring.'));
-    assert.ok((await page.locator('.profile-history').innerText()).includes('does not establish non-membership'),
-      'the visible profile note does not imply non-membership');
+    assert.ok(!(await page.locator('.profile-history').innerText()).includes('does not establish non-membership'),
+      'the visible profile note does not discuss membership');
     await page.locator('main a[href*="/rallyesport/"]').first().click();
     await page.locator('.chart-card svg').waitFor();
     const timingResult = bundle.season.rallyesport.results[0], savedTiming = F.copy(timingResult.entries);

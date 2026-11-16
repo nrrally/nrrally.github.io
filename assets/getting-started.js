@@ -42,7 +42,7 @@
       lead: '<p>National Rally Championship (NRC) and Northern Regions (NR) crews share the same rally community and often the same events. National competition awards South African championship titles; Northern Regions awards Regional titles. Choose the programme that fits your crew and car.</p>' +
         '<h3>RallyeSport (RS): a club championship</h3>' +
         '<p>RallyeSport is a separate club championship. It may run its own standalone events or join an NR event with a selected stage programme, which may not include all the NR stages. The arrangement varies from round to round, so do not assume the same format or stages at every event.</p>' +
-        '<p>RS is typically the lowest-cost option of the three, but that is not a guaranteed price difference. Compare entry fees and what they include, and allow for preparation, travel, service and maintenance too.</p>' +
+        '<p>Compare current entry fees and related costs; total cost varies by event and crew.</p>' +
         '<p>RS has its own <strong>Standing Supplementary Regulations (SSRs)</strong>. Read the applicable RS SSRs, the relevant round&rsquo;s event Supplementary Regulations (SRs) and official programme for the exact stages, entry and licensing requirements, and costs. The ' +
         link('rs', '2026 RallyeSport SSRs') + ' are a dated reference; check for current documents and bulletins through ' + link('msa') + ' and the organiser before entering.</p>',
       summary: 'Costs, classes, homologation and fuel',

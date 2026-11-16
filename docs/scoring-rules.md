@@ -68,7 +68,7 @@ Driver and co-driver standings are kept separately. Both crew members score the 
 
 ## Confirmed against the official standings
 
-`season.msa.confirmedRounds` lists the rounds whose points have been checked against the published MSA standings. The site marks those rounds "Points match MSA". All other rounds show "Points calculated" and are treated as provisional.
+`season.msa.confirmedRounds` lists the rounds for which an MSA standings comparison is recorded. Public result and standings views label these rounds "MSA comparison recorded". All other rounds show "Points calculated" and are treated as provisional.
 
 ## RallyeSport (separate ruleset and records)
 

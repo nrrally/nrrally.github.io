@@ -116,7 +116,7 @@
       available: home.hasResults, provisional: pending.length > 0,
       basis: 'Overall + class points.',
       reason: pending.length ? 'Awaiting championship confirmation: ' + pending.map(function (round) { return 'R' + round.n; }).join(', ') + '.' : '',
-      scope: 'Starts include recorded championship credits. Entries and DNS do not create starts.'
+      scope: 'Provisional points; official eligibility and championship decisions follow current MSA/NRC publications.'
     };
     function row(raw, rank, role) {
       return { id: raw.id, name: raw.name, rank: rank == null ? raw.rank : rank,
@@ -132,7 +132,7 @@
     }
     function eligibilityNote(rows) {
       return rows.some(function (value) { return value.ineligible; }) ?
-        '* Minimum starts not met.' : '';
+        '* Fewer than five recorded starts.' : '';
     }
     home.drivers = model.standings.drivers.map(function (raw) { return row(raw, null, 'driver'); });
     home.codrivers = model.standings.codrivers.map(function (raw) { return row(raw, null, 'codriver'); });
@@ -201,7 +201,7 @@
       home.codrivers.slice(0, 5), home.codrivers.filter(function (row) { return row.rank === 1; }),
       home.classes.reduce(function (all, cls) { return all.concat(cls.rows.slice(0, 3)); }, []));
     home.ineligibleNote = visibleRows.some(function (value) { return value.ineligible; }) ?
-      '* RS0 · Non-Scoring; this does not establish non-membership.' : '';
+      '* RS0 · Non-Scoring; no championship points or rank.' : '';
     home.counts = { rounds: results.length, listedRounds: counted.length, events: rs.events.length,
       drivers: tables ? home.drivers.length : null,
       stages: home.hasResults ? rs.results.reduce(function (sum, result) { return sum + result.stages.length; }, 0) : null };
@@ -376,6 +376,27 @@
       text = text.replace(/\bresults are final pending post[- ]event technical checks(?: such as fuel testing)?(?=[.!;]|$)[.!]?/gi, '');
     return text === note ? note : text.replace(/^[\s;,]+|[\s;,]+$/g, '').replace(/^Source footer:\s*$/i, '').trim();
   }
+  function publicSourceNote(note, mode, result, entry) {
+    var text = sourceNote(note, result, entry);
+    if (mode === 'rs' && (
+      /^For this R1 classification only, the user confirmed that/i.test(text) ||
+      /^Launch-only effective classification: RS0 for the explicitly reviewed crew, both roles\./i.test(text) ||
+      /^The source heading\/status remains Provisional Official Classification.*The user confirmed this supplied result may be treated as final for scoring;/i.test(text) ||
+      /^Identity review: the user confirmed /i.test(text)
+    )) return '';
+    if (mode === 'rs') {
+      text = text.replace(/(^|[\s;:,.!?])No licence numbers are transcribed\.?(?=$|[\s;:,.!?])/gi, '$1')
+        .replace(/\s{2,}/g, ' ').trim();
+      if (!text) return '';
+    }
+    if (mode === 'nr' && result.id === 'R1' && /SS2 does not appear on the sheet; SS4 shows the same/i.test(text))
+      return 'Stage times are shown as published in the linked classification.';
+    if (mode === 'nr' && result.id === 'R4' && /Some stage times are round figures .* appear to be allocated times/i.test(text))
+      return 'Stage times are shown as published in the linked classification.';
+    if (mode === 'nr' && result.id === 'R3' && /Sportity and NRC published this signed classification as final/i.test(text))
+      return 'The linked source is headed “Provisional Official Classification 8/8”. Consult the current NRC/MSA publication for classification status.';
+    return text;
+  }
   function sourceWinner(result, mode, cls) {
     var entries = result.entries.filter(function (entry) {
       var effective = mode === 'nr' ? entry.cls : E.rallyeSportLaunchRS0(entry) ? 'RS0' :
@@ -522,8 +543,7 @@
    */
   function rsStarterMinimumNote(scoring, year) {
     if (year !== 2026 || !scoring.starterMinimum) return '';
-    return scoring.starterMinimum.basis === 'user-reported-review' ?
-      '2026 RS event minimum: 6 source-backed starters; DNS does not count. This is a user-reported review. Published SSR V1 states 15; no written amendment is recorded.' :
+    return scoring.starterMinimum.basis === 'user-reported-review' ? '' :
       '2026 RS event minimum: 15 starters as printed in SSR V1.';
   }
   function standingsHref(model, mode, role, cls, split) {
@@ -584,9 +604,7 @@
           });
           return row;
         });
-      if (overview.hasResults) note('Overall + class points · Minimum ' + model.minStarts + ' starts for eligibility.');
-      if (display.selectedClass) note('This view filters the overall table. Pos follows that order; Overall pos retains the overall rank. Class pts sums the recorded class awards, not an independent class championship.');
-      note('Fewer than ' + model.minStarts + ' starts: listed after eligible crews. Ties: most 1st places, then 2nd places, continuing through all recorded finishes, then name.');
+      note('Provisional points; official eligibility and championship decisions follow current MSA/NRC publications.');
       var confirmation = nrConfirmation(model);
       if (confirmation) note(confirmation,
         (model.msa.url ? [{ label: model.msa.label || 'MSA standings', url: model.msa.url }] : [])
@@ -627,7 +645,7 @@
           return (!display.selectedClass || display.selectedClass === cls) &&
             (classTables[cls] || []).some(function (person) { return person.id === raw.id && person.rank != null; });
         });
-        row.qualifier = raw.rank == null ? 'RS0 Non-Scoring SSR 6.1' : 'Eligible';
+        row.qualifier = raw.rank == null ? 'RS0 · Non-Scoring' : 'Eligible';
         row.ineligible = raw.rank == null;
         row.nationalContext = [];
         row.overallRank = overallRow ? overallRow.rank : null;
@@ -640,10 +658,9 @@
         });
         return row;
       });
-      note('Overall totals reuse class points; no separate overall points are added. Each round shows its scoring class in the points breakdown. Equal totals share a rank; championship tie-breaks remain unresolved.');
+      note('Overall totals reuse class points; no separate overall points are added. Each round shows its scoring class in the points breakdown. Equal totals share a displayed position; consult the official standings for any championship tie-break.');
       if (display.selectedClass) note('This view uses independent published class ranks and class totals. Overall pos retains the published overall rank.');
-      if (entryPolicy) note('User-confirmed entry-based eligibility applies to drivers and co-drivers. Membership, licence and invitation do not exclude championship entrants. Official classified/DNF status establishes a start; DNS excludes. This is not a printed SSR amendment. Non-scoring events remain in event history, not championship totals or round counts.');
-      else note('RS0 Non-Scoring SSR 6.1 · No championship points or rank; not a declaration of non-membership.');
+      if (!entryPolicy) note('RS0 · Non-Scoring · No championship points or rank.');
       note(rsStarterMinimumNote(scoring, model.year));
       if (scoring.provisionalStandings && scoring.status !== 'ready') note('Provisional cumulative points: ready events only; blocked events are excluded, not scored as zero.');
       (scoring.excludedProvisionalEvents || []).forEach(function (excluded) {
@@ -654,8 +671,8 @@
     var selectedClass = display.classes.filter(function (cls) { return cls.id === display.selectedClass; })[0];
     if (selectedClass) note(selectedClass.description);
     if (display.rows.some(function (row) { return row.ineligible; }))
-      display.ineligibleNote = mode === 'nr' ? '* Minimum starts not met.' :
-        '* RS0 Non-Scoring SSR 6.1: no championship rank or points; this does not establish non-membership.';
+      display.ineligibleNote = mode === 'nr' ? '* Fewer than five recorded starts.' :
+        '* RS0 · Non-Scoring; no championship points or rank.';
     ['driver', 'codriver'].forEach(function (other) {
       display.controls.roles.push({ label: other === 'driver' ? 'Drivers' : 'Co-drivers', selected: role === other,
         href: standingsHref(model, mode, other, display.selectedClass, display.showBreak) });
@@ -671,7 +688,7 @@
     return display;
   }
   var RESULT_METRICS = [
-    { id: 'pos', label: 'Position', kind: 'rank', final: true, help: 'Position within this competition after each stage (stage times only). “Final” is the official classification, including penalties, not a certification of source finality.' },
+    { id: 'pos', label: 'Position', kind: 'rank', final: true, help: 'Position within this competition after each stage (stage times only). “Final” marks the displayed classification endpoint, including penalties; it does not confirm that the source document is final.' },
     { id: 'gap', label: 'Gap to leader', kind: 'time', final: true, help: 'Cumulative time behind this competition’s leader after each stage. “Final” uses official totals, including penalties.' },
     { id: 'cpos', label: 'Class position', kind: 'rank', final: true, help: 'Position within each crew’s classification class after each stage. “Final” is the official class order.' },
     { id: 'cgap', label: 'Class gap', kind: 'time', final: true, help: 'Cumulative time behind the leader of the same classification class after each stage.' },
@@ -716,7 +733,7 @@
     var graph = { id: raw.id, name: event.name, timePrecision: 1, stages: [], labels: [],
       entries: [], progression: {}, classes: [], metrics: RESULT_METRICS.map(function (metric) {
         return raw.currentFinalityConfirmed && metric.id === 'pos' ?
-          Object.assign({}, metric, { help: 'Position within this competition after each stage (stage times only). “Final” is the official classification, including penalties.' }) : metric;
+          Object.assign({}, metric, { help: 'Position within this competition after each stage (stage times only). “Final” marks the displayed classification endpoint, including penalties; it does not confirm that the source document is final.' }) : metric;
       }) };
     if (mode === 'nr') {
       graph.stages = raw.stages.slice(); graph.labels = raw.labels.slice(); graph.progression = raw.progression;
@@ -850,11 +867,11 @@
         mode === 'nr' && raw && raw.confirmed ? 'confirmed' : ready ? 'calculated' : 'unavailable',
       sourceTitle: raw && raw.title || '', sourceStatus: raw && raw.status || '',
       pointsLabel: event.countsForChampionship === false ? 'Non-scoring event' : mode === 'nr' ?
-        raw ? raw.confirmed ? 'Points match MSA' : 'Points calculated' : 'Points unavailable' : ready ? 'Points available' : 'Points unavailable',
+        raw ? raw.confirmed ? 'MSA comparison recorded' : 'Points calculated' : 'Points unavailable' : ready ? 'Points available' : 'Points unavailable',
       scoringBasis: event.countsForChampionship === false ?
         'Non-scoring event: retained for event statistics, results and graphs; excluded from championship totals and round counts.' :
-        mode === 'nr' ? 'Points: overall + class, assigned to the credited driver and co-driver.' :
-        'Class points only; driver and co-driver scoring positions and eligibility are independent.',
+        mode === 'nr' ? 'Points are shown for each recorded role.' :
+        'Driver and co-driver points are shown separately.',
       scoringReason: event.countsForChampionship === false ? '' : mode === 'rs' ?
         score && score.reason || model.rallyesport.scoring.reason || 'No championship scoring review is published for this event.' :
         raw && !raw.confirmed ? 'Points calculated on this site; not yet confirmed by MSA.' : '',
@@ -876,18 +893,19 @@
     if (source.url || mode === 'nr' && event.links && event.links.results)
       display.sourceLinks.push({ label: 'Official source classification', url: source.url || event.links.results });
     if (source.pdf) display.sourceLinks.push({ label: 'Copy of the PDF', url: source.pdf });
-    display.notes = (raw.notes || []).map(function (note) { return sourceNote(note, raw); }).filter(Boolean);
+    display.notes = (raw.notes || []).map(function (note) { return publicSourceNote(note, mode, raw); }).filter(Boolean);
     if (source.file) display.notes.unshift('Source: ' + source.file);
     if (event.countsForChampionship === false) display.notes.push('Non-scoring event: retained for event statistics, results and graphs; excluded from championship totals and round counts.');
     if (mode === 'rs') {
       var mapped = Array.from(new Set(Object.keys(raw.classMappings || {}).map(function (key) { return raw.classMappings[key]; })));
       if (mapped.length) display.notes.push('Displayed classes: ' + mapped.join(', ') + '. Event-specific source class mapping applied; printed categories remain in the official source.');
-      if (raw.entries.some(E.rallyeSportLaunchRS0)) display.notes.push('Launch-only effective classification: RS0 for the explicitly reviewed crew, both roles. Printed TEST category/status remains source evidence, not a supported championship class or status. No timing or source row was removed.');
+      if (raw.entries.some(E.rallyeSportLaunchRS0))
+        display.notes.push('Printed TEST category/status remains source evidence, not a supported championship class or status. No timing or source row was removed.');
       display.notes.push('Source records, finish order and timing are preserved. Missing times stay missing; final positions are not inferred from stage sums.');
       display.notes.push('Printed class positions are source facts, not championship class-role ranks. The separate scoring order shows role-specific positions.');
       var minimum = rsStarterMinimumNote(model.rallyesport.scoring, model.year);
       if (minimum) display.notes.push(minimum);
-      if (!E.rallyeSportEntryPolicy(model.rallyesport)) display.notes.push('RS0 Non-Scoring SSR 6.1 · No championship points or rank; not a declaration of non-membership.');
+      if (!E.rallyeSportEntryPolicy(model.rallyesport)) display.notes.push('RS0 · Non-Scoring · No championship points or rank.');
     }
     var byCar = {};
     (score && score.entries || []).forEach(function (row) { byCar[row.car] = row; });
@@ -904,7 +922,7 @@
         penalty: mode === 'nr' ? entry.pen == null ? '—' : E.fmtTime(entry.pen) : original.penalty || '—',
         total: mode === 'nr' ? entry.status === 'classified' ? entry.total == null ? '—' : E.fmtTime(entry.total, true) : entry.status : original.total || '—',
         gap: '—', previousGap: '—', credit: '',
-        notes: (original.notes || []).map(function (note) { return sourceNote(note, raw, original); }).filter(Boolean), points: [] };
+        notes: (original.notes || []).map(function (note) { return publicSourceNote(note, mode, raw, original); }).filter(Boolean), points: [] };
       if (mode === 'nr') {
         ['driver', 'codriver'].forEach(function (role) {
           var printedId = entry[role + 'Id'];
@@ -930,11 +948,9 @@
           entry.status === 'DNS' ? 'DNS · no championship award' : '' :
           info ? info.status === 'eligible' ? info.scoringClass : 'RS0 · Non-Scoring' : 'Scoring status unavailable';
         var detailHelp = info && info.status !== 'eligible' ?
-          'Non-scoring role; no championship points or rank. This label does not establish non-membership.' : '';
+          'No championship points or rank.' : '';
         row.points.push({ role: role, points: amount, detail: detail, detailHelp: detailHelp });
-        if (detailHelp) display.qualification = 'RS0 · Non-Scoring* — ' +
-          (E.rallyeSportEntryPolicy(model.rallyesport) ? 'No championship points or rank; source classification and timing are unchanged.' :
-            'RS0 Non-Scoring SSR 6.1. No championship points or rank; not a declaration of non-membership.');
+        if (detailHelp) display.qualification = 'RS0 · Non-Scoring* — No championship points or rank.';
         if (credited && entry.status !== 'DNS' && (mode === 'nr' && entry.points ||
           mode === 'rs' && ready && info)) {
           display.awards.push({ name: mode === 'nr' ? entry[role === 'driver' ? 'champDriver' : 'champCodriver'] : entry[role],
@@ -980,10 +996,10 @@
     var confirmed = model.rounds.filter(function (round) { return round.confirmed; }).map(function (round) { return 'R' + round.n; });
     return confirmed.length && model.msa ? confirmed.join(', ') + ' points checked against ' +
       (model.msa.label || 'MSA standings') + (model.msa.generated ? ' (' + model.msa.generated + ')' : '') +
-      '. Where the official sheet and MSA points disagree on a class or crew member, MSA standings are followed.' : '';
+      '. For official results and points, consult NRC South Africa and Motorsport South Africa.' : '';
   }
   function roleName(role) { return role === 'driver' ? 'Driver' : 'Co-driver'; }
-  var ROLE_NOTE = 'Championship scoring only; this does not establish non-membership. Source classification and timing remain unchanged.';
+  var ROLE_NOTE = 'Scoring labels describe championship points only. Source classification and timing remain unchanged.';
   /**
    * Directory/profile facts are role records, not interchangeable entry/start counts.
    * Null is unavailable. Unresolved RS source names have no invented profile URL.
@@ -1118,15 +1134,13 @@
     return { year: model.year, rows: rows,
       mode: mode,
       ineligibleNote: rows.some(function (row) { return row.hasIneligible; }) ?
-        mode === 'nr' ? '* At least one driver or co-driver role is below the minimum starts.' :
-          '* RS0 Non-Scoring SSR 6.1: no championship rank or points; this does not establish non-membership.' : '',
-      basis: mode === 'nr' ?
-        'Starts count distinct recorded championship rounds once across credited roles; entries and DNS do not count.' :
-        'Starts count distinct official classified/DNF championship rounds once across roles; launch and DNS do not count.' +
-          (rows.some(function (row) { return row.startsCountLowerBound; }) ?
-            ' + means at least this many starts; other recorded appearances have unavailable classification status.' : ''),
-      note: mode === 'rs' ? (E.rallyeSportEntryPolicy(model.rallyesport) ? '' : 'RS0 Non-Scoring SSR 6.1 · ') +
-        ROLE_NOTE : 'Entries, printed roles and credited starts are independent; missing entry coverage is not zero.' };
+        mode === 'nr' ? '* Fewer than five recorded starts.' :
+          '* RS0 · Non-Scoring; no championship points or rank.' : '',
+      basis: 'Starts are counts shown in these tables; official eligibility is determined by the applicable rules and officials.' +
+        (rows.some(function (row) { return row.startsCountLowerBound; }) ?
+          ' + means at least this many starts; other recorded appearances have unavailable classification status.' : ''),
+      note: mode === 'rs' ? ROLE_NOTE :
+        'Entries, printed roles and credited starts are independent; missing entry coverage is not zero.' };
   }
   function profile(models, mode, id, publicProfile) {
     var seasons = models.map(function (model) {
@@ -1174,10 +1188,9 @@
           stagePositions.filter(function (pos) { return pos === 1; }).length : scored.length ? null : 0]],
       basis: (mode === 'nr' ? 'Finish and win statistics use credited championship roles.' :
         'Finish and win statistics use published source roles, including non-scoring events.') +
-        ' Appearances count role/car records, not unique starts. Starts follow official classified/DNF championship role-rounds. Entries and DNS do not create starts.' +
+        ' Starts are counts shown in these tables; official eligibility is determined by the applicable rules and officials.' +
         (mode === 'rs' && unknownStarts ? ' + means at least this many starts; other recorded appearances have unavailable classification status.' : ''),
-      note: mode === 'rs' ? (models.some(function (model) { return !E.rallyeSportEntryPolicy(model.rallyesport); }) ?
-        'RS0 Non-Scoring SSR 6.1 · ' : '') + ROLE_NOTE :
+      note: mode === 'rs' ? ROLE_NOTE :
         'Printed and credited roles can differ; recorded starts and results use their own evidence.' };
   }
   function information(model, mode, site, metadata) {
@@ -1189,7 +1202,10 @@
             'Published source edition; applicability and reviewed scoring qualifications remain separate.' }] : [],
       calendar: calendar(model, mode), links: { about: href(model.year, mode, '/about'), crews: href(model.year, mode, '/crews'),
         info: href(model.year, mode, '/info'), rounds: href(model.year, mode, '/rounds') },
-      intro: shared.intro || '', sharedDocuments: (shared.documents || []).map(function (doc) { return Object.assign({}, doc); }) };
+      intro: shared.intro === 'The MSA Northern Regions Regional Rally Championship runs alongside the national rounds held in the Northern Regions. This site publishes the official classifications, the championship standings and stage-by-stage graphs for Northern Regions crews.' ?
+        'This site displays results transcribed from official classifications and independently compiles standings and stage graphs for Northern Regions crews.' :
+        shared.intro || '',
+      sharedDocuments: (shared.documents || []).map(function (doc) { return Object.assign({}, doc); }) };
   }
   function sources(model, mode) {
     var display = information(model, mode), facts = standings(model, mode, 'driver', {}), rows = mode === 'nr' ? model.rounds : model.rallyesport.results;
@@ -1198,15 +1214,10 @@
     if (rows.length) {
       var points = { title: 'Points', paragraphs: [facts.scoring.basis, facts.scoring.reason, facts.scoring.scope], links: [] };
       if (mode === 'nr') {
-        points.paragraphs.push('Minimum ' + model.minStarts + ' starts for eligibility. Awards follow credited identities; class-only entrants have no overall award.');
-        points.paragraphs.push('Overall: ' + model.pointsScale.overall.map(function (value, i) { return E.ord(i + 1) + ' ' + value; }).join(' · '));
-        points.paragraphs.push('Class: ' + model.pointsScale.cls.map(function (value, i) { return E.ord(i + 1) + ' ' + value; }).join(' · '));
         points.paragraphs.push(nrConfirmation(model));
         if (model.msa && model.msa.url) points.links.push({ label: model.msa.label || 'MSA standings', url: model.msa.url });
       } else {
         points.paragraphs.push(rsStarterMinimumNote(model.rallyesport.scoring, model.year));
-        points.paragraphs.push(E.rallyeSportEntryPolicy(model.rallyesport) ?
-          'User-confirmed entry-based eligibility applies to both roles; membership, licence and invitation do not exclude championship entrants. This is not a printed SSR amendment.' : ROLE_NOTE);
         points.paragraphs.push('Provisional cumulative points include ready events only; blocked events are excluded, not scored as zero.');
       }
       display.sections.push(points, { title: 'Stage graphs', paragraphs: [
@@ -1218,7 +1229,10 @@
       var event = model.events.filter(function (event) { return event.id === list.eventId; })[0];
       return { label: (event ? event.name : list.eventId) + (list.complete ? ' (complete list)' : ' (partial coverage)'), url: list.source.url };
     }) : [];
-    display.notes = mode === 'nr' ? (model.notes || []).slice() : [];
+    display.notes = mode === 'nr' ? (model.notes || []).map(function (note) {
+      return /^MSA's points PDF lists the top 19 drivers and co-drivers only,/i.test(note) ?
+        'Points not listed in the cited MSA standings are calculated on this site.' : note;
+    }) : [];
     display.classes = mode === 'nr' ? model.classes.map(function (cls) { return { id: cls.id,
       text: (cls.desc || '') + (cls.classOnly ? ' (class points only)' : '') }; }) :
       Array.from(new Set(display.results.reduce(function (out, result) {
