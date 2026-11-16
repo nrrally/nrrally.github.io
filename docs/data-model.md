@@ -189,6 +189,78 @@ display does not relax strict round schedule/status validation.
 
 ## Optional RallyeSport season layer
 
+### RS entries received
+
+`season.rallyesport.entryLists` is optional and **independent of NR**
+`season.entryLists` and `nrNationalEntries`. It records received public sporting
+information, not registrations, classifications or eligibility decisions.
+One list per existing RS event is supported; no NR event/day linkage is required.
+
+```json
+{
+  "entryLists": [{
+    "eventId": "existing-rs-event-id",
+    "complete": false,
+    "source": {"title": "Entries received", "date": "2026-11-16", "url": ""},
+    "entries": [{
+      "car": "301",
+      "driverId": "synthetic-driver",
+      "codriverId": "synthetic-codriver",
+      "enteredClass": "RS4",
+      "vehicle": "Synthetic vehicle"
+    }]
+  }]
+}
+```
+
+This is a synthetic shape example, not a real crew or an event-creation instruction.
+All shown keys are required within a list/source/row. An omitted `entryLists` means
+no received lists; an empty `entries` array is an explicitly empty list, qualified
+by `complete`. `complete` means coverage as at the supplied source date, not the
+final starting field or proof no more entries will arrive.
+
+`driverId` must identify an existing stable profile; `codriverId` may be `""`
+when not supplied. Unknown IDs, the same person in both seats or multiple entries,
+duplicate nonempty car numbers, duplicate/unknown RS event lists and unknown fields
+block publication. No name/car/national-membership-based identity inference occurs.
+Names display from the shared profiles; entry-only records do not create RS
+Crews/profile result histories, starts or standings.
+
+Car is `""` or 1-8 digits; entered class is `""` or normalized uppercase text
+without spaces (up to 32 characters); vehicle is `""` or at most 200 characters.
+These empty values mean **Not supplied**, not zero or a default class. Entered class
+is a label only, including any supplied RS0: it never maps a result class, grants
+eligibility or consults `nonScoringPeople`. RS0 applicability remains unresolved
+pending sporting clarification; no new policy is implemented.
+
+Source title (1-200 characters) and a real ISO date are required. URL is `""`
+or a public HTTPS URL without embedded credentials (up to 2000 characters).
+The title can identify an authorized entries-received update without a public
+entry PDF. Only public source identification belongs here: no contact/licence
+data, local paths, private correspondence or roster metadata. Text must be trimmed,
+control characters rejected and display escaped. Lists/rows each have a 1000-item
+limit, with existing atomic Firestore document/request limits still applying.
+The public projector explicitly copies only these fields. Working documents,
+backups and History retain the list; it is not erased when results arrive.
+
+`#/2026/rallyesport-event/<eventId>/classification?competition=rs` is an
+event-addressed public route, distinct from existing result-ID routes (both remain
+supported). It resolves the event's actual result if present; otherwise the shared
+Classification tab shows the received list without fabricating a result. Graph
+and Stage times require actual results. NR lists are never used as RS entrants.
+The heading says the event is not yet held only before its supplied scheduled
+date; on/after that date or with no date, it says results are not yet published,
+without claiming the event ran.
+Existing shared event-resource links can still point at an NR entry source without
+claiming its crews entered RS. Supplied RS events are navigable even without a list.
+
+After the one compatible static-code rollout, add/edit/remove received crews and
+publish actual official results through the normal Firebase admin workflow. No
+per-crew code change, rules update, new collection or initial schema migration is
+required. Public readers reload to see newly published data; open tabs are not
+realtime clients. New sporting policies or unsupported result semantics still
+require reviewed code changes. See [the acceptance procedure](data-entry-guide.md#rs-entries-received).
+
 `season.rallyesport` is an optional object in the same versioned season document:
 
 ```json

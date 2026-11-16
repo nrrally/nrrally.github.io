@@ -344,7 +344,8 @@
     }
     return html;
   }
-  function resultClassification(display) {
+  function resultClassification(display, now) {
+    if (display.published === false && display.receivedEntries !== undefined) return receivedEntries(display, false, now);
     return '<div class="table-wrap result-classification rs-classification" role="region" aria-label="Classification table" tabindex="0">' +
       '<table class="data compact"><caption class="sr-only">Source classification and independently credited championship points</caption><thead><tr>' +
       ['Pos', 'No.', 'Crew', 'Class', 'Car', 'Stages', 'Penalty', 'Official total', 'Diff 1st', 'Diff prev', 'Class pos', 'Championship pts']
@@ -385,7 +386,30 @@
         return '<tr><td class="num">' + value(row.officialPosition) + '</td><td class="num">' + value(row.rank) + '</td><td>' + resultPerson(row) + '</td><td>' +
           (row.role === 'driver' ? 'Driver' : 'Co-driver') + '</td><td>' + esc(row.car) + '</td><td>' + esc(row.detail) +
           '</td><td class="num"><b>' + value(row.points) + '</b></td></tr>';
-      }).join('') + '</tbody></table></div></details>' : '');
+      }).join('') + '</tbody></table></div></details>' : '') + receivedEntries(display, true);
+  }
+  function receivedEntries(display, retained, now) {
+    var list = display.receivedEntries;
+    if (retained && !list) return '';
+    var upcoming = scheduledStatus(display.dateIso, now == null ? Date.now() : now) === 'Upcoming';
+    var html = '<div class="result-received-entries"><h2>' + (retained ? 'Retained entries received' :
+      'Entries received — ' + (upcoming ? 'event not yet held' : 'results not yet published')) + '</h2><p class="small muted">Entered class is supplied entry information, not a confirmed scoring decision. Entries do not establish starts, finishes, eligibility or points. RS0 applicability is not inferred.</p>';
+    if (!list) return html + '<p>No entries published yet.</p></div>';
+    html += '<p class="small muted">' + (list.complete ? 'Complete list as at source date.' : 'Partial list; more entries may follow.') +
+      ' ' + esc(list.source.title) + ' · ' + esc(dateLabel(list.source.date)) + '</p>' +
+      sourceLinks(list.source.url ? [{ label: 'Entry source', url: list.source.url }] : []);
+    var labels = ['No.', 'Driver', 'Co-driver', 'Vehicle', 'Entered class'];
+    html += list.entries.length ? '<div class="table-wrap result-entry-table" role="region" aria-label="Entries received" tabindex="0">' +
+      '<table class="data"><caption class="sr-only">Entries received, not a classification</caption><thead><tr>' +
+      labels.map(function (label) { return '<th scope="col">' + label + '</th>'; }).join('') +
+      '</tr></thead><tbody>' + list.entries.map(function (row) {
+        return '<tr data-entry-car="' + esc(row.car) + '">' +
+          [row.car, row.driver, row.codriver, row.vehicle, row.enteredClass].map(function (text, i) {
+            return '<td data-label="' + labels[i] + '">' + esc(text || 'Not supplied') + '</td>';
+          }).join('') + '</tr>';
+      }).join('') + '</tbody></table></div>' : '<p>No entries recorded in this published ' + (list.complete ? 'list.' : 'partial list.') + '</p>';
+    html += '</div>';
+    return retained ? '<details class="notes"><summary>Entries received (retained separately from results)</summary>' + html + '</details>' : html;
   }
   function resultShell(display, content, now) {
     if (now == null) now = Date.now();
@@ -409,7 +433,7 @@
       '</div><div class="hero-actions">' +
       (display.previous ? link(display.previous, '← Previous', 'btn') : '') + (display.next ? link(display.next, 'Next →', 'btn') : '') +
       link(display.links.rounds, 'All events', 'btn') + '</div></div>';
-    if (!display.published) {
+    if (!display.published && display.receivedEntries === undefined) {
       return { title: display.name, html: html + '<div class="card empty"><h2>' + scheduledStatus(display.dateIso, now) +
         '</h2><p>Results not published yet. Graphs and classifications appear when added. Scheduled dates do not confirm the rally ran or is live.</p>' +
         sourceLinks(display.eventLinks) + '<p>' + link(display.links.crews, 'Documented crews') + ' · ' +
@@ -423,8 +447,11 @@
       return '<a href="' + esc(item.href) + '" class="' + (item.selected ? 'on' : '') + '"' +
         (item.selected ? ' aria-current="page"' : '') + '>' + item.label + '</a>';
     }).join('') + '</nav>';
+    if (!display.published) content = display.tab === 'classification' ? resultClassification(display, now) :
+      '<div class="card empty"><h2>Results not published yet</h2><p>Stage graphs and times require official results. Scheduled dates do not confirm the event ran.</p>' +
+      link(display.tabs.filter(function (item) { return item.id === 'classification'; })[0].href, 'View entries received', 'btn') + '</div>';
     html += content + (display.qualification ? '<p class="small muted result-qualification rs-eligibility-note">' +
-      esc(display.qualification) + '</p>' : '') + resultNotes(display);
+      esc(display.qualification) + '</p>' : '') + (display.published ? resultNotes(display) : '');
     return { title: display.name + ' — ' + display.tabs.filter(function (item) { return item.selected; })[0].label, html: html };
   }
   function graphControls(graph, cars, metric, palette) {

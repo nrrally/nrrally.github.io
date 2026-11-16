@@ -1541,7 +1541,7 @@ test('source winners respect mappings, ties, actual positions, pending finality 
   const future = P.calendar(model, 'rs').events.find(row => row.id === 'rs-r5').rounds[0];
   assert.equal(future.winner, null);
   assert.equal(future.stages, null);
-  assert.equal(future.classificationHref, null);
+  assert.equal(future.classificationHref, '#/2026/rallyesport-event/rs-r5/classification?competition=rs');
   assert.equal(future.state, 'Not published');
   const { raw } = fixture(), nrModel = build(f, { R1: raw });
   nrModel.rounds[0].provisional = true;

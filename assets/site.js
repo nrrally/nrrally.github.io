@@ -159,7 +159,7 @@
   function sh(path) { return buildHash(path || '', {}); }
   var competition = window.NRDisplay.competition(), welcomePending = false;
   function routeCompetition(h) {
-    if (h.parts[0] === 'rallyesport') return 'rs';
+    if (h.parts[0] === 'rallyesport' || h.parts[0] === 'rallyesport-event') return 'rs';
     if (h.parts[0] === 'round') return 'nr';
     if (h.q.competition === 'nr' || h.q.competition === 'rs') return h.q.competition;
     if (h.q.leaders === 'rs' || h.q.classes === 'rs' || h.q.results === 'rs') return 'rs';
@@ -183,6 +183,8 @@
       var matches = D.rallyesport.results.filter(function (result) { return result.nrRoundId === h.parts[1]; });
       path = SP + (matches.length === 1 ? '/rallyesport/' + encodeURIComponent(matches[0].id) +
         '/' + (h.parts[2] === 'classification' ? 'classification' : h.parts[2] === 'stages' ? 'stages' : 'graph') : '/rounds');
+    } else if (h.parts[0] === 'rallyesport-event') {
+      path = SP + '/rounds';
     } else if (h.parts[0] === 'rallyesport') {
       var result = D.rallyesport.results.filter(function (row) { return row.id === h.parts[1]; })[0];
       path = SP + (result && roundsById[result.nrRoundId] ? '/round/' + result.nrRoundId +
@@ -213,7 +215,7 @@
     var S = ST.site || { siteName: 'Northern Regions Rally' }, guide = active === 'getting-started';
     var NAV = [['', 'Home', sh('')], ['standings', 'Standings', sh('/standings')], ['rounds', 'Rounds & graphs', sh('/rounds')], ['crews', 'Crews', sh('/crews')], ['getting-started', 'Getting started', sh('/getting-started')], ['info', 'Info', sh('/info')]];
     var links = NAV.map(function (n) {
-      var on = n[0] === active || (n[0] === 'rounds' && active === 'round') || (n[0] === 'crews' && active === 'person') || (n[0] === 'info' && active === 'about');
+      var on = n[0] === active || (n[0] === 'rounds' && (active === 'round' || active === 'rallyesport-event')) || (n[0] === 'crews' && active === 'person') || (n[0] === 'info' && active === 'about');
       return '<a href="' + n[2] + '"' + (on ? ' class="active" aria-current="page"' : '') + '>' + n[1] + '</a>';
     }).join('');
     var years = seasonList();
@@ -299,6 +301,7 @@
         case 'round': view = viewRound(parts[1], parts[2] || 'graph', h.q); break;
         case 'rallyesport': view = !parts[1] ? viewRallyeSport('') :
           parts[2] === 'classification' ? viewRallyeSport(parts[1], h.q) : viewRsGraph(parts[1], h.q, parts[2] === 'stages' ? 'stages' : 'graph'); break;
+        case 'rallyesport-event': view = viewResult('rs', parts[1], parts[2], h.q, true); break;
         case 'crews': view = competition === 'rs' ? viewRsCrews() : viewCrews(); break;
         case 'person': view = (competition === 'rs' ? viewRsPerson : viewPerson)(parts[1] ? decodeURIComponent(parts[1]) : ''); break;
         case 'about': view = competition === 'rs' ? viewRsSources() : viewAbout(); break;
@@ -320,7 +323,7 @@
       if (href.indexOf('#/') !== 0) return;
       var target = href.replace(/^#\/(?:\d{4}\/)?/, '').split(/[/?]/)[0];
       if (target === 'getting-started' && YEAR) href = href.replace(/^#\/(?:\d{4}\/)?getting-started/, '#/' + YEAR + '/getting-started');
-      link.setAttribute('href', competitionHref(href, target === 'rallyesport' ? 'rs' : target === 'round' ? 'nr' : competition));
+      link.setAttribute('href', competitionHref(href, target === 'rallyesport' || target === 'rallyesport-event' ? 'rs' : target === 'round' ? 'nr' : competition));
     });
     document.title = (view.title ? view.title + ' — ' : '') + (ST.site ? ST.site.siteName : 'Northern Regions Rally') + (page === 'getting-started' ? '' : ' ' + YEAR);
     window.NRDisplay.mount(switchCompetition);
@@ -465,8 +468,9 @@
   function viewRound(id, tab, q) {
     return viewResult('nr', id, tab, q);
   }
-  function viewResult(mode, id, tab, query) {
-    var q = query || {}, display = window.NRPublicModel.result(D, mode, id, tab, q);
+  function viewResult(mode, id, tab, query, eventRoute) {
+    var q = query || {}, display = eventRoute ? window.NRPublicModel.eventResult(D, id, tab, q) :
+      window.NRPublicModel.result(D, mode, id, tab, q);
     if (!display) return notFound();
     var html = '', graph = display.graph;
     if (display.published) {

@@ -92,6 +92,85 @@ must be addressed; there is no automation that can infer approvals or certify pr
   Legacy source notes remain anonymously retrievable from the public database; no
   jurisdiction-specific legal advice or legal protection is claimed.
 
+## RS pre-event received entries (authorized empty-entry code release)
+
+- Initially developed locally on `5d130649b0fa545774fc28ea0150c31fe7aca85b`,
+  then reconciled with fresh main `7f4be7f252f1847058558b8e21d6b5e2ab9ddbf0`
+  after the approved wording release deployed. Preserve all its approved
+  commentary and tests. The user subsequently authorized pushing the pre-event
+  code when ready, explicitly with no actual entries yet. The release destination
+  is normal, non-force `origin/main`. No Firebase write, event/crew creation or
+  private data access is authorized. Anonymous published-data GETs verify the
+  existing event's empty state and unchanged sporting outputs; no public records
+  are committed as fixtures. No real crew or event/calendar data, including the
+  three activated NR National-entry records, is changed.
+- Add optional independent `season.rallyesport.entryLists`, stable crew-ID and
+  public-only source/row validation, explicit public field projection and the
+  admin **Entries received** task. Adding/editing/removing rows uses existing
+  Review & publish, version preconditions, whole-dataset rebase validation,
+  working/public/revision and attributed before/after History. Restore detects
+  lost entry evidence; whole-RS undo warnings explicitly include entries.
+- A separate event-ID route opens the existing shared result/Classification
+  shell before any result exists. No positions, finishes, timing or points are
+  fabricated. Empty/partial/missing values remain explicit. Later official
+  results take precedence on that URL and retain entries separately. On/after
+  supplied dates, missing results are labelled not yet published, without claiming
+  the event ran; unknown dates make no event-status assertion. Legacy
+  result-ID links and published result navigation remain compatible; NR
+  entry/day scope, sporting calculations/starts and both competition standings
+  are unchanged. Entered class is not scoring eligibility; no RS0 policy or
+  national-membership/legacy-register inference is introduced.
+- Update Logic Explorer's existing RS event/shared calendar decisions for these
+  gates. Older evidence remains immutable; new entry-gate evidence explicitly
+  links served runtime, not the pre-change baseline. The guide remains the same
+  reference edition; Analytics initialization/categories/opt-out are unchanged.
+  Public entry tables use the existing neutral styling/focus conventions and
+  responsive cards on narrow screens.
+- The authorized initial rollout uses coordinated static assets
+  `rs-entries-1`, actual deployment verification, retirement/reload of old admin
+  tabs, protected backups and separately authorized first-real-entry publication.
+  New admin rejects an old entry-list engine. No new collection/rules/provider
+  setting or mandatory initial data migration. Before activation, static rollback
+  needs no data restore; afterwards retain compatible code or use an independently
+  authorized audited paired data/code restore. Older backups can remove entries.
+  Public tabs need reload after data publication.
+- Within this contract, subsequent received-entry edits/removals and supported
+  official results require Firebase publication only, not code pushes. Entry-only
+  RS profile histories/statistics and registration submission are outside scope.
+  Unsupported result semantics/new policies still require code. The first real
+  crew, data-write authorization and sporting RS0 clarification remain pending;
+  see [acceptance](data-entry-guide.md#rs-entries-received) and
+  [schema](data-model.md#rs-entries-received).
+- Reconciled validation: 175 focused synthetic entry/display/scoring/admin/import/
+  lifecycle/approved-wording/guide tests passed, including atomic request contents, identity/class isolation,
+  public allowlisting, evidence loss and result precedence. Existing synthetic
+  admin browser regression passed all 34 Logic Explorer topics, responsive
+  tasks, restore/History/merge and access gates without provider writes.
+  The loopback `admin-review-preview.js --entries` preview uses real assets,
+  fake configuration/auth/data, rejected writes and external-network CSP;
+  screenshots contain synthetic crews only. The extended RS public/admin workflow
+  passed at 320/390/768/1440 px in both themes, including data-only updates,
+  retained entries after results, keyboard focus and no table/page overflow.
+  The existing public-theme regression also passed shared NR/RS layouts, independent
+  data/graphs/profiles, welcome keyboard behavior, responsive palettes, guide,
+  source evidence, print and disclosures. The navigation regression passed
+  viewport/resize, keyboard/Escape/focus, competition/year/theme and route checks.
+  All four browser suites passed again after wording reconciliation. No
+  first-real-entry acceptance is claimed.
+- Fresh anonymous public GETs, kept in memory only, confirmed the existing
+  2026 `rs-r5` event resolves to 28 November with no published RS received lists
+  or result. The candidate's empty Classification and Graph/Stage times states
+  passed at all four widths/both themes against those real public bundles.
+  Complete engine models (apart from the new empty received-list field), both
+  Home/directory outputs, every profile history/start record, both-role/class
+  standings and all seven NR/four RS result/graph/award projections matched
+  `7f4be7f` exactly. Intentionally new navigation/received-entry fields were
+  excluded only from display comparisons, not source or sporting comparisons.
+  Repeated public-document reads were unchanged. No protected documents,
+  admin accounts, History, official source PDFs or live timing were accessed;
+  browser non-GET/external/Analytics requests were blocked. No actual competitor
+  fixtures or public bundle snapshots were written to disk or Git.
+
 ## Logic Explorer audit (authorized library-only follow-up)
 
 - Refresh the read-only, manually curated NR/RS/shared decision library against

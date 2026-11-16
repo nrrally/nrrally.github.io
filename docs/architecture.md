@@ -33,6 +33,15 @@ The [display consolidation assessment and phase record](display-consolidation-pl
 maps those paths, contracts and migration boundaries. Phases 1-6 were released;
 independent scoring/projection models and colour tokens remain.
 
+The pre-event extension adds optional `rallyesport.entryLists`, validated
+independently from NR entries, with an explicit public projection. The public
+`rallyesport-event/<eventId>` route resolves to an actual result when present,
+otherwise shared Classification renders entries without a synthetic result.
+The received list is retained separately after result publication. No scorer,
+standing/start aggregation or NR adapter consumes it. After compatible code is
+deployed, normal entry/result maintenance is Firebase-only; this is not realtime
+delivery or a new registration service.
+
 | Part | Files | What it does |
 |---|---|---|
 | Engine | `assets/engine.js` | Pure functions shared by the site, admin and Node tools: NR and independent RS models/scoring, reviewed stage-time snapshot copying, RS graph progressions, checks, and existing importers. No browser or network code. See [data-entry-guide.md](data-entry-guide.md). |
@@ -52,13 +61,15 @@ independent scoring/projection models and colour tokens remain.
 ### Admin presentation and explanation maintenance
 
 RS uses hash routes `#/rallyesport/{events,setup,eligibility,checks}` and
-`#/rallyesport/events/<eventId>/{event,source,stages,rows,preview}`. Existing bound controls
+`#/rallyesport/events/<eventId>/{event,entries,source,stages,rows,preview}`. Existing bound controls
 still edit the same objects and use the same validators/projection/publish pipeline.
 Task, search and disclosure state are ephemeral UI state, not schema fields.
 
 `#/logic/<nr|rs|shared>/<topicId>` renders a manually curated directed topic graph.
-Each decision has conditions/outcomes and evidence `{path,start,end,symbol}`. Evidence
-links are immutable GitHub blobs pinned to `bcb4c8a68f975c7f7bdfa725839de4f3d798d8bc`,
+Each decision has conditions/outcomes and evidence `{path,start,end,symbol}`.
+New RS pre-event gates additionally mark `current:true` and link the served runtime
+asset, explicitly distinguished from the older immutable audit baseline. Evidence
+links otherwise remain immutable GitHub blobs pinned to `3f85896da1bd6336227895976a68fdc3babfb62a`,
 the audited pre-change runtime; current admin line numbers will differ after layout work.
 The scorer is unchanged from that revision; later display-only changes are documented
 separately. This catalogue is not

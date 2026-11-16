@@ -1,5 +1,5 @@
 /* Read-only explanation catalogue. It never evaluates competitors or configures rules.
-   Evidence is pinned to the audited runtime; review this catalogue when policy changes. */
+   Evidence is pinned unless explicitly marked current; review when processing changes. */
 (function (root) {
   'use strict';
   if (typeof window !== 'undefined') {
@@ -11,6 +11,7 @@
     })();
   }
   function source(path, start, end, symbol) { return { path: path, start: start, end: end, symbol: symbol }; }
+  function currentSource(path, start, end, symbol) { return { path: path, start: start, end: end, symbol: symbol, current: true }; }
   function node(question, branches, evidence) { return { question: question, branches: branches, evidence: evidence }; }
   function branch(when, outcome, next) { return { when: when, outcome: outcome, next: next || '' }; }
   function topic(id, group, title, intro, inputs, nodes, related) {
@@ -224,6 +225,11 @@
     topic('rs-events', 'rs', 'Can this RS event earn championship points?',
       'Validation, event-point readiness and final championship readiness are different gates. A faithful source table may be visible while scoring is blocked.',
       'Championship/applicability evidence; result; double-points declaration/dates; finality; classes; source rows; starters; invitation review.', [
+        node('Are only entries received, with no official classification?', [
+          branch('Yes', 'season.rallyesport.entryLists is independent RS event evidence. Validate public-only fields, explicit completeness/source date and known distinct stable crew IDs; duplicate cars/people or unknown fields block publication. NR entryLists are never copied.'),
+          branch('Entered class supplied', 'Display exactly the normalized entry label, never a scoring or eligibility decision. RS0 applicability remains unresolved; national membership and legacy nonScoringPeople are not consulted. No starts, results, points or standings arise.'),
+          branch('Later official result', 'The existing result/scoring gates below apply. Retain the entry list independently; do not convert it to classified or DNS rows.')
+        ], [currentSource('assets/engine.js', 1571, 1624, 'validateRallyeSportEntryLists'), currentSource('assets/public-model.js', 831, 924, 'eventResult / result')]),
         node('Is the event explicitly a championship round?', [
           branch('countsForChampionship is not true', 'Do not create a championship scoring row for this event. A recorded event classification can still be displayed.'),
           branch('Confirmed true', 'A complete official classification must exist. Publishing validation also requires championship evidence.')
@@ -558,6 +564,12 @@
     topic('shared-calendar', 'shared', 'Empty seasons, dates and competition navigation',
       'Calendar labels describe supplied dates, not live event status, starts or official regulations. NR and RS use separate event lists under one selected competition.',
       'Selected season/competition; calendar dates and explicit links; published rounds; entry coverage; guide edition.', [
+        node('Can an RS event open before a result exists?', [
+          branch('Published event, no result', 'The rallyesport-event/eventId route opens the shared result shell and Classification tab. Only Entries received is shown there; Stage graph and Stage times explain that official results are required. No synthetic classification is created.'),
+          branch('Missing / empty / partial entry list', 'Show no entries published, a known-empty list, or explicitly partial coverage. Missing co-driver, car, vehicle or entered class stays Not supplied. Never inherit NR crews or infer RS0.'),
+          branch('Official result later published', 'The same event URL shows the actual classification first and retains received entries separately. Future entry edits and supported results use ordinary Firebase publication, not code pushes.'),
+          branch('Restore, undo or older clients', 'Review entry evidence loss, preserve protected backups and use atomic working/public/revision/History publication. New admin rejects an old entry engine. Previously open clients still require retirement and reload.')
+        ], [currentSource('assets/public-model.js', 831, 924, 'eventResult / result'), currentSource('assets/public-components.js', 391, 456, 'receivedEntries / resultShell')]),
         node('Are results present for the selected season?', [
           branch('Calendar only / empty', 'Show supplied events/documents and entry evidence. Do not fabricate leaders, result counts, stage programmes, standings or MSA confirmation.'),
           branch('Published round available', 'Link to its source classification/graph and evidence-qualified points.'),

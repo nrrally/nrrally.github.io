@@ -20,6 +20,67 @@ fixtures, do not read protected records, and are not a substitute for post-deplo
 verification of the exact Pages SHA and canonical routes/assets. Renderer filtering
 does not remove the legacy source notes from public Firestore.
 
+## RS pre-event received entries (synthetic)
+
+Run the focused schema/projection/display/admin checks:
+
+```powershell
+node --test tools\tests\pre-event-entries.test.js tools\tests\public-display.test.js tools\tests\rallyesport.test.js tools\tests\entry-participation.test.js tools\tests\admin-logic.test.js tools\tests\ai-import.test.js tools\tests\season-readiness.test.js tools\tests\public-wording.test.js tools\tests\getting-started.test.js
+node tools\tests\rs-entry-policy-e2e.js
+node tools\tests\site-theme-e2e.js
+node tools\tests\navigation-e2e.js
+node tools\tests\admin-access-e2e.js
+```
+
+Use an externally installed Node/Playwright runtime if necessary; no dependencies,
+provider captures, private test kits or real crew fixtures belong in Git.
+`PLAYWRIGHT_MODULE` / `PLAYWRIGHT_EXECUTABLE_PATH` select existing installations.
+All browser provider traffic is intercepted; no real Firebase or Analytics
+collection is allowed. `RALLY_SCREENSHOT_DIR` can save synthetic screenshots outside
+the checkout.
+
+The focused tests exercise additions/edits/removals, empty/partial/missing lists,
+missing optional fields, profile-ID/seat/car collisions, event/result ID namespace
+separation, entered-class versus scoring-class isolation, no NR crew inheritance,
+HTML escaping, public allowlisting, evidence-loss detection and result precedence
+with retained entries. Date-boundary checks avoid claiming an event is still
+upcoming on/after its date or when its date is unknown. NR and RS scoring, Home/Crews/starts and source results
+remain identical when only received entries change. The real admin editor
+stages valid rows and rejects invalid identities; its atomic request includes
+versioned working/public/revision and attributed before/after History writes.
+New admin with an older entry engine is blocked. Existing restore/undo/rebase
+tests remain applicable to the whole season document.
+
+The extended `rs-entry-policy-e2e.js` checks public/admin entry views at
+320/390/768/1440 px, light/dark, keyboard-focusable responsive tables with no page
+or entry-table overflow, task navigation and temporary edits/removals. Mock
+public updates require reload, just like production's in-memory public models;
+the same event URL then changes from entries to an official result while retaining
+the list, and handles subsequent empty/missing-list updates. Existing theme,
+source/result graphs, old result-ID links and admin access/History checks must
+continue passing.
+
+For human review, `node tools\tests\admin-review-preview.js --entries` starts a
+loopback-only synthetic public/admin preview using real application assets.
+The console prints both URLs. Configuration is replaced, external fetches and all
+publication writes are rejected, and CSP prevents external connections. Source,
+profiles, crews, times and remaining event metadata are synthetic; this is not
+proof that an actual crew or deployed permissions are correct. Stop the preview
+process when review is finished. **First-real-entry acceptance remains pending**;
+see [the operational procedure](data-entry-guide.md#rs-entries-received).
+
+For the separately authorized empty-entry release, anonymous public GETs also
+verified the real existing event with no list/result, without creating an empty
+list in Firebase. Public bundles stayed in memory. Compare complete engine outputs
+against the approved wording baseline, allowing only the added empty RS received
+list field; compare all Home/directory/profile/standings and published-result
+sporting facts, excluding only intentional navigation/new display fields. Run the
+empty-state browser checks with current assets and those in-memory bundles, reject
+non-GET/external/Analytics traffic, and reread public documents to confirm stability.
+After pushing, independently confirm the exact Pages SHA, canonical asset bytes and
+the same anonymous public empty-state behavior. No protected access or data write
+is needed or authorized for these checks.
+
 ## Revised RS entry-based policy (synthetic)
 
 National-entry context tests use synthetic reviewed event entries, not provider

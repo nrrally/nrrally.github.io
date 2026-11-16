@@ -37,7 +37,7 @@ publication; do not manually patch public null awards. See [data-model.md](data-
 Open **RallyeSport** in the existing signed-in admin:
 
 - **Events & results** lists independent RS events. Choose one event, then use
-  **Event & evidence**, **Classification source**, **Stages & reuse**, **Crew rows**
+  **Event & evidence**, **Entries received**, **Classification source**, **Stages & reuse**, **Crew rows**
   or **Points preview**. Only the chosen task is shown. Crew rows expand individually;
   their summary retains car, source crew, class and status. Blank newly added rows open.
   A compact event switcher keeps the same task when changing events; **All RS events**
@@ -61,7 +61,9 @@ For a committee discussion, open **Logic explorer**, choose **Northern Regions**
 **RallyeSport** or **Shared workflow**, and select a topic. Search finds topics across
 both competitions and shared processing. Each topic shows inputs, numbered decisions,
 conditional outcomes and connected paths; **Evidence for this decision** opens exact
-code/documentation line links at the displayed immutable audited revision. Browser back/forward
+code/documentation line links at the displayed immutable audited revision. New RS
+entry-list gates are explicitly labelled **served runtime**, linking the deployed
+asset rather than falsely claiming they existed in the older audited revision. Browser back/forward
 works between topics. It needs no competitor data or additional database query.
 
 The 34 curated topics cover intake/validation, credited versus printed identities,
@@ -83,7 +85,52 @@ cannot recreate stripped private RS scoring inputs. Unsupported years/rules and 
 cases are explicit; unrelated tyre/licensing regulations not implemented by the website
 are outside its scope. The guide's reference edition remains 2026.
 
+## RS entries received
+
+The initial empty-entry code release is authorized; check the release ledger for
+actual deployment verification. No Firebase writes are part of that release. This displays
+entries inside the existing Classification tab; it is not an entry submission,
+registration, payment or eligibility-management system.
+
+1. Retire old admin tabs after the compatible code rollout. Take a protected
+   backup; verify the correct existing RS event ID/name/date in working data.
+   The requested event is 28 November 2026; no event or actual crew is created by
+   this code change. Confirm any missing event metadata from authorized sources.
+2. Resolve each actual driver/co-driver to verified stable Competitors profiles.
+   Explicitly create a new profile only after checking existing names/aliases.
+   Do not copy private membership/licence/contact material into the record.
+3. In **RallyeSport → Events & results → selected event → Entries received**,
+   add the RS list, public source title/date and optional public URL. Leave
+   completeness unchecked while the list is partial. Add known car, driver,
+   co-driver, vehicle and entered class; a driver is required, the other entry
+   details can remain not supplied. Entered class is not scoring eligibility.
+   Do not infer RS0 from a national entry or legacy non-scoring register.
+4. Use **Review & publish** to validate and atomically save working/public data,
+   revision and attributed before/after History. Edits/removals use the same flow;
+   they are not public until published. Reload the public event's Classification
+   tab to see the new data. No per-entry code push is needed.
+5. When official results arrive, use the existing independent RS source/stage/
+   crew/result workflow. Do not convert entries to fake classified, DNF or DNS
+   rows or infer absent entrants did not start. The actual result takes precedence
+   on the same event URL; received entries remain in a separate native disclosure.
+   Existing result finality, class/scoring and review gates remain unchanged.
+
+**First-real-entry acceptance is still required.** No real crew has been supplied.
+After verified code deployment and separate data-publication authorization, confirm the
+first supplied crew, exact event, stable role identities and entered class with
+the authorized admin; publish via the reviewed workflow; verify the refreshed
+anonymous Classification on mobile/desktop, exact public fields, attributed
+History and retained backup, and unchanged NR/RS points and starts. Then check
+a reviewed edit/removal in synthetic data (not by inventing live entries).
+Subsequent ordinary entries and supported official results are data-only.
+New rules, new result semantics and unresolved RS0 applicability are not covered
+by that assurance. A direct Firebase publication, if separately authorized,
+still requires the guarded atomic **GitHub Copilot (direct Firebase)** audit.
+
 ## AI Import (free ChatGPT or Claude)
+
+The AI entry-list task below remains **NR-only**. Use the RS editor above for RS
+received entries; do not relabel an NR import pack or attach RS crews to NR.
 
 AI Import prepares data; it cannot publish. Free chat accounts do not provide supported free API access, so there are no provider keys, automatic uploads or paid backend. You choose your AI service and attach the documents there. No prompt guarantees correctness.
 

@@ -420,12 +420,12 @@
     })[0];
     var state = classification(result, mode, score), final = state === 'Final classification';
     var path = mode === 'nr' ? '/round/' + encodeURIComponent(meta.id) :
-      result ? '/rallyesport/' + encodeURIComponent(result.id) : '';
+      result ? '/rallyesport/' + encodeURIComponent(result.id) : '/rallyesport-event/' + encodeURIComponent(event.id);
     var row = { id: meta.id, label: meta.label, event: event.name, date: meta.date || '',
       dateIso: dateIso(meta.date) || dateTextIso(meta.date), day: meta.day || '',
       scope: event.countsForChampionship === false ? 'Non-scoring event · not a championship round' : 'Championship round',
       href: path ? href(model.year, mode, path + (mode === 'rs' ? '/graph' : '')) : null,
-      classificationHref: result ? href(model.year, mode, path + '/classification') : null,
+      classificationHref: result || mode === 'rs' ? href(model.year, mode, path + '/classification') : null,
       source: result && result.source && result.source.url ? [{ url: result.source.url, label: 'Source' }] : [],
       published: !!result, state: state,
       stages: result ? result.stages.length : null,
@@ -477,12 +477,13 @@
         }
       });
       var result = model.rallyesport.results.filter(function (row) { return row.eventId === event.id; })[0];
+      var ownList = (model.rallyesport.entryLists || []).filter(function (row) { return row.eventId === event.id; })[0];
       var location = rsEventLocation(model, event);
       return { id: event.id, name: event.name, badge: 'RS', date: date.text, dateSource: date.source,
         sortDate: date.iso, venue: location.venue, surface: location.surface,
         venueSource: location.venueSource, surfaceSource: location.surfaceSource,
         scope: event.countsForChampionship === false ? 'Non-scoring event · not a championship round' : 'Championship event',
-        entryNote: list ? 'Entry list for the shared event' :
+        entryNote: ownList ? ownList.entries.length + ' RS entries received' + (ownList.complete ? '' : ' (partial list)') : list ? 'Entry list for the shared event' :
           links.some(function (link) { return link.label === 'Entry list'; }) ? 'Event entry list linked below' : '',
         links: links, related: [],
         rounds: [roundDisplay(model, 'rs', event, { id: event.id,
@@ -815,24 +816,33 @@
    * stages:number|null,penalty:string,total:string,gap:string,previousGap:string,
    * credit:string,notes:string[],points:ResultRolePoints[]}} ResultRow
    * @typedef {{label:string,href:string,selected:boolean}} ResultNavigation
+   * @typedef {{complete:boolean,source:{title:string,date:string,url:string},
+   * entries:Array<{car:string,driverId:string,codriverId:string,driver:string,codriver:string,
+   * enteredClass:string,vehicle:string}>}} ReceivedEntries
    * @typedef {{year:number,id:string,tab:string,name:string,published:boolean,scope:string,
    * date:string,dateSource:string,dateIso:string,day:string,venue:string,surface:string,venueSource:string,surfaceSource:string,
    * stages:string[],state:string,currentFinalityConfirmed:boolean,roundCount:number,sourceTitle:string,sourceStatus:string,
    * pointsLabel:string,pointsStatus:string,scoringBasis:string,scoringReason:string,
-   * graph:ResultGraph|null,rows:ResultRow[],qualification:string,notes:string[],
+   * graph:ResultGraph|null,rows:ResultRow[],receivedEntries:ReceivedEntries|null|undefined,qualification:string,notes:string[],
    * navigation:ResultNavigation[],previous:string|null,next:string|null,
    * sourceLinks:EventLink[],eventLinks:EventLink[],related:Array<{label:string,links:EventLink[]}>,
    * tabs:Array<{id:string,label:string,href:string,selected:boolean}>}} ResultDisplay
    */
-  function result(model, mode, id, tab, query) {
+  function eventResult(model, eventId, tab, query) {
+    var event = model.rallyesport.events.filter(function (row) { return row.id === eventId; })[0];
+    if (!event) return null;
+    var raw = model.rallyesport.results.filter(function (row) { return row.eventId === eventId; })[0];
+    return result(model, 'rs', raw ? raw.id : null, tab, query, eventId);
+  }
+  function result(model, mode, id, tab, query, routeEventId) {
     if (mode !== 'nr' && mode !== 'rs') throw new Error('Unsupported result competition: ' + mode);
     var nationalNotices = mode === 'nr' ? E.nrNationalEntryDiagnostics(model, model.nrNationalEntries) : [];
     var q = query || {}, active = ['graph', 'classification', 'stages'].indexOf(tab) >= 0 ? tab : 'graph';
     var graph = resultGraph(model, mode, id);
     var raw = (mode === 'nr' ? model.rounds : model.rallyesport.results).filter(function (row) { return row.id === id; })[0];
     var meta = mode === 'nr' ? model.calendar.filter(function (row) { return row.id === id; })[0] : null;
-    if (!raw && !meta) return null;
-    var eventId = raw ? raw.eventId : meta.eventId;
+    if (!raw && !meta && !routeEventId) return null;
+    var eventId = routeEventId || (raw ? raw.eventId : meta.eventId);
     var event = (mode === 'nr' ? model.events : model.rallyesport.events).filter(function (row) { return row.id === eventId; })[0] ||
       { id: eventId, name: eventId, links: {} };
     var dates = mode === 'nr' ? { text: dateIso((raw || meta).date), source: 'event' } : rsEventDate(model, event);
@@ -843,7 +853,9 @@
       var params = {};
       if (keep && q.cars != null) params.cars = q.cars;
       if (keep && q.m != null) params.m = q.m;
-      return href(model.year, mode, path + encodeURIComponent(resultId) + '/' + view, params).replace(/%2C/gi, ',');
+      return href(model.year, mode, routeEventId ?
+        '/rallyesport-event/' + encodeURIComponent(routeEventId) + '/' + view :
+        path + encodeURIComponent(resultId) + '/' + view, params).replace(/%2C/gi, ',');
     }
     var sourceRows = mode === 'nr' ? model.rounds : model.rallyesport.results.slice().sort(function (a, b) {
       return model.rallyesport.events.findIndex(function (event) { return event.id === a.eventId; }) -
@@ -854,7 +866,7 @@
     var location = mode === 'rs' ? rsEventLocation(model, event) : {
       venue: event.venue || '', surface: event.surface || '', venueSource: 'event', surfaceSource: 'event'
     };
-    var display = { year: model.year, id: id, tab: active, name: event.name, published: !!raw,
+    var display = { year: model.year, id: id || routeEventId, tab: active, name: event.name, published: !!raw,
       scope: event.countsForChampionship === false ? 'Non-scoring event' : mode === 'nr' ? 'Round ' + (raw || meta).n :
         event.roundNumber == null ? 'Championship round' : 'Round ' + event.roundNumber,
       date: dates.text, dateSource: dates.source, dateIso: mode === 'nr' ? dateIso((raw || meta).date) : dates.iso,
@@ -888,6 +900,27 @@
         return { id: view, label: view === 'graph' ? 'Stage graph' : view === 'classification' ? 'Classification' : 'Stage times',
           href: url(id, view, true), selected: view === active };
       }) };
+    if (mode === 'rs') {
+      var list = (model.rallyesport.entryLists || []).filter(function (row) { return row.eventId === eventId; })[0];
+      display.receivedEntries = list || null;
+      function eventUrl(event, view) {
+        var published = !routeEventId && model.rallyesport.results.filter(function (row) { return row.eventId === event.id; })[0];
+        return href(model.year, 'rs', (published ? '/rallyesport/' + encodeURIComponent(published.id) :
+          '/rallyesport-event/' + encodeURIComponent(event.id)) + '/' + view);
+      }
+      var eventIndex = model.rallyesport.events.findIndex(function (row) { return row.id === eventId; });
+      display.navigation = model.rallyesport.events.map(function (row) {
+        return { label: row.name, href: eventUrl(row, active), selected: row.id === eventId };
+      });
+      display.previous = eventIndex > 0 ? eventUrl(model.rallyesport.events[eventIndex - 1], active) : null;
+      display.next = eventIndex < model.rallyesport.events.length - 1 ? eventUrl(model.rallyesport.events[eventIndex + 1], active) : null;
+      if (!raw) {
+        display.state = 'Pre-event entries';
+        display.pointsLabel = 'No result points';
+        display.scoringBasis = 'Entries do not establish starts, results, eligibility or championship points.';
+        display.scoringReason = '';
+      }
+    }
     if (!raw) return display;
     var source = raw.source || {};
     if (source.url || mode === 'nr' && event.links && event.links.results)
@@ -1242,7 +1275,7 @@
   }
   var api = { home: home, nrHome: nrHome, rsHome: rsHome, standings: standings,
     directory: directory, profile: profile, information: information, sources: sources,
-    result: result, resultGraph: resultGraph, resultTime: resultTime, resultMetrics: RESULT_METRICS,
+    result: result, eventResult: eventResult, resultGraph: resultGraph, resultTime: resultTime, resultMetrics: RESULT_METRICS,
     orderedResultEntries: orderedResultEntries,
     rsStarterMinimumNote: rsStarterMinimumNote, calendar: calendar, eventLinks: eventLinks,
     rsEventDate: rsEventDate,

@@ -23,15 +23,52 @@ rollback is a code-only revert. Reload old tabs to obtain the coordinated assets
 
 The RS note filter affects rendered application copy only. The original source
 notes remain in the anonymously readable public Firestore bundles, so filtering is
-not access control or deletion. The separate pre-event-entry work is on another
-unreleased branch and is not included; coordinate shared asset versions before any
-later integration. Commit `385a0e849d9b0d353a673d99b4cc774d1bdcc6a1` was pushed
+not access control or deletion. That wording release did not include the separate
+pre-event-entry work; its subsequent authorization and coordinated integration
+are recorded below. Commit `385a0e849d9b0d353a673d99b4cc774d1bdcc6a1` was pushed
 normally to `main`; GitHub Pages run
 [43878709806](https://github.com/nrrally/nrrally.github.io/actions/runs/43878709806)
 built and deployed that exact SHA successfully. Anonymous GETs verified that the
 canonical home, admin, disclaimer and privacy shells and five changed public
 JavaScript assets match the committed bytes. The release ledger records this
 verification in [releases.md](releases.md).
+
+### RS pre-event received entries (authorized empty-entry code release)
+
+The implementation was reconciled with freshly checked main
+`7f4be7f252f1847058558b8e21d6b5e2ab9ddbf0`, preserving the approved wording
+release, and adds independent
+`season.rallyesport.entryLists`, an RS admin Entries received task, public
+field allowlisting/validation and a pre-result event-ID route in the shared
+Classification shell. The user authorized pushing this code with zero actual
+entries; no Firebase writes, crew/event creation or private data access are
+authorized. Anonymous published-data GETs may verify the empty state and unchanged
+sporting outputs. Actual deployment verification is recorded separately in the
+release ledger. The first actual crew is still awaited.
+[Schema](data-model.md#rs-entries-received)
+and [acceptance](data-entry-guide.md#rs-entries-received) are the operational contract.
+NR entryLists, the three activated National-entry records, RS policy/score
+calculations, GA and the guide's reference edition are unchanged.
+
+The four shells coordinate the new `rs-entries-1` version, not the preceding
+`public-wording-1` or the never-deployed draft version. The new admin checks
+`rallyeSportEntryListContractVersion: 1`. Older already-open clients are not
+upgraded by a code rollout: retire and reload them before any data activation.
+Preserve private pre/post-publication backups and verify exact deployment before
+the separately authorized first-real-entry publication. Entry changes remain
+ordinary atomic working/public/revision/attributed History publications, with
+dataset validation repeated after rebase. Restore detects changed/lost received
+entry evidence; History undo warns about whole RS replacement. Public tabs
+require reload to see new data.
+
+Before any received-list data exists, static rollback needs no data migration.
+After activation, retain compatible runtime or undertake a separately authorized,
+backed-up, audited paired working/public/revision/History restore before deploying
+older code: old validators reject the added RS field, while older backups can
+remove it. Git alone cannot recover the list or private History. Official results
+do not erase received entries. No new collection, Firestore rule or provider
+configuration is required. Logic Explorer preserves its immutable baseline and
+explicitly labels new entry-gate links as served runtime, not baseline evidence.
 
 ### NR national event-entry context (deployed and activated)
 
@@ -1282,7 +1319,7 @@ git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push or
 
 The empty helper clears the inherited helper for that invocation; gh provides credentials
 without printing a token. Do not run it as a diagnostic probe, put tokens in command arguments,
-disable TLS, force-push, or infer approval from this example. This task's release is local only.
+disable TLS, force-push, or infer approval from this example.
 
 ## 8. Analytics/notice recovery and diagnosis
 

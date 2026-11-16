@@ -95,4 +95,14 @@ function revisedRallyeSport(withUpcoming = false) {
   };
   return { docs: all, season: s, people, data: s.rallyesport };
 }
-module.exports = { copy, docs, season, payload, source, revisedRallyeSport };
+function preEventEntries() {
+  const f = revisedRallyeSport();
+  f.data.events.at(-1).name = 'Synthetic upcoming RS event';
+  f.data.events.at(-1).dates = '2026-11-28';
+  f.data.entryLists = [{ eventId: 'rs-r5', complete: false,
+    source: { title: 'Synthetic entries received', date: '2026-11-16', url: '' },
+    entries: [{ car: '301', driverId: 'synthetic-driver-1', codriverId: 'synthetic-codriver-1',
+      enteredClass: 'RS4', vehicle: 'Synthetic entry vehicle' }] }];
+  return f;
+}
+module.exports = { copy, docs, season, payload, source, revisedRallyeSport, preEventEntries };

@@ -121,6 +121,16 @@ The homepage's populated statistics are labelled **Rounds with results** and
 classification or a planned stage programme. The existing computed-driver count remains
 about the site standings, not total championship membership.
 RS round counts exclude non-scoring launch events; event/stage counts retain them.
+The RS pre-event extension makes all supplied RS events navigable before
+results exist, using an event-ID route and the shared result shell. Its
+Classification tab shows independently maintained `rallyesport.entryLists`,
+qualified as received entries rather than finishes or scoring classes; unknown
+fields stay unavailable and empty/partial lists stay explicit. Graph/Stage times
+wait for actual results. The same URL resolves to the actual classification later,
+retaining entry evidence separately. NR entry/day semantics are unchanged.
+See [RS entries received](data-entry-guide.md#rs-entries-received) for the initial
+rollout and first-real-entry acceptance required before relying on data-only
+routine updates. Entry-only RS profiles/statistics are not introduced.
 Both contexts show a shared scoring disclosure explaining their own scope and
 qualifications, not a second competition-specific Home layout.
 

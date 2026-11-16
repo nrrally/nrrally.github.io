@@ -19,6 +19,11 @@ There are two parts:
 The admin's **RallyeSport** workspace separates events/results, season setup, eligibility
 and scoring checks. **Logic explorer** is the screen-shareable, read-only explanation of
 implemented NR, RS and shared processing paths, with conditional outcomes and source links.
+The **Entries received** extension displays independently maintained RS
+entries inside the shared Classification tab before a result exists, then retains
+them separately after results. Its empty-entry code release is authorized;
+first-real-entry publication/acceptance is still pending. See
+[the workflow](data-entry-guide.md#rs-entries-received) and release ledger.
 See [the admin workflow](data-entry-guide.md#rallyesport-workspace-and-logic-explorer).
 The explorer is UI-gated, not confidential: its static content is public source code.
 The reviewed entry-based RS policy and launch/R1-R4 migration contract

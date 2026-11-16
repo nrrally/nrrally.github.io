@@ -263,11 +263,17 @@ td.fastest { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); 
 .result-points b { color: var(--ink); font-size: 14px; margin-inline-start: 5px; }
 .result-classification + p, .rs-eligibility-note { margin: 8px 0; }
 .result-scoring-order .table-wrap { margin-top: 12px; }
-.result-classification:focus-visible, .result-stage-table:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.result-classification:focus-visible, .result-stage-table:focus-visible, .result-entry-table:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .result-stage-table .sticky { min-width: 132px; max-width: 230px; white-space: normal; }
 .result-head .hero-actions { flex-wrap: wrap; }
 .result-related-links, .result-event-links { margin: 10px 0; }
 @media (max-width: 640px) {
+  .result-entry-table table, .result-entry-table tbody { display: block; }
+  .result-entry-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .result-entry-table tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 12px 10px; gap: 8px; border-bottom: 1px solid var(--line); }
+  .result-entry-table tbody tr:last-child { border-bottom: 0; }
+  .result-entry-table table.data tbody td { display: block; border: 0; padding: 0; min-width: 0; overflow-wrap: anywhere; }
+  .result-entry-table [data-label]::before { content: attr(data-label); display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 3px; }
   .result-classification table, .result-classification tbody { display: block; }
   .result-classification thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .result-classification tbody tr { display: grid; grid-template-columns: 38px 38px minmax(0, 1fr); padding: 12px 10px; gap: 8px; border-bottom: 1px solid var(--line); }

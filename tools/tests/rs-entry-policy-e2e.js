@@ -9,7 +9,7 @@ const F = require('./ai-fixtures.js');
 const root = path.resolve(__dirname, '..', '..');
 
 async function main() {
-  const f = F.revisedRallyeSport(), store = new Map(), writes = [], external = [], errors = [];
+  const f = F.preEventEntries(), store = new Map(), writes = [], external = [], errors = [];
   function put(key, value) {
     store.set(key, { name: 'projects/nr-synthetic/databases/(default)/documents/' + key,
       fields: { json: { stringValue: JSON.stringify(value) } }, updateTime: '2026-01-01T00:00:00Z' });
@@ -64,6 +64,7 @@ async function main() {
         body: JSON.stringify(value || {}) });
     });
     const page = await context.newPage();
+    await page.clock.setFixedTime(new Date('2026-11-17T10:00:00Z'));
     page.on('pageerror', error => errors.push(error.message));
     async function visit(hash, admin = false) {
       await page.goto(base + (admin ? '/admin/index.html' : '/index.html') + hash);
@@ -79,6 +80,28 @@ async function main() {
       await visit('#/2026/rounds?competition=rs');
       assert.match(await page.locator('main').innerText(), /Synthetic Launch Event/);
       assert.match(await page.locator('main').innerText(), /Non-scoring event/);
+      await page.locator('a[href*="rallyesport-event/rs-r5/classification"]').first().click();
+      await page.getByRole('heading', { name: 'Entries received — event not yet held' }).waitFor();
+      assert.match(await page.locator('main').innerText(), /Synthetic entry vehicle/);
+      assert.match(await page.locator('main').innerText(), /Partial list/);
+      assert.equal(await page.locator('.result-classification').count(), 0);
+      const entrySize = await page.locator('.result-entry-table').evaluate(el => ({
+        width: el.clientWidth, scroll: el.scrollWidth,
+        cells: [...el.querySelectorAll('td')].map(td => [td.clientWidth, td.scrollWidth])
+      }));
+      assert.ok(entrySize.scroll <= entrySize.width, JSON.stringify({ width, theme, entrySize }));
+      await page.locator('.result-entry-table').focus();
+      assert.equal(await page.locator('.result-entry-table').evaluate(el => el === document.activeElement), true);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      if (process.env.RALLY_SCREENSHOT_DIR && [390, 1440].includes(width)) {
+        fs.mkdirSync(process.env.RALLY_SCREENSHOT_DIR, { recursive: true });
+        await page.screenshot({ path: path.join(process.env.RALLY_SCREENSHOT_DIR, 'entries-' + width + '-' + theme + '.png'), fullPage: true });
+      }
+      await page.getByRole('link', { name: 'Stage graph', exact: true }).click();
+      await page.getByRole('heading', { name: 'Results not published yet' }).waitFor();
+      assert.equal(await page.locator('.graph svg').count(), 0);
+      await page.getByRole('link', { name: 'View entries received', exact: true }).click();
+      await page.getByRole('heading', { name: 'Entries received — event not yet held' }).waitFor();
       await visit('#/2026/rallyesport/rs-r1-classification/classification?competition=rs');
       const launch = await page.locator('tr[data-car="1"]').innerText();
       assert.match(launch, /RS0/); assert.match(launch, /TEST/); assert.match(launch, /01:00.1/);
@@ -112,7 +135,55 @@ async function main() {
       }).locator('select');
       assert.deepEqual(await status.locator('option').allTextContents(), ['classified', 'DNF', 'DNS']);
       assert.equal(await page.getByText('Invitation status', { exact: true }).count(), 0);
+      await visit('#/rallyesport/events/rs-r5/entries', true);
+      assert.match(await page.locator('.adm-main').innerText(), /RS0 applicability remains unresolved/);
+      assert.equal(await page.getByLabel('Received driver', { exact: true }).inputValue(), 'synthetic-driver-1');
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     }
+    await page.getByLabel('Received vehicle', { exact: true }).fill('Edited synthetic vehicle');
+    await page.getByLabel('Entered class (not scoring)', { exact: true }).fill('RS0');
+    await page.getByRole('link', { name: 'Scoring checks', exact: true }).click();
+    await page.getByRole('heading', { name: 'Validation before publishing' }).waitFor();
+    assert.match(await page.locator('.adm-main').innerText(), /No RS data validation errors/);
+    await page.getByRole('link', { name: 'Events & results', exact: true }).click();
+    await page.locator('a.rs-event-link[href="#/rallyesport/events/rs-r5"]').click();
+    await page.getByRole('link', { name: 'Entries received', exact: true }).click();
+    assert.equal(await page.getByLabel('Received vehicle', { exact: true }).inputValue(), 'Edited synthetic vehicle');
+    await page.getByRole('button', { name: '+ Add received crew', exact: true }).click();
+    await page.getByLabel('Received driver', { exact: true }).nth(1).selectOption('synthetic-driver-2');
+    await page.getByLabel('Received car number', { exact: true }).nth(1).fill('302');
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: 'Remove received crew', exact: true }).nth(1).click();
+    assert.equal(await page.locator('.rs-received-entry').count(), 1);
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: 'Remove received crew', exact: true }).click();
+    assert.equal(await page.locator('.rs-received-entry').count(), 0);
+    const publicRoute = '#/2026/rallyesport-event/rs-r5/classification?competition=rs';
+    const publishSynthetic = () => put('public/season_2026', { season: AI.projectPublic(f.season, f.people), rounds: {} });
+    f.data.entryLists[0].entries[0].vehicle = 'Data-only updated vehicle';
+    publishSynthetic();
+    await visit(publicRoute);
+    await page.getByRole('heading', { name: 'Entries received — event not yet held' }).waitFor();
+    assert.match(await page.locator('main').innerText(), /Data-only updated vehicle/);
+    f.data.results.push(F.revisedRallyeSport(true).data.results.at(-1));
+    publishSynthetic();
+    await visit(publicRoute);
+    await page.reload();
+    await page.locator('.result-classification').waitFor();
+    await page.getByText('Entries received (retained separately from results)', { exact: true }).click();
+    assert.match(await page.locator('main').innerText(), /Data-only updated vehicle/);
+    assert.equal(await page.locator('tr[data-entry-car="301"]').count(), 1);
+    f.data.results.pop();
+    f.data.entryLists[0].entries = [];
+    publishSynthetic();
+    await visit(publicRoute);
+    await page.reload();
+    await page.getByText('No entries recorded in this published partial list.', { exact: true }).waitFor();
+    delete f.data.entryLists;
+    publishSynthetic();
+    await visit(publicRoute);
+    await page.reload();
+    await page.getByText('No entries published yet.', { exact: true }).waitFor();
     await visit('#/rallyesport/events/rs-r2/source', true);
     await page.getByLabel('Private source examination evidence').fill('Synthetic complete source review');
     page.once('dialog', dialog => dialog.accept());

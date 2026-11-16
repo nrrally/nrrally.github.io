@@ -24,7 +24,7 @@ function harness(engine = E) {
   const context = { window, location, document: { getElementById: () => ROOT }, console, setTimeout, clearTimeout };
   const code = fs.readFileSync(path.join(root, 'assets', 'admin.js'), 'utf8');
   vm.runInNewContext(code.slice(0, code.indexOf('  /* ------------------------------------------------------------------ boot */')) +
-    'window.testAdmin = { A, viewRallyeSport, viewLogic, changes, workingDocs, publicDocs, publishIssues, entryContractError, binds, acts, setRender: function (fn) { render = fn; } }; })();', context);
+    'window.testAdmin = { A, viewRallyeSport, viewLogic, changes, workingDocs, publicDocs, buildWrites, publishIssues, entryContractError, binds, acts, setRender: function (fn) { render = fn; } }; })();', context);
   const api = window.testAdmin;
   for (const [key, obj] of Object.entries(docs)) api.A.docs[key] = { orig: E.prettyJson(obj) + '\n', obj, deleted: false };
   api.A.year = 2026; api.A.mode = 'live'; api.A.user = { email: 'admin@example.com' };
@@ -54,6 +54,59 @@ test('class-order review needs evidence and an explicit complete-source confirma
   assert.match(api.viewRallyeSport(), /stale/);
   assert.match(harness({ ...E, rallyeSportClassOrderContractVersion: 0 }).api.entryContractError(), /RallyeSport scripts are missing or out of date/);
 });
+test('RS entry editor stages stable identities and uses atomic public/History/revision writes', () => {
+  const { api, location, window } = harness();
+  const f = F.preEventEntries(), s = f.season, path = 'data/seasons/2026/season.json';
+  delete s.rallyesport.entryLists;
+  for (const [key, obj] of Object.entries(f.docs)) api.A.docs[key] = { orig: E.prettyJson(obj) + '\n', obj, deleted: false };
+  api.A.meta[path] = 'synthetic-version';
+  api.A.rev = { n: 9, updateTime: 'synthetic-revision' };
+  api.setRender(() => {});
+  window.confirm = () => true;
+  location.hash = '#/rallyesport/events/rs-r5/entries';
+  function act(label) {
+    const html = api.viewRallyeSport(), escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const key = html.match(new RegExp('<button[^>]*data-act="([^"]+)"[^>]*>' + escaped + '</button>'))[1];
+    api.acts[key]();
+  }
+  function field(label, value) {
+    const html = api.viewRallyeSport(), escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const key = html.match(new RegExp('<span class="fl">' + escaped + '</span><(?:input|select) data-k="([^"]+)"'))[1];
+    api.binds[key](value);
+  }
+  act('Add RS entry list');
+  field('RS entry source title', 'Synthetic received entries');
+  field('RS entry source date', '2026-11-16');
+  act('+ Add received crew');
+  field('Received driver', 'synthetic-driver-1');
+  field('Received co-driver', 'synthetic-codriver-1');
+  field('Entered class (not scoring)', 'RS 4');
+  field('Received car number', '301');
+  field('Received vehicle', 'Synthetic vehicle');
+  assert.equal(api.publishIssues().filter(issue => issue.level === 'error').length, 0);
+  const list = s.rallyesport.entryLists[0];
+  assert.equal(list.entries[0].enteredClass, 'RS4');
+  const writes = api.buildWrites(api.changes(), 'Synthetic entries received').writes;
+  const write = suffix => writes.find(row => row.update && row.update.name.endsWith(suffix));
+  assert.equal(write('docs/season_2026').currentDocument.updateTime, 'synthetic-version');
+  assert.equal(write('config/revision').currentDocument.updateTime, 'synthetic-revision');
+  const projected = JSON.parse(write('public/season_2026').update.fields.json.stringValue);
+  assert.equal(projected.season.rallyesport.entryLists[0].entries[0].car, '301');
+  const history = writes.find(row => row.update && row.update.name.includes('/history/')).update.fields;
+  assert.equal(history.by.stringValue, 'admin@example.com');
+  assert.equal(JSON.parse(history.after.stringValue).rallyesport.entryLists[0].entries.length, 1);
+  assert.equal(JSON.parse(history.before.stringValue).rallyesport.entryLists, undefined);
+  field('Received vehicle', 'Changed vehicle');
+  assert.equal(list.entries[0].vehicle, 'Changed vehicle');
+  field('Received co-driver', 'synthetic-driver-1');
+  assert.ok(api.publishIssues().some(issue => issue.level === 'error'));
+  field('Received co-driver', '');
+  act('Remove received crew');
+  assert.equal(list.entries.length, 0);
+  act('Remove RS entry list');
+  assert.equal(s.rallyesport.entryLists.length, 0);
+  assert.match(harness({ ...E, rallyeSportEntryListContractVersion: 0 }).api.entryContractError(), /RS entry-list scripts/);
+});
 test('catalogue is a closed source-linked graph with explicit branch outcomes', () => {
   const ids = catalogue.topics.map(topic => topic.id), seen = new Set(ids);
   assert.equal(seen.size, ids.length);
@@ -72,12 +125,13 @@ test('catalogue is a closed source-linked graph with explicit branch outcomes', 
         if (branch.next) assert.ok(seen.has(branch.next), branch.next);
       }
       for (const ref of node.evidence) {
-        assert.equal(ref.revision, undefined, 'all evidence must use the single immutable baseline');
+        assert.equal(ref.revision, undefined, 'use the immutable baseline unless explicitly marked current');
         assert.match(ref.path, /^(assets|docs)\//);
         assert.ok(!ref.path.includes('..'));
-        const key = (ref.revision || catalogue.baseline) + ':' + ref.path;
+        const key = ref.current ? ref.path : (ref.revision || catalogue.baseline) + ':' + ref.path;
         if (!files.has(key)) files.set(key,
-          execFileSync('git', ['show', key], { cwd: root, encoding: 'utf8', windowsHide: true }).split('\n'));
+          (ref.current ? fs.readFileSync(path.join(root, ...ref.path.split('/')), 'utf8') :
+            execFileSync('git', ['show', key], { cwd: root, encoding: 'utf8', windowsHide: true })).split('\n'));
         const lines = files.get(key);
         assert.ok(ref.start > 0 && ref.end >= ref.start && ref.end <= lines.length, JSON.stringify(ref));
         assert.ok(lines.slice(ref.start - 1, ref.end).join('\n').trim());

@@ -98,6 +98,9 @@
     return docs;
   }
   function entryContractError() {
+    if (!E || E.rallyeSportEntryListContractVersion !== 1 || typeof E.validateRallyeSportEntryLists !== 'function') {
+      return 'RS entry-list scripts are missing or out of date. Refresh this page before restoring or publishing; nothing has been published.';
+    }
     if (!E || E.analyticsContractVersion !== 1 || typeof E.validateAnalytics !== 'function') {
       return 'Analytics scripts are missing or out of date. Refresh this page with Ctrl+Shift+R before restoring or publishing; nothing has been published.';
     }
@@ -414,7 +417,7 @@
   }
   function rallyeSportLossMessage(yearsAffected, operation) {
     return 'This ' + operation + ' will replace or delete RallyeSport data for season ' + yearsAffected.join(', ') +
-      ', including independent events, official classifications/results, source and stage-time evidence, and season-scoped Non-Scoring RS Member decisions. ' +
+      ', including entries received, independent events, official classifications/results, source and stage-time evidence, and season-scoped Non-Scoring RS Member decisions. ' +
       'Cancel leaves the working copy unchanged. Continue?';
   }
   function readBackup(text) {
@@ -800,6 +803,8 @@
                 (branch.next ? link(branch.next, 'Follow this path') : '') + '</div>';
             }).join('') + '</div><details class="logic-evidence"><summary>Evidence for this decision (' + node.evidence.length + ')</summary><ul>' +
             node.evidence.map(function (ref) {
+              if (ref.current) return '<li><a href="../' + esc(ref.path) + '" target="_blank" rel="noopener">' + esc(ref.symbol) +
+                '</a><code>' + esc(ref.path) + ':' + ref.start + '-' + ref.end + '</code> · served runtime, not the immutable audit baseline</li>';
               var revision = ref.revision || catalogue.baseline;
               var url = 'https://github.com/nrrally/nrrally.github.io/blob/' + revision + '/' + ref.path + '#L' + ref.start + '-L' + ref.end;
               return '<li><a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(ref.symbol) + '</a><code>' + esc(ref.path) + ':' + ref.start + '-' + ref.end +
@@ -809,7 +814,7 @@
         '<nav class="logic-related" aria-label="Continue exploring"><h3>Connected decisions</h3>' + topic.related.map(function (id) { return link(id); }).join('') + '</nav>';
     }
     html += '<footer class="logic-maintenance">Evidence baseline <code>' + catalogue.baseline.slice(0, 7) + '</code> · ' + catalogue.topics.length +
-      ' curated topics. Source links open the audited revision, not changing main. This is a manually maintained explanation, not a second scoring engine or proof that every branch is catalogued. Re-audit when processing changes. External evidence links need GitHub connectivity; the explorer itself renders locally.</footer></article></div></div>';
+      ' curated topics. Source links open the audited revision, not changing main, except additions explicitly labelled served runtime. This is a manually maintained explanation, not a second scoring engine or proof that every branch is catalogued. Re-audit when processing changes. External evidence links need GitHub connectivity; the explorer itself renders locally.</footer></article></div></div>';
     liveRefresh = function () { filterLogic(A.logicQuery || ''); };
     return html;
   }
@@ -1402,6 +1407,40 @@
   }
 
   /* ------------------------------------------------------------------ competitors */
+  function rsEntryListEditor(data, event) {
+    var list = (data.entryLists || []).filter(function (row) { return row.eventId === event.id; })[0];
+    if (!list) return '<p>Publish entries independently of the official classification. No NR entries are copied.</p>' + btn(function () {
+      data.entryLists = data.entryLists || [];
+      data.entryLists.push({ eventId: event.id, complete: false,
+        source: { title: '', date: new Date().toISOString().slice(0, 10), url: '' }, entries: [] });
+      render();
+    }, 'Add RS entry list');
+    var choices = [['', 'Not supplied']].concat(peopleDoc().people.map(function (person) { return [person.id, person.name]; }));
+    return '<p class="small muted">Public sporting data only. Entered class is not a scoring decision. No membership, national entry or legacy non-scoring register is consulted. RS0 applicability remains unresolved; do not infer it. Choose verified stable profiles; add a genuinely new person in Competitors first. Empty car, co-driver, vehicle or class means not supplied.</p><div class="form-grid">' +
+      fld('RS entry source title', input(function (v) { list.source.title = v.trim(); }, list.source.title, 'maxlength="200"'), 'Public title only; no private paths, contact or licence details.') +
+      fld('RS entry source date', input(function (v) { list.source.date = v; }, list.source.date, 'type="date"')) +
+      fld('RS entry source URL (optional)', input(function (v) { list.source.url = v.trim(); }, list.source.url, 'type="url" maxlength="2000"')) +
+      '<div class="fld span3">' + check(function (v) { list.complete = v; }, list.complete, 'Complete RS list as at source date') + '</div></div>' +
+      list.entries.map(function (entry, i) {
+        return '<div class="card rs-received-entry"><h4>Received crew ' + (i + 1) + '</h4><div class="form-grid">' +
+          fld('Received car number', input(function (v) { entry.car = v.trim(); }, entry.car, 'maxlength="8"')) +
+          fld('Received driver', select(function (v) { entry.driverId = v; }, entry.driverId, choices, 'aria-label="Received driver"')) +
+          fld('Received co-driver', select(function (v) { entry.codriverId = v; }, entry.codriverId, choices, 'aria-label="Received co-driver"')) +
+          fld('Received vehicle', input(function (v) { entry.vehicle = v.trim(); }, entry.vehicle, 'maxlength="200"')) +
+          fld('Entered class (not scoring)', input(function (v) { entry.enteredClass = E.normClass(v); }, entry.enteredClass, 'maxlength="32"')) +
+          '</div>' + btn(function () {
+            if (window.confirm('Remove this received crew from the draft? Published entry evidence is removed only after review and publication.')) {
+              list.entries.splice(i, 1); render();
+            }
+          }, 'Remove received crew', 'tiny ghost') + '</div>';
+      }).join('') + '<div class="actions">' + btn(function () {
+        list.entries.push({ car: '', driverId: '', codriverId: '', vehicle: '', enteredClass: '' }); render();
+      }, '+ Add received crew', 'tiny') + btn(function () {
+        if (window.confirm('Remove this RS entry list? Review the evidence loss before publishing.')) {
+          data.entryLists = data.entryLists.filter(function (row) { return row !== list; }); render();
+        }
+      }, 'Remove RS entry list', 'tiny ghost') + '</div>';
+  }
   function entryListEditor(s, ev) {
     var list = (s.entryLists || []).filter(function (l) { return l.eventId === ev.id; })[0];
     if (!list) return '<div class="actions">' + btn(function () {
@@ -1537,6 +1576,12 @@
           });
           if (se.rallyesport) {
             var rs = se.rallyesport;
+            (rs.entryLists || []).forEach(function (list) {
+              list.entries.forEach(function (entry) {
+                if (entry.driverId === o.id) entry.driverId = id;
+                if (entry.codriverId === o.id) entry.codriverId = id;
+              });
+            });
             if (rs.membershipReview && rs.membershipReview.people) {
               if (!rs.membershipReview.people[id] && rs.membershipReview.people[o.id]) {
                 rs.membershipReview.people[id] = membershipMoves.filter(function (move) { return move.review === rs.membershipReview; })[0].oldDecision;
@@ -1634,7 +1679,7 @@
     var s = season(), data = rallyeSportData(s), built = model(A.year), scoring = built.rallyesport.scoring;
     var r = route(), section = ['events', 'setup', 'eligibility', 'checks'].indexOf(r.a) >= 0 ? r.a : 'events';
     var entryPolicy = E.rallyeSportEntryPolicy(data);
-    var pane = ['event', 'source', 'stages', 'rows', 'preview'].indexOf(r.c) >= 0 ? r.c : 'event';
+    var pane = ['event', 'entries', 'source', 'stages', 'rows', 'preview'].indexOf(r.c) >= 0 ? r.c : 'event';
     var review = data.membershipReview && typeof data.membershipReview === 'object' && !Array.isArray(data.membershipReview) ?
       data.membershipReview : { sourceDate: '2026-11-09', reviewed: false, evidence: '', people: {} };
     var reviewPeople = review.people && typeof review.people === 'object' && !Array.isArray(review.people) ? review.people : {};
@@ -1840,13 +1885,14 @@
       });
       var eventPath = '#/rallyesport/events/' + encodeURIComponent(event.id);
       return '<article class="card rs-editor"><div class="section-head"><h3>' + esc(event.name || event.id) + '</h3>' + btn(function () {
-        if (!window.confirm('Remove this RS event and its independent classification?')) return;
+        if (!window.confirm('Remove this RS event, received entries and its independent classification?')) return;
         s.rallyesport = data;
         data.events.splice(eventIndex, 1);
         data.results = data.results.filter(function (r) { return r.eventId !== event.id; });
+        if (data.entryLists) data.entryLists = data.entryLists.filter(function (row) { return row.eventId !== event.id; });
         go('#/rallyesport/events');
       }, 'Remove event', 'tiny ghost') + '</div>' +
-        rsNav([['event', 'Event & evidence'], ['source', 'Classification source'], ['stages', 'Stages & reuse'], ['rows', 'Crew rows'], ['preview', 'Points preview']].map(function (item) {
+        rsNav([['event', 'Event & evidence'], ['entries', 'Entries received'], ['source', 'Classification source'], ['stages', 'Stages & reuse'], ['rows', 'Crew rows'], ['preview', 'Points preview']].map(function (item) {
           return [eventPath + '/' + item[0], item[1], item[0]];
         }), pane, 'Selected RS event tasks') + rsPane('event', pane, 'RS event and scoring evidence') + '<div class="form-grid">' +
         fld('RS event name', input(function (v) { event.name = v; }, event.name, 'maxlength="200"')) +
@@ -1867,6 +1913,7 @@
           [['', 'Unconfirmed'], ['false', 'No bulletin-confirmed double points'], ['true', 'Bulletin confirms double points']], 'data-rerender')) +
         fld('Double-points bulletin evidence', input(function (v) { event.doublePointsEvidence = v; }, event.doublePointsEvidence || '', 'maxlength="1000"'), '', 'span2') +
         fld('Bulletin issue date (SSR 7.2 check)', input(function (v) { event.doublePointsBulletinDate = v || undefined; }, event.doublePointsBulletinDate || '', 'type="date"'), 'The bulletin must precede the event by at least 14 days.') + '</div>' +
+        '</section>' + rsPane('entries', pane, 'RS entries received') + rsEntryListEditor(data, event) +
         '</section>' + (result ? rsPane('source', pane, 'Classification source and finality') + '<h4>Official RS classification</h4><div class="form-grid">' +
           fld('Classification title', input(function (v) { result.title = v; }, result.title || '', 'maxlength="200"')) +
           fld('Printed finality/status', input(function (v) { result.status = v; }, result.status || '', 'maxlength="200"'), 'Enter the source wording; do not infer finality.') +

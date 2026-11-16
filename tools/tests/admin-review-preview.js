@@ -5,11 +5,13 @@ const path = require('node:path');
 const http = require('node:http');
 const AI = require('../../assets/ai-import.js');
 const { fixtures, nrRound } = require('./admin-access-e2e.js');
+const entryPreview = process.argv.includes('--entries');
 const root = path.resolve(__dirname, '..', '..');
-const docs = JSON.parse(JSON.stringify(fixtures));
+const docs = entryPreview ? require('./ai-fixtures.js').preEventEntries().docs : JSON.parse(JSON.stringify(fixtures));
 const people = docs['data/people.json'];
 const season = docs['data/seasons/2026/season.json'];
 const rs = season.rallyesport;
+if (!entryPreview) {
 rs.results[0].entries[1].class = 'RS2';
 rs.results[0].entries[1].classPos = 2;
 rs.events[0].name = 'Synthetic Riverside Sprint';
@@ -34,6 +36,7 @@ for (let n = 2; n <= 4; n++) {
   rs.events.push(event); rs.results.push(result);
 }
 docs['data/seasons/2026/rounds/R1.json'] = nrRound;
+}
 const prefix = 'projects/nr-synthetic/databases/(default)/documents/';
 const field = value => ({ stringValue: JSON.stringify(value) });
 const store = {};
@@ -41,15 +44,16 @@ function put(id, fields) { store[id] = { name: prefix + id, fields, updateTime: 
 put('docs/site', { json: field(docs['data/site.json']) });
 put('docs/people', { json: field(people) });
 put('docs/season_2026', { json: field(season) });
-put('docs/round_2026_R1', { json: field(nrRound) });
+if (!entryPreview) put('docs/round_2026_R1', { json: field(nrRound) });
 put('public/site', { json: field(docs['data/site.json']) });
 put('public/people', { json: field(people) });
-put('public/season_2026', { json: field({ season: AI.projectPublic(season, people), rounds: { R1: nrRound } }) });
+put('public/season_2026', { json: field({ season: AI.projectPublic(season, people), rounds: entryPreview ? {} : { R1: nrRound } }) });
 put('config/admins', { emails: { arrayValue: { values: [{ stringValue: 'admin@example.com' }] } } });
 put('config/revision', { n: { integerValue: '1' } });
 const shim = `
 window.NR_FIREBASE={projectId:"nr-synthetic",apiKey:"fake",authDomain:"nr-synthetic.firebaseapp.com"};
 (() => {
+  localStorage.setItem("nr-rs-welcome-until",String(Date.now()+86400000));
   let current={email:"admin@example.com",name:"Synthetic review admin",photo:""};
   window.NR_TEST_AUTH={ready:()=>Promise.resolve(),user:()=>current,observe:()=>{},
     signIn:()=>Promise.resolve(current={email:"admin@example.com",name:"Synthetic review admin",photo:""}),
@@ -84,8 +88,13 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': type || 'application/octet-stream', 'Cache-Control': 'no-store' });
   if (name.endsWith('.html')) {
     const html = fs.readFileSync(file, 'utf8').replace('<body class="adm-body">', '<body class="adm-body"><aside class="demo-bar">SYNTHETIC LOCAL REVIEW - no real competitors or database connection. Working edits are temporary; publication is disabled.</aside>')
+      .replace('<body>', '<body><aside class="demo-bar">SYNTHETIC LOCAL REVIEW - invented crews, no database connection.</aside>')
       .replace('<script src=', '<script src="/__preview.js"></script><script src=');
     res.end(html);
   } else fs.createReadStream(file).pipe(res);
 });
-server.listen(0, '127.0.0.1', () => console.log('Synthetic admin review: http://127.0.0.1:' + server.address().port + '/admin/index.html#/rallyesport'));
+server.listen(0, '127.0.0.1', () => {
+  const base = 'http://127.0.0.1:' + server.address().port;
+  console.log('Synthetic admin review: ' + base + '/admin/index.html#/rallyesport' + (entryPreview ? '/events/rs-r5/entries' : ''));
+  if (entryPreview) console.log('Synthetic public entries: ' + base + '/index.html#/2026/rallyesport-event/rs-r5/classification?competition=rs');
+});
