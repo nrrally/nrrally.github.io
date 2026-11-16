@@ -80,6 +80,10 @@ non-GET/external/Analytics traffic, and reread public documents to confirm stabi
 After pushing, independently confirm the exact Pages SHA, canonical asset bytes and
 the same anonymous public empty-state behavior. No protected access or data write
 is needed or authorized for these checks.
+Compare canonical response bytes with committed Git blobs, not Windows worktree
+files whose CRLF conversion can differ. For repeated Firestore document reads,
+normalize object-map key order while preserving array order and exact values,
+and compare publication versions as well as payloads.
 
 ## Revised RS entry-based policy (synthetic)
 

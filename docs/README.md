@@ -21,7 +21,7 @@ and scoring checks. **Logic explorer** is the screen-shareable, read-only explan
 implemented NR, RS and shared processing paths, with conditional outcomes and source links.
 The **Entries received** extension displays independently maintained RS
 entries inside the shared Classification tab before a result exists, then retains
-them separately after results. Its empty-entry code release is authorized;
+them separately after results. Its empty-entry code release is deployed;
 first-real-entry publication/acceptance is still pending. See
 [the workflow](data-entry-guide.md#rs-entries-received) and release ledger.
 See [the admin workflow](data-entry-guide.md#rallyesport-workspace-and-logic-explorer).

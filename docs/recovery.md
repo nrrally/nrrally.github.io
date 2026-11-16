@@ -33,7 +33,7 @@ canonical home, admin, disclaimer and privacy shells and five changed public
 JavaScript assets match the committed bytes. The release ledger records this
 verification in [releases.md](releases.md).
 
-### RS pre-event received entries (authorized empty-entry code release)
+### RS pre-event received entries (deployed; no data activation)
 
 The implementation was reconciled with freshly checked main
 `7f4be7f252f1847058558b8e21d6b5e2ab9ddbf0`, preserving the approved wording
@@ -43,8 +43,16 @@ field allowlisting/validation and a pre-result event-ID route in the shared
 Classification shell. The user authorized pushing this code with zero actual
 entries; no Firebase writes, crew/event creation or private data access are
 authorized. Anonymous published-data GETs may verify the empty state and unchanged
-sporting outputs. Actual deployment verification is recorded separately in the
-release ledger. The first actual crew is still awaited.
+sporting outputs. Runtime `4d462e98b828c2fa26ebfce93f0f51b484bd893b`
+was pushed normally to `main` and Pages run
+[43880840084](https://github.com/nrrally/nrrally.github.io/actions/runs/43880840084)
+deployed that exact SHA successfully. Anonymous canonical GETs matched all four
+shells and twelve runtime/style assets to their Git blobs. The existing
+28 November event `rs-r5` shows no published entries or result; all existing
+NR/RS sporting outputs matched the wording baseline. Responsive light/dark
+live-asset checks passed with public bundles in memory only, non-GET/external/
+Analytics traffic blocked, and repeated public document contents/versions
+unchanged. No Firebase writes occurred. The first actual crew is still awaited.
 [Schema](data-model.md#rs-entries-received)
 and [acceptance](data-entry-guide.md#rs-entries-received) are the operational contract.
 NR entryLists, the three activated National-entry records, RS policy/score

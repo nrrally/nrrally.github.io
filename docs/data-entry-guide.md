@@ -87,8 +87,8 @@ are outside its scope. The guide's reference edition remains 2026.
 
 ## RS entries received
 
-The initial empty-entry code release is authorized; check the release ledger for
-actual deployment verification. No Firebase writes are part of that release. This displays
+The initial empty-entry code release is deployed; see the release ledger for
+deployment verification. No Firebase writes were part of that release. This displays
 entries inside the existing Classification tab; it is not an entry submission,
 registration, payment or eligibility-management system.
 

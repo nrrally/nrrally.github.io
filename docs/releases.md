@@ -92,7 +92,7 @@ must be addressed; there is no automation that can infer approvals or certify pr
   Legacy source notes remain anonymously retrievable from the public database; no
   jurisdiction-specific legal advice or legal protection is claimed.
 
-## RS pre-event received entries (authorized empty-entry code release)
+## RS pre-event received entries (deployed; no data activation)
 
 - Initially developed locally on `5d130649b0fa545774fc28ea0150c31fe7aca85b`,
   then reconciled with fresh main `7f4be7f252f1847058558b8e21d6b5e2ab9ddbf0`
@@ -170,6 +170,26 @@ must be addressed; there is no automation that can infer approvals or certify pr
   admin accounts, History, official source PDFs or live timing were accessed;
   browser non-GET/external/Analytics requests were blocked. No actual competitor
   fixtures or public bundle snapshots were written to disk or Git.
+- Runtime `4d462e98b828c2fa26ebfce93f0f51b484bd893b` was pushed normally
+  to `origin/main`. Pages run
+  [43880840084](https://github.com/nrrally/nrrally.github.io/actions/runs/43880840084)
+  completed successfully for that exact SHA. Fresh canonical GETs returned
+  HTTP 200 and matched all four shells and twelve runtime/style assets against
+  committed Git blob bytes, not Windows worktree line endings.
+- Post-deployment browser checks passed the real existing `rs-r5` event's empty
+  Classification, Graph and Stage times states at 320/390/768/1440 px, light/dark,
+  without fabricated rows, horizontal overflow, runtime errors or Analytics
+  requests. Both complete sporting models, seven NR/four RS classifications,
+  every role/class standings view, Home/directory and all profile histories/
+  starts remained identical to the approved wording baseline. Repeated public
+  documents, including their publication versions, were unchanged; object-map
+  key order was normalized for structural comparison, preserving all array order
+  and values. No Firebase writes or private records were involved.
+- This documentation-only verification follow-up updates the release/recovery
+  record and displayed deployment status in maintainer workflows. It changes no
+  runtime behavior, asset version or data, needs no additional application tests
+  or migration, and can be reverted without affecting the deployed runtime.
+  First-real-entry publication/acceptance and RS0 clarification remain pending.
 
 ## Logic Explorer audit (authorized library-only follow-up)
 
