@@ -31,7 +31,7 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
-## Approved public wording changes (pre-deployment)
+## Approved public wording changes (deployed; verification follow-up)
 
 - The user approved proposals 1, 3, 5–16, 18, 19 and 21 from the public wording audit.
   Proposals 2, 4, 17 and 20 remain unchanged. The authorized scope is rendered commentary,
@@ -53,8 +53,11 @@ must be addressed; there is no automation that can infer approvals or certify pr
   Do not combine with the separate, unpushed pre-event-entry branch: that work has not
   been reviewed or included here and must coordinate asset versions if integrated later.
 - Approval is for the reviewed wording release to `origin/main`, not a database write or
-  an official sporting decision. This entry is pre-deployment; no Pages build or live
-  deployment is claimed until its exact SHA is independently verified.
+  an official sporting decision. Commit
+  `385a0e849d9b0d353a673d99b4cc774d1bdcc6a1` was pushed normally (non-force) to `main`.
+  GitHub Pages run
+  [43878709806](https://github.com/nrrally/nrrally.github.io/actions/runs/43878709806)
+  completed successfully for that exact SHA.
 - Validation used fresh anonymous GETs only for `public/site`, `public/people` and the
   only advertised season, 2026 (seven NR classifications/124 entries; four RS
   classifications/71 entries). Repeated GETs remained identical. A structured before/
@@ -71,9 +74,20 @@ must be addressed; there is no automation that can infer approvals or certify pr
   suite passed. A local rendering of the modified UI against the fresh in-memory public
   bundles covered 57 routes at 390px and 1440px with no runtime errors or horizontal
   overflow. Every browser non-GET request and external/analytics request was blocked;
-  public bundle reads were served from the in-memory GET snapshots. The actual live
-  deployment remains to be verified. No official PDFs, private records, History, admin
-  account lists, private identity/eligibility evidence or live-timing sources were read.
+  public bundle reads were served from the in-memory GET snapshots. No official PDFs,
+  private records, History, admin account lists, private identity/eligibility evidence
+  or live-timing sources were read.
+- Post-push verification confirmed `origin/main` at the reviewed SHA and the successful
+  Pages run above. Anonymous GETs returned HTTP 200 for the canonical home, admin,
+  disclaimer and privacy shells; each raw response matched its committed file and used
+  `public-wording-1`. Raw-byte SHA-256 comparisons also matched the deployed
+  `public-model.js`, `public-components.js`, `site.js`, `display-context.js` and
+  `getting-started.js` to the same commit.
+- This documentation-only follow-up updates `docs/releases.md` and `docs/recovery.md`
+  with that deployment evidence. It changes no application code, public behavior, data
+  or asset versions; reverting it would remove the record but would not affect the
+  deployed application or database. `git diff --check` passed; no additional tests or
+  data recovery are required.
 - Remaining limitation: the release only reduces misleading application commentary.
   Legacy source notes remain anonymously retrievable from the public database; no
   jurisdiction-specific legal advice or legal protection is claimed.

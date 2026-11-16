@@ -11,7 +11,7 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
-### Approved public wording changes (pre-deployment)
+### Approved public wording changes (deployed)
 
 The approved 2026 wording change is presentation-only: shared public adapters and
 components, the RS welcome/guide, disclaimer and scoring-rules description. Four
@@ -25,8 +25,13 @@ The RS note filter affects rendered application copy only. The original source
 notes remain in the anonymously readable public Firestore bundles, so filtering is
 not access control or deletion. The separate pre-event-entry work is on another
 unreleased branch and is not included; coordinate shared asset versions before any
-later integration. Deployment remains unverified until the exact Pages SHA and
-canonical assets are checked and the release ledger is updated.
+later integration. Commit `385a0e849d9b0d353a673d99b4cc774d1bdcc6a1` was pushed
+normally to `main`; GitHub Pages run
+[43878709806](https://github.com/nrrally/nrrally.github.io/actions/runs/43878709806)
+built and deployed that exact SHA successfully. Anonymous GETs verified that the
+canonical home, admin, disclaimer and privacy shells and five changed public
+JavaScript assets match the committed bytes. The release ledger records this
+verification in [releases.md](releases.md).
 
 ### NR national event-entry context (deployed and activated)
 
