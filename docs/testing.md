@@ -21,7 +21,7 @@ using the real pinned library bytes; private PDFs/screenshots remain outside Git
 No real Google authentication is tested. The user must verify sign-in and download
 after deployment. No PDF CDN is used at runtime.
 
-## Private membership numbers (code release pending)
+## Private membership numbers (code deployed)
 
 Run the focused schema/projection/guard checks with
 `node --test tools/tests/membership-identifiers.test.js tools/tests/admin-logic.test.js tools/tests/public-display.test.js`.

@@ -2727,7 +2727,7 @@ unconfigured; no future rules were inferred. The site-code push, Pages build and
 verification are still pending. This data-first publication does not itself authorize or
 claim a code deployment.
 
-### Simplified private numbers and RS stage counts (approved code-only release; verification pending)
+### Simplified private numbers and RS stage counts (code deployed; import held)
 
 The candidate retains two admin-only competitor fields in a protected stable-ID
 sidecar, explicit validation and guarded publish/backup/restore/merge/History handling.
@@ -2804,3 +2804,26 @@ against a fresh protected backup/current rules/revisions before any atomic attri
 import. Old-code rollback after private-data activation requires compatible guards or
 an independently authorized paired restore. User-operated Google sign-in/private-export
 acceptance and first-real-entry acceptance remain outstanding.
+
+#### Actual code deployment verification
+
+Code commit `be580730557af790a5981f2ca51017a5d360de63` was pushed normally to unchanged
+`main`. [Pages run 44149429465](https://github.com/nrrally/nrrally.github.io/actions/runs/44149429465)
+completed successfully, and the Pages builds API reports that exact SHA as built with
+no error. Canonical HTTPS responses for 18 changed runtime/shell and logo assets match
+the committed bytes, including both locally vendored libraries and the restrictive CSP.
+An actual deployed versioned opaque frame generated a synthetic PDF without CDN access,
+admin DOM/storage access or write traffic. The synthetic render did not authenticate
+as an admin and does not replace user-operated Google sign-in/export acceptance.
+
+The three public Firestore documents, including their create/update metadata and JSON
+strings, exactly match the protected pre-release public snapshot. Live NR R3 and RS
+R1/R2 retain all 44 non-stage-count sporting rows/cells; the intended count disclosure
+is the only classification-cell presentation exception. No Firebase/private write,
+membership import, rules/provider change, eligibility or sporting-data publication occurred.
+Import remains held pending separate explicit authorization and a fresh protected
+backup/reconciliation. Retire/reload old admin tabs before future private editing.
+
+This documentation-only follow-up records the verified code release and changes no
+runtime behavior or data. Its planned push is a normal update to `main` only after a
+fresh concurrency check; the code assets remain exactly those verified above.

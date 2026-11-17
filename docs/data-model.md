@@ -48,7 +48,7 @@ It is not a point-in-time full-project export. Restore stages whole working-docu
 replacement, entry-evidence-loss review and supplied photos; it does not prune/restore
 every photo record or recreate external accounts. See [recovery.md](recovery.md#precisely-what-the-app-backup-does-and-does-not-do).
 
-## Private membership numbers (code release pending; no data populated)
+## Private membership numbers (code deployed; no data populated)
 
 `data/membership-numbers.json` is a private sidecar keyed by stable competitor profile
 ID, with `format: "nr-private-membership-numbers"`, version 1, and per-person
@@ -88,7 +88,7 @@ sidecar, duplicate profile ID or public/private snapshot conflict still blocks e
 The original scoresheet generator runs in an opaque sandbox with a restrictive CSP,
 using only locally hosted SHA-384-pinned jsPDF/AutoTable files. Private numbers never
 reach CDN code, public documents or the public site. The privacy notice covers this use.
-The reviewed code-only release is authorized, but no membership values have been
+The reviewed code-only release is deployed, but no membership values have been
 written to Firebase. Import remains held pending separate explicit authorization,
 then verified compatible
 deployment, fresh protected backup, current live-rule and revision checks, and a

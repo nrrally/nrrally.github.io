@@ -54,13 +54,19 @@ completion; header/footer championship wording comes only from explicit public e
 status and is omitted when unavailable. Real Google sign-in and user-operated download
 remain post-deployment checks; never use an agent-held account to impersonate an admin.
 
-### Private membership identifiers (code release pending; no data populated)
+### Private membership identifiers (code deployed; private import held)
 
-The simplified pending code adds two private competitor fields in a protected sidecar,
+The simplified code adds two private competitor fields in a protected sidecar,
 and includes saved 2026 values in the existing authorized PDF export.
-No membership numbers have been written to Firebase. The reviewed code-only release is
-authorized after the remaining checks; Firebase writes and import remain held pending
-separate explicit authorization and fresh protected reconciliation.
+Code commit `be580730557af790a5981f2ca51017a5d360de63` deployed successfully through
+[Pages run 44149429465](https://github.com/nrrally/nrrally.github.io/actions/runs/44149429465).
+Canonical bytes for 18 runtime/shell/logo assets matched; the actual versioned opaque
+frame rendered a synthetic PDF from local pinned libraries with no CDN or write traffic.
+All three public documents and their metadata, plus 44 sporting rows across NR R3 and
+RS R1/R2, matched the pre-release baseline. This is renderer/public verification, not
+Google sign-in or authenticated admin acceptance. No membership numbers were written.
+Firebase writes and import remain held pending separate explicit authorization and
+fresh protected backup/reconciliation.
 The one-time exact-match reconciliation and source artifacts stay in protected session
 storage; no generic roster importer or repository parser is included. The roster has no
 explicit as-of date. Alias-only, suffix variants, duplicate, missing/TBC and conflicting

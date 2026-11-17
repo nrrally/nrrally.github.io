@@ -37,7 +37,7 @@ stage data block export rather than being silently altered. Very wide tables con
 across pages. Check every page against the published classification and source before
 distributing it.
 
-## Private competitor numbers (code release pending)
+## Private competitor numbers (code deployed; import held)
 
 The competitor editor adds admin-only MSA and RS number fields. Save digit strings to
 preserve leading zeroes; separate multiple RS numbers with commas or newlines.
