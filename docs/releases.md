@@ -31,6 +31,96 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## RS raw timing / event-only RS0 (code-only release candidate)
+
+- Base: freshly fetched `origin/main` `56ad227e63246673adf30d1a4802bfdc571fabf5`;
+  it matched local HEAD before release preparation. The user authorized a code-only
+  release only after clean final gates. No actual workbook or registration was supplied.
+- Add pure strict event-specific stage-times-plus-penalties ingestion, reviewed
+  unique-car roster matching and explicit precision, exact
+  marshals Final Time cross-check, original strings/provenance and calculated event/
+  class positions. Explicit DNF/DNS retain missing observations with no fake total/rank;
+  ambiguous formats, ties, partial classified rows or identity/class mismatches block.
+- Calculated classification rows are displayed by finishing position, without
+  reordering the stored source rows; previous gaps follow that order. Calculated
+  graph endpoints are labelled calculated, not official. Legacy source presentation
+  is unchanged.
+- Review adjustment: permit an event-level `nrEventId` association while continuing
+  to reject result `nrRoundId` and stage `nrStage` links. Calculations remain wholly
+  from the supplied RS timing, with no NR timing copy or cross-source reuse.
+- Add reviewed row/event-only RS0: event position remains, championship points/rank
+  do not displace RS2/RS4, prior events remain, and no global exclusion is introduced.
+  Private evidence is stripped; public snapshots validate the event-only markers.
+- Provisional source status stays provisional. Existing explicit scoring acceptance
+  enables provisional round/season points; raw-result reviews bind a current digest.
+  Cumulative final readiness additionally requires non-provisional contributing raw-timing
+  sources; pre-existing non-raw classifications retain released scoring semantics.
+  Legacy NR/RS scoring/starts/eligibility and archived review digests are unchanged
+  without new inputs. Approved public wording remains except narrowly conditional
+  calculated/provisional timing labels. No SSR source edition or analytics change.
+- Coordinated local cache version `rs-timing-1`; admin raw contract 1. No automatic
+  migration, no new complex import UI. Future normal updates are data-only within this
+  supported contract. Fresh admin tabs, protected backup, reviewed atomic publication/
+  History and first-workbook validation are required. Post-data rollback must restore
+  compatible working/public/revision/History, not old code alone; see recovery.
+- Current validation: 183/183 related synthetic tests and three-stage car-only and
+  pre-event browser modes at four widths and both themes passed. Prior validation:
+  187/187 related synthetic tests; raw-timing and existing entry-policy
+  browser modes at four widths in both themes passed before the variable-stage revision.
+  Released-engine synthetic NR/RS parity passed; raw mode also passed with an event-level
+  NR association. See testing for current variable-stage checks.
+  No actual sporting data was accessed. Remaining acceptance is recorded
+  in [testing.md](testing.md#rs-raw-timing-local-extension).
+
+## Classification PDF exports (code-only release candidate)
+
+- Dedicated authenticated admin menu exports only an independently reloaded published
+  NR/RS classification; source finality and event positions are preserved and no
+  sporting calculation, data edit, publication, rule change or migration is introduced.
+  Unsaved drafts are not used. Existing published results remain public.
+- Pinned, integrity-checked jsPDF/AutoTable run in a restricted isolated iframe; CDN
+  requests reveal connection metadata. Missing authorization, changed revision,
+  unavailable libraries/results, unsupported characters or ambiguous data block
+  download. No licence data is collected. Recovery and operator details are in
+  [architecture.md](architecture.md) and [data-entry-guide.md](data-entry-guide.md).
+- **Final gates against this candidate:** all repository Node tests passed (211/211);
+  raw-timing/PDF browser regression passed at four widths and both themes, including
+  sign-in cancellation, network/library/integrity errors, revision denial during
+  render, unpublished-state blocking, sandbox isolation and no writes. Admin access/
+  Logic Explorer browser suite passed; the full NR/RS responsive theme suite passed
+  on isolated rerun after one initial timeout; navigation browser suite passed.
+- **Actual published-data parity:** anonymous GETs only, current public 2026 season,
+  compared with released baseline engine/public model at the same input, with no
+  normalization. Exact complete engine models matched. Public NR/RS Home, directory,
+  calendar, information, sources, driver/co-driver overall/class standings, every
+  classification and graph, all 182 profiles/history/starts and all RS event
+  classifications matched exactly. Scope: the single advertised 2026 season; not
+  evidence about unpublished/private data or other seasons. `rs-r5` on 28 November
+  remains empty and navigable; Classification remains empty (no rows/result).
+  Public inputs were `public/site` updateTime `2026-11-07T20:37:07.760636Z`,
+  `public/people` `2026-11-09T20:15:38.380386Z`, and `public/season_2026`
+  `2026-11-14T20:08:39.414978Z`. Their in-memory field hashes were respectively
+  `435183a31ec95ba7e115be25f8c48142be0c8d87537e2624fac196973e0a9686`,
+  `3eb7eea2a64cf4f07874cf796dc399df3a9ba3d65f36e8f1d59ef33875e887e2`, and
+  `e35373f99ac3a51d7132633b2158af92e76f9be909279b67d19884bf06c32cbe`.
+  Protected `config/revision` was not read; anonymous revision access is unavailable.
+- **Actual PDF rendering:** all 11 public classifications (7 NR, 4 RS; 124 NR and
+  71 RS rows) were prepared from the published snapshots and exported locally using
+  the real SHA-384-pinned jsPDF/AutoTable files from cdnjs through the opaque iframe.
+  Finality matched source: 10 Final and one Provisional. All are single-page with
+  2–8 actual event stages; status, displayed names, stage labels/observations,
+  penalties, totals, gaps, rows/counts and bounds were checked. No source contained a
+  technical-check note requiring display; none was promoted. The MSA number field is
+  unavailable and consistently displays `No MSA Number`. First/last and representative
+  render pages were visually inspected. Actual PDFs and personal-data-bearing images
+  remain only in the private session folder, never Git. Twenty-two real CDN requests
+  were observed (two libraries per export); no rendering service received data.
+- Anonymous inputs were reread and unchanged through validation. No protected read,
+  real sign-in, Firebase write, result/standing change, commit, push or deployment has
+  occurred at the pre-push validation checkpoint. The user performs real Google sign-in/download after
+  deployment. Existing main/Pages remains `56ad227e63246673adf30d1a4802bfdc571fabf5`;
+  this candidate remains uncommitted pending the clean-gate decision.
+
 ## Approved public wording changes (deployed; verification follow-up)
 
 - The user approved proposals 1, 3, 5–16, 18, 19 and 21 from the public wording audit.

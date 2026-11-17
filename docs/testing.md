@@ -1,5 +1,74 @@
 # Testing
 
+## Admin classification PDF (release candidate)
+
+`node --test tools/tests/classification-pdf.test.js` checks published source timing,
+event-only RS0 positions, conservative finality, classification counts and rejection
+of ambiguous or mismatched rows. It also checks the reference table columns, total and
+penalty styling, SAST date and raw-timing observation counts for classified/DNF/DNS
+without inferring missing legacy counts. With the externally installed Playwright setup below,
+set `RS_RAW_TIMING_TEST=1`, `RS_VARIABLE_STAGES_TEST=1`, `RS_PDF_TEST=1` and
+`RS_PDF_LIB_DIR` to a private test directory containing the exact jsPDF 3.0.4 and
+AutoTable 5.0.2 CDN files, then run `node tools/tests/rs-entry-policy-e2e.js`.
+Set `RS_PDF_EMPTY_TEST=1` alone for the unpublished-result disabled state.
+The provider and library routes are intercepted and writes rejected. The synthetic
+browser checks cover NR/RS exports, draft isolation, current authorization,
+network/library failure, sign-in cancellation, sandbox isolation and wide pagination.
+Review rendered PDF pages as well as extracted source strings. The release gate also
+rendered all currently published classifications locally from anonymous public GETs
+using the real pinned CDN libraries; private PDFs/screenshots remain outside Git.
+No real Google authentication is tested. The user must verify sign-in and download
+after deployment. The CDN remains necessary at runtime.
+
+## RS raw timing local extension
+
+`node --test tools/tests/rs-raw-timing.test.js` covers exact 0-3 decimal arithmetic,
+penalty addition/mismatch refusal, preserved strings/provenance, identity/class/entry
+reconciliation, declared DNF/DNS, unsupported input refusal, digest-bound provisional
+acceptance, provisional season totals even at a valid round count, event-only RS0
+without displacement/history deletion, rankless RS0-only people and public snapshot
+tampering. Event-level NR associations must permit identical raw calculations;
+result-level NR rounds and mapped stages still block validation/scoring/public
+snapshots, and the NR time-copy helper cannot act on these unlinked classifications.
+Explicit one-, three- and eight-stage synthetic cases exercise car-only roster matching,
+projection, graphs, RS0 and review-digest invalidation; missing/duplicate/conflicting
+roster or stage data must block.
+Existing NR/RS, import, entries, shared display/admin and Logic Explorer
+regressions must remain green.
+
+Current variable-stage verification: **183/183** related synthetic tests passed.
+Three-stage car-only intake and the existing pre-event browser flow passed at four
+widths in both themes; a separate six-stage RS0-winner browser check also passed.
+All provider requests were intercepted and writes rejected.
+
+Earlier local verification: **187/187** related synthetic tests passed, including released
+engine parity with scored NR/RS fixtures and a six-round, accepted provisional non-raw
+RS source. Both raw-timing and normal entry-policy
+browser modes passed all four widths in both themes, with no external traffic or writes.
+The raw-timing mode was rerun with an explicit event-level NR association.
+
+The synthetic 100/200/300 example checks RS4 and RS2 class winners at 15 points
+each and event-only RS0 at zero and unranked, including RS0 P3 and P1 overall,
+class P1, stage/gap graphs, and both profiles. A browser-only synthetic RS0 winner
+preview checks classification ordering, gap, stage graph and profile. No historical
+TEST row was changed. Event trophy and annual award eligibility are not implemented
+or inferred by this championship scoring test.
+
+`RS_RAW_TIMING_TEST=1 node tools/tests/rs-entry-policy-e2e.js` (set the variable using
+the host shell's syntax) exercises calculated provisional results, retained entries,
+RS0 P2, provisional season display and existing admin source/review controls at
+320/390/768/1440 px in both themes. The normal invocation retains pre-event/launch
+regressions. Both intercept all providers and reject writes/analytics.
+Set `RS_VARIABLE_STAGES_TEST=1` alongside raw mode to exercise three-stage car-only
+intake through the public and admin browser paths.
+
+No supplied workbook or live marshals timing was validated. For release parity and PDF
+layout only, existing published public classifications were read anonymously and not
+modified. First-workbook acceptance must confirm cell formats/precision, complete sheet coverage,
+exact crews/roles/classes/statuses, all totals and supported finality with the authorized
+operator before any separately authorized publish. Ties, cancelled stages and
+unsupported Excel-time formats remain held, not implicitly supported.
+
 ## Approved public wording changes
 
 The wording-only projection regressions use synthetic fixtures and verify that

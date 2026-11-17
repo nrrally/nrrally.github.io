@@ -19,6 +19,9 @@ There are two parts:
 The admin's **RallyeSport** workspace separates events/results, season setup, eligibility
 and scoring checks. **Logic explorer** is the screen-shareable, read-only explanation of
 implemented NR, RS and shared processing paths, with conditional outcomes and source links.
+The code-only release candidate adds a **PDF exports** menu in the admin that exports
+published classifications only; see
+[the export instructions](data-entry-guide.md#classification-pdf-export-code-only-release-candidate).
 The **Entries received** extension displays independently maintained RS
 entries inside the shared Classification tab before a result exists, then retains
 them separately after results. Its empty-entry code release is deployed;
@@ -34,7 +37,13 @@ entry for that confirmation and the now-required paired data/code rollback seque
 The coordinator also reported the separately authorized reviewed RS source class-order
 activation on 2026-11-12; see [recovery.md](recovery.md) for its boundaries and rollback.
 
-Results come only from official classification PDFs, never from live timing. NR standings, points and stage graphs are calculated in the visitor's browser from raw NR results each time a page loads; NR does not store derived scoring snapshots. RallyeSport is a separate competition: its validated scoring snapshots are stored with the published RS data and never feed NR standings or statistics.
+NR results come from official classifications, never from live timing. The pending
+code-only release also supports reviewed marshals' event-specific RS stage spreadsheets
+as explicitly provisional results; see [the intake contract](data-model.md#rs-raw-timing-contract-local-code-only).
+NR standings, points and stage graphs are calculated in the visitor's browser from raw
+NR results each time a page loads; NR does not store derived scoring snapshots.
+RallyeSport is a separate competition: its validated scoring snapshots are stored with
+the published RS data and never feed NR standings or statistics.
 
 ## Where everything lives
 

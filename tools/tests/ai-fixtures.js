@@ -105,4 +105,48 @@ function preEventEntries() {
       enteredClass: 'RS4', vehicle: 'Synthetic entry vehicle' }] }];
   return f;
 }
-module.exports = { copy, docs, season, payload, source, revisedRallyeSport, preEventEntries };
+function rawRallyeSportTiming() {
+  const f = revisedRallyeSport();
+  const rows = Array.from({ length: 7 }, (_, i) => ({
+    car: String(i + 1), driver: 'Synthetic driver ' + (i + 1), codriver: 'Synthetic codriver ' + (i + 1),
+    driverId: 'synthetic-driver-' + (i + 1), codriverId: 'synthetic-codriver-' + (i + 1),
+    class: i === 6 ? 'RS4' : 'RS2', vehicle: 'Synthetic car', status: 'classified',
+    times: ['1:00.01', '1:00.02', '1:00.03', '1:00.04', '1:00.05', '1:00.06'],
+    penalty: '0:00.0' + (i + 1), finalTime: '6:00.' + (22 + i)
+  }));
+  rows[1].class = 'RS0';
+  rows[1].nonScoringEvidence = 'Synthetic explicit RS0 classification for this event only.';
+  f.data.entryLists = [{ eventId: 'rs-r5', complete: true,
+    source: { title: 'Synthetic entered classes', date: '2026-11-17', url: '' },
+    entries: rows.map(row => ({ car: row.car, driverId: row.driverId, codriverId: row.codriverId,
+      enteredClass: row.class, vehicle: row.vehicle })) }];
+  f.input = { id: 'synthetic-timing', eventId: 'rs-r5', title: 'Synthetic marshals timing',
+    source: { file: 'synthetic.xlsx', description: 'Synthetic SS1-SS6 timing sheet, not official final results.' },
+    precision: 2, identityEvidence: 'Synthetic exact role/class reconciliation.',
+    stages: Array.from({ length: 6 }, (_, i) => ({ id: 'ss' + (i + 1), label: 'SS' + (i + 1) })), rows };
+  return f;
+}
+function rawRS0Example(wins = false) {
+  const f = rawRallyeSportTiming();
+  f.input.rows.forEach((row, i) => {
+    row.car = String((i + 1) * 100);
+    row.class = i === 0 ? 'RS4' : i === 2 ? 'RS0' : 'RS2';
+    delete row.nonScoringEvidence;
+    if (i === 2) {
+      row.nonScoringEvidence = 'Synthetic event-only RS0 review.';
+      for (const role of ['driver', 'codriver']) {
+        row[role] = 'Synthetic RS0 ' + role;
+        row[role + 'Id'] = 'synthetic-rs0-' + role;
+        f.people.people.push({ id: row[role + 'Id'], name: row[role], aliases: [] });
+      }
+    }
+    const rank = wins && i === 0 ? 3 : wins && i === 2 ? 1 : i + 1;
+    row.times = ['1:00.0' + rank, ...Array(5).fill('1:00.00')];
+    row.penalty = '0:00.00';
+    row.finalTime = '6:00.0' + rank;
+    Object.assign(f.data.entryLists[0].entries[i], { car: row.car, driverId: row.driverId,
+      codriverId: row.codriverId, enteredClass: row.class });
+  });
+  return f;
+}
+module.exports = { copy, docs, season, payload, source, revisedRallyeSport, preEventEntries, rawRallyeSportTiming, rawRS0Example };

@@ -32,9 +32,10 @@
       (row.classPosClass ? ' <span class="small muted">(sheet: ' + esc(row.classPosClass) + ')</span>' : '') +
       '</span>' : value(row.classPos);
   }
-  function classPositionNote(id, resolved) {
+  function classPositionNote(id, resolved, rawTiming) {
     return '<p class="small muted" id="' + esc(id) +
-      '">* Calculated from the reviewed source classification’s overall order within its printed class; not a championship scoring rank.' +
+      '">' + (rawTiming ? '* Calculated event class positions are separate from championship ranks. Marshals timing positions use stage sums plus penalties, checked against Final Time.' :
+        '* Calculated from the reviewed source classification’s overall order within its printed class; not a championship scoring rank.') +
       (resolved ? '' : ' For unresolved classifications, source finality and technical-check notices still apply.') + '</p>';
   }
   function homePerson(row) {
@@ -347,8 +348,8 @@
   function resultClassification(display, now) {
     if (display.published === false && display.receivedEntries !== undefined) return receivedEntries(display, false, now);
     return '<div class="table-wrap result-classification rs-classification" role="region" aria-label="Classification table" tabindex="0">' +
-      '<table class="data compact"><caption class="sr-only">Source classification and independently credited championship points</caption><thead><tr>' +
-      ['Pos', 'No.', 'Crew', 'Class', 'Car', 'Stages', 'Penalty', 'Official total', 'Diff 1st', 'Diff prev', 'Class pos', 'Championship pts']
+      '<table class="data compact"><caption class="sr-only">' + (display.calculatedFromTiming ? 'Calculated classification' : 'Source classification') + ' and independently credited championship points</caption><thead><tr>' +
+      ['Pos', 'No.', 'Crew', 'Class', 'Car', 'Stages', 'Penalty', display.calculatedFromTiming ? 'Calculated total' : 'Official total', 'Diff 1st', 'Diff prev', 'Class pos', 'Championship pts']
         .map(function (label, i) { return '<th scope="col"' + ([2, 3, 4].indexOf(i) < 0 ? ' class="num"' : '') + '>' + label + '</th>'; }).join('') +
       '</tr></thead><tbody>' + display.rows.map(function (row) {
         function role(person, key) {
@@ -363,24 +364,25 @@
           '</td><td class="num result-car rs-result-car"><span class="carno-lg">' + esc(row.car) + '</span></td>' +
           '<td class="result-crew rs-result-crew"><div class="crew">' + role(row.driver, 'driver') + role(row.codriver, 'codriver') +
           (row.credit ? '<span class="co">' + esc(row.credit) + '</span>' : '') +
-          '<span class="small muted">Official finish: <span class="result-finish rs-result-finish">' + esc(row.status) +
+          '<span class="small muted">' + (display.calculatedFromTiming ? 'Recorded finish: ' : 'Official finish: ') + '<span class="result-finish rs-result-finish">' + esc(row.status) +
           '</span></span></div></td><td class="result-class rs-result-class" data-label="Class">' + classes({ classes: row.cls ? [row.cls] : [] }) +
           (row.classNote ? '<span class="small muted result-printed-class">' + esc(row.classNote) + '</span>' : '') +
           '</td><td class="result-vehicle" data-label="Car">' + esc(row.vehicle || '—') + '</td>' +
           '<td class="num result-stagecount" data-label="Stages">' + value(row.stages) + '</td>' +
           '<td class="num mono result-penalty" data-label="Penalty">' + esc(row.penalty) + '</td>' +
-          '<td class="num mono result-total rs-result-total" data-label="Official total"><b>' + esc(row.total) + '</b></td>' +
+          '<td class="num mono result-total rs-result-total" data-label="' + (display.calculatedFromTiming ? 'Calculated total' : 'Official total') + '"><b>' + esc(row.total) + '</b></td>' +
           '<td class="num mono result-gap" data-label="Diff 1st">' + esc(row.gap) + '</td>' +
           '<td class="num mono result-previous" data-label="Diff prev">' + esc(row.previousGap) + '</td>' +
           '<td class="num result-classpos" data-label="Class pos">' + classPosition(row, 'result-class-position-note') + '</td>' +
           '<td class="num result-points rs-result-points" data-label="Championship pts">' + resultPoints(row.points) + '</td></tr>';
       }).join('') + '</tbody></table></div>' +
-      (display.rows.some(function (row) { return row.classPosCalculated; }) ? classPositionNote('result-class-position-note', display.currentFinalityConfirmed) : '') +
+      (display.rows.some(function (row) { return row.classPosCalculated; }) ? classPositionNote('result-class-position-note', display.currentFinalityConfirmed, display.calculatedFromTiming) : '') +
       '<p class="small muted">' + esc(display.scoringBasis) +
-      ' Official finish is separate from each person’s championship scoring. Missing times, stage counts and awards remain unavailable.</p>' +
+      (display.calculatedFromTiming ? ' Calculated event finish is separate from each person’s championship scoring.' :
+        ' Official finish is separate from each person’s championship scoring.') + ' Missing times, stage counts and awards remain unavailable.</p>' +
       (display.awards.length ? '<details class="notes result-scoring-order rs-scoring-order"><summary>Championship scoring order</summary>' +
       '<p class="small muted">' + esc(display.scoringBasis) + '</p><div class="table-wrap"><table class="data"><thead><tr>' +
-      ['Official position', 'Class scoring position', 'Competitor', 'Role', 'Car', 'Championship scoring', 'Championship points'].map(function (label) {
+      [display.calculatedFromTiming ? 'Calculated position' : 'Official position', 'Class scoring position', 'Competitor', 'Role', 'Car', 'Championship scoring', 'Championship points'].map(function (label) {
         return '<th scope="col">' + label + '</th>';
       }).join('') + '</tr></thead><tbody>' + display.awards.map(function (row) {
         return '<tr><td class="num">' + value(row.officialPosition) + '</td><td class="num">' + value(row.rank) + '</td><td>' + resultPerson(row) + '</td><td>' +
@@ -499,7 +501,8 @@
     return (selected ? '<div class="section"><div class="section-head"><h2>Stage by stage</h2></div>' : '') +
       '<div class="table-wrap result-stage-table" role="region" aria-label="Stage times table" tabindex="0"><table class="data"><thead><tr>' +
       '<th scope="col" class="sticky">Car / crew</th>' + labels.map(function (label) { return '<th scope="col" class="num">' + esc(label) + '</th>'; }).join('') +
-      (!selected ? '<th scope="col" class="num">Penalty</th><th scope="col" class="num">Official total</th>' : '') +
+      (!selected ? '<th scope="col" class="num">Penalty</th><th scope="col" class="num">' +
+        (graph.calculatedFromTiming ? 'Calculated total' : 'Official total') + '</th>' : '') +
       '</tr></thead><tbody>' + entries.map(function (entry, index) {
         return '<tr><th scope="row" class="sticky"><span class="carno-lg">' + esc(entry.car) + '</span> ' +
           '<b' + (selected ? ' style="color:' + palette[index % palette.length] + '"' : '') + '>' + esc(entry.driver) +
@@ -518,7 +521,8 @@
             (entry.status === 'classified' ? esc(entry.totalText) : esc(entry.status)) + '</b></td>' : '') + '</tr>';
       }).join('') + '</tbody></table></div><p class="small muted">Highlighted: fastest time in this competition on the stage. ' +
       'Small figures are the official stage positions printed on the sheet.' +
-      (selected ? ' The second position is the running competition position from stage times. Final: official total and position, including penalties.' : '') +
+      (selected ? ' The second position is the running competition position from stage times. Final: ' +
+        (graph.calculatedFromTiming ? 'calculated total and position' : 'official total and position') + ', including penalties.' : '') +
       '</p>' + (selected ? '</div>' : '');
   }
   function directory(display) {
@@ -601,7 +605,8 @@
             (app.graphHref ? link(app.graphHref, 'Graph →', 'go') : '—') + '</td></tr>';
         }).join('') + '</tbody></table></div>' +
         (row.apps.some(function (app) { return app.classPosCalculated; }) ? classPositionNote('profile-class-position-note-' + index,
-          row.apps.filter(function (app) { return app.classPosCalculated; }).every(function (app) { return app.currentFinalityConfirmed; })) : '') : '') + '</div>';
+          row.apps.filter(function (app) { return app.classPosCalculated; }).every(function (app) { return app.currentFinalityConfirmed; }),
+          row.apps.some(function (app) { return app.calculatedFromTiming; })) : '') : '') + '</div>';
     });
     if (!display.seasons.length) html += '<div class="card empty">No published history for this competitor.</div>';
     if (display.note) html += '<p class="small muted">' + esc(display.note) + '</p>';

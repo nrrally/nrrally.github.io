@@ -98,6 +98,9 @@
     return docs;
   }
   function entryContractError() {
+    if (!E || E.rallyeSportRawTimingContractVersion !== 1 || typeof E.ingestRallyeSportTiming !== 'function') {
+      return 'RS timing scripts are missing or out of date. Refresh before restoring or publishing; nothing has been published.';
+    }
     if (!E || E.rallyeSportEntryListContractVersion !== 1 || typeof E.validateRallyeSportEntryLists !== 'function') {
       return 'RS entry-list scripts are missing or out of date. Refresh this page before restoring or publishing; nothing has been published.';
     }
@@ -666,6 +669,86 @@
     var parts = (location.hash || '').replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
     return { view: parts[0] || 'dashboard', a: parts[1] || '', b: parts[2] || '', c: parts[3] || '' };
   }
+  async function pdfPublished(year, version, user) {
+    if (A.mode !== 'live') throw new Error('PDF export requires the live admin session.');
+    checkSession(version, user);
+    var before = await fs('GET', '/config/revision');
+    var docs = await Promise.all(['people', 'season_' + year].map(function (id) {
+      return fs('GET', '/public/' + encodeURIComponent(id), null, { allow404: true });
+    }));
+    var after = await fs('GET', '/config/revision');
+    checkSession(version, user);
+    if (!before || !after || !before.updateTime || before.updateTime !== after.updateTime)
+      throw new Error('The publication changed while loading. Try again.');
+    if (!docs[1]) return { model: null, rounds: {}, revision: after.updateTime };
+    var people = docs[0] ? JSON.parse(fsObj(docs[0].fields).json) : { people: [] };
+    var bundle = JSON.parse(fsObj(docs[1].fields).json);
+    var model = E.buildSeason({ season: bundle.season, rounds: bundle.rounds || {}, people: people, publicProjection: true });
+    model.year = +year;
+    return { model: model, rounds: bundle.rounds || {}, season: bundle.season, revision: after.updateTime };
+  }
+  function pdfChoices(snapshot, mode) {
+    if (!snapshot.model) return [];
+    if (mode === 'rs') return snapshot.model.rallyesport.events.map(function (event) {
+      var d = window.NRPublicModel.eventResult(snapshot.model, event.id, 'classification');
+      return { id: event.id, display: d };
+    });
+    return snapshot.model.calendar.map(function (round) {
+      return { id: round.id, display: window.NRPublicModel.result(snapshot.model, 'nr', round.id, 'classification') };
+    });
+  }
+  function viewPdfExports() {
+    var html = pageHead('Published results', 'PDF exports', 'Export a published classification. Unpublished working edits are never used.');
+    if (A.mode !== 'live') return html + '<div class="card">PDF export is unavailable in simulation. Use an authorized live admin session.</div>';
+    var state = A.pdf;
+    if (!state || state.year !== A.year) {
+      state = A.pdf = { year: A.year, mode: 'rs', id: '', loading: true };
+      var version = sessionVersion, user = A.user;
+      pdfPublished(state.year, version, user).then(function (snapshot) {
+        if (A.pdf !== state || version !== sessionVersion) return;
+        state.snapshot = snapshot; state.loading = false;
+        if (route().view === 'pdf-exports') render();
+      }, function (error) {
+        if (A.pdf !== state || version !== sessionVersion) return;
+        state.error = error.message; state.loading = false;
+        if (route().view === 'pdf-exports') render();
+      });
+    }
+    if (state.loading) return html + '<div class="card">Loading published results…</div>';
+    if (state.error) return html + '<div class="card"><p class="bad">' + esc(state.error) + '</p>' +
+      btn(function () { A.pdf = null; render(); }, 'Retry') + '</div>';
+    var choices = pdfChoices(state.snapshot, state.mode);
+    if (!choices.some(function (item) { return item.id === state.id; })) state.id = choices.length ? choices[0].id : '';
+    var selected = choices.filter(function (item) { return item.id === state.id; })[0];
+    var display = selected && selected.display;
+    html += '<div class="card"><div class="form-grid">' +
+      fld('Competition', select(function (value) { state.mode = value; state.id = ''; }, state.mode,
+        [['rs', 'RallyeSport'], ['nr', 'Northern Regions']], 'data-rerender')) +
+      fld('Event or round', select(function (value) { state.id = value; }, state.id,
+        choices.length ? choices.map(function (item) { return [item.id, item.display.name]; }) : [['', 'No published events']], 'data-rerender')) +
+      '</div><p>Published status: <b>' + esc(display ? display.state : 'Unavailable') + '</b></p>' +
+      (!display || !display.published || !display.rows.length ? '<p>No published classification is available for this selection.</p>' : '') +
+      btn(async function () {
+        var version = sessionVersion, user = A.user, mode = state.mode, id = state.id, year = state.year;
+        var current = await pdfPublished(year, version, user);
+        var item = pdfChoices(current, mode).filter(function (candidate) { return candidate.id === id; })[0];
+        if (!item || !item.display || !item.display.published || !item.display.rows.length)
+          throw new Error('No published classification is available for this selection.');
+        var raw = mode === 'nr' ? current.rounds[id] : (current.season.rallyesport.results || []).filter(function (result) {
+          return result.eventId === id;
+        })[0];
+        if (!window.NRClassificationPDF) throw new Error('PDF export scripts are unavailable.');
+        await window.NRClassificationPDF.download(item.display, raw, mode, async function () {
+          checkSession(version, user);
+          if (A.mode !== 'live') throw new Error('The admin session changed.');
+          var revision = await fs('GET', '/config/revision');
+          checkSession(version, user);
+          if (!revision || revision.updateTime !== current.revision) throw new Error('Published data changed; reopen the export and try again.');
+        });
+        toast('Classification PDF downloaded.', 'good');
+      }, 'Export Classification PDF', 'primary', !display || !display.published || !display.rows.length ? 'disabled' : '') + '</div>';
+    return html;
+  }
   function go(h) { if (location.hash === h) render(); else location.hash = h; }
   function updateBadge() {
     var n = changes().length, el = document.getElementById('chg');
@@ -674,7 +757,7 @@
   }
 
   /* ------------------------------------------------------------------ shell */
-  var NAV = [['dashboard', 'Dashboard'], ['ai-import', 'AI Import'], ['results', 'Results'], ['events', 'Events & calendar'], ['rallyesport', 'RallyeSport'], ['logic', 'Logic explorer'], ['competitors', 'Competitors'], ['season', 'Season settings'], ['site', 'Site & info'], ['history', 'History'], ['publish', 'Review & publish']];
+  var NAV = [['dashboard', 'Dashboard'], ['ai-import', 'AI Import'], ['results', 'Results'], ['pdf-exports', 'PDF exports'], ['events', 'Events & calendar'], ['rallyesport', 'RallyeSport'], ['logic', 'Logic explorer'], ['competitors', 'Competitors'], ['season', 'Season settings'], ['site', 'Site & info'], ['history', 'History'], ['publish', 'Review & publish']];
   function render() {
     var focus = document.activeElement, focusIndex = -1, focusLabel = '';
     if (route().view === 'rallyesport' && focus && ROOT.contains(focus) && focus.hasAttribute('data-k')) {
@@ -692,6 +775,7 @@
         case 'import': html = viewImport(); break;
         case 'ai-import': html = viewAIImport(); break;
         case 'results': html = viewResults(r.a); break;
+        case 'pdf-exports': html = viewPdfExports(); break;
         case 'events': html = viewEvents(); break;
         case 'rallyesport': html = viewRallyeSport(); break;
         case 'logic': html = viewLogic(r.a, r.b); break;
@@ -1416,7 +1500,7 @@
       render();
     }, 'Add RS entry list');
     var choices = [['', 'Not supplied']].concat(peopleDoc().people.map(function (person) { return [person.id, person.name]; }));
-    return '<p class="small muted">Public sporting data only. Entered class is not a scoring decision. No membership, national entry or legacy non-scoring register is consulted. RS0 applicability remains unresolved; do not infer it. Choose verified stable profiles; add a genuinely new person in Competitors first. Empty car, co-driver, vehicle or class means not supplied.</p><div class="form-grid">' +
+    return '<p class="small muted">Public sporting data only. Entered class is not a scoring decision. No membership, national entry or legacy non-scoring register is consulted. RS0 requires a separate event-only result review; do not infer it from entry evidence. Choose verified stable profiles; add a genuinely new person in Competitors first. Empty car, co-driver, vehicle or class means not supplied.</p><div class="form-grid">' +
       fld('RS entry source title', input(function (v) { list.source.title = v.trim(); }, list.source.title, 'maxlength="200"'), 'Public title only; no private paths, contact or licence details.') +
       fld('RS entry source date', input(function (v) { list.source.date = v; }, list.source.date, 'type="date"')) +
       fld('RS entry source URL (optional)', input(function (v) { list.source.url = v.trim(); }, list.source.url, 'type="url" maxlength="2000"')) +
@@ -1881,7 +1965,7 @@
       var sourceCategories = Object.create(null);
       (result && result.entries || []).forEach(function (entry) {
         var category = String(entry['class'] || '').replace(/\s+/g, '').toUpperCase();
-        if ((entryPolicy || entry.status === 'classified') && category && ['RS2', 'RS4', 'TEST'].indexOf(category) < 0) sourceCategories[category] = entry['class'];
+        if ((entryPolicy || entry.status === 'classified') && category && ['RS0', 'RS2', 'RS4', 'TEST'].indexOf(category) < 0) sourceCategories[category] = entry['class'];
       });
       var eventPath = '#/rallyesport/events/' + encodeURIComponent(event.id);
       return '<article class="card rs-editor"><div class="section-head"><h3>' + esc(event.name || event.id) + '</h3>' + btn(function () {
@@ -1916,12 +2000,15 @@
         '</section>' + rsPane('entries', pane, 'RS entries received') + rsEntryListEditor(data, event) +
         '</section>' + (result ? rsPane('source', pane, 'Classification source and finality') + '<h4>Official RS classification</h4><div class="form-grid">' +
           fld('Classification title', input(function (v) { result.title = v; }, result.title || '', 'maxlength="200"')) +
-          fld('Printed finality/status', input(function (v) { result.status = v; }, result.status || '', 'maxlength="200"'), 'Enter the source wording; do not infer finality.') +
+          fld('Printed finality/status', input(function (v) { result.status = v; }, result.status || '', 'maxlength="200" aria-label="Printed finality/status"'), 'Enter the source wording; do not infer finality.') +
           fld('Separate scoring-finality review', select(function (v) {
-            if (v === 'user-confirmed') result.finalityReview = result.finalityReview || { acceptedForScoring: true, evidence: '' };
+            if (v === 'user-confirmed') {
+              result.finalityReview = result.finalityReview || { acceptedForScoring: true, evidence: '' };
+              if (result.timingCalculation) result.finalityReview.digest = E.rallyeSportClassOrderDigest(result);
+            }
             else delete result.finalityReview;
           }, result.finalityReview && result.finalityReview.acceptedForScoring ? 'user-confirmed' : '',
-            [['', 'No separate user finality review'], ['user-confirmed', 'User confirms supplied classification may be scored']], 'data-rerender'),
+            [['', 'No separate user finality review'], ['user-confirmed', 'User confirms supplied classification may be scored']], 'data-rerender aria-label="Separate scoring-finality review"'),
             'Use only for an explicit human decision. This does not revise the printed source status or establish external technical clearance.') +
           fld('Finality-review evidence', area(function (v) {
             if (!result.finalityReview || !result.finalityReview.acceptedForScoring) return;
@@ -1933,7 +2020,8 @@
           fld('Source description', input(function (v) { result.source.description = v; }, result.source.description || '', 'maxlength="1000"'), 'For an attached/private source without a public URL, identify the document without entering a local path.') +
           fld('Official source URL', input(function (v) { result.source.url = v; }, result.source.url || '', 'type="url" maxlength="2000"'), 'HTTPS source for this exact classification.', 'span2') +
           '</div>' + currentFinalityControl(result, 'rs') + '<h4>Source class-order review</h4><p class="small">Examine the complete classification and every source row, including printed classes, statuses and positions. This permits display-only class positions, not scoring or a change to source finality. Source or row edits invalidate the review. Evidence is private; an amended source may be identified here without changing the stored URL.</p>' +
-          '<p class="small" id="rsClassOrderStatus">' + esc(classOrder.status === 'ready' ? 'Reviewed snapshot matches.' : classOrder.reason) + '</p>' +
+          '<p class="small" id="rsClassOrderStatus">' + esc(classOrder.status === 'ready' ? result.timingCalculation ?
+            'Calculated class order verified against stage timing.' : 'Reviewed snapshot matches.' : classOrder.reason) + '</p>' +
           fld('Private source examination evidence', area(function (v) { A.rsClassOrderDrafts[reviewKey] = v; }, reviewDraft, 'rows="2" maxlength="1000" id="rsClassOrderEvidence"'), 'Identify the examined source and completeness evidence; do not include private competitor data.') +
           '<div class="actions">' + btn(function () {
             requireEntryContract();

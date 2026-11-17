@@ -11,6 +11,46 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
+### RS raw timing and event-only RS0 (code-only release candidate)
+
+This slice builds on freshly fetched `origin/main`
+`56ad227e63246673adf30d1a4802bfdc571fabf5`.
+It adds a pure Copilot-assisted explicit event-stage-plus-penalty conversion using a
+reviewed event roster for car-to-crew matching, exact marshals Final
+Time verification, explicit DNF/DNS and event-only RS0, with provisional scoring via
+the existing reviewed publish workflow. Event-level NR associations are allowed;
+raw classifications still reject NR round/stage links and never reuse NR timing.
+No workbook, real crew or provider state was
+read/written. The user authorized a code-only release after all gates pass; at the
+pre-push validation checkpoint no commit, push or deployment had occurred. No Firebase
+write, rule/data migration or database
+publication is authorized. First-real-workbook acceptance is outstanding.
+Read [the contract](data-model.md#rs-raw-timing-contract-local-code-only),
+[intake procedure](data-entry-guide.md#copilot-assisted-rs-marshals-timing-local-code-not-deployed)
+and [scoring rules](scoring-rules.md#provisional-raw-timing-and-event-only-rs0-local-extension).
+
+The four shells coordinate local `rs-timing-1` assets. Admin requires raw contract 1.
+Before any later authorized deployment/publication, reconcile fresh main, retire old
+admin tabs, reload all assets, take a protected backup and review the exact candidate.
+Old validators cannot safely publish the new provenance/event-only review schema.
+If new data has been published, do not roll code back alone: restore a compatible
+working/public before-image atomically with revision/History under separate approval.
+Retain entry evidence, raw source strings, final-time provenance and private review
+evidence in the protected backup. Git cannot recover them. New timing/source/identity
+edits invalidate digest-bound provisional scoring acceptance. Existing official source
+records and old review digests are unchanged absent new data.
+
+### Classification PDF exports (code-only release candidate)
+
+The separate admin menu reads only the selected published snapshot, rechecks authorized
+revision access before download and cannot publish or edit data. It requires the
+frame and logo assets plus integrity-pinned CDN libraries; a network or integrity
+failure blocks export. The exact actual-data and synthetic validation is recorded in
+[releases.md](releases.md). No Firestore migration or provider configuration change
+is included. `rs-timing-1` coordinates the runtime shells. Real Google sign-in and
+user-operated download remain post-deployment checks; never use an agent-held account
+to impersonate an admin.
+
 ### Approved public wording changes (deployed)
 
 The approved 2026 wording change is presentation-only: shared public adapters and

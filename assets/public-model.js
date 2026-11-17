@@ -613,7 +613,7 @@
     } else {
       var rs = model.rallyesport, scoring = rs.scoring, entryPolicy = E.rallyeSportEntryPolicy(rs);
       var tables = scoring.status === 'ready' ? scoring.standings : scoring.provisionalStandings;
-      display.classes = (entryPolicy ? ['RS2', 'RS4'] : ['RS2', 'RS4', 'RS0'])
+      display.classes = (entryPolicy && !(tables && (tables[role === 'driver' ? 'classDrivers' : 'classCodrivers'].RS0 || []).length) ? ['RS2', 'RS4'] : ['RS2', 'RS4', 'RS0'])
         .map(function (cls) { return { id: cls, description: '' }; });
       display.selectedClass = display.classes.some(function (cls) { return cls.id === q['class']; }) ? q['class'] : '';
       var overall = tables && tables[role === 'driver' ? 'overallDrivers' : 'overallCodrivers'] || [];
@@ -627,7 +627,8 @@
           return { id: result.id, label: event.roundNumber == null ? event.name : 'R' + event.roundNumber,
             name: event.name, description: event.name,
             href: href(model.year, mode, '/rallyesport/' + encodeURIComponent(result.id) + '/classification'),
-            note: score && score.status === 'ready' ? '' : 'Points unavailable; excluded from cumulative totals.' };
+            note: score && score.status === 'ready' ? result.timingCalculation && /provisional/i.test(result.status || '') ?
+              'Provisional round points.' : '' : 'Points unavailable; excluded from cumulative totals.' };
         }).filter(Boolean);
       display.rows = selected.map(function (raw) {
         var known = homeRows.filter(function (row) { return row.id === raw.id; })[0];
@@ -736,6 +737,7 @@
         return raw.currentFinalityConfirmed && metric.id === 'pos' ?
           Object.assign({}, metric, { help: 'Position within this competition after each stage (stage times only). “Final” marks the displayed classification endpoint, including penalties; it does not confirm that the source document is final.' }) : metric;
       }) };
+    if (mode === 'rs' && raw.timingCalculation) graph.calculatedFromTiming = true;
     if (mode === 'nr') {
       graph.stages = raw.stages.slice(); graph.labels = raw.labels.slice(); graph.progression = raw.progression;
       graph.entries = raw.entries.map(function (entry) {
@@ -922,9 +924,11 @@
       }
     }
     if (!raw) return display;
+    if (raw.timingCalculation) display.calculatedFromTiming = true;
+    if (mode === 'rs' && raw.timingCalculation && ready && /provisional/i.test(raw.status || '')) display.pointsLabel = 'Provisional points';
     var source = raw.source || {};
     if (source.url || mode === 'nr' && event.links && event.links.results)
-      display.sourceLinks.push({ label: 'Official source classification', url: source.url || event.links.results });
+      display.sourceLinks.push({ label: raw.timingCalculation ? 'Marshals timing source' : 'Official source classification', url: source.url || event.links.results });
     if (source.pdf) display.sourceLinks.push({ label: 'Copy of the PDF', url: source.pdf });
     display.notes = (raw.notes || []).map(function (note) { return publicSourceNote(note, mode, raw); }).filter(Boolean);
     if (source.file) display.notes.unshift('Source: ' + source.file);
@@ -934,15 +938,19 @@
       if (mapped.length) display.notes.push('Displayed classes: ' + mapped.join(', ') + '. Event-specific source class mapping applied; printed categories remain in the official source.');
       if (raw.entries.some(E.rallyeSportLaunchRS0))
         display.notes.push('Printed TEST category/status remains source evidence, not a supported championship class or status. No timing or source row was removed.');
-      display.notes.push('Source records, finish order and timing are preserved. Missing times stay missing; final positions are not inferred from stage sums.');
-      display.notes.push('Printed class positions are source facts, not championship class-role ranks. The separate scoring order shows role-specific positions.');
+      display.notes.push(raw.timingCalculation ?
+        'Totals and event/class positions are calculated from the supplied stage times plus penalties and checked against marshals Final Time. Source timing is preserved; official confirmation is separate.' :
+        'Source records, finish order and timing are preserved. Missing times stay missing; final positions are not inferred from stage sums.');
+      display.notes.push(raw.timingCalculation ?
+        'Calculated event class positions are separate from championship class-role ranks.' :
+        'Printed class positions are source facts, not championship class-role ranks. The separate scoring order shows role-specific positions.');
       var minimum = rsStarterMinimumNote(model.rallyesport.scoring, model.year);
       if (minimum) display.notes.push(minimum);
       if (!E.rallyeSportEntryPolicy(model.rallyesport)) display.notes.push('RS0 · Non-Scoring · No championship points or rank.');
     }
     var byCar = {};
     (score && score.entries || []).forEach(function (row) { byCar[row.car] = row; });
-    var entries = mode === 'nr' ? orderedResultEntries(graph.entries) : graph.entries;
+    var entries = mode === 'nr' || raw.timingCalculation ? orderedResultEntries(graph.entries) : graph.entries;
     var first = entries.filter(function (entry) { return entry.status === 'classified' && entry.pos === 1 && entry.total != null; })[0], previous = null;
     display.rows = entries.map(function (entry) {
       var original = raw.entries.filter(function (row) { return String(row.car) === entry.car; })[0], points = byCar[entry.car] || {};
@@ -1126,6 +1134,7 @@
         href: href(model.year, mode, '/rallyesport/' + encodeURIComponent(result.id)),
         graphHref: href(model.year, mode, '/rallyesport/' + encodeURIComponent(result.id) + '/graph', { cars: entry.car }),
         stagePos: (entry.stagePos || []).slice() });
+      if (result.timingCalculation) row.apps[row.apps.length - 1].calculatedFromTiming = true;
       if (app.eligibility && app.eligibility.status === 'eligible' && app.eligibility.scoringClass &&
         row.classes.indexOf(app.eligibility.scoringClass) < 0) row.classes.push(app.eligibility.scoringClass);
     });

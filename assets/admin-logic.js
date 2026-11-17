@@ -227,9 +227,15 @@
       'Championship/applicability evidence; result; double-points declaration/dates; finality; classes; source rows; starters; invitation review.', [
         node('Are only entries received, with no official classification?', [
           branch('Yes', 'season.rallyesport.entryLists is independent RS event evidence. Validate public-only fields, explicit completeness/source date and known distinct stable crew IDs; duplicate cars/people or unknown fields block publication. NR entryLists are never copied.'),
-          branch('Entered class supplied', 'Display exactly the normalized entry label, never a scoring or eligibility decision. RS0 applicability remains unresolved; national membership and legacy nonScoringPeople are not consulted. No starts, results, points or standings arise.'),
+          branch('Entered class supplied', 'Display exactly the normalized entry label, never a scoring or eligibility decision. RS0 needs separate explicit event-only result review; national membership and legacy nonScoringPeople are not consulted. No starts, results, points or standings arise.'),
           branch('Later official result', 'The existing result/scoring gates below apply. Retain the entry list independently; do not convert it to classified or DNS rows.')
-        ], [currentSource('assets/engine.js', 1571, 1624, 'validateRallyeSportEntryLists'), currentSource('assets/public-model.js', 831, 924, 'eventResult / result')]),
+        ], [currentSource('assets/engine.js', 1650, 1703, 'validateRallyeSportEntryLists'), currentSource('assets/public-model.js', 832, 933, 'eventResult / result')]),
+        node('Are independent event-stage marshals timings being converted?', [
+          branch('Explicit stage list, reviewed roster/class and complete classified times', 'Match each car uniquely to the reviewed event roster and review its roles and class. Pure Copilot-assisted conversion adds penalties in integer ticks, cross-checks every marshals Final Time and calculates overall/class positions. An event-level NR association is allowed, but a linked NR round or mapped NR stage is not; no NR timing is reused. Any mismatch blocks the entire result. No new import UI or provider write.'),
+          branch('Declared DNF / DNS', 'Preserve partial/null observations and null total/position. DNF starts and eligible zero points; DNS no start/points. Never infer status from blanks.'),
+          branch('Ties, cancelled/zero stages, partial classified rows, unknown formats or identity/class mismatch', 'Hold for review; no guessed tie-break, rounding or identity from a car without a unique reviewed roster match.'),
+          branch('Result created', 'Source status stays Provisional classification. Separate explicit scoring acceptance is still required; official finality and PDF export are not produced.', 'rs-finality')
+        ], [currentSource('assets/engine.js', 2194, 2395, 'calculateRallyeSportTiming / ingestRallyeSportTiming')]),
         node('Is the event explicitly a championship round?', [
           branch('countsForChampionship is not true', 'Do not create a championship scoring row for this event. A recorded event classification can still be displayed.'),
           branch('Confirmed true', 'A complete official classification must exist. Publishing validation also requires championship evidence.')
@@ -315,6 +321,7 @@
       'Printed class/category, optional classification-scoped classMappings/evidence; overall and class positions.', [
         node('Is the printed category configured?', [
           branch('RS2 or RS4', 'Use that scoring class, preserving the printed category.'),
+          branch('RS0 with explicit eventNonScoringReview and reviewed crew IDs under entry policy', 'Retain the event finishing position but exclude both roles from this event championship points/ranks. Never map RS0 to RS2/RS4 or remove historical points.'),
           branch('Another classified category', 'Block unless an explicit classification-specific evidence-backed mapping to RS2/RS4 is recorded. Do not carry mappings to other events.'),
           branch('TEST', 'Never map TEST into championship scoring. Under entry-based policy it is unsupported except retained printed launch evidence with an explicit row launchNonScoringReview: effective RS0 for both roles, event countsForChampionship false and no roundNumber. This never excludes the person at later events. Unknown inputs are not converted.')
         ], [source('assets/engine.js', 227, 231, 'rallyeSportScoringClass'), source('assets/engine.js', 1435, 1455, 'mapping validation'), source('assets/engine.js', 938, 942, 'category scoring gate')]),
@@ -336,9 +343,9 @@
           branch('Provisional, unclear, or "results are final pending post-event technical checks"', 'Not automatically accepted for points. Keep the official result available and its qualifications visible.')
         ], [source('assets/engine.js', 904, 910, 'sourceFinal'), source('assets/engine.js', 936, 937, 'finality gate')]),
         node('Is there a separate evidence-backed user finality review?', [
-          branch('acceptedForScoring true and nonblank evidence', 'Allow finality for scoring with user-confirmed basis. Preserve printed status, footer and notes. Other gates can still block points.'),
+          branch('acceptedForScoring true and nonblank evidence', 'Allow provisional points with user-confirmed basis; keep source status/notes provisional. Raw timing additionally requires a matching classification digest; source/timing/identity edits invalidate acceptance. Other event gates still apply.'),
           branch('No', 'Provisional or unclear classifications remain unscored. Merely entering evidence without selecting the separate review cannot activate it in admin.')
-        ], [source('assets/engine.js', 284, 287, 'rallyeSportFinalityAccepted'), source('assets/admin.js', 1872, 1884, 'separate finality controls')]),
+        ], [currentSource('assets/engine.js', 301, 305, 'rallyeSportFinalityAccepted'), currentSource('assets/admin.js', 1921, 1938, 'separate scoring acceptance controls')]),
         node('What does the public UI disclose?', [
           branch('Pending technical-check note and no current-finality review', 'Retain the visible Technical checks pending badge and source qualifications even when the separate user-confirmed scoring review is allowed.'),
           branch('Matching current-finality review', 'The display can instead show Final classification and suppress the superseded pending-check footer; this does not itself approve points.', 'shared-finality'),
@@ -358,6 +365,7 @@
           branch('Eligible DNF with supported class', 'Zero points, no scoring position; official status establishes start even without stage observations.'),
           branch('Unsupported class', 'No invented points; unresolved category semantics still block scoring.'),
           branch('DNS', 'Null points, never a start.'),
+          branch('Explicit reviewed championship RS0 under entry policy', 'Keep the event position/time; both roles get zero non-DNS points and no scoring rank for this event only. Remove RS0 before RS2/RS4 role ranks; preserve prior RS2/RS4 points. No global exclusion or class remapping.'),
           branch('Legacy policy only: non-eligible / invitation / TEST with non-DNS source row', 'Zero championship points and no rank, shown as RS0. Entry-based policy ignores those exclusions; championship TEST inputs block rather than receiving zero.')
         ], [source('assets/engine.js', 1004, 1019, 'driverPoints / codriverPoints')]),
         node('How does the website distinguish zero and missing?', [
@@ -376,14 +384,15 @@
           branch('Other pattern / >8 rounds / unsupported double declaration', 'Season is incomplete or blocked with a reason; the app does not select a double-points event to fix it.')
         ], [source('assets/engine.js', 1079, 1094, 'roundRule / status')]),
         node('Are all confirmed championship events ready?', [
-          branch('Yes and round pattern passes', 'Return ready standings. The unresolved equal-total rule still applies; this is not an official championship certification.'),
+          branch('Yes and round pattern passes, but a contributing raw-timing source is provisional/non-final', 'Retain provisional cumulative points; scoring acceptance does not turn provisional raw results or the season final. Existing non-raw source behavior is unchanged.'),
+          branch('Yes, round pattern passes and contributing raw-timing sources are final', 'Return ready standings under existing other gates. The unresolved equal-total rule still applies; this is not an official championship certification.'),
           branch('Some ready, season incomplete/blocked', 'Build explicitly provisional cumulative tables using ready events only. Disclose included/excluded events and reasons.'),
           branch('None ready', 'No cumulative table. Source event results remain available.')
-        ], [source('assets/engine.js', 1079, 1095, 'standings / provisionalStandings'), source('assets/site.js', 402, 409, 'rsScoringNotice')]),
+        ], [currentSource('assets/engine.js', 1145, 1176, 'standings / provisionalStandings'), source('assets/site.js', 402, 409, 'rsScoringNotice')]),
         node('How are people aggregated and ranked?', [
           branch('Eligible role with numeric points', 'Sum by stable ID separately for drivers and co-drivers, in overall and actual RS2/RS4 class tables.'),
           branch('Equal season totals', 'Share rank = 1 + number of people with higher totals. Alphabetical presentation is not a season tie-break or winner declaration.'),
-          branch('Legacy only: excluded role, non-DNS source', 'Keep a zero-point unranked RS0 row after eligible rows. Entry-based championship tables have RS2/RS4 only; the launch-only RS0 review never enters these totals.'),
+          branch('Excluded role / explicit event-only RS0, non-DNS source', 'RS0-only people remain zero and unranked. A person eligible at other events retains those points and rank; event-only RS0 never erases history. Show the RS0 filter only when such rows exist under entry policy. The launch exception never enters these totals.'),
           branch('Standings split display', 'Show each scored round with its RS class contribution. Overall totals reuse those class points; there is no separate overall award.')
         ], [source('assets/engine.js', 1026, 1078, 'buildStandings')])
       ], ['rs-events', 'rs-points', 'shared-limits']),
@@ -569,7 +578,7 @@
           branch('Missing / empty / partial entry list', 'Show no entries published, a known-empty list, or explicitly partial coverage. Missing co-driver, car, vehicle or entered class stays Not supplied. Never inherit NR crews or infer RS0.'),
           branch('Official result later published', 'The same event URL shows the actual classification first and retains received entries separately. Future entry edits and supported results use ordinary Firebase publication, not code pushes.'),
           branch('Restore, undo or older clients', 'Review entry evidence loss, preserve protected backups and use atomic working/public/revision/History publication. New admin rejects an old entry engine. Previously open clients still require retirement and reload.')
-        ], [currentSource('assets/public-model.js', 831, 924, 'eventResult / result'), currentSource('assets/public-components.js', 391, 456, 'receivedEntries / resultShell')]),
+        ], [currentSource('assets/public-model.js', 832, 933, 'eventResult / result'), currentSource('assets/public-components.js', 391, 456, 'receivedEntries / resultShell')]),
         node('Are results present for the selected season?', [
           branch('Calendar only / empty', 'Show supplied events/documents and entry evidence. Do not fabricate leaders, result counts, stage programmes, standings or MSA confirmation.'),
           branch('Published round available', 'Link to its source classification/graph and evidence-qualified points.'),
@@ -622,6 +631,11 @@
           branch('Authorized admin', 'Use existing admin access; the explorer needs no new database permission, reads or writes.'),
           branch('Downloaded JavaScript', 'The repository and static catalogue are inspectable. Do not put credentials, account registers or private competitor evidence in them.')
         ], [source('assets/admin.js', 681, 687, 'render access gate'), source('docs/testing.md', 268, 275, 'access testing boundary')]),
+        node('Can the selected classification be exported as a PDF?', [
+          branch('No approved live admin, no published rows, or changed revision', 'Do not download. Reauthorize or reload; simulation and drafts are not export sources.'),
+          branch('Published rows and current authorization', 'Preserve event positions, source timing and source-based status. A scoring review does not change finality; unavailable licence numbers are not invented.'),
+          branch('Libraries fail integrity or load, unsupported characters, or ambiguous source', 'Stop visibly without downloading. Integrity-pinned libraries render only public data in an isolated sandbox; recheck authorized revision access before download.')
+        ], [currentSource('assets/admin.js', 674, 753, 'pdfPublished / viewPdfExports'), currentSource('assets/classification-pdf.js', 197, 249, 'isolated rendering / download')]),
         node('Does a local code task authorize provider actions?', [
           branch('No', 'No implied push, PR, deployment, rule/schema change or database publication. Direct authorized Firebase changes require atomic before/after attributed History, not a later note.'),
           branch('Recovery', 'Git alone cannot restore Firestore, photos, Auth, owners, DNS or provider config. Keep authorized private backups/source and access records outside the public repo.'),

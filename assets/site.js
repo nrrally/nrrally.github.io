@@ -508,7 +508,7 @@
         values: vals, end: end, entry: e, entryEligibility: eligibilityNote,
         timePrecision: r.timePrecision };
     });
-    var chartHtml = series.length ? lineChart({ labels: labels, series: series, kind: metric.kind, finalCol: metric.final, title: metric.label + ' — ' + r.name, metric: metric }) :
+    var chartHtml = series.length ? lineChart({ labels: labels, series: series, kind: metric.kind, finalCol: metric.final, calculatedFromTiming: r.calculatedFromTiming, title: metric.label + ' — ' + r.name, metric: metric }) :
       '<div class="empty">Choose one or more cars to draw the graph.</div>';
     var html = window.NRPublicComponents.graphPanel(r, cars, metric, PALETTE, series, chartHtml,
       cars.length === 2 ? headToHead(r, cars[0], cars[1]) : '', cars.length ? selectedStageTable(r, cars) : '');
@@ -647,7 +647,8 @@
     function show(i) {
       var rows = cfg.series.map(function (se) { return { se: se, v: se.values[i] }; }).filter(function (o) { return o.v != null; });
       rows.sort(function (a, b) { return a.v - b.v; });
-      var label = cfg.finalCol && i === cfg.labels.length - 1 ? 'Final (official, incl. penalties)' : 'After ' + cfg.labels[i];
+      var label = cfg.finalCol && i === cfg.labels.length - 1 ? (cfg.calculatedFromTiming ?
+        'Final (calculated, incl. penalties)' : 'Final (official, incl. penalties)') : 'After ' + cfg.labels[i];
       if (metric.id === 'loss' || metric.id === 'spos') label = cfg.labels[i];
       tip.innerHTML = '<h4>' + esc(label) + '</h4>' + (rows.length ? rows.map(function (o) {
         var val = metric.kind === 'rank' ? 'P' + o.v : (Math.abs(o.v) < 1e-9 ? (metric.id === 'loss' ? 'fastest' : 'leader') :

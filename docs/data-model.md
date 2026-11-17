@@ -230,8 +230,8 @@ Car is `""` or 1-8 digits; entered class is `""` or normalized uppercase text
 without spaces (up to 32 characters); vehicle is `""` or at most 200 characters.
 These empty values mean **Not supplied**, not zero or a default class. Entered class
 is a label only, including any supplied RS0: it never maps a result class, grants
-eligibility or consults `nonScoringPeople`. RS0 applicability remains unresolved
-pending sporting clarification; no new policy is implemented.
+eligibility or consults `nonScoringPeople`. The separate local result extension
+supports explicit event-only RS0 review; an entry label alone never activates it.
 
 Source title (1-200 characters) and a real ISO date are required. URL is `""`
 or a public HTTPS URL without embedded credentials (up to 2000 characters).
@@ -529,13 +529,78 @@ merely by loading it:
   `eligibilityPolicyApplied: "entry-based-2026-v1"` replace the legacy
   `membershipReviewApplied` marker. Entry-based eligibility rows have
   `{status: "eligible", scoringClass: "RS2" | "RS4", scoringPosition, reason: ""}`;
-  there is no membershipStatus assertion. Championship RS0 tables are empty.
+  there is no membershipStatus assertion. Absent explicit event-only RS0 rows,
+  championship RS0 tables remain empty.
 - Revised public events retain `countsForChampionship` (a public sporting scope boolean,
   not private evidence). A false value requires no round number. Evidence remains
   private. Legacy public projections retain their existing shape.
 - The launch row projects `publicLaunchNonScoring: true`, retaining unchanged printed
   class/status/order/times and removing `launchNonScoringReview`. This marker drives
   effective RS0 presentation, never a championship result or global person exclusion.
+
+### RS raw timing contract (local code only)
+
+`NREngine.rallyeSportRawTimingContractVersion === 1` exposes the pure
+`ingestRallyeSportTiming(season, people, input) -> {result, issues}` transformation.
+No provider, workbook upload, automatic publication or registration UI is involved.
+The supported normalized input is:
+
+```js
+{
+  id: "synthetic-timing", eventId: "existing-event", title: "Synthetic marshals timing",
+  source: {file: "synthetic.xlsx", description: "Synthetic timing source"},
+  precision: 2, identityEvidence: "Private review of event roster, roles and class assignments",
+  stages: [{id: "ss1", label: "SS1"}, {id: "ss2", label: "SS2"}],
+  rows: [{
+    car: "1", status: "classified", times: ["1:00.01", "1:00.02"],
+    penalty: "0:00.00", finalTime: "2:00.03"
+  }]
+}
+```
+
+Use the reviewed 2026 entry-based season and an existing championship event with
+no existing result. An event-level `nrEventId` association is allowed; this
+classification must have no `nrRoundId` or stage `nrStage` mapping. Event association
+does not reuse NR timing. Replacement or round/stage-linked conversions need
+separate review. Supply one validated event entry list, reviewed role/class assignments
+and explicit `identityEvidence` describing that review. One to 1000 unique timing cars
+must each exactly match one entry; stable role IDs, canonical names, vehicle and class
+come from that roster. Optional supplied identity/class/vehicle fields must exactly
+match, never override it. Unknown or duplicate cars, invalid roles or missing/unsupported
+class block conversion. An entered label alone is not a scoring review: the operator must
+explicitly review the assignment, with separate `nonScoringEvidence` for each RS0 row.
+Preserve public sporting data only;
+unknown fields, licence/contact data and private roster material are rejected.
+
+Precision is an explicit integer 0-3. Strings must be `m:ss` or `h:mm:ss`,
+with exactly that number of decimal digits, component minutes/seconds 0-59,
+and positive observed stage durations. No Excel serials, guessed formats, rounding,
+partial classified finishers, cancelled/zero stages or equal totals are generalized.
+Penalty is explicit, including zero; it is **added**. Exact mismatch returns no result.
+Explicit `DNF`/`DNS` permits null missing stages, requires null Final Time, and keeps
+null total/overall/class position. Status is never inferred from blanks or timing.
+
+Supply 1-100 explicit ordered `{id, label}` stages with unique IDs and labels; each
+row has exactly one observation per stage. The stage list is not inferred from cells.
+Output is the normal RS result shape: those independent stages, raw times/penalties,
+calculated total/overall/class positions, null printed stage positions, reviewed
+identities and `status: "Provisional classification"`. `timingCalculation` is
+`{version: 1, precision, finalTimes: [...]}`; original Final Time strings/nulls align
+with result entries. Validation/scoring recheck provenance and calculated values.
+Class positions are labelled calculated, not printed. An RS0 row additionally needs
+`nonScoringEvidence` at intake; it becomes private `eventNonScoringReview: {evidence}`.
+Only explicit RS0 championship rows with reviewed IDs/policy qualify. Public projection
+strips evidence and emits `publicEventNonScoring: true`; scoring uses
+`status: "event-non-scoring"`, class RS0, no scoring position and zero non-DNS points.
+This never deletes prior results, changes NR, or changes the global exclusion register.
+
+No `finalityReview` or official final confirmation is auto-created. Explicit provisional
+scoring acceptance uses `{acceptedForScoring: true, evidence, digest}` where digest is
+`NREngine.rallyeSportClassOrderDigest(result)`. It binds source, timings, penalty,
+provenance and role IDs/event-only RS0 marker; changing those requires renewed review.
+Private review/evidence is stripped from publication. Existing class-order/current-finality
+digests for old results are unchanged. Generated class positions need no false claim of
+examining an official PDF. A later source-final update preserves timing provenance.
 
 **2026 rollout mapping:**
 

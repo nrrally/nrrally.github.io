@@ -127,6 +127,12 @@
             ['times', 'stagePos', 'notes'].map(function (key) { return field(entry, key, scalar); })
           ];
         })];
+      if (result.timingCalculation !== undefined) canonical.push(['raw-timing-v1',
+        [result.timingCalculation.version, result.timingCalculation.precision, result.timingCalculation.finalTimes],
+        result.entries.map(function (entry) {
+          var identity = entry.identityReview || entry.publicIdentity || {};
+          return [identity.driverId || '', identity.codriverId || '', rallyeSportEventRS0(entry)];
+        })]);
       return 'sha256:' + sha256(JSON.stringify(canonical));
     } catch (e) { return null; }
   }
@@ -171,6 +177,12 @@
   }
   function rallyeSportClassOrder(result) {
     function unavailable(reason) { return { status: 'unavailable', reason: reason, entries: [] }; }
+    if (result && result.timingCalculation !== undefined) {
+      if (validateRallyeSportTimingCalculation(result, {}).length) return unavailable('Raw timing calculation is invalid or stale.');
+      return { status: 'ready', reason: '', entries: result.entries.map(function (entry) {
+        return { car: entry.car, classPos: entry.classPos, kind: entry.classPos == null ? null : 'calculated' };
+      }) };
+    }
     var review = result && result.classOrderReview, digest = rallyeSportClassOrderDigest(result);
     if (!review || typeof review !== 'object' || Array.isArray(review) ||
       Object.keys(review).some(function (key) { return ['version', 'reviewed', 'digest', 'evidence'].indexOf(key) < 0; }) ||
@@ -192,7 +204,7 @@
       if (typeof row.car !== 'string' || !row.car.trim() || cars[row.car] ||
         typeof row.driver !== 'string' || !row.driver.trim() ||
         (row.codriver != null && typeof row.codriver !== 'string') ||
-        typeof row['class'] !== 'string' || ['RS2', 'RS4'].indexOf(cls) < 0) return unavailable('Unknown class or invalid crew row.');
+        typeof row['class'] !== 'string' || ['RS2', 'RS4'].indexOf(cls) < 0 && !rallyeSportEventRS0(row)) return unavailable('Unknown class or invalid crew row.');
       cars[row.car] = true;
       if (['classified', 'DNF', 'DNS'].indexOf(row.status) < 0) return unavailable('Unresolved source status.');
       if (row.status !== 'classified') {
@@ -243,6 +255,11 @@
   function rallyeSportLaunchRS0(entry) {
     return !!(entry && (entry.launchNonScoringReview || entry.publicLaunchNonScoring === true));
   }
+  function rallyeSportEventRS0(entry) {
+    return !!(entry && entry['class'] === 'RS0' &&
+      (entry.publicEventNonScoring === true || entry.eventNonScoringReview &&
+        typeof entry.eventNonScoringReview.evidence === 'string' && !!entry.eventNonScoringReview.evidence.trim()));
+  }
   function rallyeSportEntryPerson(idx, entry, role) {
     var review = entry && (entry.identityReview || entry.publicIdentity);
     var personId = review && (role === 'driver' ? review.driverId : review.codriverId);
@@ -283,7 +300,8 @@
   }
   function rallyeSportFinalityAccepted(result) {
     return !!(result && result.finalityReview && result.finalityReview.acceptedForScoring === true &&
-      typeof result.finalityReview.evidence === 'string' && result.finalityReview.evidence.trim());
+      typeof result.finalityReview.evidence === 'string' && result.finalityReview.evidence.trim() &&
+      (!result.timingCalculation || result.finalityReview.digest === rallyeSportClassOrderDigest(result)));
   }
   function sourceStatusStarted(entry) {
     return !!entry && (entry.status === 'classified' || entry.status === 'DNF');
@@ -755,12 +773,18 @@
       scoring.membershipReviewApplied.basis !== 'reviewed-membership-decisions' ||
       Object.keys(scoring.membershipReviewApplied).some(function (key) { return ['sourceDate', 'basis'].indexOf(key) < 0; }))) return false;
     var events = data.events || [], results = data.results || [], seenEvents = Object.create(null), seenResults = Object.create(null);
+    if (results.some(function (result) {
+      return result.timingCalculation !== undefined && (!entryPolicy ||
+        validateRallyeSportTimingCalculation(result, events.filter(function (event) { return event.id === result.eventId; })[0]).length);
+    })) return false;
     if (entryPolicy && (events.some(function (event) {
       return typeof event.countsForChampionship !== 'boolean' || event.countsForChampionship === false && event.roundNumber != null;
     }) || results.some(function (result) {
       var event = events.filter(function (event) { return event.id === result.eventId; })[0];
       return (result.entries || []).some(function (entry) {
-        return entry.publicLaunchNonScoring === true && (!event || event.countsForChampionship !== false || event.roundNumber != null ||
+        return (entry['class'] === 'RS0' || entry.publicEventNonScoring !== undefined) &&
+          (!event || event.countsForChampionship !== true || !rallyeSportEventRS0(entry)) ||
+          entry.publicLaunchNonScoring === true && (!event || event.countsForChampionship !== false || event.roundNumber != null ||
           entry.status !== 'TEST' && normClass(entry['class']) !== 'TEST') ||
           (entry.status === 'TEST' || normClass(entry['class']) === 'TEST') && entry.publicLaunchNonScoring !== true;
       });
@@ -790,7 +814,11 @@
             var entry = source.entries.filter(function (entry) { return String(entry.car) === String(score.car); })[0];
             return ['driver', 'codriver'].some(function (role) {
               var eligibility = score[role + 'Eligibility'], points = score[role + 'Points'];
-              return entry.status === 'DNS' && points != null ||
+              return entryPolicy && (rallyeSportEventRS0(entry) ?
+                entry[role] && (!eligibility || eligibility.status !== 'event-non-scoring' ||
+                  eligibility.scoringPosition !== null || points !== (entry.status === 'DNS' ? null : 0)) :
+                eligibility && eligibility.status === 'event-non-scoring') ||
+                entry.status === 'DNS' && points != null ||
                 entry.status === 'DNF' && entry[role] && eligibility && eligibility.status === 'eligible' && points !== 0;
             });
           })) return false;
@@ -801,8 +829,30 @@
       scoring.standings != null && !validRallyeSportStandings(scoring.standings)) return false;
     if (scoring.provisionalStandings != null && !validRallyeSportStandings(scoring.provisionalStandings)) return false;
     if (entryPolicy && [scoring.standings, scoring.provisionalStandings].some(function (tables) {
-      return tables && (tables.classDrivers.RS0.length || tables.classCodrivers.RS0.length ||
-        tables.overallDrivers.concat(tables.overallCodrivers).some(function (row) { return row.rank === null || row.eligibilityStatus !== 'eligible'; }));
+      if (!tables) return false;
+      return ['driver', 'codriver'].some(function (role) {
+        var overall = tables[role === 'driver' ? 'overallDrivers' : 'overallCodrivers'];
+        var classes = tables[role === 'driver' ? 'classDrivers' : 'classCodrivers'];
+        if (classes.RS2.concat(classes.RS4).some(function (row) { return row.eligibilityStatus !== 'eligible' || row.rank === null; }) ||
+          classes.RS0.some(function (row) { return row.eligibilityStatus !== 'event-non-scoring' || row.rank !== null || row.points !== 0; })) return true;
+        return overall.concat(classes.RS0).some(function (row) {
+          if (row.eligibilityStatus === 'eligible') return row.rank === null;
+          if (row.eligibilityStatus !== 'event-non-scoring' || row.rank !== null || row.points !== 0) return true;
+          return !scoring.results.some(function (score) {
+            return score.status === 'ready' && score.entries.some(function (entry) {
+              var result = results.filter(function (result) { return result.id === score.resultId; })[0];
+              var source = result && result.entries.filter(function (source) { return String(source.car) === entry.car; })[0];
+              return source && source.publicIdentity && source.publicIdentity[role + 'Id'] === row.id &&
+                entry[role + 'Eligibility'] && entry[role + 'Eligibility'].status === 'event-non-scoring';
+            });
+          });
+        });
+      });
+    })) return false;
+    if (scoring.status === 'ready' && results.some(function (result) {
+      return result.timingCalculation && /provisional/i.test(result.status || '') && scoring.results.some(function (row) {
+        return row.resultId === result.id && row.status === 'ready';
+      });
     })) return false;
     if (scoring.excludedEvents != null && (!Array.isArray(scoring.excludedEvents) ||
       scoring.excludedEvents.some(function (event) { return !event || typeof event.eventId !== 'string' || typeof event.reason !== 'string'; }))) return false;
@@ -816,7 +866,7 @@
           Number.isFinite(row.points) && row.points >= 0 &&
           (Number.isInteger(row.rank) && row.rank > 0 ||
             row.rank === null && row.scoringClass === 'RS0' && row.points === 0 &&
-            RS_MEMBERSHIP_STATUSES.concat(['manual-exclusion', 'invitational', 'test']).indexOf(row.eligibilityStatus) >= 0 &&
+            RS_MEMBERSHIP_STATUSES.concat(['manual-exclusion', 'invitational', 'test', 'event-non-scoring']).indexOf(row.eligibilityStatus) >= 0 &&
             typeof row.eligibilityReason === 'string');
       });
     }
@@ -830,9 +880,11 @@
   function validRallyeSportEligibility(value, entryPolicy) {
     if (entryPolicy) return !!value && typeof value === 'object' && !Array.isArray(value) &&
       Object.keys(value).every(function (key) { return ['status', 'scoringClass', 'scoringPosition', 'reason'].indexOf(key) >= 0; }) &&
-      value.status === 'eligible' && ['RS2', 'RS4'].indexOf(value.scoringClass) >= 0 &&
+      (value.status === 'eligible' && ['RS2', 'RS4'].indexOf(value.scoringClass) >= 0 && value.reason === '' ||
+        value.status === 'event-non-scoring' && value.scoringClass === 'RS0' && value.scoringPosition === null &&
+        value.reason === 'RS0 for this event only; no championship points or rank.') &&
       (value.scoringPosition === null || Number.isInteger(value.scoringPosition) && value.scoringPosition > 0) &&
-      value.reason === '';
+      typeof value.reason === 'string';
     return !!value && typeof value === 'object' && !Array.isArray(value) &&
       Object.keys(value).every(function (key) {
         return ['status', 'membershipStatus', 'scoringClass', 'scoringPosition', 'reason'].indexOf(key) >= 0;
@@ -893,6 +945,8 @@
       return decision ? decision.status : 'unverified';
     }
     function eligibility(entry, role, person, result) {
+      if (entryPolicy && rallyeSportEventRS0(entry)) return { status: 'event-non-scoring', scoringClass: 'RS0',
+        scoringPosition: null, reason: 'RS0 for this event only; no championship points or rank.' };
       if (entryPolicy) return { status: 'eligible', scoringClass: rallyeSportScoringClass(result, entry),
         scoringPosition: null, reason: '' };
       var memberStatus = membershipStatus(person), status = memberStatus;
@@ -941,6 +995,8 @@
       else if (event.doublePoints && dateOrdinal(event.startDate) - dateOrdinal(event.doublePointsBulletinDate) < 14) row = blocked('SSR 7.2 requires the double-points bulletin at least 14 days before the event.');
       else if (event.countsForChampionship === true && event.doublePoints && counted.length !== 5) row = blocked('SSR 7.2 specifies a double-points round only for a five-round championship; other round counts need clarification.');
       else if (event.countsForChampionship === true && event.doublePoints && doubleEvents.length !== 1) row = blocked('SSR 7.2 requires exactly one double-points round in a five-round championship.');
+      else if (result.timingCalculation !== undefined && validateRallyeSportTimingCalculation(result, event).length)
+        row = blocked('Raw timing calculation is invalid or stale; reconcile stages, penalties, source totals and positions before scoring.');
       else if (!sourceFinal && !userFinalityAccepted) row = blocked(/provisional/i.test(result.status || '') ?
         'The source classification is provisional; event points are not calculated.' : 'The source classification finality is unclear; event points are not calculated.');
       else if ((result.entries || []).some(function (entry) {
@@ -948,7 +1004,8 @@
           entryPolicy && (rallyeSportLaunchRS0(entry) || normClass(entry['class']) === 'TEST');
       })) row = blocked(entryPolicy ? 'A source status or TEST category has no configured championship semantics; retain the official row and obtain an explicit classification decision.' :
         'A source status has no configured championship semantics; retain the official row and wait for an RS ruling.');
-      else if ((result.entries || []).some(function (entry) { return (entryPolicy || entry.status === 'classified') && ['RS2', 'RS4'].indexOf(rallyeSportScoringClass(result, entry)) < 0; })) row = blocked('An RS category has no configured scoring semantics or explicit event-specific scoring-class mapping.');
+      else if ((result.entries || []).some(function (entry) { return (entryPolicy || entry.status === 'classified') &&
+        ['RS2', 'RS4'].indexOf(rallyeSportScoringClass(result, entry)) < 0 && !(entryPolicy && rallyeSportEventRS0(entry)); })) row = blocked('An RS category has no configured scoring semantics or explicit event-specific scoring-class mapping.');
       else if ((result.entries || []).some(function (entry) { return entry.status === 'classified' &&
         (!Number.isInteger(entry.pos) || entry.pos < 1 || entry.total == null || entry.total === ''); })) row = blocked('A classified RS row is missing its official position or total.');
       else if ((result.entries || []).some(function (entry, i) { return (result.entries || []).slice(0, i).some(function (other) { return String(other.car) === String(entry.car); }); })) row = blocked('Duplicate car numbers need RS source review before points can be assigned.');
@@ -1095,7 +1152,13 @@
     else if (counted.length >= 6 && doubleEvents.length) { status = 'blocked'; reason = 'SSR 7.2 only specifies double points for a five-round championship; other round counts need clarification.'; }
     else if (!roundRule) reason = counted.length === 5 ? 'Five rounds require exactly one bulletin-confirmed double-points event.' :
       'The SSR requires six to eight rounds, or five rounds with one bulletin-confirmed double-points event.';
-    else {
+    else if (readyRows.some(function (row) {
+      var source = resultByEvent[row.eventId];
+      return source && source.timingCalculation && (/provisional/i.test(source.status || '') || row.finalityBasis !== 'source-final' &&
+        !currentFinalityAccepted(source, 'rs', true));
+    })) {
+      reason = 'Provisional cumulative points include reviewed non-final source classifications; official final confirmation is pending.';
+    } else {
       standings = buildStandings(readyRows);
       status = 'ready';
       reason = 'Points use the reviewed 2026 Clubman’s Sprint SSR scale; equal championship totals share a rank because season tie-breaks are unresolved.';
@@ -1159,6 +1222,8 @@
         delete entry.identityReview;
         if (entry.launchNonScoringReview) entry.publicLaunchNonScoring = true;
         delete entry.launchNonScoringReview;
+        if (entry.eventNonScoringReview) entry.publicEventNonScoring = true;
+        delete entry.eventNonScoringReview;
         return entry;
       });
       return result;
@@ -1417,7 +1482,7 @@
     });
     (data.results || []).forEach(function (result, i) {
       var label = 'result ' + (i + 1);
-      if (!object(result, label, ['id', 'eventId', 'title', 'status', 'nrRoundId', 'stages', 'source', 'notes', 'entries', 'classMappings', 'classMappingEvidence', 'finalityReview', 'currentFinalityReview', 'classOrderReview'])) return;
+      if (!object(result, label, ['id', 'eventId', 'title', 'status', 'nrRoundId', 'stages', 'source', 'notes', 'entries', 'classMappings', 'classMappingEvidence', 'finalityReview', 'currentFinalityReview', 'classOrderReview', 'timingCalculation'])) return;
       id(result.id, label); id(result.eventId, label + ' eventId');
       if (knownResults[result.id]) error(label + ' duplicates result ID ' + result.id + '.');
       knownResults[result.id] = true;
@@ -1427,9 +1492,11 @@
       if (!event) error(label + ' refers to an unknown RallyeSport event.');
       text(result.title, label + ' title', true);
       text(result.status, label + ' printed status', true);
-      if (result.finalityReview != null && object(result.finalityReview, label + ' finality review', ['acceptedForScoring', 'evidence'])) {
+      if (result.finalityReview != null && object(result.finalityReview, label + ' finality review',
+        result.timingCalculation ? ['acceptedForScoring', 'evidence', 'digest'] : ['acceptedForScoring', 'evidence'])) {
         if (result.finalityReview.acceptedForScoring !== true) error(label + ' finality review must explicitly accept the source for scoring.');
         text(result.finalityReview.evidence, label + ' finality review evidence', true, 1000);
+        if (result.timingCalculation && !rallyeSportFinalityAccepted(result)) error(label + ' raw timing scoring review is stale or missing its classification digest.');
       }
       if (Object.prototype.hasOwnProperty.call(result, 'currentFinalityReview') && !currentFinalityAccepted(result, 'rs', true))
         error(label + ' current-finality review is invalid or stale.');
@@ -1459,7 +1526,7 @@
           if (normalizedMappings[normalizedCategory]) error(label + ' has duplicate normalized class mappings for ' + normalizedCategory + '.');
           normalizedMappings[normalizedCategory] = true;
           if (['RS2', 'RS4'].indexOf(target) < 0) error(label + ' maps ' + category + ' to an unsupported scoring class.');
-          if (['RS2', 'RS4', 'TEST'].indexOf(normalizedCategory) >= 0 && target !== normalizedCategory) error(label + ' cannot remap a configured RS class or TEST category.');
+          if (['RS0', 'RS2', 'RS4', 'TEST'].indexOf(normalizedCategory) >= 0 && target !== normalizedCategory) error(label + ' cannot remap a configured RS class or TEST category.');
           if (Array.isArray(result.entries) && !result.entries.some(function (entry) { return normClass(entry['class']) === normalizedCategory; })) {
             error(label + ' has an unused scoring-class mapping for ' + category + '.');
           }
@@ -1496,7 +1563,7 @@
       var cars = Object.create(null), idx = peopleIndex(people);
       result.entries.forEach(function (entry, n) {
         var row = label + ' row ' + (n + 1);
-        if (!object(entry, row, ['car', 'driver', 'codriver', 'class', 'vehicle', 'status', 'pos', 'classPos', 'times', 'stagePos', 'penalty', 'total', 'timeEvidence', 'notes', 'invited', 'startEvidence', 'identityReview', 'launchNonScoringReview'])) return;
+        if (!object(entry, row, ['car', 'driver', 'codriver', 'class', 'vehicle', 'status', 'pos', 'classPos', 'times', 'stagePos', 'penalty', 'total', 'timeEvidence', 'notes', 'invited', 'startEvidence', 'identityReview', 'launchNonScoringReview', 'eventNonScoringReview'])) return;
         text(entry.car, row + ' car', true, 40);
         if (cars[entry.car]) error(row + ' duplicates car ' + entry.car + '.');
         cars[entry.car] = true;
@@ -1536,7 +1603,16 @@
         if ((entryPolicy ? ['classified', 'DNF', 'DNS'] : ['classified', 'DNF', 'DNS', 'TEST']).indexOf(entry.status) < 0 &&
           !(launchException && entry.status === 'TEST')) error(row + ' status is unsupported; use classified, DNF or DNS. TEST is retained only as explicitly reviewed launch source evidence under the entry-based policy.');
         if (entryPolicy && normClass(entry['class']) === 'TEST' && !launchException) error(row + ' TEST is not a supported entry-based class; no automatic mapping is permitted.');
-        if (entryPolicy && !launchException && ['RS2', 'RS4'].indexOf(rallyeSportScoringClass(result, entry)) < 0) error(row + ' needs RS2/RS4 or an evidence-backed classification-scoped mapping; RS0 is launch-only.');
+        if (entry.eventNonScoringReview !== undefined) {
+          if (object(entry.eventNonScoringReview, row + ' event-only RS0 review', ['evidence']))
+            text(entry.eventNonScoringReview.evidence, row + ' event-only RS0 evidence', true, 1000);
+          if (!entryPolicy || !event || event.countsForChampionship !== true || !rallyeSportEventRS0(entry) ||
+            !entry.identityReview || !entry.identityReview.driverId || entry.codriver && !entry.identityReview.codriverId)
+            error(row + ' event-only RS0 requires the reviewed entry policy, a championship event, explicit RS0 and stable reviewed crew IDs.');
+        }
+        if (entryPolicy && !launchException && ['RS2', 'RS4'].indexOf(rallyeSportScoringClass(result, entry)) < 0 &&
+          !(event && event.countsForChampionship === true && rallyeSportEventRS0(entry)))
+          error(row + ' needs RS2/RS4, an evidence-backed mapping or explicit event-only RS0 review.');
         if (entry.status === 'classified') {
           if (!Number.isInteger(entry.pos) || entry.pos < 1) error(row + ' needs its official positive classification position.');
           if (entry.total == null || entry.total === '') error(row + ' needs its official classification total.');
@@ -1559,6 +1635,9 @@
               evidence.nrStage !== result.stages[k].nrStage) error(row + ' has inconsistent reviewed-copy provenance; its copied time must remain an independent snapshot.');
           });
         }
+      });
+      if (result.timingCalculation !== undefined) validateRallyeSportTimingCalculation(result, event).forEach(function (msg) {
+        error(label + ' raw timing: ' + msg);
       });
       if (event && event.starterCount != null && Array.isArray(result.entries) && event.starterCount > result.entries.length) {
         error(label + ' reviewed starter count exceeds the recorded classification rows.');
@@ -2112,7 +2191,211 @@
     return { stages: stages, entries: entries, warnings: warnings, format: 'Spreadsheet' };
   }
 
+  function validRallyeSportTimingStages(stages) {
+    var ids = Object.create(null), labels = Object.create(null);
+    return Array.isArray(stages) && stages.length > 0 && stages.length <= 100 && stages.every(function (stage) {
+      if (!stage || typeof stage !== 'object' || Array.isArray(stage) ||
+        Object.keys(stage).some(function (key) { return ['id', 'label'].indexOf(key) < 0; }) ||
+        typeof stage.id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(stage.id) ||
+        /^(?:__proto__|prototype|constructor)$/.test(stage.id) ||
+        typeof stage.label !== 'string' || !stage.label.trim() || stage.label !== stage.label.trim() ||
+        stage.label.length > 40 || /[\u0000-\u001f\u007f]/.test(stage.label) ||
+        ids[stage.id] || labels[stage.label]) return false;
+      ids[stage.id] = true; labels[stage.label] = true; return true;
+    });
+  }
+  function calculateRallyeSportTiming(rows, precision, stages) {
+    var issues = [], output = [], scale = Math.pow(10, precision), totals = Object.create(null);
+    if (!Number.isInteger(precision) || precision < 0 || precision > 3)
+      return { issues: ['Explicit seconds precision must be 0, 1, 2 or 3 decimal places.'], entries: [] };
+    if (!Array.isArray(rows) || !rows.length || rows.length > 1000)
+      return { issues: ['Supply 1-1000 explicit classified, DNF or DNS crew rows.'], entries: [] };
+    if (!validRallyeSportTimingStages(stages))
+      return { issues: ['Supply 1-100 explicitly identified, uniquely labelled stages without NR mappings.'], entries: [] };
+    function ticks(value, label) {
+      var match = typeof value === 'string' && /^(?:(\d{1,4}):)?(\d{1,2}):([0-5]\d)(?:\.(\d+))?$/.exec(value);
+      if (!match || +match[2] > 59 || match[1] && match[2].length !== 2 || (match[4] || '').length !== precision) {
+        issues.push(label + ': use explicit m:ss or h:mm:ss with exactly the declared decimal precision.'); return null;
+      }
+      var valueTicks = ((+(match[1] || 0) * 60 + +match[2]) * 60 + +match[3]) * scale + +(match[4] || 0);
+      if (!Number.isSafeInteger(valueTicks)) { issues.push(label + ': duration exceeds exact supported range.'); return null; }
+      return valueTicks;
+    }
+    function formatted(value) {
+      var seconds = Math.floor(value / scale), hours = Math.floor(seconds / 3600);
+      var minutes = Math.floor(seconds / 60) % 60, secs = seconds % 60;
+      return (hours ? hours + ':' + ('0' + minutes).slice(-2) : String(minutes)) + ':' +
+        ('0' + secs).slice(-2) + (precision ? '.' + ('000' + value % scale).slice(-precision) : '');
+    }
+    var cars = Object.create(null);
+    rows.forEach(function (row, index) {
+      var label = 'Row ' + (index + 1), startIssues = issues.length;
+      if (!row || typeof row !== 'object' || Array.isArray(row)) { issues.push(label + ': expected a row.'); return; }
+      if (typeof row.car !== 'string' || !/^\d{1,8}$/.test(row.car) || cars[row.car])
+        issues.push(label + ': require a unique explicit car number.');
+      cars[row.car] = true;
+      if (['classified', 'DNF', 'DNS'].indexOf(row.status) < 0) issues.push(label + ': require an explicit classified, DNF or DNS status; never infer it from missing stages.');
+      if (['RS0', 'RS2', 'RS4'].indexOf(row['class']) < 0) issues.push(label + ': explicit RS0, RS2 or RS4 class required.');
+      if (!Array.isArray(row.times) || row.times.length !== stages.length) { issues.push(label + ': provide one observation for each explicitly listed stage.'); return; }
+      var sum = 0;
+      row.times.forEach(function (time, n) {
+        if (time === null && row.status !== 'classified') return;
+        var stage = ticks(time, label + ' ' + stages[n].label);
+        if (stage === 0) issues.push(label + ': zero stage time needs explicit source review.');
+        sum += stage || 0;
+      });
+      var penalty = ticks(row.penalty, label + ' penalty');
+      var supplied = row.status === 'classified' ? ticks(row.finalTime, label + ' marshals Final Time') : null;
+      if (row.status !== 'classified' && row.finalTime !== null)
+        issues.push(label + ': non-classified rows require explicit null Final Time, not a fictional classification total.');
+      sum += penalty || 0;
+      if (!Number.isSafeInteger(sum)) issues.push(label + ': total exceeds exact supported range.');
+      if (row.status === 'classified' && supplied !== null && sum !== supplied) issues.push(label + ': stage times plus penalties do not equal marshals Final Time.');
+      if (issues.length !== startIssues) return;
+      if (row.status !== 'classified') {
+        output.push({ car: row.car, ticks: null, cls: row['class'], total: null, pos: null, classPos: null }); return;
+      }
+      if (totals[sum]) issues.push(label + ': equal totals need an explicit official tie decision; no tie-break is inferred.');
+      totals[sum] = true;
+      output.push({ car: row.car, ticks: sum, cls: row['class'], total: formatted(sum) });
+    });
+    if (issues.length) return { issues: issues, entries: [] };
+    var classRanks = Object.create(null);
+    output.sort(function (a, b) { return a.ticks === null ? 1 : b.ticks === null ? -1 : a.ticks - b.ticks; }).forEach(function (row, i) {
+      if (row.ticks === null) return;
+      row.pos = i + 1; row.classPos = classRanks[row.cls] = (classRanks[row.cls] || 0) + 1;
+    });
+    return { issues: [], entries: output };
+  }
+  function validateRallyeSportTimingCalculation(result, event) {
+    var calculation = result.timingCalculation;
+    if (!calculation || typeof calculation !== 'object' || Array.isArray(calculation) ||
+      Object.keys(calculation).some(function (key) { return ['version', 'precision', 'finalTimes'].indexOf(key) < 0; }) ||
+      calculation.version !== 1 || !Array.isArray(calculation.finalTimes) ||
+      !Array.isArray(result.entries) || calculation.finalTimes.length !== result.entries.length ||
+      calculation.finalTimes.some(function (value) { return value !== null && typeof value !== 'string'; }))
+      return ['Invalid calculation provenance; keep aligned original marshals Final Time strings.'];
+    if (!event || result.nrRoundId || result.classMappings || result.classMappingEvidence ||
+      !validRallyeSportTimingStages(result.stages))
+      return ['Raw timing requires explicit stages without linked NR rounds or mapped NR stages/classes.'];
+    var computed = calculateRallyeSportTiming(result.entries.map(function (entry, i) {
+      return Object.assign({}, entry, { finalTime: calculation.finalTimes[i] });
+    }), calculation.precision, result.stages);
+    if (computed.issues.length) return computed.issues;
+    var issues = [];
+    result.entries.forEach(function (entry) {
+      var expected = computed.entries.filter(function (row) { return row.car === entry.car; })[0];
+      if (!expected || entry.pos !== expected.pos || entry.classPos !== expected.classPos || entry.total !== expected.total)
+        issues.push('Calculated total/overall/class position is stale; recalculate and review rather than hand-edit.');
+      if (!Array.isArray(entry.stagePos) || entry.stagePos.length !== result.stages.length || entry.stagePos.some(function (value) { return value !== null; }))
+        issues.push('Raw timing has no printed stage ranks; retain null positions for each stage.');
+      var identity = entry.identityReview || entry.publicIdentity;
+      if (!identity || !identity.driverId || entry.codriver && !identity.codriverId)
+        issues.push('Raw timing requires reviewed stable crew-role IDs.');
+    });
+    return issues;
+  }
+  function ingestRallyeSportTiming(season, people, input) {
+    var issues = [];
+    function fail(msg) { issues.push({ level: 'error', msg: 'RS raw timing: ' + msg }); }
+    function object(value, keys) {
+      return value && typeof value === 'object' && !Array.isArray(value) &&
+        Object.keys(value).every(function (key) { return keys.indexOf(key) >= 0; });
+    }
+    function text(value, required, max) {
+      return typeof value === 'string' && value === value.trim() && value.length <= max &&
+        !/[\u0000-\u001f\u007f]/.test(value) && (!required || !!value);
+    }
+    if (!object(input, ['id', 'eventId', 'title', 'source', 'precision', 'identityEvidence', 'stages', 'rows']) ||
+      !season || season.year !== 2026 || !season.rallyesport || !Array.isArray(season.rallyesport.events) ||
+      !Array.isArray(season.rallyesport.results) ||
+      !validRallyeSportEntryPolicy(season.rallyesport.eligibilityPolicy, season))
+      return { result: null, issues: [{ level: 'error', msg: 'RS raw timing: supply the explicit input contract and reviewed 2026 entry-based season.' }] };
+    var data = season.rallyesport, events = data.events.filter(function (event) { return event.id === input.eventId; });
+    if (events.length !== 1 || events[0].countsForChampionship !== true)
+      fail('Select one existing championship event; the classification must have no linked NR round or mapped NR stages.');
+    if (!text(input.id, true, 80) || !/^[a-zA-Z0-9_-]+$/.test(input.id) ||
+      data.results.some(function (result) { return result.id === input.id || result.eventId === input.eventId; }))
+      fail('Use a new result ID for an event without a classification; replacement needs separate review.');
+    if (!text(input.title, true, 500) || !text(input.identityEvidence, true, 1000)) fail('Supply source title and private crew-reconciliation evidence.');
+    if (!object(input.source, ['file', 'url', 'description']) ||
+      !Object.keys(input.source).length || Object.keys(input.source).some(function (key) { return !text(input.source[key], false, key === 'url' ? 2000 : 1000); }) ||
+      !Object.keys(input.source).some(function (key) { return !!input.source[key]; })) fail('Supply public source identification only.');
+    if (input.source && typeof input.source.file === 'string' && /[\\/:]/.test(input.source.file))
+      fail('Use a public source filename/title, never a private local path.');
+    var idx = peopleIndex(people), members = Object.create(null), personIdCounts = Object.create(null);
+    ((people && people.people) || []).forEach(function (person) {
+      if (person && typeof person.id === 'string') personIdCounts[person.id] = (personIdCounts[person.id] || 0) + 1;
+    });
+    if (validateRallyeSportEntryLists(data, people).length) {
+      fail('Resolve invalid/duplicate received entry evidence before reconciliation.');
+      return { result: null, issues: issues };
+    }
+    var lists = (data.entryLists || []).filter(function (list) { return list.eventId === input.eventId; });
+    if (lists.length !== 1) fail('Provide one reviewed entry list for this event before matching timing by car.');
+    if (!Array.isArray(input.rows)) fail('Supply explicit timing rows.');
+    if (!validRallyeSportTimingStages(input.stages)) fail('Supply 1-100 explicit unique stages, with no NR mappings.');
+    if (issues.length) return { result: null, issues: issues };
+    var normalized = input.rows.map(function (source, i) {
+      if (!object(source, ['car', 'driver', 'codriver', 'driverId', 'codriverId', 'class', 'vehicle', 'status', 'times', 'penalty', 'finalTime', 'nonScoringEvidence'])) {
+        fail('Row ' + (i + 1) + ': unsupported fields; no private roster/contact/licence fields.');
+        return null;
+      }
+      var received = lists[0].entries.filter(function (entry) { return entry.car && entry.car === source.car; });
+      if (received.length !== 1 || ['RS0', 'RS2', 'RS4'].indexOf(received[0].enteredClass) < 0) {
+        fail('Row ' + (i + 1) + ': unique car and explicit RS0/RS2/RS4 class required in the reviewed event list.');
+        return null;
+      }
+      var roster = received[0], row = Object.assign({}, source), expected = {
+        driverId: roster.driverId, codriverId: roster.codriverId,
+        driver: (idx.byId[roster.driverId] || {}).name,
+        codriver: roster.codriverId ? (idx.byId[roster.codriverId] || {}).name : '',
+        'class': roster.enteredClass, vehicle: roster.vehicle
+      };
+      Object.keys(expected).forEach(function (key) {
+        if (row[key] !== undefined && row[key] !== expected[key])
+          fail('Row ' + (i + 1) + ': supplied ' + key + ' conflicts with reviewed event entry.');
+        row[key] = expected[key];
+      });
+      ['driver', 'codriver'].forEach(function (role) {
+        var person = idx.resolve(row[role]), id = row[role + 'Id'];
+        if (!text(row[role], role === 'driver', 200) || typeof id !== 'string' ||
+          (row[role] ? !person.known || person.ambiguous || person.id !== id || personIdCounts[id] !== 1 : id !== ''))
+          fail('Row ' + (i + 1) + ': require exact unique known names and matching explicit stable ' + role + ' ID.');
+        if (id && members[id]) fail('Row ' + (i + 1) + ': duplicate person/seat across input.');
+        if (id) members[id] = true;
+      });
+      if (!text(row.vehicle, false, 200)) fail('Row ' + (i + 1) + ': supply vehicle text or an explicit empty string.');
+      if (row['class'] === 'RS0' ? !text(row.nonScoringEvidence, true, 1000) : row.nonScoringEvidence !== undefined)
+        fail('Row ' + (i + 1) + ': RS0 needs its own explicit event-only non-scoring evidence; no inference from membership.');
+      return row;
+    });
+    if (issues.length) return { result: null, issues: issues };
+    var computed = calculateRallyeSportTiming(normalized, input.precision, input.stages);
+    computed.issues.forEach(fail);
+    if (issues.length) return { result: null, issues: issues };
+    var entries = normalized.map(function (row) {
+      var calc = computed.entries.filter(function (entry) { return entry.car === row.car; })[0];
+      var entry = { car: row.car, driver: row.driver, codriver: row.codriver, 'class': row['class'], vehicle: row.vehicle,
+        status: row.status, pos: calc.pos, classPos: calc.classPos, times: row.times.slice(),
+        stagePos: input.stages.map(function () { return null; }), penalty: row.penalty, total: calc.total,
+        identityReview: { driverId: row.driverId, evidence: input.identityEvidence } };
+      if (row.codriverId) entry.identityReview.codriverId = row.codriverId;
+      if (row['class'] === 'RS0') entry.eventNonScoringReview = { evidence: row.nonScoringEvidence };
+      return entry;
+    });
+    if (issues.length) return { result: null, issues: issues };
+    var result = { id: input.id, eventId: input.eventId, title: input.title, status: 'Provisional classification',
+      source: Object.assign({}, input.source), notes: ['Calculated from marshals stage times plus penalties; source finality and scoring acceptance are recorded separately.'],
+      stages: input.stages.map(function (stage) { return { id: stage.id, label: stage.label }; }),
+      entries: entries, timingCalculation: { version: 1, precision: input.precision,
+        finalTimes: input.rows.map(function (row) { return row.finalTime; }) } };
+    var candidate = Object.assign({}, data, { results: data.results.concat([result]) });
+    validateRallyeSport(candidate, season, {}, people).filter(function (issue) { return issue.level === 'error'; }).forEach(function (issue) { issues.push(issue); });
+    return { result: issues.length ? null : result, issues: issues };
+  }
   var api = { analyticsContractVersion: 1, validateAnalytics: validateAnalytics,
+    rallyeSportRawTimingContractVersion: 1, ingestRallyeSportTiming: ingestRallyeSportTiming,
     rallyeSportContractVersion: 2, rallyeSportEntryListContractVersion: 1, validateRallyeSportEntryLists: validateRallyeSportEntryLists,
     rallyeSportClassOrderContractVersion: 1, buildRallyeSport: buildRallyeSport, calculateRallyeSportScoring: calculateRallyeSportScoring,
     sha256Text: sha256, rallyeSportClassOrderDigest: rallyeSportClassOrderDigest, rallyeSportClassOrder: rallyeSportClassOrder,

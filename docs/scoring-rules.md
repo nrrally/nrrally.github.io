@@ -102,8 +102,9 @@ Legacy private membership/manual evidence is preserved, not re-labelled as verif
 and is never projected publicly. New entries in this workflow do not need a roster
 decision or invitation confirmation.
 
-Only RS2/RS4 (including existing evidence-backed event-specific source-category mappings)
-are supported for championship entrants. DNS still has no start or points; an evidenced
+RS2/RS4 (including existing evidence-backed event-specific source-category mappings)
+are supported for scoring championship entrants. The local raw-timing extension also
+supports explicit event-only RS0 below. DNS still has no start or points; an evidenced
 DNF earns zero from its official source status, even with no stage observations. Missing co-drivers get no
 invented score. All existing finality, starter minimum, class order, points scales,
 double-points notice, tie and championship-finality rules remain in force. Four rounds
@@ -132,7 +133,38 @@ compatibility. An unsupported, malformed, evidence-free or unreviewed policy fai
 closed rather than falling back. This policy supports 2026 only; future-year SSRs remain
 unconfigured, not implicitly approved. See [the migration constraints](data-model.md#entry-based-policy-migration).
 
-### Legacy profile and unchanged event/finality rules
+### Provisional raw timing and event-only RS0 (local extension)
+
+For a 2026 championship classification without NR round/stage links (an event-level
+NR association is allowed), the explicitly listed event stage times **plus** time
+penalties determine the faster-first event classification. Exact integer ticks at
+explicit precision (0-3 decimal places) must match every supplied marshals' Final Time.
+No rounding tolerance, inferred retirement, tied-total tie-break or NR time reuse is
+added. Explicit DNF counts as a start and gets zero eligible points; explicit DNS
+does not start or score. Missing observations remain null, not zero or made-up totals.
+
+A result row with exact class RS0 and private `eventNonScoringReview: {evidence}`,
+reviewed stable crew IDs and the entry-based policy retains its event position/time
+but both roles score zero (DNS remains null), with no championship scoring rank.
+RS0 is removed before RS2/RS4 role ranks/points are assigned. This is **row/event
+scoped**, never `nonScoringPeople`: the same person's prior RS2/RS4 results remain.
+An RS0-only season row is zero and unranked; a person with other eligible results
+retains those results and rank. A whole non-scoring event still contributes nothing.
+Do not map RS0 to RS2/RS4, infer it from membership or treat an entered class as review.
+
+The importer always returns `Provisional classification`, without scoring acceptance.
+The existing separate evidence-backed `finalityReview` may accept provisional points;
+for calculated results it must bind the current classification digest. Source/timing/
+identity changes invalidate it. Other event gates still apply. Ready provisional
+event points feed visibly **provisional** season/class totals; source provisionality
+never by itself withholds accepted points and never becomes final automatically.
+Even an otherwise qualifying season remains provisional while a contributing raw-timing
+source is provisional/non-final. Pre-existing non-raw classifications retain released
+scoring semantics. Only reported CoC/MSA confirmation permits the authorized
+operator to update source status to final. The separate admin PDF export preserves
+source status and never supplies a scoring or finality decision.
+
+### Legacy profile and event/finality rules
 
 The following describes legacy eligibility when `eligibilityPolicy` is absent, together
 with the event/finality/points rules that remain unchanged under the revised policy:

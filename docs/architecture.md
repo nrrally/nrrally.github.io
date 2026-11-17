@@ -52,11 +52,21 @@ delivery or a new registration service.
 | Active-rally notice | `assets/rally-notice.js`, `assets/rally-notice.css`, `disclaimer.html` | Reads only `public/site`; shares that initial promise with the results app. Native full-page yellow modal, followed by a sticky compact reminder after bypass. Not loaded by the admin. |
 | Optional analytics & privacy | `assets/analytics.js`, `privacy.html` | Shares the public site settings promise, validates GA4 settings and sends manual sanitized pageviews after rendering. Dedicated static privacy notice and persistent browser opt-out; never loaded by admin. |
 | Admin | `admin/index.html`, `assets/admin.js`, `assets/admin.css` | Google sign-in, an in-memory editable copy of the data, checks, points preview, publishing, history and undo, backups and the admin list. |
+| Classification PDF (release candidate) | `assets/classification-pdf.js`, `admin/classification-pdf-frame.html`, `assets/rallyesport-logo.png` | Approved-admin-only download of a fresh published NR/RS classification, never working drafts; no write, scoring calculation or confidentiality guarantee. |
 | Admin logic explorer | `assets/admin-logic.js`, `assets/admin-logic.css` | Admin-only entry point for a bundled, read-only NR/RS/shared decision catalogue. Conditional flows and revision-pinned code/docs evidence; no dataset evaluation, rules configuration or provider access. Static source is public. |
 | AI preparation | `assets/ai-import.js` | Pure versioned contract/prompt generation, strict parsing, capability/evidence checks, identity assessment and scoped change planning. Shared by admin and Node tests/tools; no network or provider SDK. |
 | Connection settings | `assets/firebase-config.js` | Says which Firebase project to use. Public by design: it identifies the project and grants no access. |
 | Access rules | `docs/firestore.rules` | The database's security rules, pasted into the Firebase console. They decide who can read and write what. |
 | Tools | `tools/load.js`, `tools/validate.js`, `tools/report.js` | Node scripts that run on a backup file: check all data, and list every override and note. |
+
+The pending code-only PDF release rechecks authenticated access to `config/revision` around published
+reads and immediately before download, rejecting changed revisions. The pinned jsPDF
+3.0.4 and AutoTable 5.0.2 (both MIT-licensed) are fetched from cdnjs using SHA-384
+integrity checks. They execute only inside an opaque-origin sandboxed iframe with no
+admin DOM, storage or Firebase access; the iframe receives only the already-public
+classification and logo. The provider can see requests and IP address, and connectivity
+or integrity failures block the download. The frame's CSP blocks connections and forms;
+public result data and static client code are not confidential.
 
 ### Admin presentation and explanation maintenance
 
@@ -204,6 +214,20 @@ row emits a public boolean for effective RS0 presentation of both roles; source 
 and stage observations remain intact. It cannot exclude a person in another event.
 Working and published scoring must agree; incompatible policy/snapshot combinations
 fail closed. See [the schema and sequencing constraints](data-model.md#entry-based-policy-migration).
+
+The local raw-timing contract 1 adds a pure Copilot-assisted conversion for independent
+classifications with explicit event-specific stage lists and no NR round/stage links,
+not a workbook upload service.
+Event-level NR associations are allowed but never imply NR timing reuse.
+Exact stage sums plus penalties must match
+marshals' supplied totals. Original strings and calculation provenance persist with the
+provisional result. Validation/scoring/public snapshot checks reject inconsistent derived
+positions/totals; these calculated class positions do not claim a reviewed official PDF.
+Explicit event-only RS0 review projects a boolean, never a global person restriction.
+Separate digest-bound scoring acceptance enables provisional event/cumulative points,
+without changing source finality. Static hosting, NR calculation and the existing atomic
+working/public/revision/History publication remain unchanged. See
+[the normalized input contract](data-model.md#rs-raw-timing-contract-local-code-only).
 
 RS presentation follows the NR information hierarchy: classification immediately after
 the result tabs, compact two-person crew cells, position/car/class badges and aligned

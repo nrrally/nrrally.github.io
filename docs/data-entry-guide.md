@@ -15,6 +15,26 @@ to R1 or RS. No later-season policy is assumed.
 
 How to get a season or round's official data into the site correctly. Manual entry, deterministic PDF/spreadsheet import and optional AI preparation are all available.
 
+## Classification PDF export (code-only release candidate)
+
+The admin **PDF exports** menu selects a season, NR/RS competition
+and event or round. An authorized admin can export only a nonempty published
+classification; unpublished editor changes are not used. If data or authorization
+changes during the operation, reload and retry. A missing result remains unavailable.
+The displayed source-based finality is preserved; scoring approval alone does not make
+a result final. The export does not publish, sign, amend or certify results.
+
+The scoresheet uses event positions, source timing and penalties, and public crew and
+class data, including RS0 event recognition. It prints `No MSA Number` because the
+public schema does not contain licence numbers. The timestamp is South Africa standard
+time (UTC+02:00). For validated raw-timing classifications only, if no stage count was
+stored, `Stg` counts recorded stage observations (including zero for none); it does not
+infer status or a legacy classification's missing count. The built-in font supports
+WinAnsi characters only; other characters,
+ambiguous car matches or unsupported stage data block export rather than being silently
+altered. Very wide tables continue across pages. Check every page against the published
+classification and source before distributing it.
+
 ## Source participation statuses
 
 Display the official classification: classified/DNF counts as started, including
@@ -123,9 +143,53 @@ anonymous Classification on mobile/desktop, exact public fields, attributed
 History and retained backup, and unchanged NR/RS points and starts. Then check
 a reviewed edit/removal in synthetic data (not by inventing live entries).
 Subsequent ordinary entries and supported official results are data-only.
-New rules, new result semantics and unresolved RS0 applicability are not covered
-by that assurance. A direct Firebase publication, if separately authorized,
+New rules and unsupported result semantics are not covered by that assurance.
+The separately documented local raw-timing extension adds explicit event-only RS0;
+entered class alone still grants no scoring decision. A direct Firebase publication, if separately authorized,
 still requires the guarded atomic **GitHub Copilot (direct Firebase)** audit.
+
+## Copilot-assisted RS marshals timing (local code; not deployed)
+
+No workbook has yet been supplied or accepted. Keep any future source workbook and
+private normalized input/backup outside Git. Copilot reads the workbook with explicit
+cell formatting/precision, explicitly reviews the selected event roster and its crew
+roles and class assignments, then calls the pure engine
+[`ingestRallyeSportTiming` contract](data-model.md#rs-raw-timing-contract-local-code-only).
+There is no new workbook upload/admin import section and no live timing connection.
+An event-level NR association is allowed, but the result must have no linked
+`nrRoundId` or mapped `nrStage`; event metadata never authorizes NR timing reuse.
+
+Identify the ordered event-specific stage list explicitly; each car must uniquely match
+the reviewed event roster. Workbook rows can omit crew/class fields, which are resolved
+from that roster. Conflicting supplied fields block conversion; an entered label alone
+is not review. For complete classified rows, sum stage times **plus penalties** in exact ticks
+and compare marshals' Final Time. Any mismatch blocks the entire result. Use explicit
+DNF/DNS, null missing observations and null Final Time for non-finishers; do not infer
+retirement or invent a final position. Ties, unmarked partial rows, cancelled stages,
+missing/extra stage observations, incompatible formats/precision or changed/duplicate identities
+need explicit review, not a guessed correction. RS0 must be explicitly provided and
+reviewed for this result event only; it retains event position and contributes no
+championship points without displacing RS2/RS4 or erasing history.
+
+The returned result is a **provisional draft**, not a publish instruction. With separate
+authorization, stage it in the existing season result workflow, inspect validation,
+and select the existing separate scoring acceptance with evidence. For raw results,
+that control records a source/timing/identity digest; edits invalidate acceptance.
+Review & publish rebuilds the public scoring snapshot atomically with working data,
+revision and attributed before/after History. A backup and fresh compatible admin tab
+are required. Do not copy private review evidence into public source fields.
+
+Accepted provisional round points feed provisional overall and class season totals.
+Do not change source status to final to make points appear. Only after the user reports
+CoC/MSA final confirmation may an authorized operator update the source status to
+Final classification, remove the now-obsolete separate provisional-scoring review,
+preserve the timings/provenance, revalidate and publish. New
+timings or penalties require recalculation/cross-check and renewed scoring review.
+The same reviewed release candidate includes an admin **PDF exports** menu. It reads
+only published classifications, does not alter source status or data, and is described
+above. First-workbook acceptance remains outstanding. The release validation used
+anonymous GETs of existing public classifications only; it made no protected reads or
+Firebase writes. Real admin sign-in remains for the user to test after deployment.
 
 ## AI Import (free ChatGPT or Claude)
 
@@ -192,7 +256,7 @@ The browser accepts up to 4 MiB of returned JSON, 10,000 items per array, 16,000
 
 ## Principles
 
-1. **Official classification PDFs only.** Use the final classification published on the event's results page or its noticeboard. Never use live timing.
+1. **Official classification PDFs for the ordinary result import.** Use the final classification published on the event's results page or its noticeboard. The separate provisional RS marshals workflow above is the only calculated spreadsheet exception. Never use live timing.
 2. **Enter exactly what is printed.** Don't correct the sheet. Where the championship treats something differently from the sheet, record that as an *override* with a reason (see "Judgement calls" below).
 3. **Sports/settings edits remain drafts until publish.** History → Undo stages document before versions for review, not full photo/config/Auth recovery. Admin-list changes save immediately outside this flow.
 
