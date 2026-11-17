@@ -29,7 +29,8 @@ Read [the contract](data-model.md#rs-raw-timing-contract-local-code-only),
 [intake procedure](data-entry-guide.md#copilot-assisted-rs-marshals-timing-local-code-not-deployed)
 and [scoring rules](scoring-rules.md#provisional-raw-timing-and-event-only-rs0-local-extension).
 
-The four shells coordinate local `rs-timing-1` assets. Admin requires raw contract 1.
+The current local candidate coordinates all four shells on `rs-membership-numbers-1`. Admin
+requires raw contract 1.
 Before any later authorized deployment/publication, reconcile fresh main, retire old
 admin tabs, reload all assets, take a protected backup and review the exact candidate.
 Old validators cannot safely publish the new provenance/event-only review schema.
@@ -44,12 +45,52 @@ records and old review digests are unchanged absent new data.
 
 The separate admin menu reads only the selected published snapshot, rechecks authorized
 revision access before download and cannot publish or edit data. It requires the
-frame and logo assets plus integrity-pinned CDN libraries; a network or integrity
+frame and logo assets plus local integrity-pinned libraries; a missing file or integrity
 failure blocks export. The exact actual-data and synthetic validation is recorded in
 [releases.md](releases.md). No Firestore migration or provider configuration change
-is included. `rs-timing-1` coordinates the runtime shells. Real Google sign-in and
-user-operated download remain post-deployment checks; never use an agent-held account
-to impersonate an admin.
+is included. `rs-membership-numbers-1` coordinates the runtime shells. The PDF `Stg` column
+counts valid recorded stage times and explicitly does not establish a start or
+completion; header/footer championship wording comes only from explicit public event
+status and is omitted when unavailable. Real Google sign-in and user-operated download
+remain post-deployment checks; never use an agent-held account to impersonate an admin.
+
+### Private membership identifiers (code release pending; no data populated)
+
+The simplified pending code adds two private competitor fields in a protected sidecar,
+and includes saved 2026 values in the existing authorized PDF export.
+No membership numbers have been written to Firebase. The reviewed code-only release is
+authorized after the remaining checks; Firebase writes and import remain held pending
+separate explicit authorization and fresh protected reconciliation.
+The one-time exact-match reconciliation and source artifacts stay in protected session
+storage; no generic roster importer or repository parser is included. The roster has no
+explicit as-of date. Alias-only, suffix variants, duplicate, missing/TBC and conflicting
+fields remain unresolved; publication validation rejects saved cross-profile duplicates.
+
+The sidecar maps stable profile IDs to private MSA/RS digit strings; it is not part of
+public profiles or public classification data and is never used for eligibility or
+scoring. Its only proposed lifecycle is the existing guarded admin publication, with
+protected before/after History and revision checks attributed to the signed-in admin.
+Backups and History contain these
+private values and need protected handling. The existing one-click PDF joins each
+role only by verified stable profile ID, checks the public/private profile projection,
+and rechecks authorization plus document/revision versions before and after generation.
+Locally hosted SHA-384-pinned jsPDF/AutoTable retain the scoresheet layout; the frame URL
+also uses the release query version so a cached old CDN-enabled frame is not reused. An opaque
+sandbox and restrictive CSP exclude third-party execution and network connections.
+There is no second print workflow. Unverified/ambiguous roles retain printed names and
+missing-number placeholders, with an explicit omission count in the PDF/admin notice;
+they never receive a guessed number. Invalid private data or snapshot conflicts block export.
+Before the authorized import, verify the deployed code
+and live rules, retire/reload old admin tabs, take a fresh protected backup and repeat
+the identity/value preview under current document and global revision preconditions.
+Any conflict blocks the write. A private-number-only write must atomically record the
+private working document, protected before/after History and revision; verify readback
+and unchanged public documents and sporting outputs. If a separately authorized direct
+Firebase write is used instead of the admin workflow, its History must use
+**GitHub Copilot (direct Firebase)** attribution and the user's attribution. After
+values exist, do not roll back to older code
+alone: retain compatible code or use an independently authorized, guarded paired
+restore. The privacy notice describes the restricted storage and export.
 
 ### Approved public wording changes (deployed)
 

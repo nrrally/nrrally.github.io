@@ -6,6 +6,7 @@ const http = require('node:http');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const AI = require('../../assets/ai-import.js');
 const E = require('../../assets/engine.js');
+const MI = require('../../assets/membership-identifiers.js');
 const F = require('./ai-fixtures.js');
 const root = path.resolve(__dirname, '..', '..');
 
@@ -17,7 +18,7 @@ async function main() {
   const pdfEmpty = process.env.RS_PDF_EMPTY_TEST === '1';
   const f = example ? F.rawRS0Example(true) : rawMode ? F.rawRallyeSportTiming() : F.preEventEntries(), store = new Map(), writes = [], external = [], errors = [];
   let denyRevision = false, failRevision = false, failPdfLibrary = false, corruptPdfLibrary = false;
-  let revisionReads = 0, denyAtRevisionRead = 0;
+  let revisionReads = 0, denyAtRevisionRead = 0, changePrivateAtRevisionRead = 0;
   if (rawMode) {
     if (!example) f.data.events.at(-1).nrEventId = 'test-event';
     if (variableStages) {
@@ -38,18 +39,30 @@ async function main() {
     store.set(key, { name: 'projects/nr-synthetic/databases/(default)/documents/' + key,
       fields: { json: { stringValue: JSON.stringify(value) } }, updateTime: '2026-01-01T00:00:00Z' });
   }
+  if (pdfTest) f.people.people.push(
+    { id: 'synthetic-nr-driver', name: 'Synthetic NR Driver', aliases: [], bio: '', photo: '', links: {} },
+    { id: 'synthetic-nr-codriver', name: 'Synthetic NR Codriver', aliases: [], bio: '', photo: '', links: {} },
+    { id: 'synthetic-ambiguous-a', name: 'Synthetic profile A', aliases: ['Synthetic ambiguous crew'] },
+    { id: 'synthetic-ambiguous-b', name: 'Synthetic profile B', aliases: ['Synthetic ambiguous crew'] });
   put('docs/site', f.docs['data/site.json']);
   put('docs/people', f.people);
   put('docs/season_2026', f.season);
   put('public/site', f.docs['data/site.json']);
-  put('public/people', f.people);
+  put('public/people', MI.publicPeople(f.people));
   const publicRounds = pdfTest ? { R1: { title: 'Synthetic final NR classification', status: 'Final Official Classification',
     source: { file: 'synthetic-nr.pdf' }, notes: [], stages: ['SS1', 'SS3'], entries: [
-      { car: '91', driver: 'Synthetic NR Driver', codriver: 'Synthetic NR Codriver', class: 'OPEN', vehicle: 'Synthetic NR car',
-        status: 'classified', pos: 1, stages: 2, times: ['1:00.1', '2:00.2'], stagePos: [1, 1], pen: '0:00.0', total: '3:00.3' }
+      { car: '91', driver: 'Synthetic NR Driver', codriver: 'Synthetic unresolved crew', class: 'OPEN', vehicle: 'Synthetic NR car',
+        status: 'classified', pos: 1, stages: 2, times: ['1:00.1', '2:00.2'], stagePos: [1, 1], pen: '0:00.0', total: '3:00.3' },
+      { car: '92', driver: 'Synthetic ambiguous crew', codriver: '', class: 'OPEN', vehicle: 'Synthetic NR car',
+        status: 'classified', pos: 2, stages: 2, times: ['1:00.2', '2:00.3'], stagePos: [2, 2], pen: '0:00.0', total: '3:00.5' }
     ] } } : {};
   put('public/season_2026', { season: AI.projectPublic(f.season, f.people), rounds: publicRounds });
   if (pdfTest) {
+    put('docs/membership_numbers', { format: 'nr-private-membership-numbers', version: 1, people: {
+      'synthetic-driver-1': { msaNumber: '00123' }, 'synthetic-codriver-1': { rsNumbers: ['00456'] },
+      'synthetic-nr-driver': { msaNumber: '00999' },
+      'synthetic-ambiguous-a': { msaNumber: '00998' }, 'synthetic-ambiguous-b': { msaNumber: '00997' }
+    } });
     const working = JSON.parse(store.get('docs/season_2026').fields.json.stringValue);
     working.rallyesport.events.at(-1).name = 'Unpublished draft must not appear';
     store.get('docs/season_2026').fields.json.stringValue = JSON.stringify(working);
@@ -78,11 +91,16 @@ async function main() {
         try { void window.parent.document; } catch (_) { parentBlocked = true; }
         try { void window.localStorage; } catch (_) { storageBlocked = true; }
         window.parent.postMessage({ type: 'synthetic-sandbox-probe', parentBlocked, storageBlocked }, '*');
+        window.addEventListener('message', event => {
+          if (event.data && event.data.type === 'classification-pdf-render')
+            window.parent.postMessage({ type: 'synthetic-pdf-payload', data: event.data.data }, '*');
+        });
         return;
       }
       window.syntheticSandboxProbes = [];
       window.addEventListener('message', event => {
         if (event.data && event.data.type === 'synthetic-sandbox-probe') window.syntheticSandboxProbes.push(event.data);
+        if (event.data && event.data.type === 'synthetic-pdf-payload') window.syntheticPdfPayload = event.data.data;
       });
       const user = { email: 'admin@example.com', name: 'Synthetic admin', photo: '' };
       window.NR_TEST_AUTH = { ready: () => Promise.resolve(), user: () => user, observe: fn => fn(user),
@@ -91,15 +109,14 @@ async function main() {
     });
     await context.route('**/*', async route => {
       const request = route.request(), url = request.url();
-      if (pdfTest && url.startsWith('https://cdnjs.cloudflare.com/')) {
+      if (pdfTest && url.startsWith(base + '/assets/vendor/')) {
+        assert.match(request.frame().url(), /classification-pdf-frame\.html\?v=rs-membership-numbers-1$/,
+          'private rendering must not reuse an old unversioned CDN-enabled frame');
         if (failPdfLibrary) return route.abort('failed');
         if (corruptPdfLibrary) return route.fulfill({ contentType: 'text/javascript', body: '/* incorrect integrity */',
           headers: { 'Access-Control-Allow-Origin': '*' } });
-        const files = { 'jspdf.umd.min.js': 'jspdf-3.0.4.min.js', 'jspdf.plugin.autotable.min.js': 'autotable-5.0.2.min.js',
-          'vfs_fonts.js': 'pdfmake-fonts-0.2.20.js' };
-        const name = files[url.split('/').pop()];
-        return name ? route.fulfill({ path: path.join(process.env.RS_PDF_LIB_DIR, name), contentType: 'text/javascript',
-          headers: { 'Access-Control-Allow-Origin': '*' } }) : route.abort();
+        return route.fulfill({ path: path.join(root, 'assets', 'vendor', url.split('/').pop()), contentType: 'text/javascript',
+          headers: { 'Access-Control-Allow-Origin': '*' } });
       }
       if (url === base + '/assets/firebase-config.js') return route.fulfill({ contentType: 'text/javascript',
         body: 'window.NR_FIREBASE={projectId:"nr-synthetic",apiKey:"fake",authDomain:"nr-synthetic.firebaseapp.com"};' });
@@ -114,6 +131,8 @@ async function main() {
       }
       const key = decodeURIComponent(new URL(url).pathname.split('/documents/')[1] || '');
       if (key === 'config/revision') revisionReads++;
+      if (key === 'config/revision' && revisionReads === changePrivateAtRevisionRead)
+        store.get('docs/membership_numbers').updateTime = '2026-01-02T00:00:00Z';
       if (failRevision && key === 'config/revision') return route.abort('failed');
       if ((denyRevision || revisionReads === denyAtRevisionRead) && key === 'config/revision') return route.fulfill({ status: 403, headers, contentType: 'application/json',
         body: '{"error":{"status":"PERMISSION_DENIED","message":"Synthetic denied"}}' });
@@ -165,10 +184,21 @@ async function main() {
       await failedFrame;
       assert.equal(unexpectedDownload, false, 'integrity failure must not download');
       corruptPdfLibrary = false;
+      changePrivateAtRevisionRead = revisionReads + 4;
+      const changedFrame = page.waitForEvent('framedetached');
+      await page.getByRole('button', { name: 'Export Classification PDF' }).click();
+      await changedFrame;
+      await page.getByText(/protected competitor data changed/i).first().waitFor();
+      assert.equal(unexpectedDownload, false, 'a private document race during rendering must not download');
+      changePrivateAtRevisionRead = 0;
       const downloading = page.waitForEvent('download', { timeout: 30000 });
       await page.getByRole('button', { name: 'Export Classification PDF' }).click();
       const pdf = await downloading;
       await pdf.saveAs(path.join(process.env.RS_PDF_LIB_DIR, 'synthetic-classification.pdf'));
+      assert.equal(await page.evaluate(() => window.syntheticPdfPayload.rows.find(row => row.car === '1').licences),
+        'MSA 00123 / No MSA Number · RS 00456', 'private numbers follow the saved driver and co-driver profiles');
+      assert.doesNotMatch(JSON.stringify(store.get('public/people')), /00123|00456/);
+      assert.doesNotMatch(JSON.stringify(store.get('public/season_2026')), /00123|00456/);
       assert.equal(await page.evaluate(() => window.syntheticSandboxProbes.some(p => p.parentBlocked && p.storageBlocked)), true,
         'PDF libraries must not access the admin page or its storage');
       await page.getByLabel('Competition').selectOption('nr');
@@ -177,6 +207,12 @@ async function main() {
       const nrDownload = page.waitForEvent('download', { timeout: 30000 });
       await page.getByRole('button', { name: 'Export Classification PDF' }).click();
       await (await nrDownload).saveAs(path.join(process.env.RS_PDF_LIB_DIR, 'synthetic-nr-classification.pdf'));
+      const mixedPayload = await page.evaluate(() => window.syntheticPdfPayload);
+      assert.equal(mixedPayload.rows.find(row => row.car === '91').licences, 'MSA 00999 / No MSA Number');
+      assert.equal(mixedPayload.rows.find(row => row.car === '92').licences, 'No MSA Number');
+      assert.match(mixedPayload.notes.at(-1), /Unresolved crew roles: 2/);
+      assert.doesNotMatch(JSON.stringify(mixedPayload), /00998|00997/);
+      await page.getByText(/Membership numbers omitted for 2 unresolved crew roles/).first().waitFor();
       await page.getByLabel('Competition').selectOption('rs');
       await page.getByLabel('Event or round').selectOption('rs-r5');
       const large = page.waitForEvent('download', { timeout: 30000 });
@@ -185,12 +221,13 @@ async function main() {
         const rows = Array.from({ length: 55 }, (_, i) => ({
           pos: i + 1, car: String(100 + i), driver: { name: 'Synthetic Élodie van der Merwe' },
           codriver: { name: 'Synthetic André Smith' }, status: 'classified', cls: i === 0 ? 'RS0' : 'RS2',
-          classPos: i + 1, vehicle: 'Synthetic long vehicle name', stages: 14, gap: '—', previousGap: '—'
+          classPos: i + 1, vehicle: 'Synthetic long vehicle name', stages: 14, linkedNrStages: i === 0 ? 8 : null,
+          gap: '—', previousGap: '—'
         }));
         const entries = rows.map(row => ({ car: row.car, times: stages.map(() => '12:34.56'),
           stagePos: stages.map(() => 1), penalty: '0:00.00', total: '2:56:03.84' }));
         await window.NRClassificationPDF.download({ id: 'synthetic-multipage', name: 'Synthetic multi-stage event',
-          date: '2026-11-17', state: 'Provisional classification', notes: [], stages, rows, published: true },
+          date: '2026-11-17', championshipStatus: 'Round 4', state: 'Provisional classification', notes: [], stages, rows, published: true },
         { entries }, 'rs', async () => {});
       });
       await (await large).saveAs(path.join(process.env.RS_PDF_LIB_DIR, 'synthetic-multipage.pdf'));
@@ -230,6 +267,9 @@ async function main() {
         const text = await page.locator('main').innerText();
         assert.match(text, /Provisional classification/); assert.match(text, /Provisional points/);
         assert.match(text, /Calculated total/i); assert.match(text, /Entries received/);
+        assert.match(text, /RS counts are valid recorded times.*not proof of starts or completions/);
+        assert.match(await page.locator('tr[data-car="1"] .result-stagecount').innerText(), /RS:\s*3\s*NR:\s*—/,
+          'RS count shows recorded timing observations and leaves an unlinked NR count unavailable');
         const zeroCar = example ? '300' : '2';
         const zero = await page.locator('tr[data-car="' + zeroCar + '"]').innerText();
         assert.match(zero, /RS0/); assert.match(zero, /Non-Scoring/);

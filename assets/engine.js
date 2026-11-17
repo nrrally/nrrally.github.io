@@ -733,7 +733,8 @@
           stages: (result.stages || []).map(function (stage) { return Object.assign({}, stage); }),
           entries: (result.entries || []).map(function (entry) {
             var driver = rallyeSportEntryPerson(idx, entry, 'driver'), codriver = rallyeSportEntryPerson(idx, entry, 'codriver');
-            return Object.assign({}, entry, {
+            return Object.assign({}, entry, driver.ambiguous || codriver.ambiguous ?
+              { driverAmbiguous: !!driver.ambiguous, codriverAmbiguous: !!codriver.ambiguous } : {}, {
               driver: entry.driver || driver.name, codriver: entry.codriver || codriver.name,
               driverId: driver.id, codriverId: codriver.id,
               driverKnown: !!driver.known, codriverKnown: !!codriver.known,

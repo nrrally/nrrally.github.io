@@ -2726,3 +2726,81 @@ championship result is asserted from those gaps. 2027 scoring rules and eligibil
 unconfigured; no future rules were inferred. The site-code push, Pages build and live-site
 verification are still pending. This data-first publication does not itself authorize or
 claim a code deployment.
+
+### Simplified private numbers and RS stage counts (approved code-only release; verification pending)
+
+The candidate retains two admin-only competitor fields in a protected stable-ID
+sidecar, explicit validation and guarded publish/backup/restore/merge/History handling.
+Private-only publication writes no public snapshots. Undo of a profile merge validates
+number references against the profile before-image restored in the same History group.
+Public profiles retain their explicit allowlist; numbers never affect eligibility,
+starts, results, scoring or standings.
+
+The user questioned the size. The generic roster upload/review menu and repository
+extractor, their workflow-only tests, and the duplicate HTML/CSS/JS print renderer have
+been removed. One-time reconciliation scripts and artifacts remain outside Git.
+The new helper shrank from 360 to 137 lines, and its tests from 219 to 61; the 121-line
+parser, 42-line parser test and 211-line duplicate renderer were removed.
+The normal one-click classification PDF reuses the existing scoresheet and joins saved
+2026 numbers only by verified stable profile ID, with public/private projection checks.
+Missing values retain placeholders. Unverified or ambiguous roles remain unjoined,
+retain printed names/placeholders and are counted in an explicit PDF/admin omission
+notice. Invalid sidecar data, duplicate profile IDs and conflicting snapshots still
+block export. A fresh anonymous public read confirms the previously reported five
+printed-name gaps already have explicit reviewed publicIdentity mappings, in both
+the current and saved prior snapshot; they are not currently unmapped export identities.
+The read-only R1/R2 regression renders the exact current input with a synthetic
+sidecar, then negative variants with those five roles deliberately unverified/ambiguous;
+both export successfully and the negative roles receive no identifiers. Actual fixtures
+and generated PDFs remain outside Git. No private number data was read or written.
+
+jsPDF 3.0.4 and AutoTable 5.0.2 are vendored byte-identically to their existing SHA-384
+pins (454,793 runtime bytes, separately from authored code). Both MIT licenses are
+retained. Exact-file Git attributes preserve vendor bytes across Windows checkouts,
+including upstream license whitespace, without relaxing authored-source checks.
+The release-versioned opaque iframe permits local scripts only and blocks connections/images/
+forms; no private payload reaches CDN code or another renderer. Authorization plus
+per-document/global revision checks run before and after generation.
+PDF event championship wording uses explicit public status, omitting unknown status.
+RS recorded-time counts and exact same-event car/both-crew linked NR printed counts
+remain separate, in public tables and PDFs, without altering sporting records.
+Logic Explorer and all four shell versions (`rs-membership-numbers-1`) are coordinated.
+
+Validation: 222 Node tests; admin-access browser regression; full public theme regression;
+focused linked-count browser mode; and authorized PDF/raw-variable-stage browser mode
+all pass. The latter covers local-library failure, SRI corruption, sandbox isolation,
+private-document races and authorization revocation during generation, with zero writes.
+The Home-footnote blocker was a stale synthetic minimum-start/cache fixture: candidate
+and released baseline passed the isolated reproduction. The fixture now uses five
+starts and no-store mocked responses; assertions and production scoring are unchanged.
+The later PDF blocker was a fixture bypassing the actual public-profile projection;
+using that projection resolved it without weakening identity checks.
+
+Actual synthetic PDFs were rendered and visually inspected: populated private fields,
+missing placeholders, NR/RS logos, event status, separate counts and eight-page overflow.
+A same-input comparison with the released jsPDF generator retains title, table-header,
+crew-row and total geometry within 0.1 pt; only intended content/notes differ.
+Against the saved public snapshot, all seven NR and four RS classifications (71 RS rows)
+retain ranks/classes/totals/penalties/points and unchanged source/model data.
+The engine only retains the existing resolver's ambiguity flags in RS display metadata;
+scoring and public projection calculations are unchanged. Unresolved slugs or ambiguous
+aliases cannot become private-number joins or linked NR count evidence.
+
+Read-only Rules API inspection confirmed the deployed rules match `docs/firestore.rules`,
+protecting working documents and History with existing admin-only permissions.
+Fresh remote main remains `0c2b1ac1c54874f444fc213eb1c4ec4a97104dd2`.
+The simplified code review hold was lifted for the previously authorized conditional
+code-only release to `origin/main`, after checks and current-main/concurrency checks.
+Approved scoped GitHub authentication and repository push permission were verified.
+No commit/push/deployment has occurred at this pre-push record; actual Pages deployment
+and canonical asset/data verification must be recorded separately after success.
+The frame URL now carries the release query version, preventing new admins from
+reusing an old cached CDN-enabled frame; the focused PDF browser gate verifies it.
+No backup/import or Firebase write is included. All private-data writes and membership
+import remain held pending separate explicit authorization and fresh protected
+backup/reconciliation. No rules/provider configuration change or data migration is included.
+After compatible deployment, retire old admin tabs and repeat the exact-match plan
+against a fresh protected backup/current rules/revisions before any atomic attributable
+import. Old-code rollback after private-data activation requires compatible guards or
+an independently authorized paired restore. User-operated Google sign-in/private-export
+acceptance and first-real-entry acceptance remain outstanding.

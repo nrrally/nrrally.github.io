@@ -287,6 +287,36 @@
     var events = model.events.filter(function (row) { return row.id === id; });
     return events.length === 1 ? { event: events[0], roundId: round || '' } : null;
   }
+  function recordedStageTimeCount(times) {
+    if (!Array.isArray(times)) return null;
+    var count = 0;
+    for (var i = 0; i < times.length; i++) {
+      if (times[i] == null) continue;
+      if (typeof times[i] !== 'number' || !Number.isFinite(times[i]) || times[i] < 0) return null;
+      count++;
+    }
+    return count;
+  }
+  function linkedNrStageCount(model, event, result, entry) {
+    if (!result || !result.nrRoundId) return null;
+    function hasName(value) { return typeof value === 'string' && value.trim() !== '' && value.trim() !== '—'; }
+    var link = linkedNrEvent(model, event, result);
+    if (!link || link.roundId !== result.nrRoundId) return null;
+    var rounds = model.rounds.filter(function (round) {
+      return round.id === result.nrRoundId && round.eventId === link.event.id;
+    });
+    if (rounds.length !== 1 || !entry.driverKnown || !entry.driverId || entry.driverAmbiguous || entry.codriverAmbiguous ||
+      !hasName(entry.codriver) || !entry.codriverKnown || !entry.codriverId) return null;
+    var matches = rounds[0].entries.filter(function (row) {
+      return String(row.car) === String(entry.car);
+    });
+    if (matches.length !== 1) return null;
+    var nrEntry = matches[0], nrHasCodriver = hasName(nrEntry.codriver);
+    if (!nrEntry.driverKnown || nrEntry.driverId !== entry.driverId || nrEntry.driverAmbiguous || nrEntry.codriverAmbiguous || !nrHasCodriver ||
+      !nrEntry.codriverKnown || !nrEntry.codriverId || nrEntry.codriverId !== entry.codriverId) return null;
+    var count = nrEntry.stagesCompleted;
+    return Number.isInteger(count) && count >= 0 ? count : null;
+  }
   function rsVehicle(model, result, entry) {
     if (typeof entry.vehicle === 'string' && entry.vehicle.trim()) return entry.vehicle;
     var events = model.rallyesport.events.filter(function (event) { return event.id === result.eventId; });
@@ -800,8 +830,9 @@
     return (negative ? '−' : '') + (hours || h ? h + ':' + String(m).padStart(2, '0') + ':' : m + ':') +
       s.toFixed(precision).padStart(precision + 3, '0');
   }
-  function resultPerson(entry, role) {
-    return { name: entry[role] || '—', href: entry[role + 'Href'] || null };
+  function resultPerson(entry, role, identity) {
+    return { id: identity[role + 'Known'] && !identity[role + 'Ambiguous'] ? entry[role + 'Id'] || null : null,
+      name: entry[role] || '—', href: entry[role + 'Href'] || null };
   }
   function rsClassPosition(result, entry) {
     var review = result.classOrder, row = review && review.status === 'ready' &&
@@ -868,7 +899,16 @@
     var location = mode === 'rs' ? rsEventLocation(model, event) : {
       venue: event.venue || '', surface: event.surface || '', venueSource: 'event', surfaceSource: 'event'
     };
-    var display = { year: model.year, id: id || routeEventId, tab: active, name: event.name, published: !!raw,
+    var championshipStatus = '';
+    if (mode === 'nr') {
+      var nrRound = raw || meta;
+      if (nrRound && nrRound.n != null) championshipStatus = 'Round ' + nrRound.n;
+    } else if (typeof event.countsForChampionship === 'boolean') {
+      championshipStatus = event.countsForChampionship === false ? 'Non-scoring event · not a championship round' :
+        event.roundNumber == null ? 'Championship event' : 'Round ' + event.roundNumber;
+    }
+    var display = { year: model.year, mode: mode, id: id || routeEventId, tab: active, name: event.name, published: !!raw,
+      championshipStatus: championshipStatus,
       scope: event.countsForChampionship === false ? 'Non-scoring event' : mode === 'nr' ? 'Round ' + (raw || meta).n :
         event.roundNumber == null ? 'Championship round' : 'Round ' + event.roundNumber,
       date: dates.text, dateSource: dates.source, dateIso: mode === 'nr' ? dateIso((raw || meta).date) : dates.iso,
@@ -954,8 +994,8 @@
     var first = entries.filter(function (entry) { return entry.status === 'classified' && entry.pos === 1 && entry.total != null; })[0], previous = null;
     display.rows = entries.map(function (entry) {
       var original = raw.entries.filter(function (row) { return String(row.car) === entry.car; })[0], points = byCar[entry.car] || {};
-      var row = { car: entry.car, pos: entry.pos, status: entry.status, driver: resultPerson(entry, 'driver'),
-        codriver: resultPerson(entry, 'codriver'), cls: entry.cls, printedClass: entry.printedClass,
+      var row = { car: entry.car, pos: entry.pos, status: entry.status, driver: resultPerson(entry, 'driver', original),
+        codriver: resultPerson(entry, 'codriver', original), cls: entry.cls, printedClass: entry.printedClass,
         classNote: (mode === 'nr' || entry.classPosCalculated) && entry.printedClass !== entry.cls ? 'sheet: ' + entry.printedClass : '',
         classPos: entry.classPos, classPosCalculated: !!entry.classPosCalculated,
         classPosClass: entry.classPosCalculated && E.normClass(entry.printedClass) !== E.normClass(entry.cls) ? entry.printedClass : '',
@@ -964,6 +1004,10 @@
         total: mode === 'nr' ? entry.status === 'classified' ? entry.total == null ? '—' : E.fmtTime(entry.total, true) : entry.status : original.total || '—',
         gap: '—', previousGap: '—', credit: '',
         notes: (original.notes || []).map(function (note) { return publicSourceNote(note, mode, raw, original); }).filter(Boolean), points: [] };
+      if (mode === 'rs') {
+        row.stages = recordedStageTimeCount(entry.times);
+        row.linkedNrStages = linkedNrStageCount(model, event, raw, original);
+      }
       if (mode === 'nr') {
         ['driver', 'codriver'].forEach(function (role) {
           var printedId = entry[role + 'Id'];

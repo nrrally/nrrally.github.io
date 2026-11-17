@@ -7,8 +7,9 @@
   'use strict';
   var E = window.NREngine;
   var AI = window.NRAIImport;
+  var MI = window.NRMembershipIdentifiers;
   var ROOT = document.getElementById('admin');
-  var SITE = 'data/site.json', PEOPLE = 'data/people.json';
+  var SITE = 'data/site.json', PEOPLE = 'data/people.json', MEMBERSHIP_NUMBERS = 'data/membership-numbers.json';
   function seasonPath(y) { return 'data/seasons/' + y + '/season.json'; }
   function roundPath(y, id) { return 'data/seasons/' + y + '/rounds/' + id + '.json'; }
   function photoPath(id) { return 'data/people/' + id + '.jpg'; }
@@ -97,6 +98,9 @@
     Object.keys(A.docs).forEach(function (p) { if (!A.docs[p].deleted) docs[p] = A.docs[p].obj; });
     return docs;
   }
+  function membershipContractError() {
+    return !MI || MI.version !== 1 ? 'The private membership-number tools are missing or out of date. Reload the admin and all of its assets before using this feature.' : '';
+  }
   function entryContractError() {
     if (!E || E.rallyeSportRawTimingContractVersion !== 1 || typeof E.ingestRallyeSportTiming !== 'function') {
       return 'RS timing scripts are missing or out of date. Refresh before restoring or publishing; nothing has been published.';
@@ -120,19 +124,27 @@
       typeof E.nrNationalEntryReviewDigest !== 'function') {
       return 'National entry review scripts are missing or out of date. Refresh this page before restoring or publishing; nothing has been published.';
     }
-    return !E || E.entryContractVersion !== 2 || typeof E.validateEntryLists !== 'function' || typeof E.entryEvidenceLoss !== 'function' ||
-      !AI || AI.entryContractVersion !== 2 || typeof AI.validateDocuments !== 'function' ?
-      'Entry-aware scripts are missing or out of date. Refresh this page with Ctrl+Shift+R before restoring or publishing; nothing has been published.' : '';
+    if (!E || E.entryContractVersion !== 2 || typeof E.validateEntryLists !== 'function' || typeof E.entryEvidenceLoss !== 'function' ||
+      !AI || AI.entryContractVersion !== 2 || typeof AI.validateDocuments !== 'function') {
+      return 'Entry-aware scripts are missing or out of date. Refresh this page with Ctrl+Shift+R before restoring or publishing; nothing has been published.';
+    }
+    return membershipContractError();
   }
   function requireEntryContract() { var err = entryContractError(); if (err) throw new Error(err); }
   function publishIssues() {
     var err = entryContractError();
-    return err ? [{ level: 'error', path: SITE, msg: err }] : AI.validateDocuments(workingDocs());
+    if (err) return [{ level: 'error', path: SITE, msg: err }];
+    var issues = AI.validateDocuments(workingDocs());
+    if (MI) MI.validateNumbersDoc(getDoc(MEMBERSHIP_NUMBERS), peopleDoc()).forEach(function (message) {
+      issues.push({ level: 'error', path: MEMBERSHIP_NUMBERS, msg: message });
+    });
+    return issues;
   }
   function label(p) {
     var m;
     if (p === SITE) return 'Site & info';
     if (p === PEOPLE) return 'Competitors';
+    if (p === MEMBERSHIP_NUMBERS) return 'Private membership numbers';
     if ((m = p.match(/^data\/seasons\/(\d+)\/season\.json$/))) return m[1] + ' season settings & calendar';
     if ((m = p.match(/^data\/seasons\/(\d+)\/rounds\/(.+)\.json$/))) return m[1] + ' ' + m[2] + ' results';
     if ((m = p.match(/^data\/people\/(.+)\.\w+$/))) return 'Photo: ' + m[1];
@@ -314,6 +326,7 @@
     var m;
     if (path === SITE) return 'site';
     if (path === PEOPLE) return 'people';
+    if (path === MEMBERSHIP_NUMBERS) return 'membership_numbers';
     if ((m = path.match(/^data\/seasons\/(\d+)\/season\.json$/))) return 'season_' + m[1];
     if ((m = path.match(/^data\/seasons\/(\d+)\/rounds\/(.+)\.json$/))) return 'round_' + m[1] + '_' + m[2];
     throw new Error('No database id for ' + path);
@@ -322,6 +335,7 @@
     var m;
     if (id === 'site') return SITE;
     if (id === 'people') return PEOPLE;
+    if (id === 'membership_numbers') return MEMBERSHIP_NUMBERS;
     if ((m = id.match(/^season_(\d+)$/))) return seasonPath(m[1]);
     if ((m = id.match(/^round_(\d+)_(.+)$/))) return roundPath(m[1], m[2]);
     return null;
@@ -389,19 +403,24 @@
      removed; nothing is saved until you publish. Photos from a backup are staged too. */
   async function stageAll(set) {
     requireEntryContract();
+    var incoming = Object.assign({}, set.docs);
+    if (MI) {
+      var protectedNumbers = MI.preservePrivateFields(getDoc(MEMBERSHIP_NUMBERS), incoming[MEMBERSHIP_NUMBERS]);
+      if (protectedNumbers) incoming[MEMBERSHIP_NUMBERS] = protectedNumbers;
+    }
     var rsLoss = rallyeSportReplacementLoss(set.docs);
     var entryLoss = Object.keys(A.docs).some(function (p) {
-      var before = A.docs[p].obj, after = set.docs[p];
-      return !A.docs[p].deleted && before && E.entryEvidenceLoss(before, after, peopleDoc(), set.docs[PEOPLE]);
+      var before = A.docs[p].obj, after = incoming[p];
+      return !A.docs[p].deleted && before && E.entryEvidenceLoss(before, after, peopleDoc(), incoming[PEOPLE]);
     });
     if (entryLoss && !window.confirm('This backup removes saved entry-list or national entry review evidence, or replaces crew/source details or day scope. Review the differences. Restore anyway? History records the replacement only when you publish.')) throw new Error('Backup restore cancelled; entry evidence retained.');
     if (rsLoss.length && !window.confirm(rallyeSportLossMessage(rsLoss, 'backup restore'))) throw new Error('Backup restore cancelled; RallyeSport data retained.');
-    Object.keys(A.docs).forEach(function (p) { if (!set.docs[p]) A.docs[p].deleted = true; });
-    Object.keys(set.docs).forEach(function (p) {
-      var obj = clone(set.docs[p]);
+    Object.keys(A.docs).forEach(function (p) { if (!incoming[p]) A.docs[p].deleted = true; });
+    Object.keys(incoming).forEach(function (p) {
+      var obj = clone(incoming[p]);
       if (A.docs[p]) { A.docs[p].obj = obj; A.docs[p].deleted = false; } else A.docs[p] = { orig: null, obj: obj, deleted: false };
     });
-    var ppl = (set.docs[PEOPLE] && A.docs[PEOPLE].obj.people) || [];
+    var ppl = (incoming[PEOPLE] && A.docs[PEOPLE].obj.people) || [];
     for (var i = 0; i < ppl.length; i++) {
       var p = ppl[i], b64 = set.photos && set.photos[p.id];
       if (b64) { A.bins[photoPath(p.id)] = { b64: b64, deleted: false }; p.photo = 'db:' + p.id; }
@@ -449,11 +468,10 @@
   /* The published copy: rebuilt from the full working copy on every publish. Only fields meant for the public
      are copied, so private fields added to the working data later never reach the website. */
   function publicDocs() {
+    if (membershipContractError()) throw new Error(membershipContractError());
     var out = [], st = clone(site()); delete st.repo;
     out.push({ id: 'site', json: JSON.stringify(st) });
-    out.push({ id: 'people', json: JSON.stringify({ people: peopleDoc().people.map(function (p) {
-      return { id: p.id, name: p.name, aliases: p.aliases || [], bio: p.bio || '', photo: p.photo || '', links: p.links || {} };
-    }) }) });
+    out.push({ id: 'people', json: JSON.stringify(MI.publicPeople(peopleDoc())) });
     years().forEach(function (y) {
       var se = season(y); if (!se) return;
       var rounds = {}; (se.rounds || []).forEach(function (r) { var raw = r.results && rawRound(r.id, y); if (raw) rounds[r.id] = AI.projectPublic(raw); });
@@ -475,7 +493,8 @@
       var name = NAME + 'photos/' + photoIdOf(c.path);
       W.push(c.kind === 'delete' ? { 'delete': name } : { update: { name: name, fields: fsFields({ b64: c.b64, type: 'image/jpeg', updatedAt: now }) } });
     });
-    publicDocs().forEach(function (d) { W.push({ update: { name: NAME + 'public/' + d.id, fields: fsFields({ json: d.json, updatedAt: now }) } }); });   // 3. the published copy
+    if (list.some(function (c) { return !c.binary && c.path !== MEMBERSHIP_NUMBERS; }))
+      publicDocs().forEach(function (d) { W.push({ update: { name: NAME + 'public/' + d.id, fields: fsFields({ json: d.json, updatedAt: now }) } }); });   // 3. the published copy
     var removedSeasons = list.filter(function (c) { return c.kind === 'delete' && /^data\/seasons\/\d+\/season\.json$/.test(c.path); }).map(function (c) { return 'season_' + c.path.split('/')[2]; });
     Array.from(new Set((A.dropPublic || []).concat(removedSeasons))).forEach(function (id) { W.push({ 'delete': NAME + 'public/' + id }); });
     var revAt = W.length;                               // 4. the revision: any publish by someone else since we loaded makes this whole commit fail
@@ -553,7 +572,17 @@
     return order.map(function (g) { return groups[g]; });
   }
   function stageUndo(g) {
-    var rsLoss = [], nationalLoss = [];
+    var rsLoss = [], nationalLoss = [], membershipUndo = null;
+    if (MI) {
+      var membershipItem = g.items.filter(function (item) { return item.path === MEMBERSHIP_NUMBERS; })[0];
+      if (membershipItem) {
+        var membershipBefore = membershipItem.before == null ? null : JSON.parse(membershipItem.before);
+        var membershipAfter = membershipItem.after == null ? null : JSON.parse(membershipItem.after);
+        var peopleItem = g.items.filter(function (item) { return item.path === PEOPLE; })[0];
+        membershipUndo = MI.undoPrivateFields(getDoc(MEMBERSHIP_NUMBERS), membershipBefore,
+          membershipAfter, peopleItem && peopleItem.before != null ? JSON.parse(peopleItem.before) : peopleDoc());
+      }
+    }
     g.items.forEach(function (it) {
       var match = it.path.match(/^data\/seasons\/(\d+)\/season\.json$/), doc = A.docs[it.path];
       if (!match || !doc) return;
@@ -570,8 +599,13 @@
     var before = clone(peopleDoc().people);
     g.items.forEach(function (it) {
       if (photoIdOf(it.path)) return;                   // photos aren't kept in the history
-      if (it.before == null) { if (A.docs[it.path]) dropDoc(it.path); }
-      else { var obj = JSON.parse(it.before); if (A.docs[it.path]) { A.docs[it.path].obj = obj; A.docs[it.path].deleted = false; } else A.docs[it.path] = { orig: null, obj: obj, deleted: false }; }
+      if (it.before == null && it.path !== MEMBERSHIP_NUMBERS) { if (A.docs[it.path]) dropDoc(it.path); }
+      else {
+        var obj = it.path === MEMBERSHIP_NUMBERS ? membershipUndo : it.before == null ? null : JSON.parse(it.before);
+        if (obj == null) { if (A.docs[it.path]) dropDoc(it.path); }
+        else if (A.docs[it.path]) { A.docs[it.path].obj = obj; A.docs[it.path].deleted = false; }
+        else A.docs[it.path] = { orig: null, obj: obj, deleted: false };
+      }
     });
     var keep = {}; peopleDoc().people.forEach(function (p) { if (/^db:/.test(p.photo || '')) keep[p.photo] = 1; });
     before.forEach(function (p) { if (/^db:/.test(p.photo || '') && !keep[p.photo]) A.bins[photoPath(p.photo.slice(3))] = { deleted: true }; });
@@ -669,12 +703,14 @@
     var parts = (location.hash || '').replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
     return { view: parts[0] || 'dashboard', a: parts[1] || '', b: parts[2] || '', c: parts[3] || '' };
   }
-  async function pdfPublished(year, version, user) {
+  async function pdfPublished(year, version, user, includeNumbers) {
     if (A.mode !== 'live') throw new Error('PDF export requires the live admin session.');
     checkSession(version, user);
     var before = await fs('GET', '/config/revision');
-    var docs = await Promise.all(['people', 'season_' + year].map(function (id) {
-      return fs('GET', '/public/' + encodeURIComponent(id), null, { allow404: true });
+    var ids = ['public/people', 'public/season_' + year];
+    if (includeNumbers) ids.push('docs/people', 'docs/membership_numbers');
+    var docs = await Promise.all(ids.map(function (id) {
+      return fs('GET', '/' + id, null, { allow404: true });
     }));
     var after = await fs('GET', '/config/revision');
     checkSession(version, user);
@@ -685,7 +721,29 @@
     var bundle = JSON.parse(fsObj(docs[1].fields).json);
     var model = E.buildSeason({ season: bundle.season, rounds: bundle.rounds || {}, people: people, publicProjection: true });
     model.year = +year;
-    return { model: model, rounds: bundle.rounds || {}, season: bundle.season, revision: after.updateTime };
+    var privatePeople = includeNumbers && docs[2] ? JSON.parse(fsObj(docs[2].fields).json) : null;
+    var numbers = includeNumbers && docs[3] ? JSON.parse(fsObj(docs[3].fields).json) : null;
+    if (includeNumbers && !privatePeople) throw new Error('Protected competitor identities are unavailable.');
+    return { model: model, rounds: bundle.rounds || {}, season: bundle.season, revision: after.updateTime,
+      publicPeople: people, privatePeople: privatePeople, numbers: numbers,
+      versions: ids.reduce(function (out, id, index) {
+        out[id] = docs[index] ? docs[index].updateTime : null; return out;
+      }, {}) };
+  }
+  async function verifyPdfSnapshot(snapshot, version, user) {
+    checkSession(version, user);
+    var revision = await fs('GET', '/config/revision');
+    var ids = Object.keys(snapshot.versions);
+    var docs = await Promise.all(ids.map(function (id) {
+      return fs('GET', '/' + id, null, { allow404: true });
+    }));
+    checkSession(version, user);
+    if (!revision || revision.updateTime !== snapshot.revision)
+      throw new Error('Published data changed. Reopen PDF exports and try again.');
+    docs.forEach(function (doc, index) {
+      if ((doc && doc.updateTime || null) !== snapshot.versions[ids[index]])
+        throw new Error('Published or protected competitor data changed. Reopen PDF exports and try again.');
+    });
   }
   function pdfChoices(snapshot, mode) {
     if (!snapshot.model) return [];
@@ -730,7 +788,7 @@
       (!display || !display.published || !display.rows.length ? '<p>No published classification is available for this selection.</p>' : '') +
       btn(async function () {
         var version = sessionVersion, user = A.user, mode = state.mode, id = state.id, year = state.year;
-        var current = await pdfPublished(year, version, user);
+        var current = await pdfPublished(year, version, user, year === 2026);
         var item = pdfChoices(current, mode).filter(function (candidate) { return candidate.id === id; })[0];
         if (!item || !item.display || !item.display.published || !item.display.rows.length)
           throw new Error('No published classification is available for this selection.');
@@ -738,15 +796,19 @@
           return result.eventId === id;
         })[0];
         if (!window.NRClassificationPDF) throw new Error('PDF export scripts are unavailable.');
-        await window.NRClassificationPDF.download(item.display, raw, mode, async function () {
-          checkSession(version, user);
-          if (A.mode !== 'live') throw new Error('The admin session changed.');
-          var revision = await fs('GET', '/config/revision');
-          checkSession(version, user);
-          if (!revision || revision.updateTime !== current.revision) throw new Error('Published data changed; reopen the export and try again.');
-        });
-        toast('Classification PDF downloaded.', 'good');
-      }, 'Export Classification PDF', 'primary', !display || !display.published || !display.rows.length ? 'disabled' : '') + '</div>';
+        var numbers = current.numbers ? MI.exportRows(item.display.rows, current.numbers,
+          current.privatePeople, current.publicPeople) : null;
+        await window.NRClassificationPDF.download(item.display, raw, mode, function () {
+          return verifyPdfSnapshot(current, version, user);
+        }, numbers);
+        var unresolved = numbers ? numbers.reduce(function (count, row) {
+          return count + (row.driver.unresolved ? 1 : 0) + (row.codriver.unresolved ? 1 : 0);
+        }, 0) : 0;
+        toast('Classification PDF downloaded.' + (unresolved ?
+          ' Membership numbers omitted for ' + unresolved + ' unresolved crew roles.' : ''), 'good');
+      }, 'Export Classification PDF', 'primary', !display || !display.published || !display.rows.length ? 'disabled' : '');
+    html += '<p class="small muted">Authorized 2026 exports include saved private competitor numbers where identities are verified. Handle downloaded PDFs as private data. PDF rendering uses local pinned libraries only.</p>';
+    html += '</div>';
     return html;
   }
   function go(h) { if (location.hash === h) render(); else location.hash = h; }
@@ -952,7 +1014,9 @@
     return html;
   }
   function backupCard() {
-    return '<div class="card"><h3>Backups</h3><p class="small">A backup is one file holding every season, competitor and photo. Download one each month and keep it in the private project archive. Restoring replaces the working copy with the backup; nothing changes on the site until you publish.</p><div class="actions">' +
+    return '<div class="card"><h3>Backups</h3><p class="small">A backup is one file holding every season, competitor and photo. Download one each month and keep it in the private project archive. Restoring replaces the working copy with the backup; nothing changes on the site until you publish.</p>' +
+      (hasPrivateMembershipNumbers() ? '<p class="small bad"><b>Private data:</b> this backup includes admin-only MSA/RS numbers. Store and share it only through the protected recovery process.</p>' : '') +
+      '<div class="actions">' +
       btn(async function () { download('nr-rally-backup-' + new Date().toISOString().slice(0, 10) + '.json', await backupText()); toast('Backup downloaded.', 'good'); }, 'Download a backup', '', 'id="backupBtn"') +
       fileIn(async function (files) {
         var b = readBackup(await files[0].text());
@@ -1574,6 +1638,36 @@
     });
     return out;
   }
+  function membershipRecord(id) {
+    var doc = getDoc(MEMBERSHIP_NUMBERS) || MI.emptyNumbers();
+    return doc.people[id] || {};
+  }
+  function hasPrivateMembershipNumbers() {
+    var doc = getDoc(MEMBERSHIP_NUMBERS);
+    return !!(doc && doc.people && Object.keys(doc.people).some(function (id) {
+      var record = doc.people[id];
+      return record && (record.msaNumber || Array.isArray(record.rsNumbers) && record.rsNumbers.length);
+    }));
+  }
+  function hasMembershipNumbers(id) {
+    var record = membershipRecord(id);
+    return !!(record.msaNumber || Array.isArray(record.rsNumbers) && record.rsNumbers.length);
+  }
+  function setMembershipNumber(id, field, value) {
+    var doc = getDoc(MEMBERSHIP_NUMBERS), next = doc ? clone(doc) : MI.emptyNumbers();
+    var record = Object.assign({}, next.people[id] || {});
+    if (field === 'msaNumber') {
+      value = String(value == null ? '' : value).trim();
+      if (value) record.msaNumber = value; else delete record.msaNumber;
+    } else {
+      var values = String(value == null ? '' : value).split(/[\n,;]+/).map(function (item) { return item.trim(); })
+        .filter(function (item) { return !!item; });
+      if (values.length) record.rsNumbers = values; else delete record.rsNumbers;
+    }
+    if (record.msaNumber || record.rsNumbers && record.rsNumbers.length) next.people[id] = record;
+    else delete next.people[id];
+    if (doc || Object.keys(next.people).length) putDoc(MEMBERSHIP_NUMBERS, next);
+  }
   function viewCompetitors() {
     var doc = peopleDoc(), apps = appearances(), unknown = legacyUnknownNames();
     var html = pageHead('All seasons', 'Competitors', 'One profile per person, shared by every season. Names on the official sheets are matched to a profile by its name or any of its “also printed as” spellings.',
@@ -1621,6 +1715,13 @@
       }, 'image/*', p.photo ? 'Replace photo' : 'Upload photo') + (p.photo ? btn(function () { if (/^db:/.test(p.photo)) stageRemove(photoPath(p.photo.slice(3))); p.photo = ''; render(); }, 'Remove', 'tiny ghost') : '') +
       '<p class="small muted">Use a photo you have permission to publish. It is resized in your browser before uploading.</p></div></div>' +
       '<h3 style="margin-top:16px">Links</h3><div class="form-grid">' + SOCIALS.map(function (sx) { return fld(sx[1], input(function (v) { if (v.trim()) p.links[sx[0]] = v.trim(); else delete p.links[sx[0]]; }, p.links[sx[0]], 'type="url" placeholder="https://"')); }).join('') + '</div></div></div>';
+    var memberNumbers = membershipRecord(id);
+    html += '<div class="card"><h3>2026 membership numbers (admin-only)</h3><p class="small muted">Stored separately from public profiles and joined only by this stable competitor ID. These values do not determine eligibility or scoring.</p><div class="form-grid">' +
+      fld('MSA number', input(function (value) { setMembershipNumber(id, 'msaNumber', value); }, memberNumbers.msaNumber || '',
+        'inputmode="numeric" maxlength="32" autocomplete="off"'), 'Keep the source value as text so leading zeroes are preserved.') +
+      fld('RS numbers', area(function (value) { setMembershipNumber(id, 'rsNumbers', value); }, (memberNumbers.rsNumbers || []).join('\n'),
+        'rows="3" maxlength="400" autocomplete="off"'), 'One number per line. This separate admin-only record is protected from older admin clients that do not know this schema.') +
+      '</div></div>';
     html += '<div class="card"><h3>' + A.year + ' class</h3><p class="small muted" style="margin-top:4px">The class this person is scored in for the whole ' + A.year + ' season. Leave on “as printed” to use the class on each sheet. Set it when the sheet and the championship disagree.</p><div class="form-grid">' +
       fld('As a driver', select(function (v) { if (v) s.classMap.drivers[id] = v; else delete s.classMap.drivers[id]; }, s.classMap.drivers[id] || '', classOpts('As printed on each sheet'))) +
       fld('As a co-driver', select(function (v) { if (v) s.classMap.codrivers[id] = v; else delete s.classMap.codrivers[id]; }, s.classMap.codrivers[id] || '', classOpts('Same as their driver'))) + '</div></div>';
@@ -1633,6 +1734,7 @@
       fld('Duplicate profile', select(function (v) { mg.other = v; }, mg.other, [['', 'Choose…']].concat(others.map(function (x) { return [x.id, x.name]; })))) + '<div class="fld">' +
       btn(function () {
         var o = doc.people.filter(function (x) { return x.id === mg.other; })[0]; if (!o) throw new Error('Choose the duplicate profile first.');
+        var currentNumbers = getDoc(MEMBERSHIP_NUMBERS), mergedNumbers = MI.mergeProfileIdentifiers(currentNumbers || MI.emptyNumbers(), id, o.id);
         var membershipMoves = [];
         years().forEach(function (y) {
           var se = season(y), rs = se && se.rallyesport, review = rs && rs.membershipReview;
@@ -1648,6 +1750,7 @@
           if (oldDecision) membershipMoves.push({ review: review, oldDecision: oldDecision });
         });
         if (!window.confirm('Merge ' + o.name + ' into ' + p.name + '?')) return;
+        if (currentNumbers || Object.keys(mergedNumbers.people).length) putDoc(MEMBERSHIP_NUMBERS, mergedNumbers);
         [o.name].concat(o.aliases || []).forEach(function (n) { if (n !== p.name && p.aliases.indexOf(n) < 0) p.aliases.push(n); });
         if (!p.bio && o.bio) p.bio = o.bio; if (!p.photo && o.photo) p.photo = o.photo;
         Object.keys(o.links || {}).forEach(function (k) { if (!p.links[k]) p.links[k] = o.links[k]; });
@@ -1691,8 +1794,11 @@
         });
         doc.people.splice(doc.people.indexOf(o), 1); A.merge = null; toast('Merged. Publish to make it live.', 'good'); render();
       }, 'Merge') + '</div></div></div>';
-    html += '<div class="card danger"><h3>Delete profile</h3><p class="small">' + (apps.length ? 'This person appears in results, so their profile would simply be re-created from the sheets. Merge instead if it\'s a duplicate.' : 'Removes the profile.') + '</p>' +
-      (apps.length ? '' : btn(function () { if (!window.confirm('Delete ' + p.name + '?')) return; doc.people.splice(doc.people.indexOf(p), 1); if (/^db:/.test(p.photo || '')) stageRemove(photoPath(p.photo.slice(3))); go('#/competitors'); }, 'Delete', 'bad')) + '</div>';
+    var privateNumbers = hasMembershipNumbers(id);
+    html += '<div class="card danger"><h3>Delete profile</h3><p class="small">' + (privateNumbers ?
+      'This competitor has private membership numbers. Merge them into a verified profile before deleting; the values cannot be discarded here.' :
+      apps.length ? 'This person appears in results, so their profile would simply be re-created from the sheets. Merge instead if it\'s a duplicate.' : 'Removes the profile.') + '</p>' +
+      (apps.length || privateNumbers ? '' : btn(function () { if (!window.confirm('Delete ' + p.name + '?')) return; doc.people.splice(doc.people.indexOf(p), 1); if (/^db:/.test(p.photo || '')) stageRemove(photoPath(p.photo.slice(3))); go('#/competitors'); }, 'Delete', 'bad')) + '</div>';
     return html;
   }
 
@@ -2377,6 +2483,7 @@
     if (errors.length) html += '<div class="callout bad"><div><b>Fix these before publishing:</b><ul>' + errors.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('') + '</ul></div></div>';
     else if (warns) html += '<div class="callout warn"><div>' + warns + ' check' + (warns === 1 ? '' : 's') + ' to review in the results — they don\'t stop publishing.</div></div>';
     var ms = A.pubMsg != null ? A.pubMsg : autoMessage(list);
+    if (hasPrivateMembershipNumbers()) html += '<div class="callout warn"><div>This publication/backup contains admin-only MSA/RS numbers in protected working data and History; do not copy them into public records or external tools.</div></div>';
     html += '<div class="card"><div class="form-grid">' + fld('Describe this change (saved in the history)', input(function (v) { A.pubMsg = v; }, ms, 'id="pubMsg" maxlength="200"'), '', 'span3') + '</div><div class="actions">' +
       btn(async function () {
         if (errors.length) throw new Error('Fix the errors listed above first.');

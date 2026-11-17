@@ -20,6 +20,20 @@ function fixture() {
 function build(f, rounds = {}) {
   return E.buildSeason({ season: AI.projectPublic(f.season, f.people), rounds, people: f.people, publicProjection: true });
 }
+test('public classification rows retain stable profile IDs for the protected admin exporter', () => {
+  const { f } = fixture(), model = build(f), result = model.rallyesport.results[0];
+  const display = P.result(model, 'rs', result.id, 'classification');
+  const rawEntry = result.entries[0], row = display.rows.find(item => item.car === String(rawEntry.car));
+  assert.equal(row.driver.id, rawEntry.driverId);
+  assert.equal(row.codriver.id, rawEntry.codriverId || null);
+  assert.equal('msaNumber' in row.driver, false);
+  assert.equal('rsNumbers' in row.driver, false);
+  f.people.people.push({ id: 'synthetic-ambiguous-alias', name: 'Synthetic other profile', aliases: [rawEntry.driver] });
+  const ambiguous = build(f);
+  assert.equal(ambiguous.rallyesport.results[0].entries[0].driverAmbiguous, true);
+  assert.equal(P.result(ambiguous, 'rs', result.id, 'classification').rows.find(item =>
+    item.car === String(rawEntry.car)).driver.id, null, 'an ambiguous alias cannot join protected numbers');
+});
 test('reviewed same-event national entries are neutral, role-scoped and display-only', () => {
   const season = F.season(2026), people = F.docs()['data/people.json'];
   people.people.push({ id: 'blake-example', name: 'Blake Example', aliases: [] });
@@ -664,7 +678,7 @@ test('RS result facts retain source order, independent class-role ranks, printed
   assert.deepEqual([display.rows[0].pos, display.rows[0].classPos, display.rows[0].cls, display.rows[0].total, display.rows[0].penalty],
     [result.entries[0].pos, result.entries[0].classPos, 'RS2', '02:00.04', '00:01.02']);
   assert.deepEqual(display.rows[0].points.map(row => row.points), [0, 15]);
-  assert.equal(display.rows[0].stages, null, 'observed timing is not invented as a printed completed-stage count');
+  assert.equal(display.rows[0].stages, 1, 'RS stage count reflects valid recorded times rather than a source count');
   assert.deepEqual(display.awards.filter(row => row.car === result.entries[0].car).map(row => [row.role, row.rank, row.points]),
     [['codriver', 1, 15], ['driver', null, 0]]);
   assert.doesNotMatch(JSON.stringify(display), /Do not forward|identityReview|classMappingEvidence/);
@@ -745,7 +759,10 @@ test('shared result shell, classification, filters and both stage tables have id
   const shape = html => html.replace(/>[^<]*</g, '><').replace(/href="[^"]*"/g, 'href="PROFILE"')
     .replace(/class="cls [^"]*"/g, 'class="cls CLASS"').replace(/data-car="[^"]*"/g, 'data-car="CAR"');
   const firstTable = html => html.slice(0, html.indexOf('</tbody>')).replace(/(<tbody><tr\b[\s\S]*?<\/tr>)[\s\S]*$/, '$1') + '</tbody></table></div>';
-  assert.equal(shape(firstTable(C.resultClassification(nr))), shape(firstTable(C.resultClassification(rs))));
+  const sharedClassificationShape = html => shape(firstTable(html)).replace(
+    /<td class="num result-stagecount" data-label="RS \/ linked NR stages">[\s\S]*?<\/td>/,
+    '<td class="num result-stagecount" data-label="Stages"></td>');
+  assert.equal(sharedClassificationShape(C.resultClassification(nr)), sharedClassificationShape(C.resultClassification(rs)));
   const headers = html => html.match(/<thead>[\s\S]*?<\/thead>/)[0];
   assert.equal(headers(C.resultClassification(nr)), headers(C.resultClassification(rs)), 'exact common header wording and attributes');
   assert.equal(C.resultShell(nr, '').html.match(/<nav class="tabs"[\s\S]*?<\/nav>/)[0].replace(/href="[^"]*"/g, 'href="TAB"'),
@@ -1402,6 +1419,77 @@ test('linked RS vehicles use exact printed crew identities and shared NR result/
   assert.ok(vehicles().every(vehicle => vehicle === ''), 'duplicate parent events are ambiguous');
   model.events.pop();
   assert.equal(JSON.stringify(model.rallyesport.scoring), scoring);
+});
+test('RS classification separates its recorded-time count from an exact linked NR source count', () => {
+  const { f, raw } = fixture(), model = build(f, { R1: raw });
+  const result = model.rallyesport.results[1], event = model.rallyesport.events.find(row => row.id === result.eventId);
+  const entry = result.entries[0], nrRound = model.rounds.find(round => round.id === 'R1');
+  const nrEntry = nrRound.entries.find(row => row.car === String(entry.car));
+  event.nrEventId = model.events[0].id;
+  result.nrRoundId = 'R1';
+  result.stages = ['SS6', 'SS7', 'SS8', 'SS9'].map(label => ({ id: label.toLowerCase(), label, nrStage: label }));
+  entry.times = ['01:00.0', null, '01:02.0', null];
+  nrEntry.driverId = entry.driverId;
+  nrEntry.codriverId = entry.codriverId;
+  nrEntry.driverKnown = true;
+  nrEntry.codriverKnown = true;
+  nrEntry.stagesCompleted = 8;
+  const dnf = result.entries[7];
+  dnf.status = 'DNF';
+  dnf.times = ['01:10.0', null, null, null];
+  const dns = result.entries[9];
+  dns.status = 'DNS';
+  dns.times = [null, null, null, null];
+  const before = JSON.stringify({ result, rounds: model.rounds, scoring: model.rallyesport.scoring });
+  const display = P.result(model, 'rs', result.id, 'classification');
+  const row = car => display.rows.find(candidate => candidate.car === String(car));
+  assert.equal(display.mode, 'rs');
+  assert.equal(row(entry.car).stages, 2, 'RS count is valid observed times within the four RS stages');
+  assert.equal(row(entry.car).linkedNrStages, 8, 'NR count remains the explicit source value, not its time-array count');
+  assert.equal(row(dnf.car).stages, 1, 'a DNF retains its recorded-time count');
+  assert.equal(row(dns.car).stages, 0, 'a DNS with no recorded times displays zero, without inferring a start');
+  const html = C.resultClassification(display);
+  assert.match(html, /RS: 2[\s\S]*NR: 8/);
+  assert.match(html, /not proof of starts or completions/);
+  assert.match(html, /NR is the broader source-printed count.*both crew profiles match one linked NR row exactly/);
+  assert.equal(JSON.stringify({ result, rounds: model.rounds, scoring: model.rallyesport.scoring }), before,
+    'the display adds no source or scoring mutations');
+
+  entry.driverKnown = false;
+  assert.equal(P.result(model, 'rs', result.id, 'classification').rows.find(candidate =>
+    candidate.car === String(entry.car)).driver.id, null,
+    'an unresolved name never exposes its synthesized slug as a verified private-number join ID');
+  entry.driverKnown = true;
+  entry.driverAmbiguous = true;
+  assert.equal(P.result(model, 'rs', result.id, 'classification').rows.find(candidate =>
+    candidate.car === String(entry.car)).linkedNrStages, null, 'ambiguous RS identities never link to an NR count');
+  entry.driverAmbiguous = false;
+  nrEntry.codriverAmbiguous = true;
+  assert.equal(P.result(model, 'rs', result.id, 'classification').rows.find(candidate =>
+    candidate.car === String(entry.car)).linkedNrStages, null, 'ambiguous NR identities never supply a count');
+  nrEntry.codriverAmbiguous = false;
+  nrEntry.driverId = 'different-profile';
+  assert.equal(P.result(model, 'rs', result.id, 'classification').rows.find(candidate =>
+    candidate.car === String(entry.car)).linkedNrStages, null, 'car number alone never links a crew count');
+  nrEntry.driverId = entry.driverId;
+  const savedCodriver = { codriver: entry.codriver, codriverId: entry.codriverId, codriverKnown: entry.codriverKnown };
+  entry.codriver = '';
+  entry.codriverId = '';
+  entry.codriverKnown = false;
+  assert.equal(P.result(model, 'rs', result.id, 'classification').rows.find(candidate =>
+    candidate.car === String(entry.car)).linkedNrStages, null, 'both crew identities are required');
+  Object.assign(entry, savedCodriver);
+  nrRound.entries.push({ ...nrEntry });
+  assert.equal(P.result(model, 'rs', result.id, 'classification').rows.find(candidate =>
+    candidate.car === String(entry.car)).linkedNrStages, null, 'duplicate linked source rows are ambiguous');
+  nrRound.entries.pop();
+  delete result.nrRoundId;
+  assert.equal(P.result(model, 'rs', result.id, 'classification').rows.find(candidate =>
+    candidate.car === String(entry.car)).linkedNrStages, null, 'an event association alone does not choose an NR round');
+  result.nrRoundId = 'R1';
+  entry.times = ['01:00.0', 'not a time', null, null];
+  assert.equal(P.result(model, 'rs', result.id, 'classification').rows.find(candidate =>
+    candidate.car === String(entry.car)).stages, null, 'malformed time values leave the RS count unavailable');
 });
 test('shared RS event resources replace empty messages, preserve own link preference and deduplicate targets', () => {
   const { f } = fixture(), model = build(f), event = model.rallyesport.events[1];

@@ -7,6 +7,7 @@ const vm = require('node:vm');
 const { execFileSync } = require('node:child_process');
 const E = require('../../assets/engine.js');
 const AI = require('../../assets/ai-import.js');
+const MI = require('../../assets/membership-identifiers.js');
 const catalogue = require('../../assets/admin-logic.js');
 const F = require('./ai-fixtures.js');
 const root = path.resolve(__dirname, '..', '..');
@@ -19,12 +20,12 @@ function harness(engine = E) {
       entries: [{ car: '91', driver: 'Alex Test', codriver: '', class: 'RS2', status: 'classified', pos: 1,
         classPos: 1, total: '01:00.0', times: ['01:00.0'], stagePos: [1], invited: false }] }] };
   const ROOT = { addEventListener() {} };
-  const window = { NREngine: engine, NRAIImport: AI, NRAdminLogic: catalogue, addEventListener() {} };
+  const window = { NREngine: engine, NRAIImport: AI, NRMembershipIdentifiers: MI, NRAdminLogic: catalogue, addEventListener() {} };
   const location = { hash: '#/rallyesport' };
   const context = { window, location, document: { getElementById: () => ROOT }, console, setTimeout, clearTimeout };
   const code = fs.readFileSync(path.join(root, 'assets', 'admin.js'), 'utf8');
   vm.runInNewContext(code.slice(0, code.indexOf('  /* ------------------------------------------------------------------ boot */')) +
-    'window.testAdmin = { A, viewRallyeSport, viewLogic, changes, workingDocs, publicDocs, buildWrites, publishIssues, entryContractError, binds, acts, setRender: function (fn) { render = fn; } }; })();', context);
+    'window.testAdmin = { A, viewRallyeSport, viewLogic, changes, workingDocs, publicDocs, buildWrites, publishIssues, entryContractError, stageAll, stageUndo, binds, acts, setRender: function (fn) { render = fn; } }; })();', context);
   const api = window.testAdmin;
   for (const [key, obj] of Object.entries(docs)) api.A.docs[key] = { orig: E.prettyJson(obj) + '\n', obj, deleted: false };
   api.A.year = 2026; api.A.mode = 'live'; api.A.user = { email: 'admin@example.com' };
@@ -106,6 +107,54 @@ test('RS entry editor stages stable identities and uses atomic public/History/re
   act('Remove RS entry list');
   assert.equal(s.rallyesport.entryLists.length, 0);
   assert.match(harness({ ...E, rallyeSportEntryListContractVersion: 0 }).api.entryContractError(), /RS entry-list scripts/);
+});
+test('private membership numbers stay out of public projections and survive restore/undo guards', async () => {
+  const { api } = harness();
+  const path = 'data/membership-numbers.json';
+  const emptyNumbers = MI.emptyNumbers();
+  const numbers = { format: MI.numbersFormat, version: 1,
+    people: { 'alex-test': { msaNumber: '00123', rsNumbers: ['00456'] } } };
+  api.A.docs[path] = { orig: E.prettyJson(emptyNumbers) + '\n', obj: numbers, deleted: false };
+  api.A.meta[path] = 'synthetic-private-numbers-version';
+  api.A.rev = { n: 1, updateTime: 'synthetic-revision' };
+  const projection = api.publicDocs();
+  assert.equal(projection.some(doc => doc.id === 'membership_numbers'), false);
+  assert.equal(JSON.stringify(projection).includes('00123'), false);
+  assert.equal(JSON.stringify(projection).includes('00456'), false);
+  const writes = api.buildWrites(api.changes(), 'Synthetic private numbers').writes;
+  assert.equal(writes.some(write => write.update && write.update.name.includes('/public/')), false,
+    'a private-number-only publication leaves every public document untouched');
+  const privateWrite = writes.find(write => write.update && write.update.name.endsWith('/docs/membership_numbers'));
+  assert.equal(privateWrite.currentDocument.updateTime, 'synthetic-private-numbers-version');
+  const revisionWrite = writes.find(write => write.update && write.update.name.endsWith('/config/revision'));
+  assert.equal(revisionWrite.currentDocument.updateTime, 'synthetic-revision');
+  const privateHistory = writes.find(write => write.update && write.update.name.includes('/history/')).update.fields;
+  assert.equal(privateHistory.before.stringValue, E.prettyJson(emptyNumbers) + '\n');
+  assert.match(privateHistory.after.stringValue, /00123/);
+  assert.match(privateHistory.after.stringValue, /00456/);
+
+  const backupDocs = JSON.parse(JSON.stringify(api.workingDocs()));
+  delete backupDocs[path];
+  await api.stageAll({ docs: backupDocs, photos: {} });
+  assert.deepEqual(JSON.parse(JSON.stringify(api.workingDocs()[path])), numbers);
+  assert.equal(api.stageUndo({ items: [{ path, before: null, after: E.prettyJson(numbers) + '\n' }] }), true);
+  assert.equal(api.workingDocs()[path], undefined,
+    'undo restores the recorded absence after confirming the sidecar still matches the History after-image');
+});
+test('undoing a profile merge validates private numbers against the same History profile before-image', () => {
+  const { api } = harness(), path = 'data/membership-numbers.json', peoplePath = 'data/people.json';
+  const beforePeople = structuredClone(api.workingDocs()[peoplePath]);
+  const source = { id: 'merged-source', name: 'Synthetic merged source', aliases: [] };
+  beforePeople.people.push(source);
+  const beforeNumbers = { ...MI.emptyNumbers(), people: { [source.id]: { msaNumber: '00123' } } };
+  const afterNumbers = MI.mergeProfileIdentifiers(beforeNumbers, 'alex-test', source.id);
+  api.A.docs[path] = { orig: JSON.stringify(afterNumbers), obj: afterNumbers, deleted: false };
+  assert.equal(api.stageUndo({ items: [
+    { path, before: JSON.stringify(beforeNumbers), after: JSON.stringify(afterNumbers) },
+    { path: peoplePath, before: JSON.stringify(beforePeople), after: JSON.stringify(api.workingDocs()[peoplePath]) }
+  ] }), true);
+  assert.deepEqual(JSON.parse(JSON.stringify(api.workingDocs()[path])), beforeNumbers);
+  assert.ok(api.workingDocs()[peoplePath].people.some(person => person.id === source.id));
 });
 test('catalogue is a closed source-linked graph with explicit branch outcomes', () => {
   const ids = catalogue.topics.map(topic => topic.id), seen = new Set(ids);

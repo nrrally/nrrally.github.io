@@ -52,7 +52,7 @@ delivery or a new registration service.
 | Active-rally notice | `assets/rally-notice.js`, `assets/rally-notice.css`, `disclaimer.html` | Reads only `public/site`; shares that initial promise with the results app. Native full-page yellow modal, followed by a sticky compact reminder after bypass. Not loaded by the admin. |
 | Optional analytics & privacy | `assets/analytics.js`, `privacy.html` | Shares the public site settings promise, validates GA4 settings and sends manual sanitized pageviews after rendering. Dedicated static privacy notice and persistent browser opt-out; never loaded by admin. |
 | Admin | `admin/index.html`, `assets/admin.js`, `assets/admin.css` | Google sign-in, an in-memory editable copy of the data, checks, points preview, publishing, history and undo, backups and the admin list. |
-| Classification PDF (release candidate) | `assets/classification-pdf.js`, `admin/classification-pdf-frame.html`, `assets/rallyesport-logo.png` | Approved-admin-only download of a fresh published NR/RS classification, never working drafts; no write, scoring calculation or confidentiality guarantee. |
+| Classification PDF (release candidate) | `assets/classification-pdf.js`, `admin/classification-pdf-frame.html`, `assets/vendor/`, `assets/rallyesport-logo.png` | Approved-admin-only download of a fresh published NR/RS classification, never working drafts; authorized 2026 private-number inclusion, no write or scoring calculation. |
 | Admin logic explorer | `assets/admin-logic.js`, `assets/admin-logic.css` | Admin-only entry point for a bundled, read-only NR/RS/shared decision catalogue. Conditional flows and revision-pinned code/docs evidence; no dataset evaluation, rules configuration or provider access. Static source is public. |
 | AI preparation | `assets/ai-import.js` | Pure versioned contract/prompt generation, strict parsing, capability/evidence checks, identity assessment and scoped change planning. Shared by admin and Node tests/tools; no network or provider SDK. |
 | Connection settings | `assets/firebase-config.js` | Says which Firebase project to use. Public by design: it identifies the project and grants no access. |
@@ -61,12 +61,20 @@ delivery or a new registration service.
 
 The pending code-only PDF release rechecks authenticated access to `config/revision` around published
 reads and immediately before download, rejecting changed revisions. The pinned jsPDF
-3.0.4 and AutoTable 5.0.2 (both MIT-licensed) are fetched from cdnjs using SHA-384
-integrity checks. They execute only inside an opaque-origin sandboxed iframe with no
-admin DOM, storage or Firebase access; the iframe receives only the already-public
-classification and logo. The provider can see requests and IP address, and connectivity
-or integrity failures block the download. The frame's CSP blocks connections and forms;
-public result data and static client code are not confidential.
+3.0.4 and AutoTable 5.0.2 (both MIT-licensed) are now hosted in `assets/vendor/`,
+byte-identical to the previously SHA-384-pinned distributions; their hashes remain in
+`classification-pdf.js`. The jsPDF bundle includes its full license; AutoTable's
+upstream license is retained alongside it. These reviewed runtime dependencies are an
+intentional exception to keeping test dependencies outside Git: CDN execution is not
+acceptable for private-number payloads.
+Their exact `.gitattributes` entries disable newline conversion and exempt only upstream
+trailing whitespace; authored source retains the normal whitespace checks.
+They run only inside an opaque-origin sandbox with no admin DOM/storage/Firebase
+access. CSP permits local scripts only and blocks connections, images and forms.
+The existing one-click export joins saved 2026 numbers by verified profile ID and checks
+public/private identity projection plus document/revision versions before and after
+generation. There is no second renderer or print window. PDFs containing numbers are
+private downloads; public sporting inputs and client source code remain public.
 
 ### Admin presentation and explanation maintenance
 

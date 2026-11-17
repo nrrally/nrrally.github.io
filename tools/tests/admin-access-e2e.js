@@ -5,6 +5,7 @@ const path = require('node:path');
 const http = require('node:http');
 const E = require('../../assets/engine.js');
 const AI = require('../../assets/ai-import.js');
+const MI = require('../../assets/membership-identifiers.js');
 const fixtures = require('./ai-fixtures.js').docs();
 fixtures['data/site.json'].analytics = { enabled: true, measurementId: 'G-' + 'A'.repeat(10) };
 const workingSeason = fixtures['data/seasons/2026/season.json'];
@@ -59,6 +60,9 @@ function put(key, fields) { docs.set(key, { name: prefix + key, fields, updateTi
 put('docs/site', { json: field(fixtures['data/site.json']) });
 put('docs/people', { json: field(fixtures['data/people.json']) });
 put('docs/season_2026', { json: field(fixtures['data/seasons/2026/season.json']) });
+const privateNumbers = { format: MI.numbersFormat, version: 1,
+  people: { 'alex-test': { msaNumber: '00001', rsNumbers: ['00002'] } } };
+put('docs/membership_numbers', { json: field(privateNumbers) });
 put('docs/round_2026_R1', { json: field(nrRound) });
 put('public/site', { json: field(fixtures['data/site.json']) });
 put('public/people', { json: field(fixtures['data/people.json']) });
@@ -69,6 +73,10 @@ put('history/rs-overwrite-1', { group: { stringValue: 'rs-overwrite-1' }, at: { 
   by: { stringValue: 'Synthetic User' }, message: { stringValue: 'Older NR season update' },
   path: { stringValue: 'data/seasons/2026/season.json' }, kind: { stringValue: 'update' },
   before: { stringValue: JSON.stringify(historicalSeason) }, after: { stringValue: JSON.stringify(workingSeason) } });
+put('history/membership-import-1', { group: { stringValue: 'membership-import-1' }, at: { stringValue: '2026-12-02T00:00:00Z' },
+  by: { stringValue: 'Synthetic User' }, message: { stringValue: 'Synthetic private number import' },
+  path: { stringValue: 'data/membership-numbers.json' }, kind: { stringValue: 'create' },
+  before: { stringValue: null }, after: { stringValue: JSON.stringify(privateNumbers) } });
 put('config/admins', { emails: { arrayValue: { values: [{ stringValue: 'admin@example.com' }] } } });
 put('config/revision', { n: { integerValue: '1' } });
 
@@ -188,6 +196,28 @@ async function main() {
       const download = await event;
       return JSON.parse(fs.readFileSync(await download.path(), 'utf8')).docs;
     }
+    await visit('#/history');
+    await page.getByText('Older NR season update').waitFor();
+    const membershipUndo = page.locator('tr').filter({ hasText: 'Synthetic private number import' });
+    await membershipUndo.getByRole('button', { name: 'Undo' }).click();
+    await page.waitForFunction(() => location.hash === '#/publish');
+    assert.equal((await draftBackup())['data/membership-numbers.json'], undefined,
+      'undo restores the exact recorded absence of a newly created private sidecar');
+    await page.reload(); await admin();
+    await visit('#/competitor/casey-match');
+    await page.getByLabel('MSA number').fill('00123');
+    await page.getByLabel('RS numbers').fill('00456');
+    await page.getByLabel('RS numbers').press('Tab');
+    assert.equal(await page.getByLabel('MSA number').inputValue(), '00123');
+    assert.equal(await page.getByLabel('RS numbers').inputValue(), '00456');
+    const importBackup = await draftBackup();
+    assert.equal(importBackup['data/membership-numbers.json'].people['casey-match'].msaNumber, '00123');
+    assert.equal(importBackup['data/membership-numbers.json'].people['alex-test'].msaNumber, '00001');
+    assert.match(await page.locator('main').innerText(), /this backup includes admin-only MSA\/RS numbers/i);
+    assert.doesNotMatch(JSON.stringify(docs.get('public/people')), /00123|00456|00001|00002/);
+    await visit('#/publish');
+    await page.getByText('This publication/backup contains admin-only MSA/RS numbers', { exact: false }).waitFor();
+    assert.equal(writes.length, 0, 'editing private fields does not publish');
     const originalDraft = await draftBackup();
     for (const scheme of ['light', 'dark']) {
       await page.emulateMedia({ colorScheme: scheme });
@@ -401,7 +431,8 @@ async function main() {
     await page.getByText('Older NR season update').waitFor();
     rejectRsWarning = true;
     const undoUnpublishedPrompt = nextDialogMessage(), undoRsWarning = nextDialogMessage();
-    await page.getByRole('button', { name: 'Undo' }).click();
+    await page.locator('tr').filter({ hasText: 'Older NR season update' })
+      .getByRole('button', { name: 'Undo' }).click();
     assert.match(await undoUnpublishedPrompt, /unpublished changes.*Undoing this change/);
     assert.match(await undoRsWarning, /History undo will replace or delete RallyeSport data/);
     rejectRsWarning = false;

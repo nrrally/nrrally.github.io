@@ -252,6 +252,8 @@ td.fastest { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); 
 .home-rs-note { margin:8px 0 0; }
 .rs-competitor { font-weight:750; }
 .result-classification .crew { min-width: 220px; gap: 7px; }
+.result-stagecount-source { display: block; white-space: nowrap; }
+.result-stagecount-source + .result-stagecount-source { margin-top: 2px; color: var(--muted); font-size: 11px; }
 .result-crew-role { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .result-crew-role + .result-crew-role > :first-child { font-size: 12.5px; color: var(--muted); }
 .result-role-status { white-space: nowrap; color: var(--muted); }

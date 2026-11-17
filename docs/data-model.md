@@ -10,6 +10,7 @@ Data is stored in a stable layout (`prettyJson` in `engine.js`), so the history'
 |---|---|---|
 | `data/site.json` | `docs/site` | `public/site` (without `repo`) |
 | `data/people.json` | `docs/people` | `public/people` (only id, name, aliases, bio, photo, links) |
+| `data/membership-numbers.json` | `docs/membership_numbers` (admin-only) | not published |
 | `data/seasons/<year>/season.json` | `docs/season_<year>` | `public/season_<year>`: `{ "season": …, "rounds": { "R1": …, … } }` |
 | `data/seasons/<year>/rounds/<id>.json` | `docs/round_<year>_<id>` | included in `public/season_<year>` |
 | a profile photo | `photos/<personId>`: `{ b64, type }`, a JPEG up to 640 px | the same document (public) |
@@ -46,6 +47,52 @@ revision, public snapshots, orphan photos, Auth, rules and provider configuratio
 It is not a point-in-time full-project export. Restore stages whole working-document
 replacement, entry-evidence-loss review and supplied photos; it does not prune/restore
 every photo record or recreate external accounts. See [recovery.md](recovery.md#precisely-what-the-app-backup-does-and-does-not-do).
+
+## Private membership numbers (code release pending; no data populated)
+
+`data/membership-numbers.json` is a private sidecar keyed by stable competitor profile
+ID, with `format: "nr-private-membership-numbers"`, version 1, and per-person
+`msaNumber` (a digit string, preserving leading zeroes) and `rsNumbers` (an array of
+digit strings). The sidecar is deliberately separate from `data/people.json`: the
+public people projection remains the explicit `id`, `name`, `aliases`, `bio`, `photo`,
+and `links` allowlist, and the sidecar has no public projection.
+
+The competitor editor maintains these fields; there is no roster-upload interface.
+The one-time supplied-list reconciliation stays in protected session tools/artifacts,
+not source control. Only unique exact canonical profiles qualify for that import;
+aliases, suffix differences, duplicates, missing/TBC and existing conflicting values
+remain unresolved. The supplied roster has no explicit as-of date. Publication
+validation rejects invalid digit strings, orphan profile references and duplicate
+MSA/RS numbers. These fields never determine eligibility, scoring, standings or starts.
+
+The sidecar uses the existing admin-only `docs` rule and the existing admin-readable,
+create-only `history` rule; no rule change or new collection is needed. A publish that
+changes it uses the standard per-document update-time and global revision preconditions,
+and records the sidecar's before/after JSON in protected History. Backups also include
+the sidecar, so they contain private identifiers and must stay in the protected recovery
+archive. Restore preserves existing values or blocks on a conflict. History undo
+restores its exact before-image only while the current sidecar equals its recorded
+after-image; otherwise it blocks. A
+profile merge moves the values only if they do not conflict, and a profile with saved
+numbers cannot be deleted until they have been safely merged. Retire/reload old admin
+tabs before later edits. A private-number-only publish does not rewrite any public
+snapshot; it updates only the private working document, protected History and global
+revision.
+
+The existing admin PDF export includes saved 2026 numbers through a stable-profile-ID
+join against protected data and an exact public/private profile projection check.
+It rechecks authorization plus revision/document versions before and after generation.
+Unresolved or ambiguous crew roles remain unjoined and retain the standard missing-number
+placeholder; an explicit PDF/admin notice counts omitted roles. A genuinely invalid
+sidecar, duplicate profile ID or public/private snapshot conflict still blocks export.
+The original scoresheet generator runs in an opaque sandbox with a restrictive CSP,
+using only locally hosted SHA-384-pinned jsPDF/AutoTable files. Private numbers never
+reach CDN code, public documents or the public site. The privacy notice covers this use.
+The reviewed code-only release is authorized, but no membership values have been
+written to Firebase. Import remains held pending separate explicit authorization,
+then verified compatible
+deployment, fresh protected backup, current live-rule and revision checks, and a
+conflict-free fresh preview.
 
 ## Conventions
 
@@ -333,6 +380,13 @@ No real event/results are
 preloaded. `nrEventId`, `nrRoundId` and
 each `stages[].nrStage` are optional independent associations; stage arrays are explicit
 subsets and are never aligned by date or position.
+On public RS classifications, the RS stage count is the number of valid recorded times
+within that result's explicit stage list; it is not evidence of a start or completion.
+The linked NR source count is displayed separately only when `nrRoundId` resolves
+unambiguously and exactly one row matches the car and stable driver/co-driver profile
+IDs (or both rows have no co-driver). It uses the linked NR row's explicit `stages`
+value; it is never inferred from a car number, name, or event date, nor mixed into RS
+results or scoring. Malformed or ambiguous counts remain unavailable.
 For public display only, a uniquely linked NR event or round can supply a missing RS
 venue or surface. The adapter labels inherited values, keeps RS-owned values first,
 and leaves ambiguous or conflicting day-specific values unavailable. This adds no

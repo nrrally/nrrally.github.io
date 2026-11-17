@@ -25,15 +25,44 @@ The displayed source-based finality is preserved; scoring approval alone does no
 a result final. The export does not publish, sign, amend or certify results.
 
 The scoresheet uses event positions, source timing and penalties, and public crew and
-class data, including RS0 event recognition. It prints `No MSA Number` because the
-public schema does not contain licence numbers. The timestamp is South Africa standard
-time (UTC+02:00). For validated raw-timing classifications only, if no stage count was
-stored, `Stg` counts recorded stage observations (including zero for none); it does not
-infer status or a legacy classification's missing count. The built-in font supports
-WinAnsi characters only; other characters,
-ambiguous car matches or unsupported stage data block export rather than being silently
-altered. Very wide tables continue across pages. Check every page against the published
-classification and source before distributing it.
+class data, including RS0 event recognition. Authorized 2026 exports may include saved
+private MSA/RS numbers; handle those PDFs as private data. The timestamp is South Africa
+standard time (UTC+02:00). The `Stg` column counts valid recorded stage times, including zero;
+it does not prove a start or completion. A missing or malformed time array is left
+unavailable or blocks export rather than being guessed. The header/footer use the
+public event's explicit championship status, when available, separately from
+Final/Provisional result status; an unknown event status is omitted. The built-in font
+supports WinAnsi characters only; other characters, ambiguous car matches or unsupported
+stage data block export rather than being silently altered. Very wide tables continue
+across pages. Check every page against the published classification and source before
+distributing it.
+
+## Private competitor numbers (code release pending)
+
+The competitor editor adds admin-only MSA and RS number fields. Save digit strings to
+preserve leading zeroes; separate multiple RS numbers with commas or newlines.
+Review & publish records changes in protected History. Backups and History contain
+private numbers and must remain in protected recovery storage.
+
+The existing **Export Classification PDF** action uses the same scoresheet template,
+with saved 2026 numbers joined only by verified stable profile ID. Unpublished number
+edits are excluded. Authorization and document/revision versions are checked before
+and after rendering. Exact pinned libraries are hosted locally, integrity checked,
+and isolated in a network-blocked sandbox; no number goes to CDN code. Missing numbers
+retain the `No MSA Number` placeholder. Unverified or ambiguous roles keep their printed
+names and placeholders without joining numbers; the PDF and download notice count these
+omissions. Invalid private data or conflicting snapshots still block export.
+
+The one-time supplied-list reconciliation is performed privately outside the repository,
+not through a reusable roster-upload UI. Only unique exact canonical profile matches
+qualify; alias-only, duplicate, missing/TBC and conflicting fields remain unresolved.
+The supplied list has no explicit as-of date. **Numbers and list absence never determine
+eligibility, scoring, starts or standings.** No values have been written. Import remains
+held pending separate explicit authorization. Before any authorized import,
+verify the compatible deployment and live rules, retire/reload old admin tabs,
+take a fresh protected backup, and recheck the roster against current profiles,
+sidecar and revision. Abort on any identity or value conflict; preserve all public
+results, standings, eligibility and scoring.
 
 ## Source participation statuses
 

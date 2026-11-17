@@ -8,17 +8,47 @@ of ambiguous or mismatched rows. It also checks the reference table columns, tot
 penalty styling, SAST date and raw-timing observation counts for classified/DNF/DNS
 without inferring missing legacy counts. With the externally installed Playwright setup below,
 set `RS_RAW_TIMING_TEST=1`, `RS_VARIABLE_STAGES_TEST=1`, `RS_PDF_TEST=1` and
-`RS_PDF_LIB_DIR` to a private test directory containing the exact jsPDF 3.0.4 and
-AutoTable 5.0.2 CDN files, then run `node tools/tests/rs-entry-policy-e2e.js`.
+`RS_PDF_LIB_DIR` to a private output directory, then run
+`node tools/tests/rs-entry-policy-e2e.js`. The test uses the repository's exact local
+jsPDF 3.0.4 and AutoTable 5.0.2 files and their production integrity checks.
 Set `RS_PDF_EMPTY_TEST=1` alone for the unpublished-result disabled state.
 The provider and library routes are intercepted and writes rejected. The synthetic
 browser checks cover NR/RS exports, draft isolation, current authorization,
 network/library failure, sign-in cancellation, sandbox isolation and wide pagination.
 Review rendered PDF pages as well as extracted source strings. The release gate also
 rendered all currently published classifications locally from anonymous public GETs
-using the real pinned CDN libraries; private PDFs/screenshots remain outside Git.
+using the real pinned library bytes; private PDFs/screenshots remain outside Git.
 No real Google authentication is tested. The user must verify sign-in and download
-after deployment. The CDN remains necessary at runtime.
+after deployment. No PDF CDN is used at runtime.
+
+## Private membership numbers (code release pending)
+
+Run the focused schema/projection/guard checks with
+`node --test tools/tests/membership-identifiers.test.js tools/tests/admin-logic.test.js tools/tests/public-display.test.js`.
+The focused unit tests cover malformed/duplicate/orphan identifiers, public projection,
+stable-ID joins, protected restore/merge and exact-after-image History undo, including
+undo of a profile merge. `node tools/tests/admin-access-e2e.js` exercises private
+per-competitor editing, backup disclosure and guarded undo with zero writes.
+The PDF browser mode above checks saved role-specific numbers and missing placeholders,
+unchanged public documents, local-library failure/SRI rejection, sandbox isolation and
+revocation/private-document races during generation. The original NR/RS scoresheet is
+rendered and visually inspected, including multipage output and separately labelled
+RS/NR counts. All identifiers are synthetic; provider/external traffic is intercepted.
+One-time roster tools/artifacts stay in protected session storage, not repository
+fixtures. User-operated Google sign-in and private-export acceptance remain required.
+Mixed verified/unresolved/ambiguous roles must still export: only verified roles receive
+numbers, other roles retain placeholders, and PDF/admin notices count omissions.
+An exact published R1/R2 read-only regression with synthetic numbers lives in protected
+session storage; real crew fixtures and rendered PDFs must not enter the repository.
+
+The public-display regressions also keep RS recorded-time counts separate from linked
+NR source counts. They verify the broader source-printed NR count appears only for one
+explicitly linked row with an exact car and both verified crew identities. Tests cover
+different stage scopes, duplicate and missing links, malformed times, DNF/DNS rows,
+and unchanged source/scoring data.
+For the focused responsive browser check, set `RS_STAGE_COUNT_ONLY=1` and run
+`node tools/tests/site-theme-e2e.js`; it checks matched and unmatched RS rows at four
+widths in both themes. `rs-entry-policy-e2e.js` separately covers the unlinked NR case.
 
 ## RS raw timing local extension
 

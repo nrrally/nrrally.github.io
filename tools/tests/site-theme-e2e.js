@@ -160,7 +160,7 @@ const standingsParity = ['nr', 'rs'].map(mode => {
   display.columns = [{ ...display.columns[column], note: 'Synthetic shared qualification field.' }];
   return display;
 });
-bundle.season.minStarts = 2;
+bundle.season.minStarts = 5;
 const resultParity = ['nr', 'rs'].map(mode => {
   const display = P.result(standingsParityModel, mode, mode === 'nr' ? 'R1' : rsResult.id, 'classification');
   const row = display.rows.find(row => row.driver.href && row.codriver.href && row.points.every(role => !role.detailHelp && role.points != null));
@@ -217,7 +217,7 @@ async function main() {
         if (url.endsWith('/season_2026') && seasonDelay) await new Promise(resolve => setTimeout(resolve, seasonDelay));
         const value = published[url.split('/').pop()];
         return route.fulfill({ status: databaseDown ? 503 : value ? 200 : 404,
-          headers: { 'Access-Control-Allow-Origin': '*' }, contentType: 'application/json',
+          headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }, contentType: 'application/json',
           body: JSON.stringify(value ? { fields: { json: { stringValue: JSON.stringify(value) } } } : {}) });
       }
       unexpected.push(url); return route.abort();
@@ -242,6 +242,32 @@ async function main() {
       assert.equal(await page.locator('.footer a[href="disclaimer.html"]').count(), 1);
       assert.ok((await page.innerText('.site-disclosure')).includes('not this site'));
     };
+    if (process.env.RS_STAGE_COUNT_ONLY === '1') {
+      const result = bundle.season.rallyesport.results.find(item => item.id === 'synthetic-rs-r2-results');
+      const event = bundle.season.rallyesport.events.find(item => item.id === result.eventId);
+      const linkedEntry = { ...F.copy(bundle.rounds.R1.entries[0]), car: result.entries[0].car,
+        driver: result.entries[0].driver, codriver: result.entries[0].codriver, stages: 8 };
+      bundle.season.rounds = bundle.season.rounds.concat([{ ...bundle.season.rounds[0], id: 'R3',
+        eventId: event.nrEventId, n: 3, date: '2026-07-10' }]);
+      bundle.rounds.R3 = { ...F.copy(bundle.rounds.R1), id: 'R3', eventId: event.nrEventId,
+        entries: [linkedEntry] };
+      result.nrRoundId = 'R3';
+      for (const theme of ['light', 'dark']) {
+        await page.emulateMedia({ colorScheme: theme });
+        for (const width of [320, 390, 768, 1440]) {
+          await page.setViewportSize({ width, height: 1000 });
+          await visit('#/rallyesport/synthetic-rs-r2-results/classification?competition=rs');
+          assert.match(await page.locator('tr[data-car="1"] .result-stagecount').innerText(), /RS:\s*1\s*NR:\s*8/);
+          assert.match(await page.locator('tr[data-car="2"] .result-stagecount').innerText(), /RS:\s*1\s*NR:\s*—/);
+          assert.match(await page.locator('main').innerText(), /RS counts are valid recorded times.*not proof of starts or completions/);
+          assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+        }
+      }
+      assert.deepEqual(errors, []);
+      assert.deepEqual(unexpected, []);
+      console.log('PASS linked NR stage-count parity at four widths and both themes; synthetic only.');
+      return;
+    }
     const savedBundle = published.season_2026;
     const wiredSeason = F.copy(nationalSeason);
     wiredSeason.nrNationalEntries = F.copy(nationalModel.nrNationalEntries);
@@ -341,8 +367,12 @@ async function main() {
     const resultPresentation = () => page.evaluate(() => {
       const table = document.querySelector('.result-classification');
       return {
-        headers: Array.from(table.querySelectorAll('thead th'), el => [el.textContent, el.getAttribute('scope')]),
-        row: Array.from(table.querySelector('tbody tr').querySelectorAll('*'), el => [el.tagName,
+        headers: Array.from(table.querySelectorAll('thead th'))
+          .filter(el => !/stages/i.test(el.textContent))
+          .map(el => [el.textContent, el.getAttribute('scope')]),
+        row: Array.from(table.querySelector('tbody tr').querySelectorAll('*'))
+          .filter(el => !el.closest('.result-stagecount'))
+          .map(el => [el.tagName,
           el.classList.contains('cls') ? 'CLASS' : el.classList.contains('pos') ? 'POS' : el.className,
           el.getAttribute('aria-label'), el.getAttribute('data-label')]),
         tabs: Array.from(document.querySelectorAll('.tabs a'), el => [el.textContent, el.getAttribute('aria-current')]),
@@ -535,7 +565,7 @@ async function main() {
           assert.ok(await page.locator('.result-scoring-order table').isVisible());
         }
         assert.deepEqual(resultPresentations[1], resultPresentations[0],
-          'actual NR/RS result adapters share exact header wording, row structure, tabs, responsive layout and computed typography/spacing');
+          'actual NR/RS result adapters share common headers, row structure, tabs, responsive layout and computed typography/spacing');
         for (const context of nationalDisplays) {
           await page.evaluate(({ kind, value }) => {
             const C = window.NRPublicComponents;
@@ -1307,6 +1337,14 @@ async function main() {
       digest: E.currentFinalityDigest(bundle.rounds.R1, 'nr') };
     bundle.season.rallyesport = F.copy(initialRsData);
     const reviewedRs = bundle.season.rallyesport.results.find(result => result.id === rsResult.id);
+    const savedRoundMetadata = bundle.season.rounds, savedResultNrRoundId = reviewedRs.nrRoundId;
+    const linkedNrEventId = bundle.season.rallyesport.events.find(event => event.id === reviewedRs.eventId).nrEventId;
+    const linkedNrEntry = { ...F.copy(bundle.rounds.R1.entries[0]), car: reviewedRs.entries[0].car,
+      driver: reviewedRs.entries[0].driver, codriver: reviewedRs.entries[0].codriver, stages: 8 };
+    bundle.season.rounds = savedRoundMetadata.concat([{ ...savedRoundMetadata[0], id: 'R3',
+      eventId: linkedNrEventId, n: 3, date: '2026-07-10' }]);
+    bundle.rounds.R3 = { ...F.copy(bundle.rounds.R1), id: 'R3', eventId: linkedNrEventId, entries: [linkedNrEntry] };
+    reviewedRs.nrRoundId = 'R3';
     reviewedRs.currentFinalityReview = { version: 1, confirmedFinal: true,
       digest: E.currentFinalityDigest(reviewedRs, 'rs') };
     for (const theme of ['light', 'dark']) {
@@ -1318,12 +1356,22 @@ async function main() {
           await visit(hash);
           assert.doesNotMatch(await page.locator('main').innerText(), /confirmed by user|independent technical clearance/i);
           assert.match(await page.locator('.round-meta').innerText(), /Final classification/);
+          if (hash.includes('/rallyesport/')) {
+            assert.match(await page.locator('main').innerText(), /RS counts are valid recorded times.*not proof of starts or completions/);
+            assert.match(await page.locator('tr[data-car="1"] .result-stagecount').innerText(), /RS:\s*1\s*NR:\s*8/,
+              'the RS recorded-time count and linked source NR count remain separately labelled');
+            assert.match(await page.locator('tr[data-car="2"] .result-stagecount').innerText(), /RS:\s*1\s*NR:\s*—/,
+              'unmatched RS crews do not inherit an NR count');
+          }
           await page.locator('.result-source-notes summary').click();
           assert.doesNotMatch(await page.locator('.result-source-notes').innerText(), /pending post.?event technical checks/i);
           await noOverflow();
         }
       }
     }
+    reviewedRs.nrRoundId = savedResultNrRoundId;
+    bundle.season.rounds = savedRoundMetadata;
+    delete bundle.rounds.R3;
     bundle.rounds.R1 = savedNrFinality;
     bundle.season.rallyesport = {
       ruleset: { code: 'clubman-sprint-2026-v1', year: 2026 },

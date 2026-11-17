@@ -412,8 +412,10 @@
         ], [source('assets/engine.js', 1260, 1278, 'copy cell handling'), source('assets/admin.js', 1584, 1609, 'copyReviewedRsTimes')]),
         node('What is never copied or automatically updated?', [
           branch('Competition semantics', 'Never copy NR status, class, position, penalty or points. RS-only stages remain independently entered.'),
-          branch('Later NR correction', 'Does not update RS. Changing a mapped round/stage in admin clears affected copied times/provenance; manual times stay independent.')
-        ], [source('assets/admin.js', 1936, 1960, 'mapping changes'), source('docs/scoring-rules.md', 274, 282, 'shared-stage reuse')])
+          branch('Later NR correction', 'Does not update RS. Changing a mapped round/stage in admin clears affected copied times/provenance; manual times stay independent.'),
+          branch('Display-only stage counts', 'RS counts valid recorded times, not completed stages. A separately labelled broader NR printed count requires an explicit same-event round, unique car and both verified crew identities; otherwise it stays unavailable.')
+        ], [source('assets/admin.js', 1936, 1960, 'mapping changes'), source('docs/scoring-rules.md', 274, 282, 'shared-stage reuse'),
+          currentSource('assets/public-model.js', 290, 319, 'recorded RS / matched NR counts')])
       ], ['rs-graphs', 'shared-identity']),
     topic('rs-graphs', 'rs', 'RS graphs preserve independent observations and precision',
       'RS graphs use the same presentation controls as NR, but only RS source times, stage axes, official final data and comparison pools.',
@@ -540,8 +542,9 @@
         ], [source('assets/admin.js', 57, 103, 'working state / changes'), source('assets/admin.js', 2221, 2259, 'viewPublish')]),
         node('What is committed together?', [
           branch('Authorized publication', 'Working document updates, rebuilt public bundles, revision increment and attributed per-document before/after History are one atomic request with version preconditions.'),
+          branch('Private numbers only', 'Write only the protected sidecar, attributable History and revision; public snapshots stay untouched. Numbers never determine scoring or eligibility.'),
           branch('Oversized operation', 'Refuse above 500 writes, safe 1 MiB document size or 10 MiB atomic request. No partial publish.')
-        ], [source('assets/admin.js', 458, 486, 'buildWrites')]),
+        ], [currentSource('assets/admin.js', 483, 519, 'guarded publication')]),
         node('Does every admin action use Review & publish?', [
           branch('Admin-list change', 'No. The existing admin-list save takes effect immediately through its own version-checked write. It is not part of publication History or a working-draft undo.'),
           branch('Provider access or configuration', 'Owner accounts, Auth, DNS, photos and provider settings are not recovered just by undoing a document publication.', 'shared-access')
@@ -549,8 +552,8 @@
         node('Did another admin publish meanwhile?', [
           branch('Different documents', 'Reload their changes, preserve this draft and rerun validation before retrying.'),
           branch('Same changed document', 'Refuse overwrite. Preserve a private backup, reload and reconcile.'),
-          branch('History undo / restore', 'Stages whole-document versions for review, not a full provider/photo/Auth recovery; loss warnings cover RS and entry evidence.')
-        ], [source('assets/admin.js', 488, 549, 'rebase / publish / stageUndo'), source('assets/admin.js', 392, 425, 'restore loss guards')])
+          branch('History undo / restore', 'Stages whole-document versions for review, not a full provider/photo/Auth recovery. Restore retains missing private numbers and rejects conflicts; private-number undo requires the exact recorded after-image, with profile and number before-images restored together.')
+        ], [source('assets/admin.js', 488, 549, 'rebase / publish'), currentSource('assets/membership-identifiers.js', 56, 95, 'private restore / undo / merge guards')])
       ], ['shared-projection', 'shared-access']),
     topic('shared-projection', 'shared', 'What becomes public and how RS snapshots work',
       'The static admin UI and this catalogue are not confidential. Private review data relies on authentication and database rules, not a hidden link.',
@@ -633,9 +636,9 @@
         ], [source('assets/admin.js', 681, 687, 'render access gate'), source('docs/testing.md', 268, 275, 'access testing boundary')]),
         node('Can the selected classification be exported as a PDF?', [
           branch('No approved live admin, no published rows, or changed revision', 'Do not download. Reauthorize or reload; simulation and drafts are not export sources.'),
-          branch('Published rows and current authorization', 'Preserve event positions, source timing and source-based status. A scoring review does not change finality; unavailable licence numbers are not invented.'),
-          branch('Libraries fail integrity or load, unsupported characters, or ambiguous source', 'Stop visibly without downloading. Integrity-pinned libraries render only public data in an isolated sandbox; recheck authorized revision access before download.')
-        ], [currentSource('assets/admin.js', 674, 753, 'pdfPublished / viewPdfExports'), currentSource('assets/classification-pdf.js', 197, 249, 'isolated rendering / download')]),
+          branch('Published rows and current authorization', 'Preserve positions, source timing and finality. Championship wording uses explicit event status only. Stg counts recorded times, with safely matched NR printed counts labelled separately. Saved 2026 numbers join by verified stable profile ID; unresolved/ambiguous roles keep printed names and placeholders, with an explicit omission notice.'),
+          branch('Invalid private data, conflicting snapshots, failed libraries, unsupported characters or ambiguous classification source', 'Stop visibly without downloading. Local pinned libraries run in a network-blocked opaque sandbox; public/private profile projections must agree and authorization plus document/revision versions are checked before and after generation.')
+        ], [currentSource('assets/admin.js', 706, 815, 'published / private PDF guards'), currentSource('assets/classification-pdf.js', 218, 279, 'isolated rendering / download')]),
         node('Does a local code task authorize provider actions?', [
           branch('No', 'No implied push, PR, deployment, rule/schema change or database publication. Direct authorized Firebase changes require atomic before/after attributed History, not a later note.'),
           branch('Recovery', 'Git alone cannot restore Firestore, photos, Auth, owners, DNS or provider config. Keep authorized private backups/source and access records outside the public repo.'),

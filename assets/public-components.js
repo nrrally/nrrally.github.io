@@ -368,7 +368,11 @@
           '</span></span></div></td><td class="result-class rs-result-class" data-label="Class">' + classes({ classes: row.cls ? [row.cls] : [] }) +
           (row.classNote ? '<span class="small muted result-printed-class">' + esc(row.classNote) + '</span>' : '') +
           '</td><td class="result-vehicle" data-label="Car">' + esc(row.vehicle || '—') + '</td>' +
-          '<td class="num result-stagecount" data-label="Stages">' + value(row.stages) + '</td>' +
+          (display.mode === 'rs' ?
+            '<td class="num result-stagecount" data-label="RS / linked NR stages">' +
+            '<span class="result-stagecount-source">RS: ' + value(row.stages) + '</span>' +
+            '<span class="result-stagecount-source">NR: ' + value(row.linkedNrStages) + '</span></td>' :
+            '<td class="num result-stagecount" data-label="Stages">' + value(row.stages) + '</td>') +
           '<td class="num mono result-penalty" data-label="Penalty">' + esc(row.penalty) + '</td>' +
           '<td class="num mono result-total rs-result-total" data-label="' + (display.calculatedFromTiming ? 'Calculated total' : 'Official total') + '"><b>' + esc(row.total) + '</b></td>' +
           '<td class="num mono result-gap" data-label="Diff 1st">' + esc(row.gap) + '</td>' +
@@ -380,6 +384,7 @@
       '<p class="small muted">' + esc(display.scoringBasis) +
       (display.calculatedFromTiming ? ' Calculated event finish is separate from each person’s championship scoring.' :
         ' Official finish is separate from each person’s championship scoring.') + ' Missing times, stage counts and awards remain unavailable.</p>' +
+      (display.mode === 'rs' ? '<p class="small muted">RS counts are valid recorded times within this RS classification, not proof of starts or completions. NR is the broader source-printed count, shown only when the RS car and both crew profiles match one linked NR row exactly.</p>' : '') +
       (display.awards.length ? '<details class="notes result-scoring-order rs-scoring-order"><summary>Championship scoring order</summary>' +
       '<p class="small muted">' + esc(display.scoringBasis) + '</p><div class="table-wrap"><table class="data"><thead><tr>' +
       [display.calculatedFromTiming ? 'Calculated position' : 'Official position', 'Class scoring position', 'Competitor', 'Role', 'Car', 'Championship scoring', 'Championship points'].map(function (label) {

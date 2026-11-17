@@ -4,13 +4,15 @@
 }(typeof window === 'object' ? window : this, function (engine) {
   'use strict';
   var libraries = [
-    ['https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.4/jspdf.umd.min.js', 'sha384-5D+9rOA7QhIVVlbglgjfeZ3vcuDz3a+TTrJbV3qiZqHpkTOTowdlTqQXF8E8pw/j'],
-    ['https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/5.0.2/jspdf.plugin.autotable.min.js', 'sha384-voAWf+DQNBx+Eya8tGEw2DHSo8aPM0bTyJhi+ZbLLfV6HzrvPV/UqIvc3+ULj7bS']
+    ['../assets/vendor/jspdf-3.0.4.min.js', 'sha384-5D+9rOA7QhIVVlbglgjfeZ3vcuDz3a+TTrJbV3qiZqHpkTOTowdlTqQXF8E8pw/j'],
+    ['../assets/vendor/autotable-5.0.2.min.js', 'sha384-voAWf+DQNBx+Eya8tGEw2DHSo8aPM0bTyJhi+ZbLLfV6HzrvPV/UqIvc3+ULj7bS']
   ];
-  function prepare(display, source, mode) {
+  function prepare(display, source, mode, privateNumbers) {
     if (!display || !display.published || !source || !Array.isArray(source.entries) || !source.entries.length)
       throw new Error('No published classification is available to export.');
-    var stages = display.stages || [], cars = Object.create(null), matched = Object.create(null);
+    if (privateNumbers && privateNumbers.length !== display.rows.length)
+      throw new Error('Private competitor numbers do not match the published classification rows.');
+    var stages = display.stages || [], cars = Object.create(null), matched = Object.create(null), unresolved = 0;
     source.entries.forEach(function (entry) {
       var car = String(entry.car);
       if (cars[car]) throw new Error('Duplicate car numbers prevent a reliable export.');
@@ -19,7 +21,21 @@
     var calculated = mode === 'rs' && source.timingCalculation !== undefined;
     if (calculated && (!engine || engine.rallyeSportClassOrder(source).status !== 'ready'))
       throw new Error('Published raw timing is invalid; the classification cannot be exported.');
-    var rows = display.rows.map(function (row) {
+    function recordedStageCount(entry, car) {
+      if (!Array.isArray(entry.times)) return '—';
+      var parse = engine && (mode === 'nr' ? engine.parseTime : engine.parseRallyeSportTime);
+      if (typeof parse !== 'function') throw new Error('Stage-time parser is unavailable; the classification cannot be exported.');
+      var count = 0;
+      entry.times.forEach(function (time, index) {
+        if (time == null || time === '') return;
+        var parsed = parse(time);
+        if (parsed == null) return;
+        if (!Number.isFinite(parsed)) throw new Error('Published stage timing is invalid for car ' + car + ', stage ' + (index + 1) + '.');
+        count++;
+      });
+      return String(count);
+    }
+    var rows = display.rows.map(function (row, index) {
       var entry = cars[String(row.car)];
       if (!entry || entry.times != null && !Array.isArray(entry.times)) throw new Error('Published stage timing is invalid for car ' + row.car + '.');
       if (matched[String(row.car)] || (entry.times || []).length > stages.length ||
@@ -29,14 +45,20 @@
       return {
         pos: row.status === 'classified' ? String(row.pos == null ? '—' : row.pos) : row.status,
         car: row.car, crew: row.driver.name + ' / ' + row.codriver.name,
-        licences: [row.driver.name, row.codriver.name].filter(function (name) { return name && name !== '—'; })
-          .map(function () { return 'No MSA Number'; }).join(' / '),
+        licences: ['driver', 'codriver'].filter(function (role) { return row[role].name && row[role].name !== '—'; })
+          .map(function (role) {
+            var record = privateNumbers && privateNumbers[index][role];
+            if (record && record.unresolved) unresolved++;
+            return (record && record.msaNumber ? 'MSA ' + record.msaNumber : 'No MSA Number') +
+              (record && record.rsNumbers && record.rsNumbers.length ? ' · RS ' + record.rsNumbers.join(', ') : '');
+          }).join(' / '),
         cls: row.cls || '—', classPos: row.classPos == null ? '—' : String(row.classPos),
-        vehicle: row.vehicle || '—', stagesCompleted: row.stages != null ? String(row.stages) :
-          calculated ? String(entry.times.filter(function (time) { return time != null && time !== ''; }).length) : '—',
+        vehicle: row.vehicle || '—', stagesCompleted: recordedStageCount(entry, row.car),
+        linkedNrStages: row.linkedNrStages == null ? null : row.linkedNrStages,
         stages: stages.map(function (_, i) {
           var time = (entry.times || [])[i], rank = (entry.stagePos || [])[i];
-          return (time == null || time === '' ? '—' : String(time)) + (rank == null || rank === '' ? '' : '\n' + String(rank));
+          return (time == null || time === '' ? '—' : String(time)) +
+            (rank == null || rank === '' ? '' : '\n' + String(rank));
         }),
         penalty: mode === 'nr' ? entry.pen || '—' : entry.penalty || '—',
         total: entry.total || '—',
@@ -46,9 +68,14 @@
     if (rows.length !== source.entries.length) throw new Error('Published classification rows do not match the displayed result.');
     return {
       title: display.name, date: display.date || 'Date unavailable',
+      championshipStatus: display.championshipStatus || '',
       state: display.state === 'Final classification' ? 'Final classification' :
         display.state === 'Provisional classification' ? 'Provisional classification' : display.state,
-      notes: (display.notes || []).filter(function (note) { return /technical checks/i.test(note); }),
+      notes: (display.notes || []).filter(function (note) { return /technical checks/i.test(note); }).concat(
+        ['Stg counts recorded stage times; it does not prove a start or completion.']).concat(
+        rows.some(function (row) { return row.linkedNrStages != null; }) ?
+          ['RS is the recorded-time count; NR is the separately matched broader source-printed count.'] : []).concat(
+        unresolved ? ['Unresolved crew roles: ' + unresolved + '. Membership numbers omitted; printed names are unchanged.'] : []),
       stages: stages, rows: rows,
       classified: rows.filter(function (row) { return row.status === 'classified'; }).length,
       unclassified: rows.filter(function (row) { return row.status !== 'classified'; }).length,
@@ -103,7 +130,7 @@
       doc.text(titleLines, margin, 23);
       doc.setFontSize(10); doc.text(data.state, margin, 49);
       doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 110, 125); doc.setFontSize(8);
-      doc.text('Club Championship  ·  ' + data.date, margin, 62);
+      doc.text((data.championshipStatus ? data.championshipStatus + '  ·  ' : '') + data.date, margin, 62);
       var image = doc.getImageProperties(logo), boxW = data.mode === 'rs' ? 100 : 75, boxH = 43;
       var scale = Math.min(boxW / image.width, boxH / image.height);
       doc.addImage(logo, image.fileType, width - margin - image.width * scale, 12, image.width * scale, image.height * scale);
@@ -118,8 +145,11 @@
     data.stages.forEach(function (stage, i) { columns.push({ header: stage, dataKey: 'stage' + i }); });
     columns.push({ header: 'PEN', dataKey: 'penalty' }, { header: 'TOTAL', dataKey: 'total' },
       { header: 'Diff 1st', dataKey: 'gap' }, { header: 'Diff prev', dataKey: 'previous' });
+    var linkedNr = data.rows.some(function (row) { return row.linkedNrStages != null; });
     var body = data.rows.map(function (row) {
       var item = Object.assign({}, row, { crew: row.crew + (row.licences ? '\n' + row.licences : '') });
+      if (linkedNr) item.stagesCompleted = 'RS ' + row.stagesCompleted + '\nNR ' +
+        (row.linkedNrStages == null ? '—' : row.linkedNrStages);
       row.stages.forEach(function (stage, i) { item['stage' + i] = stage; });
       return item;
     });
@@ -188,7 +218,7 @@
     var count = doc.internal.getNumberOfPages();
     for (var page = 1; page <= count; page++) {
       doc.setPage(page); doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(100, 110, 125);
-      doc.text('Club Championship · Generated ' + timestamp, margin, height - 20);
+      doc.text((data.championshipStatus ? data.championshipStatus + ' · ' : '') + 'Generated ' + timestamp, margin, height - 20);
       doc.text(data.classified + ' classified · ' + data.unclassified + ' not classified', width / 2, height - 20, { align: 'center' });
       doc.text('Page ' + page + ' of ' + count, width - margin, height - 20, { align: 'right' });
     }
@@ -199,7 +229,7 @@
       var frame = document.createElement('iframe'), timer;
       frame.hidden = true;
       frame.setAttribute('sandbox', 'allow-scripts');
-      frame.src = 'classification-pdf-frame.html';
+      frame.src = 'classification-pdf-frame.html?v=rs-membership-numbers-1';
       function finish(error, bytes) {
         clearTimeout(timer);
         window.removeEventListener('message', receive);
@@ -232,8 +262,8 @@
       }
     });
   }
-  async function download(display, source, mode, checkAuthorization) {
-    var data = prepare(display, source, mode);
+  async function download(display, source, mode, checkAuthorization, privateNumbers) {
+    var data = prepare(display, source, mode, privateNumbers);
     if (typeof checkAuthorization !== 'function') throw new Error('Admin authorization is unavailable.');
     await checkAuthorization();
     var logo = await imageData(mode === 'rs' ? '../assets/rallyesport-logo.png' : '../assets/official-logo.jpg');
