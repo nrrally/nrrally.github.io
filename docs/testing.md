@@ -99,6 +99,15 @@ exact crews/roles/classes/statuses, all totals and supported finality with the a
 operator before any separately authorized publish. Ties, cancelled stages and
 unsupported Excel-time formats remain held, not implicitly supported.
 
+## Rally results loader
+
+Set `RALLY_LOADER_ONLY=1` and run `node tools/tests/site-theme-e2e.js` with the
+existing Playwright runtime. The focused run times the handoff after the ready route
+is mounted and tests slow/fast mocked season responses, desktop light/mobile dark,
+a deep link, in-page navigation, a stale failed request, reduced motion and failure
+fallback. Set `RALLY_LOADER_SCREENSHOT_DIR` to an outside-Git directory for
+review frames; use the uncaptured run for wall-clock timing.
+
 ## Approved public wording changes
 
 The wording-only projection regressions use synthetic fixtures and verify that

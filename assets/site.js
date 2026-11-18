@@ -6,6 +6,8 @@
   'use strict';
   var E = window.NREngine;
   var app = document.getElementById('app');
+  var resultsLoader = document.getElementById('results-loader');
+  var renderRequest = 0;
 
   /* ------------------------------------------------------------------ helpers */
   function esc(s) {
@@ -261,7 +263,26 @@
       setNavigation(false, true);
     });
   }
+  function finishResultsLoader(launch) {
+    if (!resultsLoader) return;
+    var loader = resultsLoader;
+    resultsLoader = null;
+    if (launch && loader.getAnimations && window.matchMedia('(prefers-reduced-motion: no-preference)').matches) {
+      loader.setAttribute('aria-hidden', 'true');
+      loader.classList.add('is-launching');
+      var exit = loader.getAnimations().filter(function (animation) { return animation.animationName === 'loader-scene-out'; })[0];
+      if (exit) {
+        // Bound the overlay even if painting the ready route delays animation frames.
+        var deadline = window.setTimeout(remove, exit.effect.getTiming().duration);
+        function remove() { window.clearTimeout(deadline); loader.remove(); }
+        exit.finished.then(remove, remove);
+        return;
+      }
+    }
+    loader.remove();
+  }
   function render() {
+    var request = ++renderRequest;
     window.NRDisplay.closeWelcome();
     var h = parseHash(); var parts = h.parts;
     rememberCompetition(routeCompetition(h));
@@ -285,8 +306,13 @@
     var need = page === 'person' ? seasonList() : [year];
     var missing = need.filter(function (y) { return !ST.models[y]; });
     if (missing.length) {
-      app.innerHTML = '<div class="loading" role="status" aria-live="polite"><div class="checker" aria-hidden="true"></div><p>Loading results…</p></div>';
-      Promise.all(missing.map(loadSeason)).then(render, showLoadError);
+      if (!resultsLoader) app.innerHTML = '<div class="loading" role="status" aria-live="polite"><div class="checker" aria-hidden="true"></div><p>Loading results…</p></div>';
+      var loadingHash = location.hash;
+      Promise.all(missing.map(loadSeason)).then(function () {
+        if (request === renderRequest && loadingHash === location.hash) render();
+      }, function (err) {
+        if (request === renderRequest && loadingHash === location.hash) showLoadError(err);
+      });
       return;
     }
     useSeason(ST.models[year]);
@@ -309,7 +335,7 @@
         default: view = notFound();
       }
     } catch (err) {
-      view = { title: 'Error', html: '<div class="card empty">Something went wrong showing this page.<br><span class="small mono">' + esc(err && err.message) + '</span></div>' };
+      view = { error: true, title: 'Error', html: '<div class="card empty">Something went wrong showing this page.<br><span class="small mono">' + esc(err && err.message) + '</span></div>' };
       if (window.console) console.error(err);
     }
     renderView(view, page, h);
@@ -335,6 +361,7 @@
         qstr({ competition: competition });
     });
     mounts.forEach(function (fn) { fn(); });
+    finishResultsLoader(page !== 'getting-started' && !view.error);
     if (page === 'getting-started' && document.querySelector('.public-nav').getClientRects().length) {
       document.querySelector('.nav a.active').scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
@@ -357,12 +384,13 @@
   }
   function showLoadError(err) {
     ST.error = err;
+    finishResultsLoader(false);
     if (parseHash().parts[0] === 'getting-started') { render(); return; }
     var kind = err && err.kind, title = kind === 'empty' ? 'Results coming soon' : kind === 'setup' ? 'Site not connected yet' : 'Results are temporarily unavailable';
     var help = kind === 'empty' ? 'No results have been published yet. Please check back later.' : kind === 'setup' ? 'The site administrator still needs to connect the results database.' : 'Please check your connection and try again in a few minutes.';
     app.innerHTML = '<main id="main"><div class="card empty"><h2>' + title + '</h2><p>' + help + '</p><p class="small muted">' + esc(err && err.message) + '</p><p><a href="#/getting-started">Getting started in NR Rally</a></p></div></main>';
   }
-  function notFound() { return { title: 'Not found', html: '<div class="card empty"><h2>Page not found</h2><p><a href="' + sh('') + '">Back to the home page</a></p></div>' }; }
+  function notFound() { return { error: true, title: 'Not found', html: '<div class="card empty"><h2>Page not found</h2><p><a href="' + sh('') + '">Back to the home page</a></p></div>' }; }
 
   /* ---------- home */
   function viewHome(q) {
@@ -903,7 +931,11 @@
     if (compactNavigation.matches && inside) button.focus();
     else if (!compactNavigation.matches && onButton) (nav.querySelector('.active') || nav.querySelector('a')).focus();
   });
-  window.addEventListener('hashchange', render);
+  window.addEventListener('hashchange', function () {
+    var exit = document.querySelector('.results-loader.is-launching');
+    if (exit) exit.remove();
+    render();
+  });
   render();
   loadSiteAndPeople().then(function (res) {
     ST.site = res[0]; ST.people = res[1];
