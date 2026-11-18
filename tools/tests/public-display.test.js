@@ -585,7 +585,7 @@ test('NR standings still disclose an explicitly provisional source after the MSA
   model.rounds[0].confirmed = true;
   const display = P.standings(model, 'nr', 'driver');
   assert.equal(display.scoring.provisional, true);
-  assert.match(display.scoring.reason, /Includes provisional classifications: R1/);
+  assert.match(display.scoring.reason, /Includes classifications not yet final: R1/);
   assert.doesNotMatch(display.scoring.reason, /not yet confirmed by MSA/);
 });
 test('result adapters preserve NR printed/credited identities, class-only awards, DNF/DNS and unknown totals', () => {
@@ -1632,9 +1632,11 @@ test('source winners respect mappings, ties, actual positions, pending finality 
   assert.equal(round().winner, null);
   assert.equal(round().state, 'Pending technical checks');
   result.notes = [];
+  const finalRound = round();
   result.status = 'Provisional classification';
   model.rallyesport.scoring.results = [];
-  assert.equal(round().winner, null);
+  assert.deepEqual(round(), { ...finalRound, state: 'Provisional classification' });
+  assert.match(C.roundRow(round(), 0), /Provisional classification/);
   model.rallyesport.results = model.rallyesport.results.filter(row => row.eventId !== 'rs-r5');
   const future = P.calendar(model, 'rs').events.find(row => row.id === 'rs-r5').rounds[0];
   assert.equal(future.winner, null);
@@ -1642,8 +1644,10 @@ test('source winners respect mappings, ties, actual positions, pending finality 
   assert.equal(future.classificationHref, '#/2026/rallyesport-event/rs-r5/classification?competition=rs');
   assert.equal(future.state, 'Not published');
   const { raw } = fixture(), nrModel = build(f, { R1: raw });
+  const nrFinal = P.calendar(nrModel, 'nr').events[0].rounds[0];
+  assert.ok(nrFinal.winner);
   nrModel.rounds[0].provisional = true;
-  assert.equal(P.calendar(nrModel, 'nr').events[0].rounds[0].winner, null);
+  assert.deepEqual(P.calendar(nrModel, 'nr').events[0].rounds[0], { ...nrFinal, state: 'Provisional classification' });
   nrModel.rounds[0].provisional = false;
   nrModel.rounds[0].finalityUnclear = true;
   assert.equal(P.calendar(nrModel, 'nr').events[0].rounds[0].winner, null);

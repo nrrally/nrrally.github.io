@@ -766,19 +766,18 @@
     if (rallyeSportEntryPolicy(data)) model.eligibilityPolicy = { code: data.eligibilityPolicy.code };
     return model;
   }
-  function rsProvisionalSource(result) {
-    return sourceFinality(result, 'rs') === 'provisional' &&
-      (result.timingCalculation || !currentFinalityAccepted(result, 'rs', false));
+  function rsNonFinalSource(result, requireEvidence) {
+    return sourceFinality(result, 'rs') !== 'final' && !currentFinalityAccepted(result, 'rs', requireEvidence);
   }
   var RS_PROVISIONAL_TOTALS = 'Provisional cumulative points include non-final source classifications; official final confirmation is pending.';
   function qualifyPublishedRallyeSportScoring(data) {
     var scoring = data.scoring;
     if (scoring.status !== 'ready' || !scoring.results.some(function (row) {
       return row.status === 'ready' && data.results.some(function (result) {
-        return result.id === row.resultId && rsProvisionalSource(result);
+        return result.id === row.resultId && rsNonFinalSource(result, false);
       });
     })) return scoring;
-    // Older projections can contain fully computed tables from accepted provisional sheets.
+    // Older projections can contain fully computed tables from accepted non-final sheets.
     // Keep the published points and private-derived decisions; only qualify the tables.
     return Object.assign({}, scoring, { status: 'incomplete', reason: RS_PROVISIONAL_TOTALS, standings: null,
       provisionalStandings: scoring.standings,
@@ -887,11 +886,6 @@
             });
           });
         });
-      });
-    })) return false;
-    if (scoring.status === 'ready' && results.some(function (result) {
-      return result.timingCalculation && rsProvisionalSource(result) && scoring.results.some(function (row) {
-        return row.resultId === result.id && row.status === 'ready';
       });
     })) return false;
     if (scoring.excludedEvents != null && (!Array.isArray(scoring.excludedEvents) ||
@@ -1193,11 +1187,7 @@
     else if (counted.length >= 6 && doubleEvents.length) { status = 'blocked'; reason = 'SSR 7.2 only specifies double points for a five-round championship; other round counts need clarification.'; }
     else if (!roundRule) reason = counted.length === 5 ? 'Five rounds require exactly one bulletin-confirmed double-points event.' :
       'The SSR requires six to eight rounds, or five rounds with one bulletin-confirmed double-points event.';
-    else if (readyRows.some(function (row) {
-      var source = resultByEvent[row.eventId];
-      return rsProvisionalSource(source) || source && source.timingCalculation && row.finalityBasis !== 'source-final' &&
-        !currentFinalityAccepted(source, 'rs', true);
-    })) {
+    else if (readyRows.some(function (row) { return rsNonFinalSource(resultByEvent[row.eventId], true); })) {
       reason = RS_PROVISIONAL_TOTALS;
     } else {
       standings = buildStandings(readyRows);

@@ -112,13 +112,14 @@
     var home = base(model, 'nr', model.championship, site && site.tagline);
     home.hasResults = model.rounds.length > 0;
     var pending = model.rounds.filter(function (round) { return !round.confirmed; });
-    var provisional = model.rounds.filter(function (round) { return classification(round, 'nr') === 'Provisional classification'; });
+    var nonFinal = model.rounds.filter(function (round) { return classification(round, 'nr') !== 'Final classification'; });
     home.scoring = {
-      available: home.hasResults, provisional: pending.length > 0 || provisional.length > 0,
+      available: home.hasResults, provisional: pending.length > 0 || nonFinal.length > 0,
       basis: 'Overall + class points.',
-      reason: (provisional.length ? 'Includes provisional classifications: ' + provisional.map(function (round) { return 'R' + round.n; }).join(', ') + '. ' : '') +
-        (pending.length ? 'Awaiting championship confirmation: ' + pending.map(function (round) { return 'R' + round.n; }).join(', ') +
-          '. Points are calculated here from the official classifications, not yet confirmed by MSA.' : ''),
+      reason: [
+        nonFinal.length ? 'Includes classifications not yet final: ' + nonFinal.map(function (round) { return 'R' + round.n; }).join(', ') + '.' : '',
+        pending.length ? 'Awaiting championship confirmation: ' + pending.map(function (round) { return 'R' + round.n; }).join(', ') + '.' : ''
+      ].filter(Boolean).join(' '),
       scope: 'Provisional points; official eligibility and championship decisions follow current MSA/NRC publications.'
     };
     function row(raw, rank, role) {
@@ -444,7 +445,8 @@
       codriver: cls && mode === 'nr' ? entries[0].champCodriver : entries[0].codriver };
   }
   function roundDisplay(model, mode, event, meta, result, classes, entryNote) {
-    var state = classification(result, mode), final = state === 'Final classification';
+    var state = classification(result, mode);
+    var showWinners = state === 'Final classification' || state === 'Provisional classification';
     var path = mode === 'nr' ? '/round/' + encodeURIComponent(meta.id) :
       result ? '/rallyesport/' + encodeURIComponent(result.id) : '/rallyesport-event/' + encodeURIComponent(event.id);
     var row = { id: meta.id, label: meta.label, event: event.name, date: meta.date || '',
@@ -456,8 +458,8 @@
       published: !!result, state: state,
       stages: result ? result.stages.length : null,
       classified: result ? result.entries.filter(function (entry) { return entry.status === 'classified'; }).length : null,
-      entryNote: entryNote || '', winner: final ? sourceWinner(result, mode, '') : null, classWinners: {} };
-    classes.forEach(function (cls) { row.classWinners[cls] = final ? sourceWinner(result, mode, cls) : null; });
+      entryNote: entryNote || '', winner: showWinners ? sourceWinner(result, mode, '') : null, classWinners: {} };
+    classes.forEach(function (cls) { row.classWinners[cls] = showWinners ? sourceWinner(result, mode, cls) : null; });
     return row;
   }
   function nrCalendar(model) {
@@ -597,6 +599,8 @@
         detail: value ? detail : '', description: value ? description : missing };
     }
     if (mode === 'nr') {
+      if (model.rounds.some(function (round) { return !round.confirmed; })) display.scoring.reason +=
+        ' Points are calculated here from the official classifications, not yet confirmed by MSA.';
       var used = {};
       model.rounds.forEach(function (round) { round.entries.forEach(function (entry) { used[entry.cls] = true; }); });
       display.classes = model.classes.filter(function (cls) { return !cls.classOnly || used[cls.id]; })

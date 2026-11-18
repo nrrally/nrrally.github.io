@@ -35,7 +35,11 @@ must be addressed; there is no automation that can infer approvals or certify pr
 
 Explicitly provisional RS classifications use normal points calculations and contribute
 to provisional cumulative points, with the existing sporting and publication gates.
-Scoring permission does not make the calendar, results or PDF final. NR keeps its
+Scoring permission does not make the calendar, results or PDF final. Provisional
+and identical final sheets display the same timing, graphs, positions, standings
+values and unambiguous round/class winners, with their own finality labels. A
+scored non-final classification keeps the cumulative RS tables provisional.
+NR keeps its
 calculation and extra-start rules; the standings now also account for source provisionality.
 Replace the same round/event with the confirmed final source, never append a second
 result. The admin rejects replacing an already-final classification with a provisional one.
@@ -51,7 +55,10 @@ republish action. Do not fabricate a change or recompute from public/demo data.
 Rollback requires the compatible code and, if later republished, the reviewed,
 audited working/public before-images. No live action is included in this candidate.
 Verified locally with 226 synthetic Node tests and mocked browser runs covering the
-public site, admin, raw timing and PDF downloads.
+public site, admin, raw timing and PDF downloads. A read-only comparison with the
+live 2026 snapshot preserved the sporting rows, timings, graphs, points, standings
+values, round and class winners, and PDF content of all 11 published classifications.
+The deployment remains on hold; the candidate intentionally corrects finality labels.
 
 ## RS raw timing / event-only RS0 (code-only release candidate)
 

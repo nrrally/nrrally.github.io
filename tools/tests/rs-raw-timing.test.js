@@ -348,15 +348,27 @@ test('provisional raw timing scores automatically but cannot finalize the champi
   assert.notEqual(built.rallyesport.scoring.status, 'invalid');
   assert.ok(P.home(built, 'rs').scoring.provisional);
   const before = built.rallyesport.scoring;
-  assert.equal(P.eventResult(built, raw.eventId, 'classification').pointsLabel, 'Provisional points');
-  assert.equal(P.calendar(built, 'rs').events.find(event => event.id === raw.eventId).rounds[0].state,
-    'Provisional classification');
+  const detail = model => P.eventResult(model, raw.eventId, 'classification');
+  const calendar = model => P.calendar(model, 'rs').events.find(event => event.id === raw.eventId).rounds[0];
+  assert.equal(detail(built).pointsLabel, 'Provisional points');
+  assert.equal(calendar(built).state, 'Provisional classification');
   raw.status = 'Final classification'; // Explicit external confirmation would be required operationally.
-  score = build(f).rallyesport.scoring;
+  const final = build(f);
+  score = final.rallyesport.scoring;
   assert.equal(score.status, 'ready');
   assert.deepEqual(score.standings, before.provisionalStandings);
   assert.deepEqual(score.results.find(row => row.resultId === raw.id).entries,
     before.results.find(row => row.resultId === raw.id).entries);
+  assert.equal(detail(final).state, 'Final classification');
+  assert.deepEqual(detail(final).rows, detail(built).rows);
+  assert.deepEqual(P.resultGraph(final, 'rs', raw.id), P.resultGraph(built, 'rs', raw.id));
+  assert.ok(calendar(final).winner);
+  assert.deepEqual(calendar(final), { ...calendar(built), state: 'Final classification' });
+  raw.notes.push('Results are final pending post-event technical checks.');
+  raw.finalityReview = { acceptedForScoring: true, evidence: 'Synthetic scoring review', digest: E.rallyeSportClassOrderDigest(raw) };
+  const pending = build(f).rallyesport.scoring;
+  assert.equal(pending.results.find(row => row.resultId === raw.id).finalityBasis, 'user-confirmed');
+  assert.deepEqual(pending.provisionalStandings, score.standings, 'permission to score does not finalize the standings');
 });
 test('a later changed final replaces the provisional RS round in the published totals', () => {
   const f = F.revisedRallyeSport(true), source = f.data.results[1];

@@ -161,9 +161,11 @@ Do not map RS0 to RS2/RS4, infer it from membership or treat an entered class as
 
 The timing importer returns a draft marked `Provisional classification`. Once a valid
 classification is published it uses normal points rules without a separate finality
-approval. Ready provisional points feed visibly **provisional** season and class
-totals for both transcribed and raw-timing results. Reviewed non-final raw timing
-retains its existing championship restriction. The PDF export preserves source
+approval. Ready points from any non-final classification feed visibly **provisional** season
+and class totals until every contributing classification is final and the season
+requirements are met. Explicit provisional and final sheets with identical sporting
+values show the same stage data, graphs, positions, and unambiguous overall and
+class winners, with their own classification labels. The PDF export preserves source
 status and never supplies a scoring or finality decision.
 
 ### Legacy profile and event/finality rules

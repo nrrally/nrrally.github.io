@@ -385,7 +385,7 @@
           branch('Other pattern / >8 rounds / unsupported double declaration', 'Season is incomplete or blocked with a reason; the app does not select a double-points event to fix it.')
         ], [source('assets/engine.js', 1079, 1094, 'roundRule / status')]),
         node('Are all confirmed championship events ready?', [
-          branch('Yes and round pattern passes, but a contributing source is still provisional', 'Retain provisional cumulative points regardless of intake method. Reviewed non-final raw timing also retains its existing championship restriction.'),
+          branch('Yes and round pattern passes, but a contributing classification is not final', 'Retain provisional cumulative points regardless of intake method. Permission to score is not confirmation of current finality.'),
           branch('Yes, round pattern passes and contributing raw-timing sources are final', 'Return ready standings under existing other gates. The unresolved equal-total rule still applies; this is not an official championship certification.'),
           branch('Some ready, season incomplete/blocked', 'Build explicitly provisional cumulative tables using ready events only. Disclose included/excluded events and reasons.'),
           branch('None ready', 'No cumulative table. Source event results remain available.')
@@ -493,8 +493,8 @@
           branch('Conflicting crew, duplicate car or conflicting vehicle text', 'Do not borrow a vehicle. This is display context only, not a result or points change.')
         ], [source('assets/public-model.js', 290, 316, 'vehicle matching and conflict checks')]),
         node('When can a winner be shown?', [
-          branch('Display finality is final and the source has an unambiguous classified winner', 'Show the source winner and any supported class winner. RS uses its own classification; a non-scoring launch remains labelled non-scoring.'),
-          branch('Provisional, missing or ambiguous source', 'Do not fabricate a winner. Class points are not an independent overall championship award.')
+          branch('Final or explicitly provisional, with an unambiguous classified winner', 'Show the same overall and class winners alongside the classification status. RS uses its own classification; a non-scoring launch remains labelled non-scoring.'),
+          branch('Unclear, pending technical checks, missing or ambiguous source', 'Do not infer a winner from points or scoring permission. Class points are not an independent overall championship award.')
         ], [source('assets/public-model.js', 358, 371, 'classification finality'), source('assets/public-model.js', 379, 415, 'source-backed winners and scope')])
       ], ['shared-calendar', 'rs-profiles', 'shared-finality']),
     topic('shared-ai', 'shared', 'AI preparation cannot invent a policy or publish',
