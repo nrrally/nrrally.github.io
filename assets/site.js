@@ -263,13 +263,13 @@
       setNavigation(false, true);
     });
   }
-  function finishResultsLoader(launch) {
+  function finishResultsLoader(fade) {
     if (!resultsLoader) return;
     var loader = resultsLoader;
     resultsLoader = null;
-    if (launch && loader.getAnimations && window.matchMedia('(prefers-reduced-motion: no-preference)').matches) {
+    if (fade && loader.getAnimations && window.matchMedia('(prefers-reduced-motion: no-preference)').matches) {
       loader.setAttribute('aria-hidden', 'true');
-      loader.classList.add('is-launching');
+      loader.classList.add('is-fading');
       var exit = loader.getAnimations().filter(function (animation) { return animation.animationName === 'loader-scene-out'; })[0];
       if (exit) {
         // Bound the overlay even if painting the ready route delays animation frames.
@@ -932,7 +932,7 @@
     else if (!compactNavigation.matches && onButton) (nav.querySelector('.active') || nav.querySelector('a')).focus();
   });
   window.addEventListener('hashchange', function () {
-    var exit = document.querySelector('.results-loader.is-launching');
+    var exit = document.querySelector('.results-loader.is-fading');
     if (exit) exit.remove();
     render();
   });

@@ -66,6 +66,17 @@ coordinated `provisional-scoring-2` cache keys. To roll back scoring while prese
 the loader, restore the loader baseline tree with fresh shell cache keys. Do not
 revert both features together.
 
+## Rally loader crossfade (local code-only candidate)
+
+- Based on `148eef26e61ab286312c13ab5001f5f3f12ced77`. The car, wheels and dust
+  retain their loading animation, then hold still and fade in place over the
+  mounted results for 1.5 seconds. Reduced motion still reveals results immediately.
+- Coordinated shell cache version `rally-loader-fade-1`. Synthetic Chromium checks
+  passed at 320px dark and 1440px light, including slow/fast loading, stationary
+  midpoint, stale failure and reduced motion. All 44 focused unit tests passed.
+- No scoring, data or provider changes. No push or deployment authorized.
+  Rollback is a code-only revert of this crossfade and its shell versions.
+
 <a id="rally-results-loader-local-code-only-candidate"></a>
 
 ## Rally results loader (approved code-only release)

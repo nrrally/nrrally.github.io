@@ -107,7 +107,8 @@ scoring-contract version.
 
 The initial results shell has a live text status and a decorative inline SVG loader.
 The first successful data-backed route mounts before a non-interactive 1.5-second
-overlay fades away. Reduced motion skips the exit; failures and the independent
+overlay fades in place, pausing the car and dust during the handoff.
+Reduced motion skips the exit; failures and the independent
 newcomer guide never wait for it. Later uncached routes use a plain loading status,
 and pending season responses cannot replace a newer route with stale errors.
 

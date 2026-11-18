@@ -229,10 +229,10 @@ async function main() {
       const loader = page.locator('#results-loader');
       const status = page.getByRole('status').filter({ hasText: 'Loading results' });
       await page.addInitScript(() => {
-        window.launches = [];
+        window.fades = [];
         new MutationObserver(() => {
-          const scene = document.querySelector('#results-loader.is-launching');
-          if (!scene || window.launches.length) return;
+          const scene = document.querySelector('#results-loader.is-fading');
+          if (!scene || window.fades.length) return;
           const animation = scene.getAnimations().find(a => a.animationName === 'loader-scene-out');
           if (!animation) return;
           const start = performance.now();
@@ -242,7 +242,26 @@ async function main() {
             intercepts: getComputedStyle(scene).pointerEvents !== 'none',
             duration: animation.effect.getComputedTiming().duration
           };
-          window.launches.push(record);
+          const car = scene.querySelector('.results-loader-car');
+          const carBox = () => {
+            const { x, y, width, height } = car.getBoundingClientRect();
+            return [x, y, width, height];
+          };
+          const currentTime = animation.currentTime;
+          animation.currentTime = 0;
+          const startBox = carBox();
+          const startOpacity = Number(getComputedStyle(scene).opacity);
+          animation.currentTime = 750;
+          const { opacity, transform } = getComputedStyle(scene);
+          record.midpoint = {
+            opacity: Number(opacity),
+            startOpacity,
+            inPlace: transform === 'none' && carBox().every((value, i) => Math.abs(value - startBox[i]) < .1),
+            sceneStill: scene.getAnimations({ subtree: true }).filter(a => a !== animation)
+              .every(a => a.playState === 'paused')
+          };
+          animation.currentTime = currentTime;
+          window.fades.push(record);
           const removal = new MutationObserver(() => {
             if (scene.isConnected) return;
             record.elapsed = performance.now() - start;
@@ -272,20 +291,23 @@ async function main() {
           }), 'the rim turns within the wheel arch');
           if (captures) await page.screenshot({ path: `${captures}/01-dark-mobile-loading.png` });
         }
-        await page.waitForFunction(() => window.launches.length === 1);
+        await page.waitForFunction(() => window.fades.length === 1);
         assert.deepEqual(await page.evaluate(() => {
-          const { elapsed, ...handoff } = window.launches[0];
+          const { elapsed, midpoint, ...handoff } = window.fades[0];
           return handoff;
         }), { rendered: true, accessible: false, intercepts: false, duration: 1500 });
         assert.equal(await status.count(), 0);
         assert.equal(await page.locator('#app main h1').count(), 1);
         if (captures) {
-          await page.waitForFunction(() => document.querySelector('.is-launching')?.getAnimations()
+          await page.waitForFunction(() => document.querySelector('.is-fading')?.getAnimations()
             .some(animation => animation.animationName === 'loader-scene-out' && animation.currentTime >= 650));
-          await page.screenshot({ path: `${captures}/${delay ? '02-dark-mobile-launch' : '03-light-desktop-launch'}.png` });
+          await page.screenshot({ path: `${captures}/${delay ? '02-dark-mobile-fade' : '03-light-desktop-fade'}.png` });
         }
         await loader.waitFor({ state: 'detached' });
-        const { elapsed } = await page.evaluate(() => window.launches[0]);
+        const { elapsed, midpoint } = await page.evaluate(() => window.fades[0]);
+        assert.equal(midpoint.startOpacity, 1, 'fade starts with an opaque loader');
+        assert.ok(midpoint.opacity > .4 && midpoint.opacity < .6, 'loader is translucent halfway through handoff');
+        assert.ok(midpoint.inPlace && midpoint.sceneStill, 'car, wheels and dust hold still through the fade');
         assert.ok(elapsed >= 1400 && elapsed <= 1700, `ready-to-reveal was ${elapsed} ms`);
         console.log(`PASS ${theme} ${width}px, ${delay}ms mocked season delay, ${Math.round(elapsed)}ms handoff.`);
       }
@@ -304,7 +326,7 @@ async function main() {
       await status.waitFor();
       await requestStarted;
       await page.evaluate(() => { location.hash = '#/2026/standings?competition=nr'; });
-      await page.waitForFunction(() => window.launches.length === 1);
+      await page.waitForFunction(() => window.fades.length === 1);
       const staleResponse = page.waitForResponse(res => res.url().endsWith('/season_2027'));
       await rejectSeason();
       await (await staleResponse).finished();
@@ -312,7 +334,7 @@ async function main() {
       await page.evaluate(() => { location.hash = '#/2026/rounds?competition=nr'; });
       await page.getByRole('heading', { name: 'Rounds & stage graphs' }).waitFor();
       assert.equal(await loader.count(), 0);
-      assert.equal(await page.evaluate(() => window.launches.length), 1);
+      assert.equal(await page.evaluate(() => window.fades.length), 1);
 
       await page.emulateMedia({ reducedMotion: 'reduce' });
       await page.goto(base + '/index.html#/2026/rounds?competition=nr');
@@ -320,17 +342,17 @@ async function main() {
       assert.equal(await loader.evaluate(scene => scene.getAnimations({ subtree: true }).length), 0);
       await page.getByRole('heading', { name: 'Rounds & stage graphs' }).waitFor();
       assert.equal(await loader.count(), 0);
-      assert.equal(await page.evaluate(() => window.launches.length), 0);
+      assert.equal(await page.evaluate(() => window.fades.length), 0);
 
       databaseDown = true;
       await page.emulateMedia({ reducedMotion: 'no-preference' });
       await page.reload();
       await page.getByRole('heading', { name: 'Results are temporarily unavailable' }).waitFor();
       assert.equal(await loader.count(), 0);
-      assert.equal(await page.evaluate(() => window.launches.length), 0);
+      assert.equal(await page.evaluate(() => window.fades.length), 0);
       await page.getByRole('link', { name: 'Getting started in NR Rally', exact: true }).click();
       await page.locator('.getting-started').waitFor();
-      assert.equal(await page.evaluate(() => window.launches.length), 0);
+      assert.equal(await page.evaluate(() => window.fades.length), 0);
       assert.deepEqual(errors, []);
       assert.deepEqual(unexpected, []);
       console.log('PASS stale failure, in-page navigation, reduced motion and immediate error/guide fallback.');

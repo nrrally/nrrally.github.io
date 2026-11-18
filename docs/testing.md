@@ -103,7 +103,8 @@ unsupported Excel-time formats remain held, not implicitly supported.
 
 Set `RALLY_LOADER_ONLY=1` and run `node tools/tests/site-theme-e2e.js` with the
 existing Playwright runtime. The focused run times the handoff after the ready route
-is mounted and tests slow/fast mocked season responses, desktop light/mobile dark,
+is mounted, checks that the loader fades without moving, and tests slow/fast mocked
+season responses, desktop light/mobile dark,
 a deep link, in-page navigation, a stale failed request, reduced motion and failure
 fallback. Set `RALLY_LOADER_SCREENSHOT_DIR` to an outside-Git directory for
 review frames; use the uncaptured run for wall-clock timing.
