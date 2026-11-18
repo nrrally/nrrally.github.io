@@ -13,22 +13,74 @@
 <link itemprop="url" rel="canonical" href="https://nrrally.co.za/">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon.png">
 <link rel="icon" type="image/svg+xml" sizes="any" href="assets/brand.svg">
-<link rel="stylesheet" href="assets/styles.css?v=provisional-scoring-1">
-<link rel="stylesheet" href="assets/rally-notice.css?v=provisional-scoring-1">
+<link rel="stylesheet" href="assets/styles.css?v=provisional-scoring-2">
+<link rel="stylesheet" href="assets/rally-notice.css?v=provisional-scoring-2">
+<noscript><style>#results-loader { display: none; }</style></noscript>
 </head>
 <body>
-<div id="app"><div class="loading" role="status" aria-live="polite"><div class="checker" aria-hidden="true"></div><p>Loading results…</p></div><noscript><p style="padding:24px;font-family:system-ui">This site needs JavaScript switched on to show the results and graphs.</p></noscript></div>
+<div id="results-loader" class="results-loader">
+  <div class="results-loader-scene">
+    <svg viewBox="0 0 320 134" width="320" height="134" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="loader-gravel">
+          <stop stop-color="#b68155" stop-opacity="0"/>
+          <stop offset=".45" stop-color="#b68155" stop-opacity=".34"/>
+          <stop offset="1" stop-color="#b68155" stop-opacity=".08"/>
+        </linearGradient>
+        <g id="loader-rim">
+          <circle r="13" fill="#17191d" stroke="#525762"/>
+          <circle r="8" fill="#353d49" stroke="#b3bfca" stroke-width="1.5"/>
+          <path d="M-7 0H7M0-7V7M-5-5 5 5" stroke="#d9e3ed" stroke-width="1.5"/>
+          <circle r="2" fill="#fff5dd"/>
+        </g>
+      </defs>
+      <path d="M44 76 86 55l20 9 44-28 43 23 19-9 49 17 40 4" fill="none" stroke="var(--line-2)" stroke-linejoin="round"/>
+      <path d="M0 113C92 86 190 104 281 72l24-1c-62 32-150 38-256 58H0Z" fill="url(#loader-gravel)"/>
+      <path d="m49 118 18-3m16-3 9-1m83 1 11-2m33-13 12-3m19-8 9-3" fill="none" stroke="#ad805e" stroke-opacity=".6" stroke-linecap="round"/>
+      <g class="results-loader-dust" fill="#bd8c61">
+        <ellipse cx="93" cy="99" rx="26" ry="7" opacity=".8"/>
+        <ellipse cx="72" cy="92" rx="19" ry="8" opacity=".5"/>
+        <ellipse cx="58" cy="88" rx="11" ry="5" opacity=".34"/>
+      </g>
+      <g class="results-loader-dust" fill="#be8f68">
+        <circle cx="87" cy="91" r="2.6"/><circle cx="78" cy="106" r="2"/>
+        <circle cx="62" cy="99" r="2.2"/><circle cx="49" cy="96" r="1.6"/>
+      </g>
+      <g class="results-loader-car">
+        <ellipse cx="171" cy="105" rx="69" ry="5" fill="#15171b" opacity=".3"/>
+        <g class="results-loader-body">
+          <path d="M103 60h24l-2 5h-10l4 10h-6l-4-10h-7Z" fill="#232936"/>
+          <path d="m104 89 9-16 19-6 15-15q4-4 12-4h30q7 0 13 6l14 14 20 5 12 9 2 13-9 5H110l-9-5Z" fill="#f7f3e8" stroke="#242a35" stroke-width="2" stroke-linejoin="round"/>
+          <path d="m105 86 32-8 17-28 16-2-26 45-36 5-7-4Zm64 11 22-29 25 1 20 5 11 8 2 12-9 5Z" fill="#be273e"/>
+          <path d="m141 67 12-13q2-2 6-2h10l-2 15Zm30 0 2-15h15q5 0 9 4l11 11Z" fill="#263544" stroke="#263544" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="m178 54 9 1 11 7h-5Z" fill="#8bb4ca"/>
+          <path d="M103 91h12m111 5h21M120 98h95" stroke="#262c37" stroke-width="4" stroke-linecap="round"/>
+          <path d="M106 80h7l-4 5h-5Zm128-2 8 3 4 5h-12Z" fill="#ffc874"/>
+          <path d="M194 67h9v4h-9Z" fill="#232936"/>
+          <path d="M154 73h22v18h-22Z" fill="#fffdf5" stroke="#242a35"/>
+          <text x="159" y="86" fill="#202632" font-family="system-ui,sans-serif" font-weight="850" font-size="12">07</text>
+          <path d="M118 97a15 15 0 0 1 30 0m55 0a15 15 0 0 1 30 0" fill="#222835"/>
+          <path d="M124 99h-7v8h5Zm86 0h-7v7h5Z" fill="#be273e"/>
+        </g>
+        <g transform="translate(133 96)"><g class="results-loader-wheel"><use href="#loader-rim"/></g></g>
+        <g transform="translate(218 96)"><g class="results-loader-wheel"><use href="#loader-rim"/></g></g>
+      </g>
+    </svg>
+    <p role="status" aria-live="polite">Loading results…</p>
+  </div>
+</div>
+<div id="app"><noscript><p style="padding:24px;font-family:system-ui">This site needs JavaScript switched on to show the results and graphs.</p></noscript></div>
 <aside class="site-disclosure" aria-label="Independent site disclosure">
   <p><strong>Independent rally archive.</strong> Results are transcribed from official classification documents, normally final; provisional or unclear sources are labelled. Standings and graphs are derived here. For official decisions or any discrepancy, consult <a href="https://nrcsa.co.za/">NRC South Africa</a> and <a href="https://motorsport.co.za/">Motorsport South Africa</a>, not this site. <a href="disclaimer.html">Full disclaimer</a>. <a href="privacy.html">Privacy &amp; analytics</a>.</p>
 </aside>
-<script src="assets/display-context.js?v=provisional-scoring-1"></script>
+<script src="assets/display-context.js?v=provisional-scoring-2"></script>
 <script src="assets/firebase-config.js"></script>
-<script src="assets/engine.js?v=provisional-scoring-1"></script>
-<script src="assets/rally-notice.js?v=provisional-scoring-1"></script>
-<script src="assets/analytics.js?v=provisional-scoring-1"></script>
-<script src="assets/getting-started.js?v=provisional-scoring-1"></script>
-<script src="assets/public-model.js?v=provisional-scoring-1"></script>
-<script src="assets/public-components.js?v=provisional-scoring-1"></script>
-<script src="assets/site.js?v=provisional-scoring-1"></script>
+<script src="assets/engine.js?v=provisional-scoring-2"></script>
+<script src="assets/rally-notice.js?v=provisional-scoring-2"></script>
+<script src="assets/analytics.js?v=provisional-scoring-2"></script>
+<script src="assets/getting-started.js?v=provisional-scoring-2"></script>
+<script src="assets/public-model.js?v=provisional-scoring-2"></script>
+<script src="assets/public-components.js?v=provisional-scoring-2"></script>
+<script src="assets/site.js?v=provisional-scoring-2"></script>
 </body>
 </html>

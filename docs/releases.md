@@ -31,7 +31,7 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
-## Provisional results scoring (local candidate; not deployed)
+## Provisional results scoring (authorized code-only follow-on)
 
 Explicitly provisional RS classifications use normal points calculations and contribute
 to provisional cumulative points, with the existing sporting and publication gates.
@@ -58,7 +58,27 @@ Verified locally with 226 synthetic Node tests and mocked browser runs covering 
 public site, admin, raw timing and PDF downloads. A read-only comparison with the
 live 2026 snapshot preserved the sporting rows, timings, graphs, points, standings
 values, round and class winners, and PDF content of all 11 published classifications.
-The deployment remains on hold; the candidate intentionally corrects finality labels.
+The user approved this code-only follow-on to `origin/main`, after the loader release.
+No database write, republication, PR, guide edition change or provider changes are
+included. The merge retains the exact loader implementation from `463f430c`, with
+coordinated `provisional-scoring-2` cache keys. To roll back scoring while preserving
+the loader, restore the loader baseline tree with fresh shell cache keys. Do not
+revert both features together.
+
+## Rally results loader (local code-only candidate)
+
+- Based on `b8f227e1e0a53ce6684e113887ca89801b4b0f11`, independently of the
+  parked provisional-scoring candidate. No push or deployment is authorized.
+- Initial public results use an inline SVG/CSS rally car; the ready route mounts
+  immediately under a decorative, non-interactive 1.5-second exit. Reduced motion,
+  failure, not-found and the newcomer guide bypass the exit; in-page navigation
+  does not replay it. See [the synthetic checks](testing.md#rally-results-loader).
+- Coordinated shell cache version `rally-results-loader-1`. No new requests,
+  scoring/output changes, data migration, protected reads, or provider changes.
+  Rollback is a code-only revert of the coordinated shell assets.
+- Main public shell, stylesheet and script together added 8,481 raw bytes and
+  2,160 gzip bytes, measured against the base. Focused Chromium checks measured
+  about 1.50–1.51 seconds from ready mount to overlay removal on synthetic data.
 
 ## RS raw timing / event-only RS0 (code-only release candidate)
 

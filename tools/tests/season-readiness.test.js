@@ -648,7 +648,7 @@ test('RS classification leads with compact source results and independent role s
 });
 test('initial public HTML contains an accessible loader before any public JavaScript initialization', () => {
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-  assert.match(html, /class="loading" role="status" aria-live="polite"/);
+  assert.match(html, /<p role="status" aria-live="polite">Loading results/);
   assert.ok(html.indexOf('Loading results') < html.indexOf('<script src='));
 });
 test('a shared stable-ID profile retains RS R2/R4 charts and car details for RS0 without borrowing NR data', () => {

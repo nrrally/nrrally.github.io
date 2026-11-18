@@ -11,6 +11,10 @@ Before **every push**, update affected documentation and recovery/release record
 Older chat checkpoints are provenance, not current configuration or authorization.
 No code task by itself permits a live export, direct write, push or deployment.
 
+The [local rally results loader candidate](releases.md#rally-results-loader-local-code-only-candidate)
+has no data recovery requirements. Revert the candidate code together with its coordinated
+public shell asset versions if rollback is needed.
+
 ### RS raw timing and event-only RS0 (code-only release candidate)
 
 This slice builds on freshly fetched `origin/main`

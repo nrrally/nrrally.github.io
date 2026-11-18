@@ -224,6 +224,118 @@ async function main() {
     });
     const page = await ctx.newPage();
     page.on('pageerror', e => errors.push(e.message));
+    if (process.env.RALLY_LOADER_ONLY === '1') {
+      const captures = process.env.RALLY_LOADER_SCREENSHOT_DIR;
+      const loader = page.locator('#results-loader');
+      const status = page.getByRole('status').filter({ hasText: 'Loading results' });
+      await page.addInitScript(() => {
+        window.launches = [];
+        new MutationObserver(() => {
+          const scene = document.querySelector('#results-loader.is-launching');
+          if (!scene || window.launches.length) return;
+          const animation = scene.getAnimations().find(a => a.animationName === 'loader-scene-out');
+          if (!animation) return;
+          const start = performance.now();
+          const record = {
+            rendered: !!document.querySelector('#app main h1'),
+            accessible: scene.getAttribute('aria-hidden') !== 'true',
+            intercepts: getComputedStyle(scene).pointerEvents !== 'none',
+            duration: animation.effect.getComputedTiming().duration
+          };
+          window.launches.push(record);
+          const removal = new MutationObserver(() => {
+            if (scene.isConnected) return;
+            record.elapsed = performance.now() - start;
+            removal.disconnect();
+          });
+          removal.observe(scene.parentNode, { childList: true });
+        }).observe(document, { subtree: true, attributes: true, attributeFilter: ['class'] });
+      });
+      for (const [width, theme, delay] of [[320, 'dark', 1400], [1440, 'light', 0]]) {
+        await page.setViewportSize({ width, height: 800 });
+        await page.emulateMedia({ colorScheme: theme });
+        seasonDelay = delay;
+        const path = delay ? '#/2026/rounds?competition=nr' : '#/?competition=nr';
+        await page.goto(base + '/index.html?loader=' + theme + path, { waitUntil: 'commit' });
+        if (delay) {
+          await status.waitFor();
+          assert.equal(await page.locator('#app main').count(), 0);
+          assert.ok(await loader.locator('svg').evaluate(svg => svg.getBoundingClientRect().right <= innerWidth));
+          await page.waitForFunction(() => document.querySelector('.results-loader-wheel')?.getAnimations()
+            .some(animation => animation.playState === 'running'));
+          assert.ok(await loader.locator('.results-loader-wheel').first().evaluate(wheel => {
+            const spin = wheel.getAnimations()[0];
+            spin.currentTime = 0;
+            const before = wheel.getCTM().b;
+            spin.currentTime = 105;
+            return Math.abs(wheel.getCTM().b - before) > .5;
+          }), 'the rim turns within the wheel arch');
+          if (captures) await page.screenshot({ path: `${captures}/01-dark-mobile-loading.png` });
+        }
+        await page.waitForFunction(() => window.launches.length === 1);
+        assert.deepEqual(await page.evaluate(() => {
+          const { elapsed, ...handoff } = window.launches[0];
+          return handoff;
+        }), { rendered: true, accessible: false, intercepts: false, duration: 1500 });
+        assert.equal(await status.count(), 0);
+        assert.equal(await page.locator('#app main h1').count(), 1);
+        if (captures) {
+          await page.waitForFunction(() => document.querySelector('.is-launching')?.getAnimations()
+            .some(animation => animation.animationName === 'loader-scene-out' && animation.currentTime >= 650));
+          await page.screenshot({ path: `${captures}/${delay ? '02-dark-mobile-launch' : '03-light-desktop-launch'}.png` });
+        }
+        await loader.waitFor({ state: 'detached' });
+        const { elapsed } = await page.evaluate(() => window.launches[0]);
+        assert.ok(elapsed >= 1400 && elapsed <= 1700, `ready-to-reveal was ${elapsed} ms`);
+        console.log(`PASS ${theme} ${width}px, ${delay}ms mocked season delay, ${Math.round(elapsed)}ms handoff.`);
+      }
+
+      // Start a missing season request, navigate away, and reject it after the new route wins.
+      let rejectSeason, seasonRequested;
+      const requestStarted = new Promise(resolve => { seasonRequested = resolve; });
+      await page.route('https://firestore.googleapis.com/**/public/season_2027', route =>
+        new Promise(resolve => {
+          rejectSeason = () => resolve(route.fulfill({ status: 503, headers: { 'Access-Control-Allow-Origin': '*' }, body: '{}' }));
+          seasonRequested();
+        }));
+      published.site = { ...published.site, seasons: [{ year: 2026 }, { year: 2027 }] };
+      seasonDelay = 600;
+      await page.goto(base + '/index.html?loader-race=1#/2027/rounds?competition=nr');
+      await status.waitFor();
+      await requestStarted;
+      await page.evaluate(() => { location.hash = '#/2026/standings?competition=nr'; });
+      await page.waitForFunction(() => window.launches.length === 1);
+      const staleResponse = page.waitForResponse(res => res.url().endsWith('/season_2027'));
+      await rejectSeason();
+      await (await staleResponse).finished();
+      assert.equal(await page.getByRole('heading', { name: 'Results are temporarily unavailable' }).count(), 0);
+      await page.evaluate(() => { location.hash = '#/2026/rounds?competition=nr'; });
+      await page.getByRole('heading', { name: 'Rounds & stage graphs' }).waitFor();
+      assert.equal(await loader.count(), 0);
+      assert.equal(await page.evaluate(() => window.launches.length), 1);
+
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.goto(base + '/index.html#/2026/rounds?competition=nr');
+      await status.waitFor();
+      assert.equal(await loader.evaluate(scene => scene.getAnimations({ subtree: true }).length), 0);
+      await page.getByRole('heading', { name: 'Rounds & stage graphs' }).waitFor();
+      assert.equal(await loader.count(), 0);
+      assert.equal(await page.evaluate(() => window.launches.length), 0);
+
+      databaseDown = true;
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await page.reload();
+      await page.getByRole('heading', { name: 'Results are temporarily unavailable' }).waitFor();
+      assert.equal(await loader.count(), 0);
+      assert.equal(await page.evaluate(() => window.launches.length), 0);
+      await page.getByRole('link', { name: 'Getting started in NR Rally', exact: true }).click();
+      await page.locator('.getting-started').waitFor();
+      assert.equal(await page.evaluate(() => window.launches.length), 0);
+      assert.deepEqual(errors, []);
+      assert.deepEqual(unexpected, []);
+      console.log('PASS stale failure, in-page navigation, reduced motion and immediate error/guide fallback.');
+      return;
+    }
     const visit = async hash => {
       if (!/competition=|(?:leaders|classes|results)=rs|\/rallyesport/.test(hash)) hash += (hash.includes('?') ? '&' : '?') + 'competition=nr';
       await page.goto(base + '/index.html' + hash);
@@ -1688,10 +1800,10 @@ async function main() {
     await page.waitForSelector('.site-header');
     scriptDelay = 0;
     await page.goto(base + '/index.html');
-    await page.waitForSelector('.loading');
+    await page.waitForSelector('#results-loader');
     assert.ok(await page.locator('.site-disclosure a[href="disclaimer.html"]').isVisible());
     await page.waitForSelector('.site-header');
-    assert.equal(await page.locator('.loading').count(), 0);
+    await page.locator('#results-loader').waitFor({ state: 'detached' });
     seasonDelay = 0;
     const savedRounds = bundle.rounds;
     bundle.rounds = {};
