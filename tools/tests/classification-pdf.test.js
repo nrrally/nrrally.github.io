@@ -10,7 +10,6 @@ const MI = require('../../assets/membership-identifiers.js');
 function example() {
   const f = F.rawRS0Example(true), draft = E.ingestRallyeSportTiming(f.season, f.people, f.input);
   assert.deepEqual(draft.issues, []);
-  draft.result.finalityReview = { acceptedForScoring: true, evidence: 'Synthetic review', digest: E.rallyeSportClassOrderDigest(draft.result) };
   f.data.results.push(draft.result);
   const season = AI.projectPublic(f.season, f.people);
   const model = E.buildSeason({ season, rounds: {}, people: f.people, publicProjection: true });

@@ -203,7 +203,7 @@ test('public RallyeSport pages show provisional cumulative tables and disclose u
     version: 1, issueDate: '2026-07-09',
     sourceUrl: 'https://www.motorsport.co.za/wp-content/uploads/2026/07/2026-MSA-RallyeSport-Association-SSRs-V1.pdf'
   }, events: [event('ready-rs'), event('blocked-rs')], results: [
-    result('ready-rs', 'Final classification'), result('blocked-rs', 'Provisional classification')
+    result('ready-rs', 'Provisional classification'), result('blocked-rs', 'Finality unclear')
   ], nonScoringPeople: [], membershipReview: {
     sourceDate: '2026-11-09', reviewed: true, evidence: 'Synthetic reviewed membership roster.',
     people: Object.fromEntries(people.people.map(person => [person.id, { status: 'eligible', basis: 'membership-sheet' }]))
@@ -219,7 +219,7 @@ test('public RallyeSport pages show provisional cumulative tables and disclose u
   assert.ok(page.includes('Provisional RS points'));
   assert.ok(page.includes('blocked events are excluded, not scored as zero.'));
   assert.ok(page.includes('Ready RS round'));
-  assert.ok(page.includes('Not scored: Blocked RS round — The source classification is provisional'));
+  assert.ok(page.includes('Not scored: Blocked RS round — The source classification finality is unclear'));
   assert.equal(model.rallyesport.scoring.provisionalStandings.overallDrivers[0].scoringClass, undefined,
     'the real projected eligible standings row has no scoringClass property');
   api.rememberCompetition('rs');

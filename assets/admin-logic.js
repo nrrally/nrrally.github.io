@@ -119,7 +119,7 @@
       'Printed status; finalityUnclear; season.msa.confirmedRounds; recorded result/calculation.', [
         node('What source-finality badge is shown?', [
           branch('A matching current-finality review exists', 'Show Final classification even if the preserved source heading is provisional or unclear. This display review is separate from MSA points confirmation.', 'shared-finality'),
-          branch('Status includes provisional and no current review', 'Show Provisional / Provisional sheet.'),
+          branch('Explicit provisional heading and no current review', 'Show Provisional classification.'),
           branch('Recognised Final [Official] Classification, optionally page count, and not finalityUnclear', 'Show Final / Final classification.'),
           branch('Any other status or explicit finalityUnclear', 'Show Finality unclear. Do not turn an acknowledgement into a final source.')
         ], [source('assets/engine.js', 133, 170, 'currentFinalityDigest / currentFinalityAccepted'), source('assets/public-model.js', 358, 371, 'classificationState / classificationBadge')]),
@@ -129,8 +129,8 @@
           branch('Known mismatch', 'The site does not discover or fix it automatically. Compare the source and record reviewed exceptions; do not tick confirmation until points match.', 'nr-credit')
         ], [source('assets/public-model.js', 849, 860, 'round points badge'), source('assets/public-model.js', 585, 595, 'MSA legend'), source('docs/data-entry-guide.md', 216, 245, 'Judgement calls')]),
         node('Are NR points withheld because the source is provisional?', [
-          branch('No', 'buildSeason calculates from recorded rows regardless of source finality and MSA confirmation. Labels qualify the numbers; they do not gate the NR calculation. RS behaves differently.', 'rs-finality'),
-          branch('AI result replacement / scoring-calendar amendment', 'The AI path clears affected MSA confirmations. This is not a universal automatic clear for every manual cell edit; admins must recheck comparisons.')
+          branch('No', 'buildSeason calculates from recorded rows regardless of source finality. Explicitly provisional sheets qualify the standings even if an independent MSA comparison is already recorded.', 'rs-finality'),
+          branch('AI result replacement / scoring-calendar amendment', 'The AI path clears affected MSA confirmations except when a final replaces a provisional sheet with identical sporting values. Recheck the comparison when sporting values change.')
         ], [source('assets/engine.js', 452, 487, 'buildSeason'), source('assets/ai-import.js', 422, 425, 'settings confirmation reset'), source('assets/ai-import.js', 470, 479, 'round confirmation reset')])
       ], ['nr-intake', 'rs-finality', 'nr-graphs', 'shared-finality']),
     topic('nr-national-entry', 'nr', 'NR National-entry context is display-only',
@@ -234,7 +234,7 @@
           branch('Explicit stage list, reviewed roster/class and complete classified times', 'Match each car uniquely to the reviewed event roster and review its roles and class. Pure Copilot-assisted conversion adds penalties in integer ticks, cross-checks every marshals Final Time and calculates overall/class positions. An event-level NR association is allowed, but a linked NR round or mapped NR stage is not; no NR timing is reused. Any mismatch blocks the entire result. No new import UI or provider write.'),
           branch('Declared DNF / DNS', 'Preserve partial/null observations and null total/position. DNF starts and eligible zero points; DNS no start/points. Never infer status from blanks.'),
           branch('Ties, cancelled/zero stages, partial classified rows, unknown formats or identity/class mismatch', 'Hold for review; no guessed tie-break, rounding or identity from a car without a unique reviewed roster match.'),
-          branch('Result created', 'Source status stays Provisional classification. Separate explicit scoring acceptance is still required; official finality and PDF export are not produced.', 'rs-finality')
+          branch('Result created', 'Source status stays Provisional classification. A valid published result uses normal points rules without a separate scoring-finality review.', 'rs-finality')
         ], [currentSource('assets/engine.js', 2194, 2395, 'calculateRallyeSportTiming / ingestRallyeSportTiming')]),
         node('Is the event explicitly a championship round?', [
           branch('countsForChampionship is not true', 'Do not create a championship scoring row for this event. A recorded event classification can still be displayed.'),
@@ -336,15 +336,16 @@
         ], [source('assets/engine.js', 967, 985, 'orderIssue')])
       ], ['rs-roles', 'rs-points', 'rs-totals']),
     topic('rs-finality', 'rs', 'RS finality, provisional sources and technical checks',
-      'Unlike NR, RS event points require accepted scoring finality. Acceptance for scoring does not rewrite a source heading or prove technical clearance.',
+      'Explicitly provisional and final sheets use the same event points rules. Scoring never rewrites a source heading or proves technical clearance.',
       'Printed result status and notes; optional acceptedForScoring review with evidence; source qualifications.', [
         node('Does the source qualify as final automatically?', [
           branch('Recognised Final [Official] Classification or Results (optional page count), no pending-technical-check note', 'Source-final basis can pass the finality gate.'),
-          branch('Provisional, unclear, or "results are final pending post-event technical checks"', 'Not automatically accepted for points. Keep the official result available and its qualifications visible.')
-        ], [source('assets/engine.js', 904, 910, 'sourceFinal'), source('assets/engine.js', 936, 937, 'finality gate')]),
+          branch('Explicit provisional heading, no pending-check note', 'Use the normal event points rules and keep the provisional status visible.'),
+          branch('Unclear or "results are final pending post-event technical checks"', 'Not automatically accepted for points. Keep the official result available and its qualifications visible.')
+        ], [currentSource('assets/engine.js', 178, 191, 'sourceFinality'), currentSource('assets/engine.js', 1039, 1042, 'finality gate')]),
         node('Is there a separate evidence-backed user finality review?', [
-          branch('acceptedForScoring true and nonblank evidence', 'Allow provisional points with user-confirmed basis; keep source status/notes provisional. Raw timing additionally requires a matching classification digest; source/timing/identity edits invalidate acceptance. Other event gates still apply.'),
-          branch('No', 'Provisional or unclear classifications remain unscored. Merely entering evidence without selecting the separate review cannot activate it in admin.')
+          branch('acceptedForScoring true and nonblank evidence', 'Can allow an unclear or pending-check source to be scored without changing source status or notes. Raw timing additionally requires a matching classification digest. Other event gates still apply.'),
+          branch('No', 'Unclear or pending-check classifications remain unscored. An explicitly provisional sheet without a pending-check note does not need this review.')
         ], [currentSource('assets/engine.js', 301, 305, 'rallyeSportFinalityAccepted'), currentSource('assets/admin.js', 1921, 1938, 'separate scoring acceptance controls')]),
         node('What does the public UI disclose?', [
           branch('Pending technical-check note and no current-finality review', 'Retain the visible Technical checks pending badge and source qualifications even when the separate user-confirmed scoring review is allowed.'),
@@ -384,7 +385,7 @@
           branch('Other pattern / >8 rounds / unsupported double declaration', 'Season is incomplete or blocked with a reason; the app does not select a double-points event to fix it.')
         ], [source('assets/engine.js', 1079, 1094, 'roundRule / status')]),
         node('Are all confirmed championship events ready?', [
-          branch('Yes and round pattern passes, but a contributing raw-timing source is provisional/non-final', 'Retain provisional cumulative points; scoring acceptance does not turn provisional raw results or the season final. Existing non-raw source behavior is unchanged.'),
+          branch('Yes and round pattern passes, but a contributing source is still provisional', 'Retain provisional cumulative points regardless of intake method. Reviewed non-final raw timing also retains its existing championship restriction.'),
           branch('Yes, round pattern passes and contributing raw-timing sources are final', 'Return ready standings under existing other gates. The unresolved equal-total rule still applies; this is not an official championship certification.'),
           branch('Some ready, season incomplete/blocked', 'Build explicitly provisional cumulative tables using ready events only. Disclose included/excluded events and reasons.'),
           branch('None ready', 'No cumulative table. Source event results remain available.')
@@ -475,9 +476,9 @@
           branch('Missing, invalid or stale', 'Use source heading, pending-check and applicable RS score-state display rules. Stale private reviews block publication.')
         ], [source('assets/engine.js', 133, 170, 'current-finality digest and acceptance'), source('assets/public-model.js', 358, 378, 'display finality and source note'), source('assets/engine.js', 1418, 1420, 'RS stale review validation'), source('assets/engine.js', 1655, 1658, 'NR stale review validation')]),
         node('Is current finality the same as scoring finality?', [
-          branch('No', 'RS scoring uses a recognised source-final heading or its separately reviewed acceptedForScoring decision, plus all other event gates. NR computes recorded rows regardless of source finality or MSA confirmation.'),
+          branch('No', 'RS scores explicit final or provisional sources without pending checks, or uses a separately reviewed acceptedForScoring decision. Other gates still apply. NR computes recorded rows independently of source finality or MSA comparison.'),
           branch('Public projection', 'A valid digest-bound confirmation is retained without private evidence. The review does not certify external truth or infer technical clearance.')
-        ], [source('assets/engine.js', 904, 910, 'RS scoring finality'), source('assets/engine.js', 936, 937, 'RS finality gate'), source('assets/engine.js', 1125, 1129, 'RS review projection'), source('assets/ai-import.js', 343, 347, 'NR review projection')])
+        ], [currentSource('assets/engine.js', 178, 191, 'sourceFinality'), currentSource('assets/engine.js', 1039, 1042, 'RS finality gate'), source('assets/engine.js', 1125, 1129, 'RS review projection'), source('assets/ai-import.js', 343, 347, 'NR review projection')])
       ], ['nr-finality', 'rs-finality', 'rs-class-display']),
     topic('shared-linked-display', 'shared', 'Linked RS event resources, vehicles and winners',
       'Explicit same-season NR relationships can supply display context, but never turn an NR classification into an RS classification or transfer points.',

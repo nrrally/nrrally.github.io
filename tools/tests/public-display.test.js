@@ -578,6 +578,16 @@ test('sources retain source-owned finality and notes without leaking other compe
   assert.match(html, /Sources &amp; data notes/);
   assert.equal(JSON.stringify(model), before);
 });
+test('NR standings still disclose an explicitly provisional source after the MSA points comparison', () => {
+  const { f, raw } = fixture();
+  raw.status = 'Provisional classification';
+  const model = build(f, { R1: raw });
+  model.rounds[0].confirmed = true;
+  const display = P.standings(model, 'nr', 'driver');
+  assert.equal(display.scoring.provisional, true);
+  assert.match(display.scoring.reason, /Includes provisional classifications: R1/);
+  assert.doesNotMatch(display.scoring.reason, /not yet confirmed by MSA/);
+});
 test('result adapters preserve NR printed/credited identities, class-only awards, DNF/DNS and unknown totals', () => {
   const season = F.season(2026), raw = F.payload('results', 2026).rounds[0], base = raw.entries[0];
   raw.stages = ['SS1', 'SS3'];
@@ -1041,7 +1051,7 @@ test('standings distinguish DNF starts, future columns and ready versus provisio
   assert.deepEqual(future.columns.map(column => column.label), ['R1', 'R2', 'R3'], 'a future round has no invented result column');
   assert.equal(future.scoring.provisional, true);
   const held = F.revisedRallyeSport(true);
-  held.data.results[1].status = 'Provisional classification';
+  held.data.results[1].status = 'Finality unclear';
   held.data.results.slice(2).forEach(result => Object.assign(result.entries[6], {
     status: 'DNS', pos: null, classPos: null, times: [null], stagePos: [null], total: null
   }));

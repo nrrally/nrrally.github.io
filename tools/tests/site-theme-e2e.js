@@ -1458,10 +1458,9 @@ async function main() {
             assert.ok(!(await r2Winner.innerText()).includes('Synthetic Driver 1'),
               'a source note that withholds finality does not announce a round winner');
             const r1Winner = winners.locator('tbody tr').filter({ hasText: 'Synthetic RS R1' });
-            assert.ok((await r1Winner.innerText()).includes('Alex Test / Blake Example'),
-              'the source-classified winner follows an accepted finality review, not championship points');
-            assert.ok((await r1Winner.innerText()).includes('Synthetic Driver 3'),
-              'class winners are derived from official class positions');
+            assert.equal(await r1Winner.locator('.badge').getAttribute('aria-label'), 'Provisional classification');
+            assert.doesNotMatch(await r1Winner.innerText(), /Alex Test|Synthetic Driver 3/,
+              'scoring permission alone does not announce provisional overall or class winners');
             assert.equal(await winners.locator('tbody tr').filter({ hasText: 'Synthetic RS R3' }).locator('.badge').getAttribute('aria-label'), 'Provisional classification',
               'unfinalized classifications do not announce a round winner');
             const launchWinner = winners.locator('tbody tr').filter({ hasText: 'Synthetic Launch Event' });

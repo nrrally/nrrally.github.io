@@ -175,6 +175,24 @@
     var digest = currentFinalityDigest(result, mode);
     return !!digest && review.digest === digest;
   }
+  function sourceFinality(result, mode) {
+    if (!result) return 'unpublished';
+    var status = result.status || '';
+    if (result.finalityUnclear) return 'unclear';
+    if (/^\s*provisional(?:\s+official)?(?:\s+(?:classification|results))?(?:\s+\d+\/\d+)?\s*$/i.test(status)) return 'provisional';
+    var finalHeading = mode === 'nr' ? /^\s*final\s+(?:official\s+)?classification(?:\s+\d+\/\d+)?\s*$/i :
+      /^\s*final(?:\s+official)?\s+(?:classification|results)(?:\s+\d+\/\d+)?\s*$/i;
+    return finalHeading.test(status) && !sourceChecksPending(result, mode) ? 'final' : 'unclear';
+  }
+  function sourceChecksPending(result, mode) {
+    return mode === 'rs' && (result.notes || []).some(function (note) {
+      return /results are final pending post[- ]event technical checks/i.test(note);
+    });
+  }
+  function finalityDowngrade(before, after, mode) {
+    return sourceFinality(after, mode) === 'provisional' && !currentFinalityAccepted(after, mode, true) &&
+      (sourceFinality(before, mode) === 'final' || currentFinalityAccepted(before, mode, true));
+  }
   function rallyeSportClassOrder(result) {
     function unavailable(reason) { return { status: 'unavailable', reason: reason, entries: [] }; }
     if (result && result.timingCalculation !== undefined) {
@@ -564,7 +582,7 @@
       });
       return {
         id: meta.id, n: n, eventId: meta.eventId, day: meta.day || '', date: meta.date || '',
-        title: raw.title || '', status: raw.status || '', provisional: /provisional/i.test(raw.status || ''), finalityUnclear: !!raw.finalityUnclear,
+        title: raw.title || '', status: raw.status || '', provisional: sourceFinality(raw, 'nr') === 'provisional', finalityUnclear: !!raw.finalityUnclear,
         currentFinalityConfirmed: currentFinalityAccepted(raw, 'nr', !opts.publicProjection),
         notes: raw.notes || [], source: raw.source || {}, sourceDigest: currentFinalityDigest(raw, 'nr'), stages: S, labels: labels, entries: ents, progression: prog,
         extraStarts: extra, confirmed: !!confirmed[meta.id]
@@ -704,7 +722,7 @@
     if (!raw) {
       scoring = calculateRallyeSportScoring(data, season, people);
     } else if (publicProjection && data.scoring !== undefined) {
-      scoring = compatiblePublishedRallyeSportScoring(data, data.scoring, season) ? data.scoring : {
+      scoring = compatiblePublishedRallyeSportScoring(data, data.scoring, season) ? qualifyPublishedRallyeSportScoring(data) : {
         status: 'invalid', reason: 'Published RS scoring is malformed or incompatible with its source results or participation basis; review and republish.',
         results: [], standings: null, provisionalStandings: null
       };
@@ -747,6 +765,25 @@
     };
     if (rallyeSportEntryPolicy(data)) model.eligibilityPolicy = { code: data.eligibilityPolicy.code };
     return model;
+  }
+  function rsProvisionalSource(result) {
+    return sourceFinality(result, 'rs') === 'provisional' &&
+      (result.timingCalculation || !currentFinalityAccepted(result, 'rs', false));
+  }
+  var RS_PROVISIONAL_TOTALS = 'Provisional cumulative points include non-final source classifications; official final confirmation is pending.';
+  function qualifyPublishedRallyeSportScoring(data) {
+    var scoring = data.scoring;
+    if (scoring.status !== 'ready' || !scoring.results.some(function (row) {
+      return row.status === 'ready' && data.results.some(function (result) {
+        return result.id === row.resultId && rsProvisionalSource(result);
+      });
+    })) return scoring;
+    // Older projections can contain fully computed tables from accepted provisional sheets.
+    // Keep the published points and private-derived decisions; only qualify the tables.
+    return Object.assign({}, scoring, { status: 'incomplete', reason: RS_PROVISIONAL_TOTALS, standings: null,
+      provisionalStandings: scoring.standings,
+      includedProvisionalEvents: scoring.results.filter(function (row) { return row.status === 'ready'; }).map(function (row) { return row.eventId; }),
+      excludedProvisionalEvents: scoring.excludedEvents || [] });
   }
   function compatiblePublishedRallyeSportScoring(data, scoring, season) {
     if (!scoring || typeof scoring !== 'object' ||
@@ -796,13 +833,15 @@
         events.every(function (event) { return event.id !== row.eventId; }) ||
         entryPolicy && events.some(function (event) { return event.id === row.eventId && event.countsForChampionship !== true; }) ||
         ['ready', 'blocked'].indexOf(row.status) < 0 || !Array.isArray(row.entries) ||
-        row.finalityBasis != null && ['source-final', 'user-confirmed'].indexOf(row.finalityBasis) < 0) return false;
+        row.finalityBasis != null && ['source-final', 'source-provisional', 'user-confirmed'].indexOf(row.finalityBasis) < 0) return false;
       seenEvents[row.eventId] = true;
       if (row.resultId) {
         var source = results.filter(function (result) { return result.id === row.resultId && result.eventId === row.eventId; })[0];
         if (!source || seenResults[row.resultId]) return false;
         seenResults[row.resultId] = true;
         if (row.status === 'ready') {
+          if (row.finalityBasis === 'source-provisional' &&
+            (sourceFinality(source, 'rs') !== 'provisional' || sourceChecksPending(source, 'rs'))) return false;
           var cars = (source.entries || []).map(function (entry) { return String(entry.car); });
           if (row.entries.length !== cars.length || row.entries.some(function (entry) {
             return !entry || cars.indexOf(String(entry.car)) < 0 ||
@@ -851,7 +890,7 @@
       });
     })) return false;
     if (scoring.status === 'ready' && results.some(function (result) {
-      return result.timingCalculation && /provisional/i.test(result.status || '') && scoring.results.some(function (row) {
+      return result.timingCalculation && rsProvisionalSource(result) && scoring.results.some(function (row) {
         return row.resultId === result.id && row.status === 'ready';
       });
     })) return false;
@@ -963,15 +1002,16 @@
     events.forEach(function (event) {
       var result = resultByEvent[event.id];
       if (event.countsForChampionship !== true) return;
-      if (!result) { scoreRows.push({ eventId: event.id, resultId: '', status: 'blocked', reason: 'No complete official classification is recorded for this confirmed championship event.', entries: [] }); return; }
-      var sourceHasPendingChecks = (result.notes || []).some(function (note) {
-        return /results are final pending post[- ]event technical checks/i.test(note);
-      });
-      var sourceFinal = /^\s*final(?:\s+official)?\s+(?:classification|results)(?:\s+\d+\/\d+)?\s*$/i.test(result.status || '') &&
-        !sourceHasPendingChecks;
+      if (!result || !Array.isArray(result.entries) || !result.entries.length) {
+        scoreRows.push({ eventId: event.id, resultId: result ? result.id : '', status: 'blocked',
+          reason: 'No complete official classification is recorded for this confirmed championship event.', entries: [] });
+        return;
+      }
+      var sourceState = sourceFinality(result, 'rs');
+      var sourceProvisional = sourceState === 'provisional' && !sourceChecksPending(result, 'rs');
       var userFinalityAccepted = rallyeSportFinalityAccepted(result);
       var row = { eventId: event.id, resultId: result.id, status: 'ready', reason: '', entries: [],
-        finalityBasis: userFinalityAccepted ? 'user-confirmed' : sourceFinal ? 'source-final' : '' };
+        finalityBasis: sourceState === 'final' ? 'source-final' : sourceProvisional ? 'source-provisional' : 'user-confirmed' };
       function hasStartEvidence(entry) {
         return !!(entry.startEvidence && entry.startEvidence.trim()) ||
           (entry.times || []).some(function (value) { return value != null && value !== ''; }) ||
@@ -998,8 +1038,8 @@
       else if (event.countsForChampionship === true && event.doublePoints && doubleEvents.length !== 1) row = blocked('SSR 7.2 requires exactly one double-points round in a five-round championship.');
       else if (result.timingCalculation !== undefined && validateRallyeSportTimingCalculation(result, event).length)
         row = blocked('Raw timing calculation is invalid or stale; reconcile stages, penalties, source totals and positions before scoring.');
-      else if (!sourceFinal && !userFinalityAccepted) row = blocked(/provisional/i.test(result.status || '') ?
-        'The source classification is provisional; event points are not calculated.' : 'The source classification finality is unclear; event points are not calculated.');
+      else if (sourceState !== 'final' && !sourceProvisional && !userFinalityAccepted)
+        row = blocked('The source classification finality is unclear or technical checks are pending; event points are not calculated.');
       else if ((result.entries || []).some(function (entry) {
         return (entryPolicy ? ['classified', 'DNF', 'DNS'] : ['classified', 'DNF', 'DNS', 'TEST']).indexOf(entry.status) < 0 ||
           entryPolicy && (rallyeSportLaunchRS0(entry) || normClass(entry['class']) === 'TEST');
@@ -1155,10 +1195,10 @@
       'The SSR requires six to eight rounds, or five rounds with one bulletin-confirmed double-points event.';
     else if (readyRows.some(function (row) {
       var source = resultByEvent[row.eventId];
-      return source && source.timingCalculation && (/provisional/i.test(source.status || '') || row.finalityBasis !== 'source-final' &&
-        !currentFinalityAccepted(source, 'rs', true));
+      return rsProvisionalSource(source) || source && source.timingCalculation && row.finalityBasis !== 'source-final' &&
+        !currentFinalityAccepted(source, 'rs', true);
     })) {
-      reason = 'Provisional cumulative points include reviewed non-final source classifications; official final confirmation is pending.';
+      reason = RS_PROVISIONAL_TOTALS;
     } else {
       standings = buildStandings(readyRows);
       status = 'ready';
@@ -2401,6 +2441,7 @@
     rallyeSportClassOrderContractVersion: 1, buildRallyeSport: buildRallyeSport, calculateRallyeSportScoring: calculateRallyeSportScoring,
     sha256Text: sha256, rallyeSportClassOrderDigest: rallyeSportClassOrderDigest, rallyeSportClassOrder: rallyeSportClassOrder,
     currentFinalityDigest: currentFinalityDigest, currentFinalityAccepted: currentFinalityAccepted,
+    sourceFinality: sourceFinality, sourceChecksPending: sourceChecksPending, finalityDowngrade: finalityDowngrade,
     sourceStatusStarted: sourceStatusStarted,
     rallyeSportEntryPolicy: rallyeSportEntryPolicy, rallyeSportLaunchRS0: rallyeSportLaunchRS0,
     projectRallyeSport: projectRallyeSport, buildRallyeSportGraph: buildRallyeSportGraph, parseRallyeSportTime: parseRallyeSportTime, copyReviewedRallyeSportTimes: copyReviewedRallyeSportTimes,

@@ -38,7 +38,8 @@ If new data has been published, do not roll code back alone: restore a compatibl
 working/public before-image atomically with revision/History under separate approval.
 Retain entry evidence, raw source strings, final-time provenance and private review
 evidence in the protected backup. Git cannot recover them. New timing/source/identity
-edits invalidate digest-bound provisional scoring acceptance. Existing official source
+edits invalidate a digest-bound scoring review, not automatic points from an otherwise
+valid provisional source. Existing official source
 records and old review digests are unchanged absent new data.
 
 ### Classification PDF exports (code-only release candidate)

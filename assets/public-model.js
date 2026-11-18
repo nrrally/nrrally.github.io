@@ -112,10 +112,13 @@
     var home = base(model, 'nr', model.championship, site && site.tagline);
     home.hasResults = model.rounds.length > 0;
     var pending = model.rounds.filter(function (round) { return !round.confirmed; });
+    var provisional = model.rounds.filter(function (round) { return classification(round, 'nr') === 'Provisional classification'; });
     home.scoring = {
-      available: home.hasResults, provisional: pending.length > 0,
+      available: home.hasResults, provisional: pending.length > 0 || provisional.length > 0,
       basis: 'Overall + class points.',
-      reason: pending.length ? 'Awaiting championship confirmation: ' + pending.map(function (round) { return 'R' + round.n; }).join(', ') + '.' : '',
+      reason: (provisional.length ? 'Includes provisional classifications: ' + provisional.map(function (round) { return 'R' + round.n; }).join(', ') + '. ' : '') +
+        (pending.length ? 'Awaiting championship confirmation: ' + pending.map(function (round) { return 'R' + round.n; }).join(', ') +
+          '. Points are calculated here from the official classifications, not yet confirmed by MSA.' : ''),
       scope: 'Provisional points; official eligibility and championship decisions follow current MSA/NRC publications.'
     };
     function row(raw, rank, role) {
@@ -385,18 +388,14 @@
     });
     return out;
   }
-  function classification(result, mode, score) {
+  function classification(result, mode) {
     if (!result) return 'Not published';
     if (result.currentFinalityConfirmed === true) return 'Final classification';
-    if (mode === 'rs' && (result.notes || []).some(function (note) {
-      return /results are final pending post[- ]event technical checks/i.test(note);
-    })) return 'Pending technical checks';
-    if (mode === 'rs' && score && score.status === 'ready') return 'Final classification';
-    if (result.provisional || /provisional/i.test(result.status || '')) return 'Provisional classification';
-    var finalHeading = mode === 'nr' ? /^\s*final\s+(?:official\s+)?classification(?:\s+\d+\/\d+)?\s*$/i :
-      /^\s*final(?:\s+official)?\s+(?:classification|results)(?:\s+\d+\/\d+)?\s*$/i;
-    if (!result.finalityUnclear && finalHeading.test(result.status || ''))
-      return 'Final classification';
+    var state = E.sourceFinality(result, mode);
+    if (E.sourceChecksPending(result, mode)) return state === 'provisional' ?
+      'Provisional classification — technical checks pending' : 'Pending technical checks';
+    if (state === 'provisional' || result.provisional && !result.finalityUnclear) return 'Provisional classification';
+    if (state === 'final') return 'Final classification';
     return 'Finality unclear';
   }
   function sourceNote(note, result, entry) {
@@ -445,10 +444,7 @@
       codriver: cls && mode === 'nr' ? entries[0].champCodriver : entries[0].codriver };
   }
   function roundDisplay(model, mode, event, meta, result, classes, entryNote) {
-    var score = mode === 'rs' && (model.rallyesport.scoring.results || []).filter(function (row) {
-      return result && row.resultId === result.id;
-    })[0];
-    var state = classification(result, mode, score), final = state === 'Final classification';
+    var state = classification(result, mode), final = state === 'Final classification';
     var path = mode === 'nr' ? '/round/' + encodeURIComponent(meta.id) :
       result ? '/rallyesport/' + encodeURIComponent(result.id) : '/rallyesport-event/' + encodeURIComponent(event.id);
     var row = { id: meta.id, label: meta.label, event: event.name, date: meta.date || '',
@@ -601,8 +597,6 @@
         detail: value ? detail : '', description: value ? description : missing };
     }
     if (mode === 'nr') {
-      if (display.scoring.provisional) display.scoring.reason +=
-        ' Points are calculated here from the official classifications, not yet confirmed by MSA.';
       var used = {};
       model.rounds.forEach(function (round) { round.entries.forEach(function (entry) { used[entry.cls] = true; }); });
       display.classes = model.classes.filter(function (cls) { return !cls.classOnly || used[cls.id]; })
@@ -657,7 +651,7 @@
           return { id: result.id, label: event.roundNumber == null ? event.name : 'R' + event.roundNumber,
             name: event.name, description: event.name,
             href: href(model.year, mode, '/rallyesport/' + encodeURIComponent(result.id) + '/classification'),
-            note: score && score.status === 'ready' ? result.timingCalculation && /provisional/i.test(result.status || '') ?
+            note: score && score.status === 'ready' ? /^Provisional classification/.test(classification(result, 'rs')) ?
               'Provisional round points.' : '' : 'Points unavailable; excluded from cumulative totals.' };
         }).filter(Boolean);
       display.rows = selected.map(function (raw) {
@@ -915,7 +909,7 @@
       day: mode === 'nr' ? (raw || meta).day || '' : '', venue: location.venue, surface: location.surface,
       currentFinalityConfirmed: !!(raw && raw.currentFinalityConfirmed),
       venueSource: location.venueSource, surfaceSource: location.surfaceSource,
-      stages: graph ? graph.stages.slice() : [], state: classification(raw, mode, null),
+      stages: graph ? graph.stages.slice() : [], state: classification(raw, mode),
       roundCount: mode === 'nr' ? model.calendar.length : model.rallyesport.events.filter(function (event) { return event.countsForChampionship !== false; }).length,
       pointsStatus: event.countsForChampionship === false ? 'not-scoring' :
         mode === 'nr' && raw && raw.confirmed ? 'confirmed' : ready ? 'calculated' : 'unavailable',
@@ -965,7 +959,7 @@
     }
     if (!raw) return display;
     if (raw.timingCalculation) display.calculatedFromTiming = true;
-    if (mode === 'rs' && raw.timingCalculation && ready && /provisional/i.test(raw.status || '')) display.pointsLabel = 'Provisional points';
+    if (mode === 'rs' && ready && /^Provisional classification/.test(display.state)) display.pointsLabel = 'Provisional points';
     var source = raw.source || {};
     if (source.url || mode === 'nr' && event.links && event.links.results)
       display.sourceLinks.push({ label: raw.timingCalculation ? 'Marshals timing source' : 'Official source classification', url: source.url || event.links.results });

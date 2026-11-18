@@ -125,7 +125,8 @@
       return 'National entry review scripts are missing or out of date. Refresh this page before restoring or publishing; nothing has been published.';
     }
     if (!E || E.entryContractVersion !== 2 || typeof E.validateEntryLists !== 'function' || typeof E.entryEvidenceLoss !== 'function' ||
-      !AI || AI.entryContractVersion !== 2 || typeof AI.validateDocuments !== 'function') {
+      !AI || AI.entryContractVersion !== 2 || typeof AI.validateDocuments !== 'function' ||
+      typeof E.finalityDowngrade !== 'function' || typeof AI.keepNrComparisonOnFinalReplacement !== 'function') {
       return 'Entry-aware scripts are missing or out of date. Refresh this page with Ctrl+Shift+R before restoring or publishing; nothing has been published.';
     }
     return membershipContractError();
@@ -135,6 +136,29 @@
     var err = entryContractError();
     if (err) return [{ level: 'error', path: SITE, msg: err }];
     var issues = AI.validateDocuments(workingDocs());
+    changes().forEach(function (change) {
+      if (change.kind !== 'update' || change.binary) return;
+      var isRound = /^data\/seasons\/\d+\/rounds\/.+\.json$/.test(change.path);
+      if (!isRound && !/^data\/seasons\/\d+\/season\.json$/.test(change.path)) return;
+      var before = JSON.parse(change.before), after = getDoc(change.path);
+      function checkReplacement(prior, result, mode) {
+        if (E.finalityDowngrade(prior, result, mode)) issues.push({ level: 'error', path: change.path,
+          msg: result.id + ': A provisional sheet cannot replace an already-final classification.' });
+      }
+      if (isRound) {
+        checkReplacement(before, after, 'nr');
+        var target = season(Number(change.path.split('/')[2]));
+        if (E.sourceFinality(before, 'nr') === 'provisional' && E.sourceFinality(after, 'nr') === 'final' &&
+          target && target.msa && (target.msa.confirmedRounds || []).indexOf(after.id) >= 0 &&
+          !AI.keepNrComparisonOnFinalReplacement(before, after)) issues.push({ level: 'error', path: change.path,
+          msg: 'The final classification changes sporting values. Clear the previous MSA comparison before publishing and recheck it against the published MSA points.' });
+      } else {
+        var priorResults = (before.rallyesport || {}).results || [];
+        ((after.rallyesport || {}).results || []).forEach(function (result) {
+          checkReplacement(priorResults.find(function (prior) { return prior.eventId === result.eventId; }), result, 'rs');
+        });
+      }
+    });
     if (MI) MI.validateNumbersDoc(getDoc(MEMBERSHIP_NUMBERS), peopleDoc()).forEach(function (message) {
       issues.push({ level: 'error', path: MEMBERSHIP_NUMBERS, msg: message });
     });
@@ -1455,6 +1479,12 @@
       source: old.source || { file: '', url: (ev.links && ev.links.results) || '' }, entries: entries };
     if (old.extraStarts) raw.extraStarts = old.extraStarts;
     ensureArrays(raw);
+    if (E.finalityDowngrade(old, raw, 'nr')) throw new Error('A provisional sheet cannot replace an already-final classification.');
+    var msa = season().msa;
+    if (msa && E.sourceFinality(old, 'nr') === 'provisional' && E.sourceFinality(raw, 'nr') === 'final' &&
+      !AI.keepNrComparisonOnFinalReplacement(old, raw)) {
+      msa.confirmedRounds = (msa.confirmedRounds || []).filter(function (roundId) { return roundId !== id; });
+    }
     putDoc(roundPath(A.year, id), raw); meta.results = true; A.open = {};
   }
 
@@ -2029,7 +2059,7 @@
         (scoring.starterMinimum.basis === 'user-reported-review' ?
           'the six-starter value is a user-reported review, not text in SSR V1; no written amendment is supplied' :
           'the published SSR V1 baseline of 15 applies') + ')');
-    html += '<div class="card"><h3>Championship scoring state</h3><p><b>' + esc(scoring.status) + '</b> — ' + esc(scoring.reason || '') + '</p><p class="small muted">Official RS event classifications remain displayable even when event scoring is blocked or the overall championship is incomplete. Event points require ' + esc(starterRequirement) + ', confirmed event applicability, ' + (entryPolicy ? 'entry-based eligibility in RS2/RS4' : 'explicit invitation status and reviewed membership eligibility') + ', reviewed competitor identities, and either source-confirmed finality or an evidence-backed user finality review. A user review never changes printed source wording or proves a technical check was completed. Official classified/DNF status establishes a start, regardless of missing stage observations; an eligible DNF role gets zero points. DNS has no start or points. A reviewed event total must not contradict source-status starters. Eligible event points do not establish final championship eligibility or a champion.</p></div>';
+    html += '<div class="card"><h3>Championship scoring state</h3><p><b>' + esc(scoring.status) + '</b> — ' + esc(scoring.reason || '') + '</p><p class="small muted">Official RS event classifications remain displayable even when event scoring is blocked or the overall championship is incomplete. Event points require ' + esc(starterRequirement) + ', confirmed event applicability, ' + (entryPolicy ? 'entry-based eligibility in RS2/RS4' : 'explicit invitation status and reviewed membership eligibility') + ', and reviewed competitor identities. Explicit provisional and final classifications use the same points rules. Unclear finality or a pending-technical-check note still requires a separate evidence-backed scoring review. A user review never changes printed source wording or proves a technical check was completed. Official classified/DNF status establishes a start, regardless of missing stage observations; an eligible DNF role gets zero points. DNS has no start or points. A reviewed event total must not contradict source-status starters. Eligible event points do not establish final championship eligibility or a champion.</p></div>';
     var rsIssues = E.validateRallyeSport(data, s, Object.fromEntries((s.rounds || []).map(function (round) { return [round.id, rawRound(round.id)]; })), peopleDoc());
     html += '<div class="card"><h3>Validation before publishing</h3>' + (rsIssues.length ? aiIssues(rsIssues.map(function (issue) { return issue.msg; })) : '<p class="ok-line">No RS data validation errors.</p>') +
       '<p class="small muted">Data validation and scoring readiness are separate checks. Review &amp; publish still runs the complete dataset validation.</p></div>';

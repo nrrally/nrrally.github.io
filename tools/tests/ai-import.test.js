@@ -9,6 +9,28 @@ function rejects(mutator, task = 'season') {
   const p = F.payload(task, task === 'season' ? 2027 : 2026); mutator(p);
   assert.ok(AI.assess(p).errors.length, 'Expected rejection');
 }
+test('NR final replacement leaves identical points alone, rechecks changed results and refuses a downgrade', () => {
+  const provisional = F.payload('results', 2026);
+  provisional.rounds[0].status = 'Provisional classification';
+  const stage = (payload, docs) => AI.plan(payload, docs, {}, { ...approvals, finality: true });
+  const start = stage(provisional, F.docs());
+  assert.deepEqual(start.errors, []);
+  const season = 'data/seasons/2026/season.json', round = 'data/seasons/2026/rounds/R1.json';
+  start.docs[season].msa.confirmedRounds = ['R1'];
+  const final = F.copy(provisional);
+  final.rounds[0].status = 'Final Official Classification';
+  const same = stage(final, start.docs);
+  assert.deepEqual(same.errors, []);
+  assert.deepEqual(same.docs[season].msa.confirmedRounds, ['R1']);
+  const build = docs => E.buildSeason({ season: docs[season], rounds: { R1: docs[round] }, people: docs['data/people.json'] });
+  assert.deepEqual(build(same.docs).standings, build(start.docs).standings);
+  assert.match(stage(provisional, same.docs).errors.join(), /cannot replace an already-final/);
+  final.rounds[0].entries[0].pos = 2;
+  const changed = stage(final, start.docs);
+  assert.deepEqual(changed.errors, []);
+  assert.deepEqual(changed.docs[season].msa.confirmedRounds, []);
+  assert.notDeepEqual(build(changed.docs).standings, build(start.docs).standings);
+});
 test('strict schema, versions, unsafe keys, truncation and resource limits', () => {
   const p = F.payload(); assert.deepEqual(AI.parse(JSON.stringify(p)), p);
   assert.throws(() => AI.parse('{"format":'), /Invalid JSON/);

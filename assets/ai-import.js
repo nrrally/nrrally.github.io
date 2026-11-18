@@ -152,7 +152,29 @@
     return total ? +m[3] < 60 && (!m[1] || +m[2] < 60) : +m[2] < 60;
   }
   function needsFinalityReview(status) {
-    return !/^\s*final\s+(?:official\s+)?classification\s*$/i.test(status);
+    return E.sourceFinality({ status: status }, 'nr') !== 'final';
+  }
+  function sameNrSportingValues(before, after) {
+    function values(round) {
+      return {
+        entries: round.entries.map(function (row) {
+          var credit = row.credit || {};
+          return [String(row.car), row.driver, row.codriver || '', E.normClass(row['class']), row.status, row.pos,
+            row.scoredClass || '', credit.driver || '', credit.codriver || '', !!credit.noCodriver];
+        }),
+        extraStarts: (round.extraStarts || []).map(function (row) {
+          return [String(row.car), row.driver, row.codriver || '', E.normClass(row['class'])];
+        }),
+        timing: [round.stages, round.entries.map(function (row) {
+          return [(row.times || []).map(E.parseTime), row.stagePos || [], E.parseTime(row.pen), E.parseTime(row.total), row.stages];
+        })]
+      };
+    }
+    return canonical(values(before)) === canonical(values(after));
+  }
+  function keepNrComparisonOnFinalReplacement(before, after) {
+    return E.sourceFinality(before, 'nr') === 'provisional' && E.sourceFinality(after, 'nr') === 'final' &&
+      sameNrSportingValues(before, after);
   }
   function validateResolvedRound(raw, people) {
     var errors = [], idx = E.peopleIndex(people), printed = Object.create(null), credited = Object.create(null);
@@ -339,7 +361,7 @@
   }
   function projectPublic(value, people) {
     var result = clone(value);
-    if (value._aiImport && Array.isArray(value.entries)) result.finalityUnclear = needsFinalityReview(value.status) && !/provisional/i.test(value.status);
+    if (value._aiImport && Array.isArray(value.entries)) result.finalityUnclear = E.sourceFinality(value, 'nr') === 'unclear';
     if (Array.isArray(value.entries) && Object.prototype.hasOwnProperty.call(value, 'currentFinalityReview')) {
       if (E.currentFinalityAccepted(value, 'nr', true)) result.currentFinalityReview = {
         version: 1, confirmedFinal: true, digest: value.currentFinalityReview.digest
@@ -444,6 +466,10 @@
         id: r.id, title: r.title, status: r.status, stages: clone(r.stages), notes: clone(r.notes),
         source: { file: r.source.file, url: r.source.url }, entries: [], extraStarts: []
       };
+      if (E.finalityDowngrade(previous, raw, 'nr')) {
+        errors.push(r.id + ': A provisional sheet cannot replace an already-final classification.');
+        return;
+      }
       r.entries.forEach(function (e) {
         var d = resolution[e.driverRef], co = resolution[e.codriverRef], entry = {
           status: e.status, pos: e.pos, car: e.car, driver: printedNames[e.driverRef], codriver: co ? printedNames[e.codriverRef] : '',
@@ -475,7 +501,9 @@
         finalityAcknowledged: needsFinalityReview(r.status) && !!approvals.finality };
       if (previous && canonical(projectPublic(previous)) === canonical(projectPublic(raw))) {
         raw = previous;
-      } else if (s.msa) s.msa.confirmedRounds = (s.msa.confirmedRounds || []).filter(function (id) { return id !== r.id; });
+      } else if (s.msa && !keepNrComparisonOnFinalReplacement(previous, raw)) {
+        s.msa.confirmedRounds = (s.msa.confirmedRounds || []).filter(function (id) { return id !== r.id; });
+      }
       next[rp] = raw; meta.results = true;
     });
     if (errors.length) return { errors: errors, warns: warnings, changes: [] };
@@ -515,6 +543,7 @@
   }
   var api = { entryContractVersion: 2, contract: CONTRACT, policy: POLICY, parse: parse, assess: assess, identities: identities, plan: plan,
     prompt: prompt, canonical: canonical, signature: signature, validateDocuments: validateDocuments,
-    projectPublic: projectPublic, bytes: bytes, schemaErrors: schemaErrors, needsFinalityReview: needsFinalityReview };
+    projectPublic: projectPublic, bytes: bytes, schemaErrors: schemaErrors, needsFinalityReview: needsFinalityReview,
+    keepNrComparisonOnFinalReplacement: keepNrComparisonOnFinalReplacement };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.NRAIImport = api;
 })(typeof window !== 'undefined' ? window : this);

@@ -931,8 +931,8 @@ test('unknown/non-scoring classes, invitation status, finality and non-2026 scop
   f.result.entries[0].invited = null;
   assert.match(eventScore(f).reason, /status is not confirmed/);
   f.result.entries[0].invited = false;
-  f.result.status = 'Provisional classification';
-  assert.match(eventScore(f).reason, /provisional/);
+  f.result.status = 'Final or provisional classification';
+  assert.match(eventScore(f).reason, /unclear/);
   f.result.status = 'Final classification';
   f.result.entries[0].class = 'UNKNOWN';
   const issues = E.validateRallyeSport(f.data, F.season(2026), {}, f.people);
@@ -1259,7 +1259,7 @@ test('published scoring survives projection consumption, with role toggles and e
   assert.match(demoModel.rallyesport.scoring.reason, /reviewed 2026 membership eligibility map is required/i);
   assert.deepEqual(demoModel.rallyesport.scoring.results, []);
 
-  f.data.results[2].status = 'Provisional classification';
+  f.data.results[2].status = 'Finality unclear';
   const blockedProjection = AI.projectPublic(privateSeason, f.people);
   const blockedModel = E.buildSeason({ season: blockedProjection, rounds: {}, people: f.people, publicProjection: true });
   assert.equal(blockedModel.rallyesport.scoring.status, 'blocked');

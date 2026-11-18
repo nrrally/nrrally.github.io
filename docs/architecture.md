@@ -232,8 +232,9 @@ marshals' supplied totals. Original strings and calculation provenance persist w
 provisional result. Validation/scoring/public snapshot checks reject inconsistent derived
 positions/totals; these calculated class positions do not claim a reviewed official PDF.
 Explicit event-only RS0 review projects a boolean, never a global person restriction.
-Separate digest-bound scoring acceptance enables provisional event/cumulative points,
-without changing source finality. Static hosting, NR calculation and the existing atomic
+Explicit provisional sources can score without separate approval. Digest-bound scoring
+acceptance remains available for unclear or pending-check raw sources, without changing
+source finality. Static hosting, NR calculation and the existing atomic
 working/public/revision/History publication remain unchanged. See
 [the normalized input contract](data-model.md#rs-raw-timing-contract-local-code-only).
 

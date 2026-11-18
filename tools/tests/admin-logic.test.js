@@ -55,6 +55,15 @@ test('class-order review needs evidence and an explicit complete-source confirma
   assert.match(api.viewRallyeSport(), /stale/);
   assert.match(harness({ ...E, rallyeSportClassOrderContractVersion: 0 }).api.entryContractError(), /RallyeSport scripts are missing or out of date/);
 });
+test('Review & publish rejects a provisional replacement of a final RS event', () => {
+  const { api } = harness();
+  const doc = api.A.docs['data/seasons/2026/season.json'];
+  const prior = F.copy(doc.obj);
+  prior.rallyesport.results[0].status = 'Final classification';
+  doc.orig = E.prettyJson(prior) + '\n';
+  doc.obj.rallyesport.results[0].id = 'replacement-source';
+  assert.ok(api.publishIssues().some(issue => issue.level === 'error' && /cannot replace an already-final/.test(issue.msg)));
+});
 test('RS entry editor stages stable identities and uses atomic public/History/revision writes', () => {
   const { api, location, window } = harness();
   const f = F.preEventEntries(), s = f.season, path = 'data/seasons/2026/season.json';

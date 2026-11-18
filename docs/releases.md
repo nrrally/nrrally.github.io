@@ -31,6 +31,28 @@ Do not put private History identifiers, account identities, property IDs or back
 This is a human/agent release invariant, not a pre-push hook or CI gate. A failed check
 must be addressed; there is no automation that can infer approvals or certify private recovery.
 
+## Provisional results scoring (local candidate; not deployed)
+
+Explicitly provisional RS classifications use normal points calculations and contribute
+to provisional cumulative points, with the existing sporting and publication gates.
+Scoring permission does not make the calendar, results or PDF final. NR keeps its
+calculation and extra-start rules; the standings now also account for source provisionality.
+Replace the same round/event with the confirmed final source, never append a second
+result. The admin rejects replacing an already-final classification with a provisional one.
+
+A code-only rollout corrects labels and preserves previously projected points and
+private-derived decisions. It cannot unlock a previously blocked RS row from public
+data: private event, starter and eligibility evidence is intentionally absent. To
+activate any newly scoreable published result, back up the working/public state, retire
+stale admin tabs, inspect the points preview and use the separately authorized atomic
+**Review & publish** flow with a legitimate reviewed non-private-only JSON change
+(not a private-number-only or photo-only change). The current flow has no no-op
+republish action. Do not fabricate a change or recompute from public/demo data.
+Rollback requires the compatible code and, if later republished, the reviewed,
+audited working/public before-images. No live action is included in this candidate.
+Verified locally with 226 synthetic Node tests and mocked browser runs covering the
+public site, admin, raw timing and PDF downloads.
+
 ## RS raw timing / event-only RS0 (code-only release candidate)
 
 - Base: freshly fetched `origin/main` `56ad227e63246673adf30d1a4802bfdc571fabf5`;

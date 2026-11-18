@@ -461,8 +461,9 @@ from a car number alone.
 
 `finalityReview` is optional private reviewer evidence that accepts a supplied source
 classification for scoring without changing its printed `status`, title or notes. It
-requires explicit acceptance and evidence. The derived score row records whether points
-rest on the source's final heading or a user-confirmed finality decision; the source
+requires explicit acceptance and evidence. The derived score row records `source-final`,
+`source-provisional`, or `user-confirmed`. An explicit provisional heading without a
+pending-check note does not need this review; the source
 qualification remains visible and no technical clearance is implied. Review metadata is
 removed from the public projection while the score basis remains available for truthful
 disclosure. A source heading that looks final but its own notes say technical checks are

@@ -68,6 +68,13 @@ Driver and co-driver standings are kept separately. Both crew members score the 
 
 ## Confirmed against the official standings
 
+Source finality and MSA comparison are separate. A provisional NR sheet still
+contributes normal points, but the standings identify the provisional input even
+when an MSA comparison is recorded. Replace the classification for the same round
+or RS event when an official final is supplied; do not append another round. Identical
+sporting values keep the points unchanged. If NR sporting values change, recheck
+the recorded MSA comparison. Do not replace an already-final sheet with a provisional one.
+
 `season.msa.confirmedRounds` lists the rounds for which an MSA standings comparison is recorded. Public result and standings views label these rounds "MSA comparison recorded". All other rounds show "Points calculated" and are treated as provisional.
 
 ## RallyeSport (separate ruleset and records)
@@ -152,22 +159,17 @@ An RS0-only season row is zero and unranked; a person with other eligible result
 retains those results and rank. A whole non-scoring event still contributes nothing.
 Do not map RS0 to RS2/RS4, infer it from membership or treat an entered class as review.
 
-The importer always returns `Provisional classification`, without scoring acceptance.
-The existing separate evidence-backed `finalityReview` may accept provisional points;
-for calculated results it must bind the current classification digest. Source/timing/
-identity changes invalidate it. Other event gates still apply. Ready provisional
-event points feed visibly **provisional** season/class totals; source provisionality
-never by itself withholds accepted points and never becomes final automatically.
-Even an otherwise qualifying season remains provisional while a contributing raw-timing
-source is provisional/non-final. Pre-existing non-raw classifications retain released
-scoring semantics. Only reported CoC/MSA confirmation permits the authorized
-operator to update source status to final. The separate admin PDF export preserves
-source status and never supplies a scoring or finality decision.
+The timing importer returns a draft marked `Provisional classification`. Once a valid
+classification is published it uses normal points rules without a separate finality
+approval. Ready provisional points feed visibly **provisional** season and class
+totals for both transcribed and raw-timing results. Reviewed non-final raw timing
+retains its existing championship restriction. The PDF export preserves source
+status and never supplies a scoring or finality decision.
 
 ### Legacy profile and event/finality rules
 
 The following describes legacy eligibility when `eligibilityPolicy` is absent, together
-with the event/finality/points rules that remain unchanged under the revised policy:
+with the event/finality/points rules shared with the entry-based policy:
 
 - The event must be explicitly confirmed for the selected SSRs and as a championship
   round; double-points status must be explicit, with bulletin evidence when enabled.
@@ -211,9 +213,10 @@ with the event/finality/points rules that remain unchanged under the revised pol
   manual exclusions remain separate from membership status. Original source class,
   position, time and finish order stay unchanged. Public RS0 markers and explanations
   distinguish confirmed non-membership from missing/unverified evidence.
-- Event points require either a source classification explicitly marked final or an
-  evidence-backed, private `finalityReview` explicitly accepting the supplied source
-  classification for scoring. A user-confirmed scoring decision does not rewrite the
+- Explicit final and provisional classifications use the same event points rules.
+When finality is unclear or a pending-technical-check note is present, the existing
+private, evidence-backed `finalityReview` is still required. For raw timing, that
+review must match the source/timing/identity digest. A scoring decision does not rewrite the
   source heading, status, footer or notes and does not establish that technical checks
   were independently completed; UI summaries distinguish this basis and retain source
   qualifications. Official DNF establishes a start and eligible zero event points,

@@ -68,7 +68,7 @@ test('reviewed roster resolves car-only timings for explicit short and long stag
     const priorDigest = raw.finalityReview.digest;
     raw.stages[0].label += ' changed';
     assert.notEqual(E.rallyeSportClassOrderDigest(raw), priorDigest);
-    assert.equal(E.calculateRallyeSportScoring(f.data, f.season, f.people).results.at(-1).status, 'blocked');
+    assert.equal(E.calculateRallyeSportScoring(f.data, f.season, f.people).results.at(-1).finalityBasis, 'source-provisional');
   }
 });
 test('missing or conflicting reviewed roster and stage layout block car-based intake', () => {
@@ -298,6 +298,9 @@ test('integer precision and scoring-review binding are exact; malformed input is
     const raw = install(f);
     assert.equal(raw.entries[0].total, '6:01' + suffix);
     assert.equal(E.calculateRallyeSportScoring(f.data, f.season, f.people).results.at(-1).status, 'ready');
+    raw.notes.push('Results are final pending post-event technical checks.');
+    raw.finalityReview.digest = E.rallyeSportClassOrderDigest(raw);
+    assert.equal(E.calculateRallyeSportScoring(f.data, f.season, f.people).results.at(-1).finalityBasis, 'user-confirmed');
     raw.source.description += ' changed';
     assert.equal(E.calculateRallyeSportScoring(f.data, f.season, f.people).results.at(-1).status, 'blocked');
   }
@@ -328,11 +331,10 @@ test('tampered totals, rankings, provenance and unreviewed/remapped RS0 fail pub
     assert.ok(E.validateRallyeSport(f.data, f.season, {}, f.people).some(row => row.level === 'error'), change.toString());
   }
 });
-test('provisional scoring requires separate acceptance; final championship cannot use provisional sources', () => {
+test('provisional raw timing scores automatically but cannot finalize the championship', () => {
   const f = fixture(), raw = install(f, false);
   let score = E.calculateRallyeSportScoring(f.data, f.season, f.people);
-  assert.equal(score.results.at(-1).status, 'blocked');
-  raw.finalityReview = { acceptedForScoring: true, evidence: 'Synthetic provisional scoring permission.', digest: E.rallyeSportClassOrderDigest(raw) };
+  assert.equal(score.results.at(-1).finalityBasis, 'source-provisional');
   for (let n = 6; n <= 7; n++) {
     f.data.events.push({ ...F.copy(f.data.events.at(-1)), id: 'rs-r' + n, roundNumber: n - 1 });
     f.data.results.push({ ...F.copy(f.data.results[1]), id: 'result-' + n, eventId: 'rs-r' + n });
@@ -345,11 +347,40 @@ test('provisional scoring requires separate acceptance; final championship canno
   const built = build(f);
   assert.notEqual(built.rallyesport.scoring.status, 'invalid');
   assert.ok(P.home(built, 'rs').scoring.provisional);
+  const before = built.rallyesport.scoring;
+  assert.equal(P.eventResult(built, raw.eventId, 'classification').pointsLabel, 'Provisional points');
+  assert.equal(P.calendar(built, 'rs').events.find(event => event.id === raw.eventId).rounds[0].state,
+    'Provisional classification');
   raw.status = 'Final classification'; // Explicit external confirmation would be required operationally.
-  delete raw.finalityReview;
-  score = E.calculateRallyeSportScoring(f.data, f.season, f.people);
+  score = build(f).rallyesport.scoring;
   assert.equal(score.status, 'ready');
-  assert.ok(score.standings);
+  assert.deepEqual(score.standings, before.provisionalStandings);
+  assert.deepEqual(score.results.find(row => row.resultId === raw.id).entries,
+    before.results.find(row => row.resultId === raw.id).entries);
+});
+test('a later changed final replaces the provisional RS round in the published totals', () => {
+  const f = F.revisedRallyeSport(true), source = f.data.results[1];
+  source.status = 'Provisional Official Classification 1/1';
+  const provisional = build(f), target = score => score.results.find(row => row.resultId === source.id);
+  const before = target(provisional.rallyesport.scoring);
+  assert.equal(before.finalityBasis, 'source-provisional');
+  const [a, b] = source.entries;
+  assert.equal(a.class, b.class);
+  const final = F.copy(source);
+  final.status = 'Final Official Classification';
+  for (const key of ['pos', 'classPos', 'times', 'stagePos', 'total']) {
+    [final.entries[0][key], final.entries[1][key]] = [final.entries[1][key], final.entries[0][key]];
+  }
+  f.data.results[1] = final;
+  const model = build(f), after = target(model.rallyesport.scoring);
+  assert.equal(after.finalityBasis, 'source-final');
+  assert.equal(after.entries.find(row => row.car === a.car).driverPoints, before.entries.find(row => row.car === b.car).driverPoints);
+  assert.equal(model.rallyesport.scoring.results.filter(row => row.eventId === final.eventId).length, 1);
+  const totals = model => model.rallyesport.scoring.provisionalStandings.overallDrivers;
+  assert.equal(totals(model).find(row => row.id === 'synthetic-driver-1').points -
+    totals(provisional).find(row => row.id === 'synthetic-driver-1').points, -3);
+  assert.equal(P.eventResult(model, final.eventId, 'classification').state, 'Final classification');
+  assert.equal(E.finalityDowngrade(final, source, 'rs'), true);
 });
 test('without new data archived NR/RS sporting outputs and legacy role split remain unchanged', () => {
   const f = F.revisedRallyeSport(), before = JSON.stringify(f.docs);
@@ -377,7 +408,7 @@ test('without new data archived NR/RS sporting outputs and legacy role split rem
   assert.equal(scored.find(row => row.car === '3').codriverPoints, null);
   assert.equal(scored.find(row => row.car === '4').codriverEligibility.scoringPosition, 2);
 });
-test('pre-existing accepted provisional sources retain released six-round scoring semantics', () => {
+test('legacy published points and private-derived decisions survive while standings are relabelled', () => {
   const f = F.revisedRallyeSport(true);
   for (let n = 6; n <= 7; n++) {
     f.data.events.push({ ...F.copy(f.data.events.at(-1)), id: 'rs-r' + n, roundNumber: n - 1 });
@@ -389,8 +420,19 @@ test('pre-existing accepted provisional sources retain released six-round scorin
   const context = { module: { exports: {} } };
   vm.runInNewContext(execFileSync('git', ['show', '56ad227e63246673adf30d1a4802bfdc571fabf5:assets/engine.js'], { encoding: 'utf8' }), context);
   const before = context.module.exports.calculateRallyeSportScoring(f.data, f.season, f.people);
-  const after = E.calculateRallyeSportScoring(f.data, f.season, f.people);
-  assert.equal(after.status, 'ready');
-  assert.deepEqual(JSON.parse(JSON.stringify(after)), JSON.parse(JSON.stringify(before)));
-  assert.equal(build(f).rallyesport.scoring.status, 'ready');
+  assert.equal(before.status, 'ready');
+  const season = AI.projectPublic(f.season, f.people);
+  season.rallyesport.scoring = JSON.parse(JSON.stringify(before));
+  const after = E.buildSeason({ season, rounds: {}, people: f.people, publicProjection: true }).rallyesport.scoring;
+  assert.equal(after.status, 'incomplete');
+  assert.deepEqual(after.results, season.rallyesport.scoring.results);
+  assert.deepEqual(after.provisionalStandings, season.rallyesport.scoring.standings);
+  assert.equal(after.standings, null);
+  delete source.finalityReview;
+  const legacyBlocked = context.module.exports.calculateRallyeSportScoring(f.data, f.season, f.people);
+  season.rallyesport.scoring = JSON.parse(JSON.stringify(legacyBlocked));
+  assert.equal(E.buildSeason({ season, rounds: {}, people: f.people, publicProjection: true })
+    .rallyesport.scoring.results.find(row => row.resultId === source.id).status, 'blocked');
+  assert.equal(build(f).rallyesport.scoring.results.find(row => row.resultId === source.id).status, 'ready',
+    'only rebuilding from reviewed working data unlocks the event');
 });

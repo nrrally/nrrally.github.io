@@ -31,8 +31,6 @@ async function main() {
     }
     const draft = E.ingestRallyeSportTiming(f.season, f.people, f.input);
     assert.deepEqual(draft.issues, []);
-    draft.result.finalityReview = { acceptedForScoring: true, evidence: 'Synthetic review of provisional timing.',
-      digest: E.rallyeSportClassOrderDigest(draft.result) };
     f.data.results.push(draft.result);
   }
   function put(key, value) {
@@ -268,7 +266,9 @@ async function main() {
         assert.match(text, /Provisional classification/); assert.match(text, /Provisional points/);
         assert.match(text, /Calculated total/i); assert.match(text, /Entries received/);
         assert.match(text, /RS counts are valid recorded times.*not proof of starts or completions/);
-        assert.match(await page.locator('tr[data-car="1"] .result-stagecount').innerText(), /RS:\s*3\s*NR:\s*—/,
+        const classifiedCar = example ? '300' : '1';
+        assert.match(await page.locator('tr[data-car="' + classifiedCar + '"] .result-stagecount').innerText(),
+          new RegExp('RS:\\s*' + f.input.stages.length + '\\s*NR:\\s*—'),
           'RS count shows recorded timing observations and leaves an unlinked NR count unavailable');
         const zeroCar = example ? '300' : '2';
         const zero = await page.locator('tr[data-car="' + zeroCar + '"]').innerText();
@@ -304,7 +304,7 @@ async function main() {
         assert.match(await page.locator('main').innerText(), /Provisional/);
         await visit('#/rallyesport/events/rs-r5/source', true);
         assert.equal(await page.getByLabel('Printed finality/status', { exact: true }).inputValue(), 'Provisional classification');
-        assert.equal(await page.getByLabel('Separate scoring-finality review', { exact: true }).inputValue(), 'user-confirmed');
+        assert.equal(await page.getByLabel('Separate scoring-finality review', { exact: true }).inputValue(), '');
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
         continue;
       }

@@ -201,9 +201,11 @@ reviewed for this result event only; it retains event position and contributes n
 championship points without displacing RS2/RS4 or erasing history.
 
 The returned result is a **provisional draft**, not a publish instruction. With separate
-authorization, stage it in the existing season result workflow, inspect validation,
-and select the existing separate scoring acceptance with evidence. For raw results,
-that control records a source/timing/identity digest; edits invalidate acceptance.
+authorization, stage it in the existing season result workflow and inspect validation
+and points. Explicit provisional results score normally when published; do not mark
+them final to enable scoring. The separate scoring review remains for unclear finality
+or pending technical checks. For raw results, that review records a
+source/timing/identity digest; edits invalidate acceptance.
 Review & publish rebuilds the public scoring snapshot atomically with working data,
 revision and attributed before/after History. A backup and fresh compatible admin tab
 are required. Do not copy private review evidence into public source fields.
