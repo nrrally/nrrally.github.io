@@ -60,15 +60,21 @@ live 2026 snapshot preserved the sporting rows, timings, graphs, points, standin
 values, round and class winners, and PDF content of all 11 published classifications.
 The user approved this code-only follow-on to `origin/main`, after the loader release.
 No database write, republication, PR, guide edition change or provider changes are
-included. The merge retains the exact loader implementation from `463f430c`, with
+included. The merge retains the exact loader implementation from `463f430c` and
+its release record from `86dade55`, with
 coordinated `provisional-scoring-2` cache keys. To roll back scoring while preserving
 the loader, restore the loader baseline tree with fresh shell cache keys. Do not
 revert both features together.
 
-## Rally results loader (local code-only candidate)
+<a id="rally-results-loader-local-code-only-candidate"></a>
+
+## Rally results loader (approved code-only release)
 
 - Based on `b8f227e1e0a53ce6684e113887ca89801b4b0f11`, independently of the
-  parked provisional-scoring candidate. No push or deployment is authorized.
+  parked provisional-scoring candidate. On 2026-11-18 the user authorized a normal
+  fast-forward to `origin/main` and GitHub Pages deployment of the loader only.
+  Runtime and tests are exactly those reviewed in `463f430c6606e75a403f46f93257529242659be1`;
+  the follow-up changes this release record only. No PR or data action is authorized.
 - Initial public results use an inline SVG/CSS rally car; the ready route mounts
   immediately under a decorative, non-interactive 1.5-second exit. Reduced motion,
   failure, not-found and the newcomer guide bypass the exit; in-page navigation
@@ -79,6 +85,9 @@ revert both features together.
 - Main public shell, stylesheet and script together added 8,481 raw bytes and
   2,160 gzip bytes, measured against the base. Focused Chromium checks measured
   about 1.50–1.51 seconds from ready mount to overlay removal on synthetic data.
+  The full public browser regression and 44 focused unit tests passed. Browser
+  validation was Chromium only. Pages build and canonical delivery are checked
+  separately after the push.
 
 ## RS raw timing / event-only RS0 (code-only release candidate)
 
